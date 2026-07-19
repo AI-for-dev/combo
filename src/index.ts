@@ -23,6 +23,21 @@ export {
 	type SubagentEvent,
 	type SubagentStatus,
 } from "./events.ts";
+export {
+	autoReporter,
+	consoleReporter,
+	createHerdrReporter,
+	createHerdrReporterWith,
+	createHerdrSend,
+	detectHerdr,
+	HERDR_SOURCE,
+	silentReporter,
+	type AutoReporterOptions,
+	type ConsoleReporterOptions,
+	type HerdrEnv,
+	type HerdrOptions,
+	type HerdrSend,
+} from "./reporters/index.ts";
 export { failed, type Result, type WorkflowResult } from "./result.ts";
 export { run, type RunOptions } from "./run.ts";
 export {

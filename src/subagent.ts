@@ -27,6 +27,14 @@ export type SpawnOptions = {
 	bus?: EventBus;
 	/** Session factory. Injection point for tests - defaults to a real pi session. */
 	createSession?: CreateSession;
+	/**
+	 * Give this subagent its own herdr split, when running inside herdr.
+	 *
+	 * Opt-in per subagent, like {@link SpawnOptions.lifetime}: a fan-out of
+	 * twenty branches must not carpet the screen unless someone asked for it.
+	 * Outside herdr it is simply ignored.
+	 */
+	openInHerdr?: boolean;
 };
 
 export type AskOptions = {
@@ -102,7 +110,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 		}
 	});
 
-	bus.emit({ type: "spawn", id, agent: agent.name, lifetime });
+	bus.emit({ type: "spawn", id, agent: agent.name, lifetime, openInHerdr: options.openInHerdr ?? false });
 	bus.emit({ type: "status", id, status: "idle" });
 
 	const subagent: Subagent = {

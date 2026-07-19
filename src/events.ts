@@ -15,7 +15,20 @@ export type SubagentStatus = "working" | "idle" | "blocked" | "done";
 
 /** Everything the core emits. Reporters subscribe, and only read. */
 export type SubagentEvent =
-	| { type: "spawn"; id: string; agent: string; lifetime: Lifetime }
+	| {
+			type: "spawn";
+			id: string;
+			agent: string;
+			lifetime: Lifetime;
+			/**
+			 * Whether this subagent asked for its own herdr split.
+			 *
+			 * It travels on the event rather than being read back from the core,
+			 * because a reporter is a pure observer: it never queries anything,
+			 * it only listens.
+			 */
+			openInHerdr: boolean;
+	  }
 	| { type: "status"; id: string; status: SubagentStatus }
 	| { type: "text"; id: string; delta: string }
 	| { type: "tool"; id: string; name: string; args: unknown }

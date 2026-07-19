@@ -8,7 +8,11 @@
 
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { findAgent, formatUsage, loadAgentsFromDir, type Agent, type SubagentEvent } from "../src/index.ts";
+import { consoleReporter, findAgent, loadAgentsFromDir, type Agent } from "../src/index.ts";
+
+// The console reporter now lives in the library; every example wants it, and it
+// is the proof that the event stream carries enough on its own.
+export { consoleReporter };
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -30,34 +34,6 @@ export const agent = (name: string) => findAgent(agents, name);
 
 /** Repository root, used as the working directory for the demo agents. */
 export const repoRoot = path.join(here, "..");
-
-/**
- * Prints subagents as they work. Tool calls are shown as they arrive, never
- * buffered until the end - an opaque spinner tells you nothing.
- */
-export function consoleReporter(): (event: SubagentEvent) => void {
-	const lines = new Map<string, string>();
-
-	return (event) => {
-		switch (event.type) {
-			case "spawn":
-				lines.set(event.id, event.agent);
-				console.log(`\n⏳ ${event.id}  (lifetime: ${event.lifetime})`);
-				break;
-			case "tool":
-				console.log(`   · ${event.id} → ${event.name}`);
-				break;
-			case "usage":
-				console.log(`   ${event.id}  ${formatUsage(event.usage)}`);
-				break;
-			case "close":
-				console.log(`✓ ${event.id}  ${formatUsage(event.result.usage)}`);
-				break;
-			default:
-				break;
-		}
-	};
-}
 
 /** Prints a result, or its error. */
 export function show(label: string, output: string): void {

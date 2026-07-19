@@ -289,27 +289,59 @@ workflow down with it.
 
 ### herdr reporter (the default when available)
 
-**Detection, in this order**: the `HERDR_SOCKET_PATH` / `HERDR_ENV` /
-`HERDR_PANE_ID` variables injected into the pane, then a reachable API socket.
-If nothing answers → we fall back silently to the pi TUI. **Never an error,
-never a noisy warning** just because herdr is not there.
+Implemented in `src/reporters/herdr.ts`, transport in `herdr-client.ts`.
+Verified against herdr 0.7.3, protocol 16.
 
-What the reporter does (herdr socket API, protocol 16 - see
-`herdr api schema --json` and `herdr api snapshot`):
+**The key idea, because it is not the obvious one.** A herdr pane cannot *host*
+an in-process subagent: there is no process and no TTY to attach, while
+`pane.split` and `agent.start` launch an argv in a real terminal. So the pane
+does not host the subagent - it **displays a stream we write**. We append to a
+file and open a pane running `tail -n +1 -f` on it:
 
-- `pane.report_agent` to publish each subagent's state
-  (`working` / `idle` / `blocked` / `done`) - this is what makes them show up
-  "like Claude" in herdr.
-- `agent.start` / `pane.split` to give a subagent **its own pane** when you want
-  to watch it work (a fan-out visible side by side).
-- `agent.rename` to name the pane after the agent and iteration (`reviewer#2`),
-  `notification.show` at the end of a long workflow.
-- Useful CLI equivalents when debugging: `herdr agent list`,
-  `herdr agent read <target>`, `herdr agent wait <target> --status idle`.
+```typescript
+agent.start { name: "reviewer#2", argv: ["tail", "-n", "+1", "-f", logPath], split: "right" }
+```
 
-A **persistent** subagent keeps its pane across iterations (you watch its memory
-live); a `"task"` subagent opens and closes one every time. That is the direct
-visual translation of lifetime - and it is deliberate.
+This also settles the ownership question: a pane carries exactly **one** `agent`
+/ `agent_status`, and the main pane's already belongs to herdr's own pi
+integration (source `herdr:pi`, installed at
+`~/.pi/agent/extensions/herdr-agent-state.ts` - read it, it is the reference
+implementation). The panes we open are ours, so we report on those and never
+fight for the main one.
+
+**Detection**: `HERDR_ENV === "1"` **and** `HERDR_SOCKET_PATH` **and**
+`HERDR_PANE_ID`. All three, or nothing. Missing them is the normal case outside
+herdr, so we fall back silently: **never an error, never a noisy warning**.
+
+**Transport**: unix socket, newline-delimited JSON, one connection per request,
+resolve on the first `data`, then `destroy()`. First attempt at 500 ms, one
+retry at 1500 ms, then give up quietly. Envelope `{ id, method, params }`.
+
+Points that cost time to discover:
+
+- **`PaneAgentState` has no `done`** - it is `idle | working | blocked |
+  unknown`, even though the *event* `AgentStatus` enum does have `done`. Our
+  `"done"` maps to `idle`, and `pane.release_agent` is what actually retires the
+  agent.
+- **`agent.start` answers with the `pane_id`** (`result.agent.pane_id`), which
+  is the only way to later report on, release and close that pane.
+- **Release before close.** Closing first leaves herdr holding an agent on a
+  pane that no longer exists.
+- **Every promise chain ends in a `catch`.** A try/catch around the listener is
+  not enough: an unhandled rejection escapes it entirely and takes the process
+  down. Found by a test, not by reading.
+- `seq` is a monotonic ordering field; seed it from the clock like the pi
+  integration does, so two processes reporting on one pane do not collide.
+- Useful CLI equivalents when debugging: `herdr pane list`, `herdr agent list`,
+  `herdr pane read <pane_id> --source visible`.
+
+**`openInHerdr` is opt-in, per subagent**, exactly like `lifetime`: a fan-out of
+twenty branches must not carpet the screen unless someone asked. It travels on
+the `spawn` event rather than being read back from the core - a reporter is a
+pure observer, it never queries anything.
+
+The split **closes automatically** when the subagent closes, after the final
+usage line is written. No orphan panes after a fan-out.
 
 ### pi TUI reporter (always available)
 
@@ -490,9 +522,11 @@ src/
     common.ts       # WorkflowOptions + SubagentPool (the lifetime rule)
     chain.ts  fan-out.ts  loop.ts  orchestrate.ts  route.ts
   reporters/
-    herdr.ts        # detection + socket API (pane.report_agent, agent.start…)
+    index.ts        # autoReporter(): herdr if present, fallback otherwise
+    herdr-client.ts # detection (3 env vars) + socket transport
+    herdr.ts        # one split per subagent, fed by a file it tails
+    console.ts  silent.ts
     tui.ts          # pi-tui components shared with the extension
-    silent.ts
 extension/
   index.ts          # pi.registerTool({ name: "subagent" }) + renderCall/renderResult
 agents/             # example definitions (scout, coder, reviewer, planner…)

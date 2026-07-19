@@ -31,6 +31,8 @@ export type WorkflowOptions = {
 	bus?: EventBus;
 	cwd?: string;
 	sessionDir?: string;
+	/** Give every subagent of this workflow its own herdr split. Opt-in. */
+	openInHerdr?: boolean;
 	/** Defaults to the real {@link spawn}. */
 	spawn?: SpawnFn;
 };
@@ -59,7 +61,13 @@ export class SubagentPool {
 
 		const bus = options.bus ?? createEventBus();
 		if (options.onEvent) bus.subscribe(options.onEvent);
-		this.spawnOptions = { lifetime: this.lifetime, bus, cwd: options.cwd, sessionDir: options.sessionDir };
+		this.spawnOptions = {
+			lifetime: this.lifetime,
+			bus,
+			cwd: options.cwd,
+			sessionDir: options.sessionDir,
+			openInHerdr: options.openInHerdr,
+		};
 	}
 
 	/** Gets a subagent for this key, creating it if the lifetime calls for it. */

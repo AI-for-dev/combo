@@ -10,7 +10,7 @@ The intent behind the project and its structural decisions live in
 
 ```bash
 npm install
-npm test          # 100 tests, no network calls
+npm test          # 120 tests, no network calls
 npm run typecheck
 ```
 
@@ -102,7 +102,7 @@ fine is `ok: true, converged: false` - and that distinction is the only thing
 worth knowing.
 
 They all accept the same options:
-`{ lifetime, signal, timeoutMs, onEvent, bus, cwd, sessionDir, spawn }`.
+`{ lifetime, signal, timeoutMs, openInHerdr, onEvent, bus, cwd, sessionDir, spawn }`.
 
 **A failure does not crash the workflow**: it becomes a `Result` with
 `ok: false`. In a fan-out the other branches carry on, unless `failFast`.
@@ -176,6 +176,32 @@ await fanOut({ agent: scout, tasks, onEvent: (event) => console.log(event) });
 
 A reporter that throws is swallowed: it cannot take a workflow down.
 
+### Watching subagents in herdr
+
+Inside [herdr](https://herdr.dev), a subagent can get **its own split** and show
+you what it is doing:
+
+```typescript
+await fanOut({
+	agent: scout,
+	tasks,
+	concurrency: 3,
+	openInHerdr: true,   // opt-in, per subagent
+	onEvent: autoReporter(),
+});
+```
+
+`autoReporter()` picks herdr when it is running and stays silent otherwise -
+the same code runs either way, with no warning when herdr is absent.
+
+A herdr pane cannot host an in-process subagent: there is no process and no TTY
+to attach. So the pane does not host it - it tails a file we write, showing tool
+calls, streamed text, and the final usage line. Splits close on their own when
+their subagent does.
+
+`openInHerdr` is opt-in per subagent, like `lifetime`: a fan-out of twenty
+branches will not carpet your screen unless you asked for it.
+
 ## Examples
 
 Directly executable, one per shape:
@@ -185,6 +211,7 @@ node examples/01-run.ts       # disposable
 node examples/02-chain.ts     # the same chain in "task", then in "workflow"
 node examples/03-fan-out.ts   # 3 tasks, 2 at a time
 node examples/04-loop.ts      # coding ↔ review, as a team then with fresh eyes
+node examples/05-herdr.ts     # a fan-out with one herdr split per branch
 ```
 
 Not every provider reports tokens - several return zero. For the usage lines to
@@ -197,7 +224,8 @@ PI_SUBAGENT_MODEL=local/qwen/qwen3-coder-next node examples/03-fan-out.ts
 ## Status
 
 Shipped so far: the foundation - `Agent`, `Subagent`, `Result`, `Usage`, the
-event bus - and three combinators, `chain`, `fanOut` and `loop`.
+event bus - three combinators (`chain`, `fanOut`, `loop`), and the reporters
+(herdr, console, silent).
 
-Still to come: `orchestrate`, `route`, `reduce`, session export
-(`runs/<timestamp>/`), the herdr and TUI reporters, and the pi extension.
+Still to come: the pi TUI reporter and extension, `orchestrate`, `route`,
+`reduce`, and session export (`runs/<timestamp>/`).
