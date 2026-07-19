@@ -393,10 +393,23 @@ Display specification - this is the "Claude Code" bar we are aiming at:
 
 ## The pi API: what you need to know
 
-Verified on pi `0.80.10`. **Pin the version**: `0.80.6` → `0.80.10` removed
-`AuthStorage` and `ModelRegistry` in favour of `ModelRuntime`. A pi "patch" can
-break the API; hence the `~0.80.10` in `package.json`, and the rule of always
-re-reading the installed version's `.d.ts` before quoting an API.
+**Which pi matters is the one the code runs inside, not the one in
+`node_modules`.** An extension is loaded into pi's own process, so it resolves
+pi's own copy of the package. Homebrew ships `0.80.6`; npm is on `0.80.10`; and
+those two disagree on the model API - `0.80.7` replaced `AuthStorage` +
+`ModelRegistry` with a single `ModelRuntime`. A pi "patch" release can break the
+API.
+
+`src/session.ts` therefore supports both, choosing by **presence of the export**
+rather than by version string: a version number can be patched or mis-set, a
+missing export cannot be faked. See `buildRegistry`, which is exported precisely
+so the choice is testable.
+
+This is the failure mode to remember: 158 tests were green while the extension
+died on `undefined.create()` in a real pi, because every test injects a fake
+`SessionPort` and none of them ever touches pi's real module. **A fake session
+cannot tell you the package it stands in for has changed shape.** Anything that
+only runs against the real pi has to be exercised against the real pi.
 
 Local reference docs: `node_modules/@earendil-works/pi-coding-agent/docs/`
 (read `sdk.md`, `extensions.md`, `tui.md`), examples in `examples/sdk/` and
@@ -511,6 +524,10 @@ You review the code produced and return at most 5 remarks…
   step. `tsc --noEmit` for typechecking. `erasableSyntaxOnly` is on: no enums, no
   namespaces, no parameter properties - Node erases types, it does not compile
   them.
+- **The pi dependency is a build-time type source, not the runtime.** Inside an
+  extension the runtime is whatever pi the user launched. Keep the range wide
+  (`>=0.80.6`) and let `buildRegistry` pick the API, rather than pinning a
+  version the user may not have.
 - **Dependencies kept to a strict minimum**: the pi SDK, and nothing else
   without discussion. In particular, never import `@earendil-works/pi-agent-core`
   or `pi-ai` directly - they are transitive, and undeclared. Derive what you need

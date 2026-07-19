@@ -10,7 +10,7 @@ The intent behind the project and its structural decisions live in
 
 ```bash
 npm install
-npm test          # 158 tests, no network calls
+npm test          # 164 tests, no network calls
 npm run typecheck
 ```
 
@@ -211,6 +211,12 @@ rendered live in pi's TUI.
 pi -e extension                      # this session only
 pi install ./extension               # permanently, via settings
 ```
+
+Works with pi 0.80.6 (what Homebrew ships) and 0.80.10 (npm): those two
+disagree on the model API, and `src/session.ts` detects which one it is running
+inside. Note that an extension resolves **pi's own copy** of the package, not
+this repository's `node_modules` - the version that matters is the pi you
+launched.
 
 ```
 > use subagent to review src/usage.ts with coder then reviewer, looping until LGTM
