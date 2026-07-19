@@ -81,7 +81,15 @@ export {
 export { spawn, type AskOptions, type SpawnOptions, type Subagent } from "./subagent.ts";
 export { compact, deltaUsage, emptyUsage, formatUsage, snapshotUsage, sumUsage, type Usage } from "./usage.ts";
 export { chain, type ChainOptions } from "./workflows/chain.ts";
-export { SubagentPool, type SpawnFn, type WorkflowOptions } from "./workflows/common.ts";
+export {
+	auditPrompt,
+	AUDIT_APPROVAL,
+	deliver,
+	type AuditRound,
+	type DeliverOptions,
+	type DeliverResult,
+} from "./workflows/deliver.ts";
+export { mapConcurrent, SubagentPool, type SpawnFn, type WorkflowOptions } from "./workflows/common.ts";
 export { aggregate, fanOut, type FanOutOptions, type FanOutResult } from "./workflows/fan-out.ts";
 export { loop, type LoopOptions, type LoopResult, type UntilPredicate } from "./workflows/loop.ts";
 export { orchestrate, type OrchestrateOptions, type OrchestrateResult } from "./workflows/orchestrate.ts";
@@ -103,5 +111,6 @@ export {
 	type InterviewOptions,
 	type InterviewResult,
 } from "./workflows/interview.ts";
+export { APPROVAL, pair, remarksPrompt, reviewPrompt, type PairOptions, type PairResult } from "./workflows/pair.ts";
 export { formatBranches, reduce, type ReduceOptions } from "./workflows/reduce.ts";
 export { pickDestination, route, routingPrompt, type RouteOptions, type RouteResult } from "./workflows/route.ts";
