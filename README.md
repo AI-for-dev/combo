@@ -10,7 +10,7 @@ The intent behind the project and its structural decisions live in
 
 ```bash
 npm install
-npm test          # 202 tests, no network calls
+npm test          # 228 tests, no network calls
 npm run typecheck
 ```
 
@@ -102,7 +102,7 @@ fine is `ok: true, converged: false` - and that distinction is the only thing
 worth knowing.
 
 They all accept the same options:
-`{ lifetime, signal, timeoutMs, openInHerdr, onEvent, bus, cwd, sessionDir, spawn }`.
+`{ lifetime, signal, timeoutMs, openInHerdr, onEvent, bus, cwd, sessionDir, exportDir, spawn }`.
 
 **A failure does not crash the workflow**: it becomes a `Result` with
 `ok: false`. In a fan-out the other branches carry on, unless `failFast`.
@@ -139,6 +139,39 @@ between two snapshots. On a persistent agent, the gap between `wallMs` and
 
 A fan-out **aggregates**: `busyMs` is the sum of the branches, `wallMs` the real
 duration. Their ratio is the parallelism.
+
+## Export
+
+Ask for a directory and every subagent writes its own transcript into it as it
+closes - pi's HTML and pi's JSONL, we render neither:
+
+```typescript
+import { createRunDir, createTuiCollector, fanOut, usageReport, writeUsageReport } from "pi-subagent";
+
+const dir = createRunDir();              // runs/<timestamp>/
+const collector = createTuiCollector();
+
+const startedAt = performance.now();
+await fanOut({ agent: scout, tasks, exportDir: dir, onEvent: collector.reporter });
+writeUsageReport(dir, usageReport(collector.snapshot(), performance.now() - startedAt));
+```
+
+```
+runs/2026-07-19_17-16-48/
+├── scout-1.html   scout-1.jsonl
+├── scout-2.html   scout-2.jsonl
+└── usage.json
+```
+
+`usage.json` is the one file we produce ourselves: time, tokens and cost per
+subagent, plus the parallelism actually achieved. Everything else is pi's.
+
+`exportDir` implies a session directory (`<exportDir>/.sessions`), because pi
+cannot render an in-memory session to HTML - asking for an export is asking for
+the session to be kept long enough to export it. Without it, a subagent leaves
+nothing behind. `subagent.export(dir)` exports on demand at any point, and
+`close()` exports before disposing, so an interrupted workflow still keeps what
+it did.
 
 ## Defining an agent
 
@@ -273,6 +306,14 @@ demo agents in `.pi/agents/`, so ask for them explicitly:
 That is deliberate: project agents are repository-controlled content, so they
 are never loaded by default.
 
+Ask for `export: true` and the run leaves a `runs/<timestamp>/` behind - every
+subagent's transcript, the parent session's JSONL, and `usage.json` - with the
+path shown in the tool row:
+
+```
+> use subagent with export true to explore the parser with three scouts
+```
+
 ## Examples
 
 Directly executable, one per shape:
@@ -283,6 +324,7 @@ node examples/02-chain.ts     # the same chain in "task", then in "workflow"
 node examples/03-fan-out.ts   # 3 tasks, 2 at a time
 node examples/04-loop.ts      # coding ↔ review, as a team then with fresh eyes
 node examples/05-herdr.ts     # a fan-out with one herdr split per branch
+node examples/06-export.ts    # a fan-out exported to runs/<timestamp>/
 ```
 
 Not every provider reports tokens - several return zero. For the usage lines to
@@ -296,8 +338,7 @@ PI_SUBAGENT_MODEL=local/qwen/qwen3-coder-next node examples/03-fan-out.ts
 
 Shipped so far: the foundation - `Agent`, `Subagent`, `Result`, `Usage`, the
 event bus - three combinators (`chain`, `fanOut`, `loop`), the reporters (herdr,
-TUI, console, silent), and the pi extension.
+TUI, console, silent), the pi extension, and the session export.
 
-Still to come: session export (`runs/<timestamp>/`), and the `orchestrate`,
-`route` and `reduce` combinators. See [`NEXT.md`](NEXT.md) for what is left and
+Still to come: the `orchestrate`, `route` and `reduce` combinators. See [`NEXT.md`](NEXT.md) for what is left and
 the traps already paid for.

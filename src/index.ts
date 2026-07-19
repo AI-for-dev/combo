@@ -15,6 +15,17 @@ export {
 	type Lifetime,
 } from "./agent.ts";
 export {
+	copyMainSession,
+	createRunDir,
+	exportBaseName,
+	exportSession,
+	usageReport,
+	writeUsageReport,
+	type SessionExport,
+	type UsageReport,
+	type UsageReportEntry,
+} from "./export.ts";
+export {
 	createEventBus,
 	nextSubagentId,
 	resetSubagentIds,

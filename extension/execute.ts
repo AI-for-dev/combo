@@ -16,6 +16,8 @@
 import {
 	chain,
 	combineReporters,
+	copyMainSession,
+	createRunDir,
 	createHerdrReporter,
 	createTuiCollector,
 	fanOut,
@@ -23,7 +25,9 @@ import {
 	loadAgents as loadAgentsFromDisk,
 	loop,
 	progressLine,
+	usageReport,
 	widgetRows,
+	writeUsageReport,
 	type Agent,
 	type AgentScope,
 	type EventListener,
@@ -31,6 +35,7 @@ import {
 	type Result,
 	type SpawnFn,
 	type SubagentSnapshot,
+	type TuiSnapshot,
 } from "../src/index.ts";
 
 /** Key for the widget that lives above the prompt while subagents work. */
@@ -53,6 +58,7 @@ export type Params = {
 	timeoutMs?: number;
 	openInHerdr?: boolean;
 	scope?: string;
+	export?: boolean;
 };
 
 /** What `renderResult` needs, and nothing the LLM has to read. */
@@ -62,6 +68,8 @@ export type Details = {
 	wallMs: number;
 	converged?: boolean;
 	iterations?: number;
+	/** Where the run was exported, when one was asked for. */
+	exportDir?: string;
 };
 
 /** The colour subset of pi's `Theme` the widget needs. */
@@ -97,6 +105,15 @@ export type ExecuteDeps = {
 	reporter?: EventListener;
 	/** Widget repaint period. `0` disables the timer - tests want that. */
 	tickMs?: number;
+	/** Where an export lands. Defaults to a fresh `runs/<timestamp>/`. */
+	runDir?: () => string;
+	/**
+	 * The parent session's JSONL, from `ctx.sessionManager.getSessionFile()`.
+	 *
+	 * An orchestration export that lost the parent session would be half a
+	 * story - and the extension is the only place that knows this path.
+	 */
+	mainSessionFile?: string;
 };
 
 /**
@@ -140,8 +157,13 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 	// listening.
 	const onEvent = combineReporters(collector.reporter, deps.reporter ?? createHerdrReporter());
 
+	// The directory is created up front: subagents export themselves as they
+	// close, so it has to exist before the first one finishes.
+	const exportDir = params.export ? (deps.runDir ?? createRunDir)() : undefined;
+
 	const shared = {
 		lifetime: asLifetime(params.lifetime),
+		exportDir,
 		signal: deps.signal,
 		timeoutMs: params.timeoutMs,
 		openInHerdr: params.openInHerdr,
@@ -196,6 +218,10 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 		// in the tool row, and nothing should pile up above the prompt between
 		// two requests.
 		ui?.setWidget(WIDGET, undefined);
+		// In the `finally` on purpose: a run that was cancelled, or that died on
+		// an unknown agent, still has work worth keeping. The subagents' own
+		// transcripts landed as they closed; this adds what only we can produce.
+		if (exportDir) writeRunReport(exportDir, collector.snapshot(), performance.now() - startedAt, deps.mainSessionFile);
 	}
 
 	const wallMs = performance.now() - startedAt;
@@ -204,8 +230,24 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 	return {
 		// What the model reads: the outputs, not the chrome.
 		content: [{ type: "text", text: textForModel(results, converged, iterations) }],
-		details: { mode, subagents: snapshot.subagents, wallMs, converged, iterations },
+		details: { mode, subagents: snapshot.subagents, wallMs, converged, iterations, exportDir },
 	};
+}
+
+/**
+ * Writes the two artefacts only this level can write: the parent session's
+ * JSONL, and `usage.json`.
+ *
+ * Swallows its own failures - a full disk must not turn a finished workflow
+ * into an error the model has to reason about.
+ */
+function writeRunReport(dir: string, snapshot: TuiSnapshot, wallMs: number, mainSessionFile?: string): void {
+	try {
+		const main = copyMainSession(mainSessionFile, dir);
+		writeUsageReport(dir, usageReport(snapshot, wallMs, [main]));
+	} catch {
+		// an export is an observer of the run, never a participant
+	}
 }
 
 /**

@@ -155,7 +155,7 @@ Rules:
 - **Every workflow is an exported function**, not a class. No inheritance, no
   global registry.
 - They all accept `{ lifetime, signal, timeoutMs, openInHerdr, onEvent, bus, cwd,
-  sessionDir, spawn }` - same names, same defaults (`"task"`, then none) - plus whatever is
+  sessionDir, exportDir, spawn }` - same names, same defaults (`"task"`, then none) - plus whatever is
   specific to them (`concurrency` and `failFast` for `fanOut`, `until` and
   `maxIterations` for `loop`).
 - **`spawn` is an injectable parameter**, never a hard import inside a
@@ -248,27 +248,44 @@ await session.exportToHtml(outputPath?);  // → path of the HTML file, readable
 session.exportToJsonl(outputPath?);       // → JSONL of the current branch, replayable
 ```
 
-What the project must provide on top:
+Implemented in `src/export.ts`, wired into `spawn` and every workflow through
+`exportDir`.
 
 - **An export covering the parent session *and* all its subagents.** An
-  orchestration export that lost the subagents' work would be useless. Target: a
-  `runs/<timestamp>/` directory with `main.html`, `main.jsonl`, one pair per
-  subagent (`<agent>-<n>.html` / `.jsonl`), and a `usage.json` summarising the
-  measurements above.
-- **Subagent sessions must be exportable.** Careful:
-  `SessionManager.inMemory()` persists nothing. For a subagent to be
-  exportable, it needs `SessionManager.create(cwd, sessionDir)` with a
-  `sessionDir` dedicated to the run. That is an **explicit flag**
-  (`sessionDir`), not the default: by default subagents stay in memory and do
-  not pollute `~/.pi`.
-- **Export can be triggered at any time**, not only at the end of a workflow: a
-  dedicated extension command, and a programmatic call. An interrupted workflow
-  (Ctrl+C) must export what was done.
+  orchestration export that lost the subagents' work would be useless. What lands
+  in `runs/<timestamp>/`: one `<agent>-<n>.html` / `.jsonl` pair per subagent,
+  `main.jsonl` for the parent, and a `usage.json`.
+- **`main.html` is not there, and will not be.** pi's HTML renderer is a method
+  of `AgentSession`; an extension only ever gets a `ReadonlySessionManager`
+  (`ctx.sessionManager`), and `exportFromFile` is not re-exported from the
+  package root - the `exports` map blocks a deep import. So we copy the parent's
+  JSONL, which pi's own `pi --export <file>` turns into the same HTML on demand.
+  Writing our own HTML would break "we reimplement nothing".
+- **`exportDir` implies a session directory**, `<exportDir>/.sessions`.
+  `SessionManager.inMemory()` persists nothing, and pi answers a request to
+  export one with `Cannot export in-memory session to HTML`. Asking for an
+  export *is* asking for the session to be kept long enough to export it - one
+  decision, not two. `sessionDir` stays available for anyone who wants the
+  working files elsewhere. Neither is a default: with no `exportDir`, a subagent
+  leaves nothing behind, not in `~/.pi` and not in the working directory.
+- **JSONL and HTML are attempted separately.** An in-memory session still yields
+  its transcript even though pi refuses to render its page; losing both because
+  one is impossible would be a poor trade.
+- **Export can be triggered at any time**, not only at the end of a workflow:
+  `subagent.export(dir)` works on any live subagent. `close()` exports first and
+  disposes after, so the workflow's `finally` - cancellation included - is
+  already the "export what was done" path. What is written on the interrupted
+  path is what makes this feature worth having.
+- **An export never throws.** Every failure is a string in `SessionExport.error`.
+  An export is an observer of the run, and an observer that takes the workflow
+  down with it is a bug - most of all when it runs on the way out of a crash.
 - **`usage.json` is the only artefact we produce ourselves**; we reimplement
-  neither pi's HTML nor its JSONL.
+  neither pi's HTML nor its JSONL. It is built from the same `TuiSnapshot` the
+  TUI draws (`usageReport(snapshot, wallMs)`) - one collected state, two
+  consumers - and it carries what pi cannot: time, attribution per subagent, and
+  `parallelism` (busy over wall).
 - Not to be confused with `pi --export <file>` (CLI, on an existing session
-  file): useful when debugging, but the programmatic API is the normal path
-  here.
+  file): useful when debugging, and the way to render `main.jsonl`.
 
 ## Display: herdr if present, pi TUI otherwise
 

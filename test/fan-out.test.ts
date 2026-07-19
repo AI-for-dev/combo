@@ -177,6 +177,42 @@ describe("fanOut", () => {
 	});
 });
 
+describe("exports", () => {
+	test("exportDir reaches every branch, and a cancelled fan-out still exports what it opened", async () => {
+		const controller = new AbortController();
+		const fake = fakeSpawn((task) => {
+			if (task === "a") controller.abort();
+			return {};
+		});
+
+		await fanOut({
+			agent: scout,
+			tasks: ["a", "b", "c"],
+			concurrency: 1,
+			signal: controller.signal,
+			exportDir: "/tmp/run",
+			spawn: fake.spawn,
+		});
+
+		assert.ok(fake.spawned.length > 0 && fake.spawned.length < 3, "the abort stopped the fan-out mid-way");
+		assert.ok(
+			fake.spawned.every((entry) => entry.options.exportDir === "/tmp/run"),
+			"every branch that did start knows where to write",
+		);
+		// Whoever opens, closes - and closing is what exports.
+		assert.deepEqual(
+			fake.exported.map((entry) => entry.id).sort(),
+			fake.spawned.map((entry) => entry.id).sort(),
+		);
+	});
+
+	test("nothing is exported when no directory was asked for", async () => {
+		const fake = fakeSpawn();
+		await fanOut({ agent: scout, tasks: ["a", "b"], spawn: fake.spawn });
+		assert.deepEqual(fake.exported, []);
+	});
+});
+
 describe("aggregate", () => {
 	test("sums the branches over the real elapsed time", async () => {
 		const usage = aggregate(

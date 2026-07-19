@@ -47,6 +47,11 @@ const Schema = Type.Object({
 	timeoutMs: Type.Optional(Type.Number({ description: "Deadline per turn. No default; set it for long tasks." })),
 	openInHerdr: Type.Optional(Type.Boolean({ description: "Give each subagent its own herdr split." })),
 	scope: Type.Optional(Type.String({ description: '"user" (default), "project" or "both".' })),
+	export: Type.Optional(
+		Type.Boolean({
+			description: "Write every subagent's transcript and a usage.json into runs/<timestamp>/.",
+		}),
+	),
 });
 
 export default function (pi: ExtensionAPI) {
@@ -60,6 +65,7 @@ export default function (pi: ExtensionAPI) {
 			'Set lifetime: "workflow" when the subagents should remember previous turns.',
 			`Agents come from ${getAgentDir()}/agents by default;`,
 			`set scope: "project" or "both" to also load ${CONFIG_DIR_NAME}/agents from the repository.`,
+			"Set export: true to keep the transcripts and the measurements of the run on disk.",
 		].join(" "),
 		promptSnippet: "Delegate work to isolated subagents (single, parallel, chain, loop)",
 		promptGuidelines: [
@@ -71,7 +77,14 @@ export default function (pi: ExtensionAPI) {
 		// The body lives in `execute.ts`, where every dependency is injectable
 		// and therefore testable; this only hands pi's context over.
 		execute(_toolCallId, params: Params, signal, onUpdate, ctx) {
-			return executeSubagent(params, { cwd: ctx.cwd, signal, onUpdate, ui: ctx.ui });
+			return executeSubagent(params, {
+				cwd: ctx.cwd,
+				signal,
+				onUpdate,
+				ui: ctx.ui,
+				// Only this level knows where pi keeps the parent session.
+				mainSessionFile: ctx.sessionManager?.getSessionFile(),
+			});
 		},
 
 		renderCall(args: Params, theme: Theme, context) {
@@ -85,6 +98,7 @@ export default function (pi: ExtensionAPI) {
 			if (who) line += theme.fg("muted", ` ${who}`);
 			if (args.lifetime === "workflow") line += theme.fg("muted", " [workflow]");
 			if (args.openInHerdr) line += theme.fg("muted", " [herdr]");
+			if (args.export) line += theme.fg("muted", " [export]");
 
 			const what = args.task ?? args.tasks?.[0];
 			if (what) line += `\n  ${theme.fg("dim", truncate(what, 70))}`;
@@ -135,6 +149,7 @@ function renderCollapsed(details: Details, theme: Theme): Container {
 
 	container.addChild(new Spacer(1));
 	container.addChild(new Text(theme.fg("dim", totalLine(details)), 0, 0));
+	if (details.exportDir) container.addChild(new Text(theme.fg("muted", `exported to ${details.exportDir}`), 0, 0));
 	// Never hard-code "Ctrl+O": the user may have rebound it.
 	container.addChild(new Text(theme.fg("muted", keyHint("app.tools.expand", "to expand")), 0, 0));
 	return container;
@@ -177,6 +192,7 @@ function renderExpanded(details: Details, theme: Theme): Container {
 	for (const line of summaryTable({ ...snapshotOf(details) }, details.wallMs)) {
 		container.addChild(new Text(theme.fg("dim", line), 0, 0));
 	}
+	if (details.exportDir) container.addChild(new Text(theme.fg("muted", `exported to ${details.exportDir}`), 0, 0));
 	return container;
 }
 

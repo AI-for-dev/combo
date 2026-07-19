@@ -4,29 +4,17 @@ Written to be picked up cold. `AGENTS.md` holds the decisions and the pi API
 notes; this file holds only what has not been done yet, and the traps already
 paid for.
 
-State: 202 offline tests, clean typecheck, working tree clean.
+State: 228 offline tests, clean typecheck, working tree clean.
 
 Shipped: the foundation (`Agent`, `Subagent`, `Result`, `Usage`, event bus),
 three combinators (`chain`, `fanOut`, `loop`), four reporters (herdr, TUI,
-console, silent), the pi extension, and the tool body's injection seam.
+console, silent), the pi extension, the tool body's injection seam, and the
+session export.
 
-## 1. Session export - the only broken promise of `AGENTS.md`
+All four founding requirements of `AGENTS.md` are now met; what follows is
+breadth and polish, not a missing promise.
 
-Requirement 4 is "everything is measured **and exportable**". Measurement is
-done; export is not started. See the *Session export* section of `AGENTS.md` for
-the full specification. Target: `runs/<timestamp>/` with `main.html`,
-`main.jsonl`, a pair per subagent, and a `usage.json`.
-
-Two traps already identified:
-
-- **`SessionManager.inMemory()` persists nothing.** A subagent is only
-  exportable when spawned with an explicit `sessionDir` - the plumbing exists
-  (`SpawnOptions.sessionDir`, `WorkflowOptions.sessionDir`) but nothing uses it
-  yet. In-memory stays the default: subagents must not pollute `~/.pi`.
-- `exportToHtml()` / `exportToJsonl()` are `AgentSession` methods and must be
-  called **before `dispose()`**. `SessionPort` does not expose them yet.
-
-## 2. The three remaining combinators
+## 1. The three remaining combinators
 
 | Workflow | Shape | Semantics |
 |---|---|---|
@@ -42,7 +30,7 @@ Each arrives with the four tests `AGENTS.md` requires: composition, failure,
 cancellation, and lifetime (the same scenario in `"task"` and `"workflow"` must
 not produce the same number of spawns).
 
-## 3. Judge the interactive rendering
+## 2. Judge the interactive rendering
 
 Nobody has looked at the TUI in interactive mode. The components build and
 render correctly in tests, but spacing, colours and density were never seen.
@@ -54,10 +42,11 @@ line or keep it only for active subagents.
 ## How to verify anything here
 
 ```bash
-npm test                       # 202 offline tests, no network
+npm test                       # 228 offline tests, no network
 npm run typecheck
 
 PI_SUBAGENT_MODEL=ilaas/qwen-3.6-35b-instruct node examples/03-fan-out.ts
+PI_SUBAGENT_MODEL=ilaas/qwen-3.6-35b-instruct node examples/06-export.ts
 pi -e extension                # interactive, to actually see the TUI
 ```
 

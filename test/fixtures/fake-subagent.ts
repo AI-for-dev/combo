@@ -27,6 +27,8 @@ export type FakeSpawn = {
 	spawned: { agent: string; id: string; options: SpawnOptions }[];
 	/** Every task received, across all subagents, in call order. */
 	asks: { id: string; task: string }[];
+	/** Every export asked for, in order. */
+	exported: { id: string; dir: string }[];
 	/** The options each `ask` was given, in the same order. */
 	askOptions: AskOptions[];
 	closed: string[];
@@ -45,6 +47,7 @@ export function fakeSpawn(reply: (task: string, agent: Agent) => FakeReply = () 
 	const asks: { id: string; task: string }[] = [];
 	const askOptions: AskOptions[] = [];
 	const closed: string[] = [];
+	const exported: { id: string; dir: string }[] = [];
 	let inFlight = 0;
 	let maxConcurrent = 0;
 	let counter = 0;
@@ -98,8 +101,16 @@ export function fakeSpawn(reply: (task: string, agent: Agent) => FakeReply = () 
 					inFlight--;
 				}
 			},
+			async export(dir = options.exportDir) {
+				if (!dir) return { id, error: "no export directory" };
+				exported.push({ id, dir });
+				return { id, jsonl: `${dir}/${id.replace("#", "-")}.jsonl` };
+			},
 			async close() {
 				if (closed.includes(id)) return;
+				// The real `close()` exports before it disposes; a workflow test
+				// that asserts on exports must see the same thing here.
+				if (options.exportDir) await subagent.export(options.exportDir);
 				closed.push(id);
 				bus?.emit({ type: "status", id, status: "done" });
 				bus?.emit({
@@ -119,6 +130,7 @@ export function fakeSpawn(reply: (task: string, agent: Agent) => FakeReply = () 
 		asks,
 		askOptions,
 		closed,
+		exported,
 		get maxConcurrent() {
 			return maxConcurrent;
 		},

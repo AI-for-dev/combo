@@ -9,6 +9,9 @@
  */
 
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, test } from "node:test";
 import { executeSubagent, inferMode, paintWidget, textForModel, WIDGET } from "../extension/execute.ts";
 import type { SubagentEvent } from "../src/events.ts";
@@ -225,6 +228,72 @@ describe("executeSubagent", () => {
 
 		assert.ok(updates.length > 0, "onUpdate must be called while the subagents work");
 		assert.match(updates.at(-1) ?? "", /2\/2 done/);
+	});
+
+	test("export: the run directory is created, the subagents export into it, usage.json lands", async () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-run-"));
+		try {
+			const fake = fakeSpawn();
+			const output = await executeSubagent(
+				{ agent: "scout", tasks: ["a", "b"], export: true },
+				deps({ spawn: fake.spawn, runDir: () => dir }),
+			);
+
+			assert.deepEqual(
+				fake.spawned.map((one) => one.options.exportDir),
+				[dir, dir],
+				"every subagent writes into the run directory",
+			);
+			assert.equal(output.details.exportDir, dir, "the row tells the user where it went");
+
+			const report = JSON.parse(fs.readFileSync(path.join(dir, "usage.json"), "utf-8"));
+			assert.equal(report.subagents.length, 2);
+			assert.equal(report.total.subagents, 2);
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	test("export: nothing is written when nobody asked", async () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-run-"));
+		try {
+			const fake = fakeSpawn();
+			const output = await executeSubagent({ agent: "scout", task: "a" }, deps({ spawn: fake.spawn, runDir: () => dir }));
+
+			assert.equal(output.details.exportDir, undefined);
+			assert.equal(fake.spawned[0]?.options.exportDir, undefined);
+			assert.deepEqual(fs.readdirSync(dir), [], "an export is opt-in, like everything else that leaves a trace");
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	test("export: a run that throws still leaves its usage.json behind", async () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-run-"));
+		try {
+			await assert.rejects(() =>
+				executeSubagent({ agent: "ghost", task: "x", export: true }, deps({ spawn: fakeSpawn().spawn, runDir: () => dir })),
+			);
+			assert.ok(fs.existsSync(path.join(dir, "usage.json")), "an interrupted run must export what it did");
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	test("export: the parent session is copied in beside the subagents", async () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-run-"));
+		const main = path.join(dir, "parent.jsonl");
+		fs.writeFileSync(main, '{"type":"session"}\n');
+		try {
+			const fake = fakeSpawn();
+			await executeSubagent(
+				{ agent: "scout", task: "a", export: true },
+				deps({ spawn: fake.spawn, runDir: () => dir, mainSessionFile: main }),
+			);
+			assert.ok(fs.existsSync(path.join(dir, "main.jsonl")));
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
 	});
 
 	test("no subagent at all is stated plainly", async () => {

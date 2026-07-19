@@ -9,8 +9,10 @@
  * hidden anywhere.
  */
 
+import path from "node:path";
 import type { Agent, Lifetime } from "./agent.ts";
 import { createEventBus, nextSubagentId, type EventBus, type EventListener, type SubagentEvent } from "./events.ts";
+import { exportSession, type SessionExport } from "./export.ts";
 import { failed, type Result } from "./result.ts";
 import { createDefaultSession, modelLabel, type AgentMessage, type CreateSession, type SessionPort } from "./session.ts";
 import { deltaUsage, emptyUsage, snapshotUsage, type Usage } from "./usage.ts";
@@ -21,6 +23,19 @@ export type SpawnOptions = {
 	cwd?: string;
 	/** Dedicated session directory, required for the session to be exportable. */
 	sessionDir?: string;
+	/**
+	 * Where this subagent writes its HTML and JSONL when it closes.
+	 *
+	 * Setting it **implies a session directory** (`<exportDir>/.sessions`),
+	 * because pi cannot render an in-memory session to HTML. That is one
+	 * decision, not two: asking for an export is asking for the session to be
+	 * kept long enough to export it. Pass {@link SpawnOptions.sessionDir}
+	 * explicitly to put it somewhere else.
+	 *
+	 * Still opt-in: with no `exportDir`, a subagent stays in memory and leaves
+	 * nothing behind - not in `~/.pi`, not in the working directory.
+	 */
+	exportDir?: string;
 	/** Subscribed to the event stream for the subagent's whole life. */
 	onEvent?: EventListener;
 	/** Shared bus, when several subagents must report to the same place. */
@@ -66,6 +81,15 @@ export type Subagent = {
 	readonly usage: Usage;
 	/** Runs one turn of work. Never throws on a model failure - returns `ok: false`. */
 	ask(task: string, options?: AskOptions): Promise<Result>;
+	/**
+	 * Writes this subagent's transcript into `dir` - HTML and JSONL, pi's own.
+	 *
+	 * Callable at any moment while the subagent lives, not only at the end: an
+	 * interrupted workflow must still be able to export what it did. After
+	 * `close()` the session is gone, so this reports an error instead of
+	 * throwing - losing an export must never be worse than losing the run.
+	 */
+	export(dir?: string): Promise<SessionExport>;
 	/** Releases the session. Idempotent. */
 	close(): Promise<void>;
 };
@@ -88,7 +112,11 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 	if (options.onEvent) bus.subscribe(options.onEvent);
 
 	const createSession = options.createSession ?? createDefaultSession;
-	const session = await createSession(agent, { cwd: options.cwd, sessionDir: options.sessionDir });
+	// Asking for an export is asking for a session on disk: pi refuses to render
+	// an in-memory one. `.sessions` keeps those working files out of the way of
+	// the exports themselves, which are what a human opens.
+	const sessionDir = options.sessionDir ?? (options.exportDir ? path.join(options.exportDir, ".sessions") : undefined);
+	const session = await createSession(agent, { cwd: options.cwd, sessionDir });
 
 	// Monotonic clock: `Date.now()` jumps when the system clock is adjusted,
 	// and a duration must never go backwards.
@@ -196,8 +224,18 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 			return result;
 		},
 
+		async export(dir = options.exportDir) {
+			if (!dir) return { id, error: "no export directory: pass one, or spawn with exportDir" };
+			if (closed) return { id, error: `Subagent ${id} is closed: its session is gone` };
+			return exportSession(session, dir, id);
+		},
+
 		async close() {
 			if (closed) return;
+
+			// Exporting happens while the session is still alive - and before
+			// `closed` is set, so this is the same path a caller would take.
+			if (options.exportDir) await subagent.export(options.exportDir);
 			closed = true;
 
 			// Stats and context are read *before* dispose(): afterwards the

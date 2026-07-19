@@ -40,6 +40,16 @@ export type SessionPort = {
 	getContextUsage(): ContextUsage | undefined;
 	abort(): Promise<void>;
 	dispose(): void;
+	/**
+	 * Writes the session as a readable HTML page. **Before `dispose()`.**
+	 *
+	 * Optional because it is not always available: pi refuses to export an
+	 * in-memory session ("Cannot export in-memory session to HTML"), which is
+	 * exactly what a subagent gets unless it was spawned with a `sessionDir`.
+	 */
+	exportToHtml?(outputPath?: string): Promise<string>;
+	/** Writes the current branch as replayable JSONL. **Before `dispose()`.** */
+	exportToJsonl?(outputPath?: string): string;
 	readonly messages: AgentMessage[];
 	/**
 	 * The model actually in use, once pi has resolved it.

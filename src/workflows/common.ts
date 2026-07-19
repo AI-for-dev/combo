@@ -31,6 +31,15 @@ export type WorkflowOptions = {
 	bus?: EventBus;
 	cwd?: string;
 	sessionDir?: string;
+	/**
+	 * Where every subagent of this workflow writes its transcript when it
+	 * closes. See {@link SpawnOptions.exportDir}: it implies a session
+	 * directory, and it is opt-in.
+	 *
+	 * Because the pool closes in a `finally`, an interrupted workflow still
+	 * exports what it managed to do.
+	 */
+	exportDir?: string;
 	/** Give every subagent of this workflow its own herdr split. Opt-in. */
 	openInHerdr?: boolean;
 	/** Defaults to the real {@link spawn}. */
@@ -66,6 +75,7 @@ export class SubagentPool {
 			bus,
 			cwd: options.cwd,
 			sessionDir: options.sessionDir,
+			exportDir: options.exportDir,
 			openInHerdr: options.openInHerdr,
 		};
 	}
