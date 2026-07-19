@@ -54,6 +54,7 @@ describe("inferMode", () => {
 		assert.equal(inferMode({ steps: ["coder", "reviewer"] }), "chain");
 		assert.equal(inferMode({ steps: ["coder"], until: "LGTM" }), "loop");
 		assert.equal(inferMode({ steps: ["coder"], maxIterations: 2 }), "loop");
+		assert.equal(inferMode({ agent: "scout", tasks: ["a", "b"], reduceWith: "reviewer" }), "reduce");
 	});
 
 	test("an explicit mode always wins over the inference", () => {
@@ -294,6 +295,33 @@ describe("executeSubagent", () => {
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
+	});
+
+	test("reduce: the branches run, then one agent answers - and only that answer goes to the model", async () => {
+		const fake = fakeSpawn((task, agent) => ({ output: agent.name === "reviewer" ? "one answer" : `branch(${task})` }));
+		const output = await executeSubagent(
+			{ agent: "scout", tasks: ["a", "b"], reduceWith: "reviewer", task: "what is going on?" },
+			deps({ spawn: fake.spawn }),
+		);
+
+		assert.deepEqual(
+			fake.spawned.map((one) => one.agent),
+			["scout", "scout", "reviewer"],
+		);
+		assert.match(fake.asks[2]?.task ?? "", /what is going on\?/, "the question leads the reducer's prompt");
+		assert.match(fake.asks[2]?.task ?? "", /branch\(a\)/, "the branches are the evidence");
+
+		assert.equal(say(output), "## reviewer\none answer", "the branches must not be replayed into the caller's context");
+		assert.equal(output.details.mode, "reduce");
+		assert.equal(output.details.subagents.length, 3, "the row still shows every subagent that ran");
+	});
+
+	test("reduce: a missing reducer names the argument the caller forgot", async () => {
+		const fake = fakeSpawn();
+		await assert.rejects(
+			() => executeSubagent({ mode: "reduce", agent: "scout", tasks: ["a"] }, deps({ spawn: fake.spawn })),
+			/`reduceWith` is required/,
+		);
 	});
 
 	test("no subagent at all is stated plainly", async () => {

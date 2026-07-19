@@ -24,6 +24,7 @@ import {
 	findAgent,
 	loadAgents as loadAgentsFromDisk,
 	loop,
+	reduce,
 	progressLine,
 	usageReport,
 	widgetRows,
@@ -59,6 +60,7 @@ export type Params = {
 	openInHerdr?: boolean;
 	scope?: string;
 	export?: boolean;
+	reduceWith?: string;
 };
 
 /** What `renderResult` needs, and nothing the LLM has to read. */
@@ -206,6 +208,24 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 				iterations = outcome.iterations;
 				break;
 			}
+			case "reduce": {
+				const branches = await fanOut({
+					...shared,
+					agent: pick(agents, params.agent),
+					tasks: params.tasks ?? [],
+					concurrency: params.concurrency,
+				});
+				const answer = await reduce({
+					...shared,
+					agent: pick(agents, params.reduceWith, "reduceWith"),
+					results: branches.results,
+					input: params.task ?? "Synthesise these results into a single answer.",
+				});
+				// Only the synthesis goes to the model: handing it the branches as
+				// well would undo the very context saving the reduction is for.
+				results = [answer];
+				break;
+			}
 			default: {
 				const outcome = await fanOut({ ...shared, agent: pick(agents, params.agent), tasks: [params.task ?? ""] });
 				results = outcome.results;
@@ -285,14 +305,16 @@ export function textForModel(results: Result[], converged?: boolean, iterations?
 /** Infers the mode from what was actually provided. */
 export function inferMode(params: Params): string {
 	if (params.mode) return params.mode;
+	if (params.reduceWith) return "reduce";
 	if (params.until || params.maxIterations) return "loop";
 	if (params.steps?.length) return "chain";
 	if (params.tasks?.length) return "parallel";
 	return "single";
 }
 
-function pick(agents: Agent[], name: string | undefined): Agent {
-	if (!name) throw new Error("subagent: `agent` is required for single and parallel modes");
+/** `field` names the argument that was missing: an error is read by a model too. */
+function pick(agents: Agent[], name: string | undefined, field = "agent"): Agent {
+	if (!name) throw new Error(`subagent: \`${field}\` is required for this mode`);
 	return findAgent(agents, name);
 }
 

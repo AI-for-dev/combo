@@ -146,7 +146,7 @@ Rules:
 | `chain` | 1→1→1 | output of step *n* is the input of *n+1* | done |
 | `fanOut` | 1→N | N subtasks in parallel, bounded concurrency | done |
 | `loop` | 1→1 | iterates until a criterion (judge, test, regex) is met | done |
-| `reduce` | N→1 | one agent synthesises a fan-out's results | to do |
+| `reduce` | N→1 | one agent synthesises a fan-out's results | done |
 | `orchestrate` | 1→? | an agent *decides* the split, then delegates (dynamic fan-out) | to do |
 | `route` | 1→1 | a classifier agent picks the destination agent | to do |
 
@@ -184,8 +184,23 @@ Rules:
 - **A failure does not crash the workflow**: it becomes a `Result` with
   `ok: false`. It is the caller (or an explicit `failFast` option) that decides
   to stop.
+- **A reduction shows its failed branches, it does not drop them.** A synthesis
+  built from six branches when two of them crashed, with nothing saying so, is a
+  confident lie - and the caller can no longer tell a thin answer from a thin
+  body of evidence. `formatBranches` labels them; a caller who really wants only
+  the successes filters the array, which needs no option.
+- **`reduce` returns the branches in `steps`**, followed by the synthesis. The
+  cost of an N→1 is the cost of everything that produced it, and a `Result.usage`
+  is always one turn - so the total has to be summable from `steps`.
+- **Lifetime cannot change the shape of every combinator.** `reduce` is one
+  agent and one turn: `"task"` and `"workflow"` both spawn once. The lifetime
+  test then asserts what is actually observable (the option reaches the spawn,
+  and the subagent is closed either way) rather than inventing a spawn count
+  difference that does not exist.
 - **No speculative abstraction**: a combinator is added when a real example
-  needs it.
+  needs it. `reduce` is deliberately not chunked: folding branches in batches to
+  fit a context window is a real need when it appears, and until it does it
+  would be a configuration knob nobody asked for.
 
 ## Measurements: time and tokens per subagent
 

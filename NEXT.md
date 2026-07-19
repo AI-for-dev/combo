@@ -4,21 +4,20 @@ Written to be picked up cold. `AGENTS.md` holds the decisions and the pi API
 notes; this file holds only what has not been done yet, and the traps already
 paid for.
 
-State: 228 offline tests, clean typecheck, working tree clean.
+State: 244 offline tests, clean typecheck, working tree clean.
 
 Shipped: the foundation (`Agent`, `Subagent`, `Result`, `Usage`, event bus),
 three combinators (`chain`, `fanOut`, `loop`), four reporters (herdr, TUI,
-console, silent), the pi extension, the tool body's injection seam, and the
-session export.
+console, silent), the pi extension, the tool body's injection seam, the session
+export, and `reduce`.
 
 All four founding requirements of `AGENTS.md` are now met; what follows is
 breadth and polish, not a missing promise.
 
-## 1. The three remaining combinators
+## 1. The two remaining combinators
 
 | Workflow | Shape | Semantics |
 |---|---|---|
-| `reduce` | N→1 | one agent synthesises a fan-out's results |
 | `route` | 1→1 | a classifier agent picks the destination agent |
 | `orchestrate` | 1→? | an agent *decides* the split, then delegates |
 
@@ -42,11 +41,12 @@ line or keep it only for active subagents.
 ## How to verify anything here
 
 ```bash
-npm test                       # 228 offline tests, no network
+npm test                       # 244 offline tests, no network
 npm run typecheck
 
 PI_SUBAGENT_MODEL=ilaas/qwen-3.6-35b-instruct node examples/03-fan-out.ts
 PI_SUBAGENT_MODEL=ilaas/qwen-3.6-35b-instruct node examples/06-export.ts
+PI_SUBAGENT_MODEL=ilaas/qwen-3.6-35b-instruct node examples/07-reduce.ts
 pi -e extension                # interactive, to actually see the TUI
 ```
 

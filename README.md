@@ -10,7 +10,7 @@ The intent behind the project and its structural decisions live in
 
 ```bash
 npm install
-npm test          # 228 tests, no network calls
+npm test          # 244 tests, no network calls
 npm run typecheck
 ```
 
@@ -72,7 +72,7 @@ it never closes what it was handed.
 
 ## Workflows
 
-Three combinators for now. A combinator is added when a real example needs it,
+Four combinators for now. A combinator is added when a real example needs it,
 not before.
 
 ```typescript
@@ -93,7 +93,16 @@ const review = await loop({
 	lifetime: "workflow", // the reviewer remembers what it already said
 });
 review.converged; // did it reach the bar, or just run out of iterations?
+
+// reduce: N→1, one agent turns the branches into a single answer
+const answer = await reduce({ agent: synthesiser, results, input: question });
+answer.steps; // the branches, then the synthesis - the cost of the whole N→1
 ```
+
+`reduce` **shows** the branches that failed rather than dropping them: a
+synthesis of six reports when two of them crashed, with nothing saying so, is a
+confident lie. Pass only the successes if that is what you want - filtering an
+array needs no option.
 
 `loop` reports `converged` separately from `ok`, because they answer different
 questions: `ok` says the last turn ran without a model error, `converged` says
@@ -274,6 +283,7 @@ launched.
 
 ```
 > use subagent to review src/usage.ts with coder then reviewer, looping until LGTM
+> use subagent with three scouts and reduceWith "synthesiser" to explain the export path
 ```
 
 While the subagents work, a dot per subagent sits just above the prompt:
@@ -325,6 +335,7 @@ node examples/03-fan-out.ts   # 3 tasks, 2 at a time
 node examples/04-loop.ts      # coding ↔ review, as a team then with fresh eyes
 node examples/05-herdr.ts     # a fan-out with one herdr split per branch
 node examples/06-export.ts    # a fan-out exported to runs/<timestamp>/
+node examples/07-reduce.ts    # 3 scouts, then one synthesiser: N→1
 ```
 
 Not every provider reports tokens - several return zero. For the usage lines to
@@ -338,7 +349,8 @@ PI_SUBAGENT_MODEL=local/qwen/qwen3-coder-next node examples/03-fan-out.ts
 
 Shipped so far: the foundation - `Agent`, `Subagent`, `Result`, `Usage`, the
 event bus - three combinators (`chain`, `fanOut`, `loop`), the reporters (herdr,
-TUI, console, silent), the pi extension, and the session export.
+TUI, console, silent), four combinators with `reduce`, the pi extension, and the
+session export.
 
-Still to come: the `orchestrate`, `route` and `reduce` combinators. See [`NEXT.md`](NEXT.md) for what is left and
+Still to come: the `orchestrate` and `route` combinators. See [`NEXT.md`](NEXT.md) for what is left and
 the traps already paid for.

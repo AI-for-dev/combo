@@ -47,6 +47,9 @@ const Schema = Type.Object({
 	timeoutMs: Type.Optional(Type.Number({ description: "Deadline per turn. No default; set it for long tasks." })),
 	openInHerdr: Type.Optional(Type.Boolean({ description: "Give each subagent its own herdr split." })),
 	scope: Type.Optional(Type.String({ description: '"user" (default), "project" or "both".' })),
+	reduceWith: Type.Optional(
+		Type.String({ description: "Agent that synthesises the parallel results into one answer (reduce mode)." }),
+	),
 	export: Type.Optional(
 		Type.Boolean({
 			description: "Write every subagent's transcript and a usage.json into runs/<timestamp>/.",
@@ -61,7 +64,8 @@ export default function (pi: ExtensionAPI) {
 		description: [
 			"Delegate work to isolated subagents and compose them.",
 			"Modes: single (agent + task), parallel (agent + tasks), chain (steps + task),",
-			"loop (steps + task + until, iterates until the last output contains `until`).",
+			"loop (steps + task + until, iterates until the last output contains `until`),",
+			"reduce (agent + tasks + reduceWith + task, fans out then synthesises into one answer).",
 			'Set lifetime: "workflow" when the subagents should remember previous turns.',
 			`Agents come from ${getAgentDir()}/agents by default;`,
 			`set scope: "project" or "both" to also load ${CONFIG_DIR_NAME}/agents from the repository.`,
