@@ -382,6 +382,12 @@ Points to watch:
   A weak model will still *emit* calls to tools it does not have (`edit`,
   `run`); they fail, and the model may retry them in a loop. That is an argument
   for `loop`'s `maxIterations`, not for loosening the allowlist.
+- **A prompt is not a permission boundary.** `examples/04-loop.ts` used to hand
+  the `coder` its full `edit`/`write` toolset and merely *ask* it not to change
+  anything. It edited `src/usage.ts` anyway, twice, in a plain demo run. If a
+  subagent must not write, take `write` and `edit` away from it - do not ask it
+  nicely. This applies with force to anything shipped in the repository: an
+  example must not be able to rewrite the repository it ships in.
 - The system prompt goes through the `resourceLoader`, **not** through a
   `systemPrompt` field on `createAgentSession`. We supply our own
   (`StaticResourceLoader`): `DefaultResourceLoader` requires `cwd` and
