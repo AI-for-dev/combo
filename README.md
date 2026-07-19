@@ -298,5 +298,6 @@ Shipped so far: the foundation - `Agent`, `Subagent`, `Result`, `Usage`, the
 event bus - three combinators (`chain`, `fanOut`, `loop`), the reporters (herdr,
 TUI, console, silent), and the pi extension.
 
-Still to come: `orchestrate`, `route`, `reduce`, and session export
-(`runs/<timestamp>/`).
+Still to come: session export (`runs/<timestamp>/`), and the `orchestrate`,
+`route` and `reduce` combinators. See [`NEXT.md`](NEXT.md) for what is left and
+the traps already paid for.
