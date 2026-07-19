@@ -44,6 +44,12 @@ const Schema = Type.Object({
 	concurrency: Type.Optional(Type.Number({ description: "Parallel branches at once. Default 4." })),
 	until: Type.Optional(Type.String({ description: "Loop stops when the last output contains this text." })),
 	maxIterations: Type.Optional(Type.Number({ description: "Loop iteration cap. Default 5." })),
+	maxTasks: Type.Optional(Type.Number({ description: "Most subtasks an orchestrate plan may contain. Default 8." })),
+	candidates: Type.Optional(
+		Type.Array(Type.String(), {
+			description: "Agent names the router may pick from, or the planner may delegate to.",
+		}),
+	),
 	timeoutMs: Type.Optional(Type.Number({ description: "Deadline per turn. No default; set it for long tasks." })),
 	openInHerdr: Type.Optional(Type.Boolean({ description: "Give each subagent its own herdr split." })),
 	scope: Type.Optional(Type.String({ description: '"user" (default), "project" or "both".' })),
@@ -65,7 +71,10 @@ export default function (pi: ExtensionAPI) {
 			"Delegate work to isolated subagents and compose them.",
 			"Modes: single (agent + task), parallel (agent + tasks), chain (steps + task),",
 			"loop (steps + task + until, iterates until the last output contains `until`),",
-			"reduce (agent + tasks + reduceWith + task, fans out then synthesises into one answer).",
+			"reduce (agent + tasks + reduceWith + task, fans out then synthesises into one answer),",
+			"route (agent + candidates + task, the agent classifies and one candidate does the work),",
+			"orchestrate (agent + candidates + task, the agent plans the split and the workers run it).",
+			"With candidates and no explicit mode, route is assumed: it is the cheaper reading.",
 			'Set lifetime: "workflow" when the subagents should remember previous turns.',
 			`Agents come from ${getAgentDir()}/agents by default;`,
 			`set scope: "project" or "both" to also load ${CONFIG_DIR_NAME}/agents from the repository.`,
@@ -98,7 +107,7 @@ export default function (pi: ExtensionAPI) {
 			const mode = inferMode(args);
 
 			let line = theme.fg("toolTitle", theme.bold("subagent ")) + theme.fg("accent", mode);
-			const who = args.agent ?? args.steps?.join(" → ");
+			const who = args.agent ?? args.steps?.join(" → ") ?? args.candidates?.join(", ");
 			if (who) line += theme.fg("muted", ` ${who}`);
 			if (args.lifetime === "workflow") line += theme.fg("muted", " [workflow]");
 			if (args.openInHerdr) line += theme.fg("muted", " [herdr]");
@@ -152,6 +161,9 @@ function renderCollapsed(details: Details, theme: Theme): Container {
 	}
 
 	container.addChild(new Spacer(1));
+	// Who was picked, or what the plan was: without it a route reads as one
+	// opaque turn followed by another.
+	if (details.decision) container.addChild(new Text(theme.fg("accent", `→ ${truncate(details.decision, 70)}`), 0, 0));
 	container.addChild(new Text(theme.fg("dim", totalLine(details)), 0, 0));
 	if (details.exportDir) container.addChild(new Text(theme.fg("muted", `exported to ${details.exportDir}`), 0, 0));
 	// Never hard-code "Ctrl+O": the user may have rebound it.
@@ -193,6 +205,7 @@ function renderExpanded(details: Details, theme: Theme): Container {
 	}
 
 	container.addChild(new Spacer(1));
+	if (details.decision) container.addChild(new Text(theme.fg("accent", `→ ${details.decision}`), 0, 0));
 	for (const line of summaryTable({ ...snapshotOf(details) }, details.wallMs)) {
 		container.addChild(new Text(theme.fg("dim", line), 0, 0));
 	}

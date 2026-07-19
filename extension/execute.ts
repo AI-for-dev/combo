@@ -24,7 +24,9 @@ import {
 	findAgent,
 	loadAgents as loadAgentsFromDisk,
 	loop,
+	orchestrate,
 	reduce,
+	route,
 	progressLine,
 	usageReport,
 	widgetRows,
@@ -56,11 +58,13 @@ export type Params = {
 	concurrency?: number;
 	until?: string;
 	maxIterations?: number;
+	maxTasks?: number;
 	timeoutMs?: number;
 	openInHerdr?: boolean;
 	scope?: string;
 	export?: boolean;
 	reduceWith?: string;
+	candidates?: string[];
 };
 
 /** What `renderResult` needs, and nothing the LLM has to read. */
@@ -70,6 +74,8 @@ export type Details = {
 	wallMs: number;
 	converged?: boolean;
 	iterations?: number;
+	/** For route and orchestrate: what the deciding agent chose. */
+	decision?: string;
 	/** Where the run was exported, when one was asked for. */
 	exportDir?: string;
 };
@@ -178,6 +184,7 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 	let results: Result[] = [];
 	let converged: boolean | undefined;
 	let iterations: number | undefined;
+	let decision: string | undefined;
 
 	// The widget must go even when the workflow throws - an unknown agent name,
 	// for one - or a dead row of dots sits above the prompt forever.
@@ -206,6 +213,33 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 				results = outcome.steps;
 				converged = outcome.converged;
 				iterations = outcome.iterations;
+				break;
+			}
+			case "route": {
+				const outcome = await route({
+					...shared,
+					router: pick(agents, params.agent),
+					destinations: stepsOf(agents, params.candidates, "candidates"),
+					input: params.task ?? "",
+				});
+				results = [outcome];
+				decision = outcome.destination?.name;
+				break;
+			}
+			case "orchestrate": {
+				const outcome = await orchestrate({
+					...shared,
+					planner: pick(agents, params.agent),
+					workers: stepsOf(agents, params.candidates, "candidates"),
+					input: params.task ?? "",
+					concurrency: params.concurrency,
+					maxTasks: params.maxTasks,
+					reduceWith: params.reduceWith ? pick(agents, params.reduceWith, "reduceWith") : undefined,
+				});
+				// The plan is what a reader wants to see: who was asked what.
+				decision = outcome.plan.map((step) => `${step.agent.name}: ${step.task}`).join("; ");
+				results = outcome.answer ? [outcome.answer] : outcome.results;
+				if (!outcome.ok && results.length === 0) results = [outcome.planning];
 				break;
 			}
 			case "reduce": {
@@ -250,7 +284,7 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 	return {
 		// What the model reads: the outputs, not the chrome.
 		content: [{ type: "text", text: textForModel(results, converged, iterations) }],
-		details: { mode, subagents: snapshot.subagents, wallMs, converged, iterations, exportDir },
+		details: { mode, subagents: snapshot.subagents, wallMs, converged, iterations, decision, exportDir },
 	};
 }
 
@@ -305,6 +339,7 @@ export function textForModel(results: Result[], converged?: boolean, iterations?
 /** Infers the mode from what was actually provided. */
 export function inferMode(params: Params): string {
 	if (params.mode) return params.mode;
+	if (params.candidates) return "route";
 	if (params.reduceWith) return "reduce";
 	if (params.until || params.maxIterations) return "loop";
 	if (params.steps?.length) return "chain";
@@ -318,8 +353,8 @@ function pick(agents: Agent[], name: string | undefined, field = "agent"): Agent
 	return findAgent(agents, name);
 }
 
-function stepsOf(agents: Agent[], names: string[] | undefined): Agent[] {
-	if (!names?.length) throw new Error("subagent: `steps` is required for chain and loop modes");
+function stepsOf(agents: Agent[], names: string[] | undefined, field = "steps"): Agent[] {
+	if (!names?.length) throw new Error(`subagent: \`${field}\` is required for this mode`);
 	return names.map((name) => findAgent(agents, name));
 }
 

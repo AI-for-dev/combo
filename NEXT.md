@@ -4,32 +4,17 @@ Written to be picked up cold. `AGENTS.md` holds the decisions and the pi API
 notes; this file holds only what has not been done yet, and the traps already
 paid for.
 
-State: 244 offline tests, clean typecheck, working tree clean.
+State: 297 offline tests, clean typecheck, working tree clean.
 
 Shipped: the foundation (`Agent`, `Subagent`, `Result`, `Usage`, event bus),
-three combinators (`chain`, `fanOut`, `loop`), four reporters (herdr, TUI,
-console, silent), the pi extension, the tool body's injection seam, the session
-export, and `reduce`.
+the six combinators (`chain`, `fanOut`, `loop`, `reduce`, `route`,
+`orchestrate`), four reporters (herdr, TUI, console, silent), the pi extension
+with an injectable tool body, and the session export.
 
 All four founding requirements of `AGENTS.md` are now met; what follows is
 breadth and polish, not a missing promise.
 
-## 1. The two remaining combinators
-
-| Workflow | Shape | Semantics |
-|---|---|---|
-| `route` | 1→1 | a classifier agent picks the destination agent |
-| `orchestrate` | 1→? | an agent *decides* the split, then delegates |
-
-`orchestrate` is the interesting one and the only one with a real open
-question: **how to parse what the agent decided**. Structured output, a tool
-call, or a parsed convention - that decision has not been taken.
-
-Each arrives with the four tests `AGENTS.md` requires: composition, failure,
-cancellation, and lifetime (the same scenario in `"task"` and `"workflow"` must
-not produce the same number of spawns).
-
-## 2. Judge the interactive rendering
+## 1. Judge the interactive rendering
 
 Nobody has looked at the TUI in interactive mode. The components build and
 render correctly in tests, but spacing, colours and density were never seen.
@@ -41,12 +26,13 @@ line or keep it only for active subagents.
 ## How to verify anything here
 
 ```bash
-npm test                       # 244 offline tests, no network
+npm test                       # 297 offline tests, no network
 npm run typecheck
 
 PI_SUBAGENT_MODEL=ilaas/qwen-3.6-35b-instruct node examples/03-fan-out.ts
 PI_SUBAGENT_MODEL=ilaas/qwen-3.6-35b-instruct node examples/06-export.ts
 PI_SUBAGENT_MODEL=ilaas/qwen-3.6-35b-instruct node examples/07-reduce.ts
+PI_SUBAGENT_MODEL=ilaas/qwen-3.6-35b-instruct node examples/09-orchestrate.ts
 pi -e extension                # interactive, to actually see the TUI
 ```
 
@@ -62,6 +48,10 @@ Notes that save time:
   to call `subagent` once, `ilaas/qwen-3.6-35b-instruct` announced the call and
   then looped without ever emitting it. To exercise the real wiring, call
   `executeSubagent` from a script instead: same code path, no driver model.
+- **A weak planner writes dependent subtasks whatever the prompt says.** The
+  observed plan had a step starting "review the code identified by the scout",
+  in a fan-out where nobody sees anyone else's result. `orchestrate` cannot
+  check that; sequential work belongs in `chain`.
 - **A green suite proves less than it looks here.** Every test injects a fake
   `SessionPort`, so nothing exercises pi's real module. Anything that only runs
   inside a real pi has to be exercised inside a real pi.

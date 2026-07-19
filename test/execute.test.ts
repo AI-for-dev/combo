@@ -55,6 +55,8 @@ describe("inferMode", () => {
 		assert.equal(inferMode({ steps: ["coder"], until: "LGTM" }), "loop");
 		assert.equal(inferMode({ steps: ["coder"], maxIterations: 2 }), "loop");
 		assert.equal(inferMode({ agent: "scout", tasks: ["a", "b"], reduceWith: "reviewer" }), "reduce");
+		assert.equal(inferMode({ agent: "scout", candidates: ["coder"] }), "route", "the cheaper reading wins when nobody said");
+		assert.equal(inferMode({ mode: "orchestrate", agent: "scout", candidates: ["coder"] }), "orchestrate");
 	});
 
 	test("an explicit mode always wins over the inference", () => {
@@ -321,6 +323,59 @@ describe("executeSubagent", () => {
 		await assert.rejects(
 			() => executeSubagent({ mode: "reduce", agent: "scout", tasks: ["a"] }, deps({ spawn: fake.spawn })),
 			/`reduceWith` is required/,
+		);
+	});
+
+	test("route: the classifier picks, the destination works, and the row says who", async () => {
+		const fake = fakeSpawn((_task, agent) => ({ output: agent.name === "scout" ? "coder" : "done" }));
+		const output = await executeSubagent(
+			{ agent: "scout", candidates: ["coder", "reviewer"], task: "add a flag" },
+			deps({ spawn: fake.spawn }),
+		);
+
+		assert.deepEqual(
+			fake.spawned.map((one) => one.agent),
+			["scout", "coder"],
+		);
+		assert.equal(output.details.mode, "route");
+		assert.equal(output.details.decision, "coder", "a route that does not say who it picked is unreadable");
+	});
+
+	test("orchestrate: the plan is made, run, and reported", async () => {
+		const plan = JSON.stringify([
+			{ agent: "coder", task: "write it" },
+			{ agent: "reviewer", task: "check it" },
+		]);
+		const fake = fakeSpawn((task, agent) => ({ output: agent.name === "scout" ? plan : `${agent.name}(${task})` }));
+		const output = await executeSubagent(
+			{ mode: "orchestrate", agent: "scout", candidates: ["coder", "reviewer"], task: "ship the parser" },
+			deps({ spawn: fake.spawn }),
+		);
+
+		assert.deepEqual(
+			fake.spawned.map((one) => one.agent),
+			["scout", "coder", "reviewer"],
+		);
+		assert.match(output.details.decision ?? "", /coder: write it; reviewer: check it/);
+		assert.match(say(output), /coder\(write it\)/);
+	});
+
+	test("orchestrate: a plan nobody can read comes back as the planner's own answer", async () => {
+		const fake = fakeSpawn(() => ({ output: "I would start with the parser." }));
+		const output = await executeSubagent(
+			{ mode: "orchestrate", agent: "scout", candidates: ["coder"], task: "x" },
+			deps({ spawn: fake.spawn }),
+		);
+
+		assert.equal(fake.spawned.length, 1, "nothing runs on an unreadable plan");
+		assert.match(say(output), /I would start with the parser\./);
+	});
+
+	test("route and orchestrate name the argument a caller forgot", async () => {
+		await assert.rejects(() => executeSubagent({ mode: "route", agent: "scout", task: "x" }, deps()), /`candidates` is required/);
+		await assert.rejects(
+			() => executeSubagent({ mode: "orchestrate", agent: "scout", task: "x" }, deps()),
+			/`candidates` is required/,
 		);
 	});
 

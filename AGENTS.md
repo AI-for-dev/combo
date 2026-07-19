@@ -147,8 +147,8 @@ Rules:
 | `fanOut` | 1→N | N subtasks in parallel, bounded concurrency | done |
 | `loop` | 1→1 | iterates until a criterion (judge, test, regex) is met | done |
 | `reduce` | N→1 | one agent synthesises a fan-out's results | done |
-| `orchestrate` | 1→? | an agent *decides* the split, then delegates (dynamic fan-out) | to do |
-| `route` | 1→1 | a classifier agent picks the destination agent | to do |
+| `orchestrate` | 1→? | an agent *decides* the split, then delegates (dynamic fan-out) | done |
+| `route` | 1→1 | a classifier agent picks the destination agent | done |
 
 Rules:
 
@@ -197,6 +197,41 @@ Rules:
   test then asserts what is actually observable (the option reaches the spawn,
   and the subagent is closed either way) rather than inventing a spawn count
   difference that does not exist.
+- **How the decision of a deciding agent is read: a parsed convention.** That
+  was `orchestrate`'s one open question, and the answer is `parsePlan`. The
+  alternatives were weighed: a **tool call** is possible (`createAgentSession`
+  takes `customTools`) and would give validated arguments, but it means teaching
+  `SessionPort` about tool definitions and betting the combinator on a model
+  that reliably emits tool calls - the weak models this library is run against
+  do not. **Structured output** is not uniformly available across providers, and
+  `prompt()` returns text either way. A parsed convention costs one function,
+  works everywhere, and the check that actually matters - is this a real agent
+  name? - is a lookup no schema would have replaced.
+- **The parsers are lenient, and only they.** `parsePlan` and `pickDestination`
+  read what a *model* wrote, not what a caller passed; everywhere else a
+  malformed input is an error. The leniency is not a guess, though: an
+  unrecognised agent name is **dropped**, never remapped onto a plausible
+  neighbour, and an ambiguous routing answer resolves to nothing rather than to
+  the first match. Silently doing the wrong work is worse than failing.
+- **Leniency is decided by real runs, not by taste.** Asked for a JSON array,
+  the planner answered with bare objects and no brackets - a green suite and a
+  reasonable-looking prompt had said nothing. `parseJsonPlan` therefore collects
+  every `{…}` block that carries `agent` and `task`, in order, so an array, a
+  lone object, several objects on their own lines and a fenced block all reduce
+  to the same plan.
+- **Routing reads the agents' `description`.** That field is already mandatory,
+  so routing needs no second vocabulary to maintain - and a vague description
+  produces vague routing that no parser can repair.
+- **`orchestrate` caps the plan (`maxTasks`, default 8) and fails before
+  spawning.** Every subtask is a session and a bill; a plan of two hundred steps
+  must not be reachable by a hallucination, and losing a run costs less than
+  paying for a runaway one. Same reasoning as `loop`'s `maxIterations`, one
+  level up.
+- **Independence cannot be enforced, only asked for.** The planning prompt
+  insists that subtasks run in parallel, and a weak planner still produced a
+  step beginning "review the code identified by the scout". Nothing in the
+  combinator can check that, and adding a dependency graph would be building
+  `chain` a second time. When the work is sequential, use `chain`.
 - **No speculative abstraction**: a combinator is added when a real example
   needs it. `reduce` is deliberately not chunked: folding branches in batches to
   fit a context window is a real need when it appears, and until it does it

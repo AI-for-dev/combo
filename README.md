@@ -10,7 +10,7 @@ The intent behind the project and its structural decisions live in
 
 ```bash
 npm install
-npm test          # 244 tests, no network calls
+npm test          # 297 tests, no network calls
 npm run typecheck
 ```
 
@@ -72,8 +72,8 @@ it never closes what it was handed.
 
 ## Workflows
 
-Four combinators for now. A combinator is added when a real example needs it,
-not before.
+Six combinators. A combinator is added when a real example needs it, not
+before.
 
 ```typescript
 // chain: 1→1→1, the output of n is the input of n+1
@@ -103,6 +103,32 @@ answer.steps; // the branches, then the synthesis - the cost of the whole N→1
 synthesis of six reports when two of them crashed, with nothing saying so, is a
 confident lie. Pass only the successes if that is what you want - filtering an
 array needs no option.
+
+Two of them put a model in charge of the decision:
+
+```typescript
+// route: 1→1, a classifier picks who does the work
+const handled = await route({ router, destinations: [coder, scout], input: task });
+handled.destination?.name; // who was picked, or undefined
+
+// orchestrate: 1→?, the planner decides the split, then it runs
+const done = await orchestrate({
+	planner,
+	workers: [scout, reviewer],
+	input: "Explain how usage is measured, and whether it can be trusted",
+	reduceWith: synthesiser, // optional: one answer instead of N
+	maxTasks: 3,             // defaults to 8; a hallucinated plan must not be affordable
+});
+done.plan;   // what the planner asked for, validated against the known agents
+done.answer; // present only when reduceWith was given
+```
+
+Both read the destinations' **`description`** - the field pi already makes
+mandatory - so routing and planning need no second vocabulary. Both are lenient
+about the answer's shape and strict about its content: an agent name that does
+not exist is dropped, never remapped, and an ambiguous routing answer resolves
+to nothing rather than to the first match. `orchestrate` validates the whole
+plan **before** spawning anything.
 
 `loop` reports `converged` separately from `ok`, because they answer different
 questions: `ok` says the last turn ran without a model error, `converged` says
@@ -284,6 +310,7 @@ launched.
 ```
 > use subagent to review src/usage.ts with coder then reviewer, looping until LGTM
 > use subagent with three scouts and reduceWith "synthesiser" to explain the export path
+> use subagent in orchestrate mode with planner and candidates scout, reviewer to audit the usage code
 ```
 
 While the subagents work, a dot per subagent sits just above the prompt:
@@ -336,6 +363,8 @@ node examples/04-loop.ts      # coding ↔ review, as a team then with fresh eye
 node examples/05-herdr.ts     # a fan-out with one herdr split per branch
 node examples/06-export.ts    # a fan-out exported to runs/<timestamp>/
 node examples/07-reduce.ts    # 3 scouts, then one synthesiser: N→1
+node examples/08-route.ts     # a classifier sends two tasks to two agents
+node examples/09-orchestrate.ts # the planner decides the split, then it runs
 ```
 
 Not every provider reports tokens - several return zero. For the usage lines to
@@ -349,8 +378,8 @@ PI_SUBAGENT_MODEL=local/qwen/qwen3-coder-next node examples/03-fan-out.ts
 
 Shipped so far: the foundation - `Agent`, `Subagent`, `Result`, `Usage`, the
 event bus - three combinators (`chain`, `fanOut`, `loop`), the reporters (herdr,
-TUI, console, silent), four combinators with `reduce`, the pi extension, and the
-session export.
+TUI, console, silent), the six combinators, the pi extension, and the session
+export.
 
-Still to come: the `orchestrate` and `route` combinators. See [`NEXT.md`](NEXT.md) for what is left and
+Still to come: judging the interactive rendering in a real terminal. See [`NEXT.md`](NEXT.md) for what is left and
 the traps already paid for.
