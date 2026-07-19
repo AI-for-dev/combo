@@ -20,15 +20,19 @@ import { testTheme } from "./fixtures/theme.ts";
 // `getMarkdownTheme()` and `keyHint()` read process-wide state.
 initTheme();
 
-/** Captures the tool definition the extension registers. */
-function registeredTool(): any {
+/** Captures everything the extension registers. */
+function registered() {
 	let tool: any;
-	extension({ registerTool: (definition: unknown) => void (tool = definition) } as never);
+	const commands = new Map<string, any>();
+	extension({
+		registerTool: (definition: unknown) => void (tool = definition),
+		registerCommand: (name: string, options: unknown) => void commands.set(name, options),
+	} as never);
 	assert.ok(tool, "the extension must register a tool");
-	return tool;
+	return { tool, commands };
 }
 
-const tool = registeredTool();
+const { tool, commands } = registered();
 const theme = testTheme();
 
 /** A render context with nothing cached, as on the first frame. */
@@ -58,6 +62,14 @@ const details = (over: Record<string, unknown> = {}) => ({
 });
 
 const lines = (component: Component) => component.render(80).join("\n");
+
+describe("what the extension registers", () => {
+	test("the interactive flows are commands, not tools", () => {
+		// A tool runs inside a model turn, where nobody can answer a question.
+		assert.ok(commands.has("interview"), "/interview must be a command");
+		assert.ok(commands.get("interview")?.description, "a command with no description is invisible");
+	});
+});
 
 describe("the registered tool", () => {
 	test("is named subagent and declares its parameters", () => {

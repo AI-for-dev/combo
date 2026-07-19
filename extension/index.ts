@@ -21,6 +21,7 @@ import {
 import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { collapsedLine, formatToolCall, formatUsage, statusIcon, summaryTable } from "../src/index.ts";
+import registerCommands from "./build.ts";
 import { executeSubagent, inferMode, type Details, type Params } from "./execute.ts";
 
 /** How many tool lines the collapsed view shows before it starts eliding. */
@@ -64,6 +65,10 @@ const Schema = Type.Object({
 });
 
 export default function (pi: ExtensionAPI) {
+	// The interactive flows are commands, not tools: an interview owns the
+	// terminal question by question, which a model's turn cannot.
+	registerCommands(pi);
+
 	pi.registerTool({
 		name: "subagent",
 		label: "Subagent",
