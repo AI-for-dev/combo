@@ -10,7 +10,7 @@ The intent behind the project and its structural decisions live in
 
 ```bash
 npm install
-npm test          # 164 tests, no network calls
+npm test          # 170 tests, no network calls
 npm run typecheck
 ```
 
@@ -200,7 +200,28 @@ calls, streamed text, and the final usage line. Splits close on their own when
 their subagent does.
 
 `openInHerdr` is opt-in per subagent, like `lifetime`: a fan-out of twenty
-branches will not carpet your screen unless you asked for it.
+branches will not carpet your screen unless you asked for it. It can also be a
+default on the agent itself, which is often what you want - a scout is worth
+watching whoever calls it:
+
+```markdown
+---
+name: scout
+description: Locates the code relevant to a question
+tools: read, grep, find, ls
+openInHerdr: true
+---
+```
+
+`onEvent` takes a single listener, so watching in two places at once needs
+composing:
+
+```typescript
+onEvent: combineReporters(collector.reporter, createHerdrReporter());
+```
+
+`createHerdrReporter()` returns `undefined` outside herdr, and
+`combineReporters` drops it.
 
 ## Using it from pi
 

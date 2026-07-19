@@ -26,6 +26,7 @@ export {
 export {
 	autoReporter,
 	collapsedLine,
+	combineReporters,
 	consoleReporter,
 	createHerdrReporter,
 	createHerdrReporterWith,

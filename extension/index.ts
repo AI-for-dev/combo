@@ -23,6 +23,8 @@ import { Type } from "typebox";
 import {
 	chain,
 	collapsedLine,
+	combineReporters,
+	createHerdrReporter,
 	createTuiCollector,
 	fanOut,
 	findAgent,
@@ -124,13 +126,19 @@ export default function (pi: ExtensionAPI) {
 				onUpdate?.({ content: [{ type: "text", text: progressLine(snapshot) }], details: undefined });
 			});
 
+			// Two observers, one stream. The TUI collector always listens; the
+			// herdr reporter joins only when pi itself runs inside herdr, and is
+			// `undefined` otherwise. Forgetting this line is what once let
+			// `openInHerdr` reach the spawn event with nobody listening.
+			const onEvent = combineReporters(collector.reporter, createHerdrReporter());
+
 			const shared = {
 				lifetime: asLifetime(params.lifetime),
 				signal,
 				timeoutMs: params.timeoutMs,
 				openInHerdr: params.openInHerdr,
 				cwd: ctx.cwd,
-				onEvent: collector.reporter,
+				onEvent,
 			};
 
 			const startedAt = performance.now();

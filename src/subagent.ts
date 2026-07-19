@@ -30,9 +30,10 @@ export type SpawnOptions = {
 	/**
 	 * Give this subagent its own herdr split, when running inside herdr.
 	 *
-	 * Opt-in per subagent, like {@link SpawnOptions.lifetime}: a fan-out of
-	 * twenty branches must not carpet the screen unless someone asked for it.
-	 * Outside herdr it is simply ignored.
+	 * Opt-in per subagent, like {@link SpawnOptions.lifetime}, and resolved the
+	 * same way: this argument wins over the agent's frontmatter, which wins over
+	 * `false`. A fan-out of twenty branches must not carpet the screen unless
+	 * someone asked for it. Outside herdr it is simply ignored.
 	 */
 	openInHerdr?: boolean;
 };
@@ -110,7 +111,8 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 		}
 	});
 
-	bus.emit({ type: "spawn", id, agent: agent.name, lifetime, openInHerdr: options.openInHerdr ?? false });
+	const openInHerdr = options.openInHerdr ?? agent.openInHerdr ?? false;
+	bus.emit({ type: "spawn", id, agent: agent.name, lifetime, openInHerdr });
 	bus.emit({ type: "status", id, status: "idle" });
 
 	const subagent: Subagent = {

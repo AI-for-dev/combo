@@ -39,6 +39,26 @@ describe("spawn", () => {
 		assert.equal(subagent.lifetime, "workflow");
 	});
 
+	test("openInHerdr resolves like lifetime: argument, then frontmatter, then false", async () => {
+		const flag = async (agent: Parameters<typeof spawn>[0], options: Parameters<typeof spawn>[1] = {}) => {
+			let seen: boolean | undefined;
+			await spawn(agent, {
+				...options,
+				createSession: async () => fakeSession([]),
+				onEvent: (event) => {
+					if (event.type === "spawn") seen = event.openInHerdr;
+				},
+			});
+			return seen;
+		};
+
+		const watched = testAgent("scout", { openInHerdr: true });
+		assert.equal(await flag(testAgent("scout")), false, "default is off");
+		assert.equal(await flag(watched), true, "frontmatter is honoured");
+		assert.equal(await flag(watched, { openInHerdr: false }), false, "the explicit argument wins");
+		assert.equal(await flag(testAgent("scout"), { openInHerdr: true }), true);
+	});
+
 	test("ids are stable and per-agent", async () => {
 		const a = await spawn(scout, { createSession: async () => fakeSession([]) });
 		const b = await spawn(scout, { createSession: async () => fakeSession([]) });

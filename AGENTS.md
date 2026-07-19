@@ -343,6 +343,13 @@ pure observer, it never queries anything.
 The split **closes automatically** when the subagent closes, after the final
 usage line is written. No orphan panes after a fan-out.
 
+**A reporter that nobody subscribes reports nothing.** `onEvent` takes a single
+listener, so watching in the TUI *and* in herdr means composing them - use
+`combineReporters(collector.reporter, createHerdrReporter())`, which drops the
+`undefined` that `createHerdrReporter` returns outside herdr. The extension once
+passed `openInHerdr` all the way to the `spawn` event with nobody listening, and
+nothing failed: no split, no error, no clue.
+
 ### pi TUI reporter (always available)
 
 Implemented across `src/reporters/tui.ts` and `extension/index.ts`.
@@ -504,8 +511,9 @@ You review the code produced and return at most 5 remarks…
 
 - `name` and `description` are **mandatory**; a file without them is ignored
   silently (pi's behaviour, we keep it).
-- `lifetime` in the frontmatter is only a **default**: an explicit call always
-  wins.
+- `lifetime` and `openInHerdr` in the frontmatter are only **defaults**: an
+  explicit call always wins. Declaring `openInHerdr: true` on an agent is often
+  what you want - a scout is worth watching whoever calls it.
 - Project agents (`.pi/agents/`) are **repository-controlled** content: loaded
   only on explicit request (`scope: "project" | "both"`), never by default. Do
   not relax that rule "to keep things simple". This repository's own demo agents
@@ -604,6 +612,12 @@ test/
   in `"workflow"` does not produce the same number of spawns).
 - Reporters are tested by recording the events emitted, never by inspecting a
   terminal rendering.
+- **The extension's `execute` has no injection seam, so it is not covered.**
+  Its renderers are (`test/extension.test.ts`), but the path that wires the
+  reporters and calls the combinators only runs inside a real pi - and that is
+  where the two worst bugs so far have hidden. Until `execute` takes an
+  injectable `spawn`, changes to it must be exercised by hand, inside pi,
+  inside herdr.
 - `Usage` aggregation is tested without an agent: feed it frozen stats and check
   the invariants (a fan-out has `busyMs > wallMs`, a failure keeps its tokens, a
   sum of subagents equals the total).

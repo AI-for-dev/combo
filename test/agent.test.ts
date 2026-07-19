@@ -61,6 +61,17 @@ describe("parseAgent", () => {
 		assert.equal(agent?.lifetime, undefined);
 	});
 
+	test("reads openInHerdr, as a boolean or as the text a YAML-ish parser yields", () => {
+		const yes = parseAgent("---\nname: a\ndescription: d\nopenInHerdr: true\n---\nbody", "/x/a.md", "user");
+		assert.equal(yes?.openInHerdr, true);
+
+		const no = parseAgent("---\nname: a\ndescription: d\nopenInHerdr: false\n---\nbody", "/x/a.md", "user");
+		assert.equal(no?.openInHerdr, false);
+
+		const absent = parseAgent("---\nname: a\ndescription: d\n---\nbody", "/x/a.md", "user");
+		assert.equal(absent?.openInHerdr, undefined, "absent must stay absent, so the caller's choice can win");
+	});
+
 	test("rejects an unknown lifetime rather than passing it through", () => {
 		const agent = parseAgent("---\nname: a\ndescription: d\nlifetime: forever\n---\nbody", "/x/a.md", "user");
 		assert.equal(agent?.lifetime, undefined);

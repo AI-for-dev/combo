@@ -3,6 +3,7 @@ name: scout
 description: Locates the code relevant to a question and reports where it lives
 tools: read, grep, find, ls
 lifetime: task
+openInHerdr: true
 ---
 
 You locate code. You never modify it.

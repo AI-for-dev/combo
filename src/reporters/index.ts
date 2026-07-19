@@ -42,3 +42,29 @@ export function autoReporter(options: AutoReporterOptions = {}): EventListener {
 	const { fallback = silentReporter, ...herdr } = options;
 	return createHerdrReporter(herdr) ?? fallback;
 }
+
+/**
+ * Feeds one event stream to several reporters.
+ *
+ * `onEvent` takes a single listener, so watching in two places at once - the pi
+ * TUI *and* herdr - needs composing. Absent entries are dropped, which is what
+ * makes `combineReporters(collector, createHerdrReporter())` read well:
+ * `createHerdrReporter` returns `undefined` outside herdr.
+ *
+ * One reporter throwing does not stop the others; that guarantee belongs to the
+ * bus, and this keeps it when there is no bus in between.
+ */
+export function combineReporters(...reporters: (EventListener | undefined)[]): EventListener {
+	const active = reporters.filter((reporter): reporter is EventListener => reporter !== undefined);
+	if (active.length === 1) return active[0] as EventListener;
+
+	return (event) => {
+		for (const reporter of active) {
+			try {
+				reporter(event);
+			} catch {
+				// an observer's failure is never the workflow's
+			}
+		}
+	};
+}

@@ -39,6 +39,13 @@ export type Agent = {
 	model?: string;
 	/** Default lifetime. An explicit call always wins. */
 	lifetime?: Lifetime;
+	/**
+	 * Default for "give this agent its own herdr split". An explicit call wins.
+	 *
+	 * Declaring it here is often what you want: a scout is worth watching every
+	 * time, whoever calls it.
+	 */
+	openInHerdr?: boolean;
 	source: AgentSource;
 	/** File path, or a free label for an agent built in memory. */
 	filePath: string;
@@ -72,6 +79,7 @@ export function parseAgent(content: string, filePath: string, source: AgentSourc
 		tools: tools && tools.length > 0 ? tools : undefined,
 		model: asString(frontmatter.model),
 		lifetime: lifetime && LIFETIMES.includes(lifetime) ? (lifetime as Lifetime) : undefined,
+		openInHerdr: asBoolean(frontmatter.openInHerdr),
 		source,
 		filePath,
 	};
@@ -180,4 +188,12 @@ function findProjectAgentsDir(cwd: string): string | undefined {
 
 function asString(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
+}
+
+/** Frontmatter is YAML-ish: a flag may arrive as a boolean or as the text "true". */
+function asBoolean(value: unknown): boolean | undefined {
+	if (typeof value === "boolean") return value;
+	if (value === "true") return true;
+	if (value === "false") return false;
+	return undefined;
 }

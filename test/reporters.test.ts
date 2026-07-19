@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { after, describe, test } from "node:test";
-import { autoReporter, consoleReporter, silentReporter } from "../src/reporters/index.ts";
+import { autoReporter, combineReporters, consoleReporter, silentReporter } from "../src/reporters/index.ts";
 import { createHerdrReporterWith } from "../src/reporters/herdr.ts";
 import { detectHerdr, type HerdrSend } from "../src/reporters/herdr-client.ts";
 import type { SubagentEvent } from "../src/events.ts";
@@ -273,6 +273,47 @@ describe("autoReporter", () => {
 
 		report(spawnEvent("scout#1", true));
 		assert.deepEqual(seen, ["spawn"]);
+	});
+});
+
+describe("combineReporters", () => {
+	test("feeds every reporter, in order", () => {
+		const first: string[] = [];
+		const second: string[] = [];
+		const report = combineReporters(
+			(event) => first.push(event.type),
+			(event) => second.push(event.type),
+		);
+
+		report(spawnEvent("scout#1", true));
+		assert.deepEqual(first, ["spawn"]);
+		assert.deepEqual(second, ["spawn"]);
+	});
+
+	test("drops absent reporters, so createHerdrReporter() can be passed straight in", () => {
+		const seen: string[] = [];
+		const report = combineReporters(undefined, (event) => seen.push(event.type), undefined);
+
+		report(spawnEvent("scout#1", true));
+		assert.deepEqual(seen, ["spawn"]);
+	});
+
+	test("one reporter throwing does not stop the others", () => {
+		const seen: string[] = [];
+		const report = combineReporters(
+			() => {
+				throw new Error("broken");
+			},
+			(event) => seen.push(event.type),
+		);
+
+		assert.doesNotThrow(() => report(spawnEvent("scout#1", true)));
+		assert.deepEqual(seen, ["spawn"]);
+	});
+
+	test("combining nothing is a no-op, not a crash", () => {
+		assert.doesNotThrow(() => combineReporters()(spawnEvent("scout#1", true)));
+		assert.doesNotThrow(() => combineReporters(undefined)(spawnEvent("scout#1", true)));
 	});
 });
 
