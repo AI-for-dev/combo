@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { orchestrate, parsePlan, planningPrompt } from "../src/workflows/orchestrate.ts";
+import { orchestrate } from "../src/workflows/orchestrate.ts";
+import { parsePlan, planningPrompt } from "../src/workflows/plan.ts";
 import { fakeSpawn, testAgent } from "./fixtures/fake-subagent.ts";
 
 const planner = testAgent("planner", { description: "Splits work into independent subtasks" });

@@ -14,6 +14,7 @@ export {
 	type AgentSource,
 	type Lifetime,
 } from "./agent.ts";
+export { scriptedAsk, type Answer, type AskUser, type Choice, type Question } from "./ask.ts";
 export {
 	copyMainSession,
 	createRunDir,
@@ -83,13 +84,24 @@ export { chain, type ChainOptions } from "./workflows/chain.ts";
 export { SubagentPool, type SpawnFn, type WorkflowOptions } from "./workflows/common.ts";
 export { aggregate, fanOut, type FanOutOptions, type FanOutResult } from "./workflows/fan-out.ts";
 export { loop, type LoopOptions, type LoopResult, type UntilPredicate } from "./workflows/loop.ts";
+export { orchestrate, type OrchestrateOptions, type OrchestrateResult } from "./workflows/orchestrate.ts";
 export {
-	orchestrate,
+	makePlan,
 	parsePlan,
 	planningPrompt,
-	type OrchestrateOptions,
-	type OrchestrateResult,
 	type PlannedTask,
-} from "./workflows/orchestrate.ts";
+	type PlanOptions,
+	type PlanOutcome,
+} from "./workflows/plan.ts";
+export {
+	answerPrompt,
+	briefPrompt,
+	interview,
+	parseQuestion,
+	questionPrompt,
+	READY,
+	type InterviewOptions,
+	type InterviewResult,
+} from "./workflows/interview.ts";
 export { formatBranches, reduce, type ReduceOptions } from "./workflows/reduce.ts";
 export { pickDestination, route, routingPrompt, type RouteOptions, type RouteResult } from "./workflows/route.ts";
