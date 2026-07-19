@@ -14,6 +14,18 @@ export { consoleReporter, type ConsoleReporterOptions } from "./console.ts";
 export { createHerdrReporter, createHerdrReporterWith, type HerdrOptions } from "./herdr.ts";
 export { createHerdrSend, detectHerdr, HERDR_SOURCE, type HerdrEnv, type HerdrSend } from "./herdr-client.ts";
 export { silentReporter } from "./silent.ts";
+export {
+	collapsedLine,
+	createTuiCollector,
+	formatToolCall,
+	progressLine,
+	statusIcon,
+	summaryTable,
+	type SubagentSnapshot,
+	type ToolCall,
+	type TuiCollector,
+	type TuiSnapshot,
+} from "./tui.ts";
 
 export type AutoReporterOptions = HerdrOptions & {
 	/** Used when herdr is absent. Defaults to {@link silentReporter}. */

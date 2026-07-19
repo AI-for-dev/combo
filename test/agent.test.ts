@@ -118,5 +118,13 @@ describe("findAgent", () => {
 
 	test("throws on an unknown name: a typo must not become a failed Result later", () => {
 		assert.throws(() => findAgent(agents, "nope"), /Unknown agent "nope"/);
+		assert.throws(() => findAgent(agents, "nope"), /Loaded agents: a/);
+	});
+
+	test("an empty list blames the scope, not the name", () => {
+		// "Loaded agents: none" once led a model to conclude the repository had
+		// no agent definitions at all. Point at the real cause instead.
+		assert.throws(() => findAgent([], "scout"), /no agents were loaded/);
+		assert.throws(() => findAgent([], "scout"), /scope "project" or "both"/);
 	});
 });

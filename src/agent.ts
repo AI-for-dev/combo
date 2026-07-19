@@ -119,11 +119,19 @@ export function loadAgents(options: { cwd?: string; scope?: AgentScope } = {}): 
  */
 export function findAgent(agents: Agent[], name: string): Agent {
 	const agent = agents.find((candidate) => candidate.name === name);
-	if (!agent) {
-		const known = agents.map((candidate) => candidate.name).join(", ") || "none";
-		throw new Error(`Unknown agent "${name}". Loaded agents: ${known}`);
+	if (agent) return agent;
+
+	// An empty list almost always means the scope, not a typo: project agents
+	// are not loaded by default. Say so, or the caller hunts for the wrong bug -
+	// a model given "Loaded agents: none" concluded the repository had no agent
+	// definitions at all.
+	if (agents.length === 0) {
+		throw new Error(
+			`Unknown agent "${name}": no agents were loaded. User agents live in ${path.join(getAgentDir(), "agents")}; ` +
+				`project agents in ${CONFIG_DIR_NAME}/agents are only loaded with scope "project" or "both".`,
+		);
 	}
-	return agent;
+	throw new Error(`Unknown agent "${name}". Loaded agents: ${agents.map((candidate) => candidate.name).join(", ")}`);
 }
 
 /** Reads every `.md` in a directory. A missing or unreadable directory yields `[]`. */

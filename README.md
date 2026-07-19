@@ -10,7 +10,7 @@ The intent behind the project and its structural decisions live in
 
 ```bash
 npm install
-npm test          # 120 tests, no network calls
+npm test          # 158 tests, no network calls
 npm run typecheck
 ```
 
@@ -202,6 +202,36 @@ their subagent does.
 `openInHerdr` is opt-in per subagent, like `lifetime`: a fan-out of twenty
 branches will not carpet your screen unless you asked for it.
 
+## Using it from pi
+
+The extension exposes everything above as a `subagent` tool the model can call,
+rendered live in pi's TUI.
+
+```bash
+pi -e extension                      # this session only
+pi install ./extension               # permanently, via settings
+```
+
+```
+> use subagent to review src/usage.ts with coder then reviewer, looping until LGTM
+```
+
+The collapsed row shows one line per subagent with its last tool calls; expand
+it (the hint comes from your own keybinding config, not a hard-coded `Ctrl+O`)
+for the full task, every tool call, the output as Markdown, and usage per
+subagent. A parallel run shows the parallelism it achieved; a loop says whether
+it **converged** or merely ran out of iterations.
+
+Agents come from `~/.pi/agent/agents/` by default. This repository ships its
+demo agents in `.pi/agents/`, so ask for them explicitly:
+
+```
+> use subagent with scope "project" and agent "scout" to find the auth code
+```
+
+That is deliberate: project agents are repository-controlled content, so they
+are never loaded by default.
+
 ## Examples
 
 Directly executable, one per shape:
@@ -224,8 +254,8 @@ PI_SUBAGENT_MODEL=local/qwen/qwen3-coder-next node examples/03-fan-out.ts
 ## Status
 
 Shipped so far: the foundation - `Agent`, `Subagent`, `Result`, `Usage`, the
-event bus - three combinators (`chain`, `fanOut`, `loop`), and the reporters
-(herdr, console, silent).
+event bus - three combinators (`chain`, `fanOut`, `loop`), the reporters (herdr,
+TUI, console, silent), and the pi extension.
 
-Still to come: the pi TUI reporter and extension, `orchestrate`, `route`,
-`reduce`, and session export (`runs/<timestamp>/`).
+Still to come: `orchestrate`, `route`, `reduce`, and session export
+(`runs/<timestamp>/`).

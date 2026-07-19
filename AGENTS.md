@@ -154,8 +154,8 @@ Rules:
 
 - **Every workflow is an exported function**, not a class. No inheritance, no
   global registry.
-- They all accept `{ lifetime, signal, timeoutMs, onEvent, bus, cwd, sessionDir,
-  spawn }` - same names, same defaults (`"task"`, then none) - plus whatever is
+- They all accept `{ lifetime, signal, timeoutMs, openInHerdr, onEvent, bus, cwd,
+  sessionDir, spawn }` - same names, same defaults (`"task"`, then none) - plus whatever is
   specific to them (`concurrency` and `failFast` for `fanOut`, `until` and
   `maxIterations` for `loop`).
 - **`spawn` is an injectable parameter**, never a hard import inside a
@@ -345,9 +345,32 @@ usage line is written. No orphan panes after a fan-out.
 
 ### pi TUI reporter (always available)
 
+Implemented across `src/reporters/tui.ts` and `extension/index.ts`.
+
+**The split that makes it testable.** `tui.ts` *collects* - it turns the event
+stream into a `TuiSnapshot` and formats strings, with no pi-tui import. The
+extension *draws* - it maps tool arguments onto combinators and builds
+components. Collection is therefore tested by inspecting a snapshot, never by
+scraping a terminal, and the same state would feed a web view or an export
+without touching a component.
+
+The rendering is still tested, though: `test/extension.test.ts` captures the
+registered tool, calls `renderCall` / `renderResult` with a full `Theme`, and
+reads the component's own `render(width)`. That catches the failure that
+actually bites - a renderer that throws makes pi fall back to its default
+rendering silently, and nobody notices until the demo.
+
+`Theme.fg` throws on an unknown colour, so a partial stub fails on the first
+unusual colour rather than on a real defect: `test/fixtures/theme.ts` builds a
+complete one. Do not reach for pi's internal `theme` singleton - it is not
+exported from the package root.
+
 The extension registers the tool with `renderCall` / `renderResult` (see
 `docs/extensions.md`, *Custom Rendering*) and composes with
 `@earendil-works/pi-tui` (`Container`, `Text`, `Markdown`, `Spacer`).
+
+Load it with `pi -e extension` (the flag accepts a directory), or `pi install
+./extension` to add it to settings.
 
 Display specification - this is the "Claude Code" bar we are aiming at:
 
@@ -472,7 +495,14 @@ You review the code produced and return at most 5 remarks…
   wins.
 - Project agents (`.pi/agents/`) are **repository-controlled** content: loaded
   only on explicit request (`scope: "project" | "both"`), never by default. Do
-  not relax that rule "to keep things simple".
+  not relax that rule "to keep things simple". This repository's own demo agents
+  live in `agents/` and are symlinked into `.pi/agents/`, so the extension can
+  find them - with an explicit scope, like anyone else's.
+- **An empty agent list is almost always a scope problem, not a typo**, so
+  `findAgent` says so. Given the old "Loaded agents: none", a model concluded the
+  repository had no agent definitions at all and started offering to write some.
+  An error message is read by an LLM as often as by a human now; it has to name
+  the real cause.
 - Agents are rediscovered on every call (hot editing works).
 
 ## Code conventions
@@ -526,10 +556,11 @@ src/
     herdr-client.ts # detection (3 env vars) + socket transport
     herdr.ts        # one split per subagent, fed by a file it tails
     console.ts  silent.ts
-    tui.ts          # pi-tui components shared with the extension
+    tui.ts          # state collection + formatting (no pi-tui import)
 extension/
   index.ts          # pi.registerTool({ name: "subagent" }) + renderCall/renderResult
 agents/             # example definitions (scout, coder, reviewer, planner…)
+.pi/agents/         # the same, at pi's project location (symlinks)
 examples/           # one script per workflow, directly executable
 test/
   fixtures/         # fake-session.ts, fake-subagent.ts

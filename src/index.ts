@@ -25,18 +25,28 @@ export {
 } from "./events.ts";
 export {
 	autoReporter,
+	collapsedLine,
 	consoleReporter,
 	createHerdrReporter,
 	createHerdrReporterWith,
 	createHerdrSend,
+	createTuiCollector,
 	detectHerdr,
+	formatToolCall,
 	HERDR_SOURCE,
+	progressLine,
 	silentReporter,
+	statusIcon,
+	summaryTable,
 	type AutoReporterOptions,
 	type ConsoleReporterOptions,
 	type HerdrEnv,
 	type HerdrOptions,
 	type HerdrSend,
+	type SubagentSnapshot,
+	type ToolCall,
+	type TuiCollector,
+	type TuiSnapshot,
 } from "./reporters/index.ts";
 export { failed, type Result, type WorkflowResult } from "./result.ts";
 export { run, type RunOptions } from "./run.ts";
