@@ -1,0 +1,10 @@
+node_modules/
+
+# Session exports produced by workflow runs
+runs/
+
+.DS_Store
+*.log
+
+# Local Claude Code settings
+.claude/settings.local.json

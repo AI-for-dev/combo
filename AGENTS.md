@@ -1,0 +1,518 @@
+# pi-subagent
+
+A small TypeScript library for **writing subagents in [pi](https://pi.dev)
+simply and elegantly**, and for **composing workflows** (orchestrator, fan-out,
+chain, coding/review loop…) without rewriting the plumbing every time.
+
+Four founding requirements, non-negotiable:
+
+1. **In-process subagents**, isolated, composable in TypeScript.
+2. An **explicit lifetime**: a subagent can be disposable (recreated at every
+   step) or persistent (it keeps its memory and works with the others across
+   iterations). That is the caller's choice, never an implicit one.
+3. A **clean, Claude Code-grade TUI**: you watch subagents work, live. In
+   [herdr](https://herdr.dev) if it is running, in pi's TUI otherwise -
+   **without changing a line of calling code**.
+4. **Everything is measured and exportable**: time and tokens per subagent, and
+   a full session export (readable HTML, replayable JSONL).
+
+## Structural decisions (do not undo without discussion)
+
+1. **In-process execution through the pi SDK** (`createAgentSession()` from
+   `@earendil-works/pi-coding-agent`), not `spawn("pi", ["--mode", "json"])`.
+   Each subagent is an `AgentSession` with its own context, model and tools. No
+   NDJSON parsing, no process startup cost, native events, testable without a
+   network. It is also what makes **persistence** possible: a session we keep
+   alive.
+2. **Two surfaces, one core**: the logic lives in a pure TS library (`src/`),
+   and a **pi extension** (`extension/`) exposes it as a tool in the TUI. Every
+   feature must be usable from a script *before* it is exposed in the extension.
+3. **Agents are data, workflows are code.** An agent is declared in Markdown +
+   frontmatter (pi's convention); a workflow is written in TypeScript with
+   combinators. No YAML DSL: we want composable code, not a configuration
+   engine.
+4. **Display is an observer, never a participant.** No workflow may depend on a
+   UI being present. *Reporters* (herdr, pi TUI, silent) subscribe to an event
+   stream; unplug them all and the result is identical.
+5. **The pi API lives in one file.** `src/session.ts` is the only place that
+   imports from `@earendil-works/pi-coding-agent`. Everything else talks to
+   `SessionPort`, a minimal subset of `AgentSession`. When pi moves, one file
+   moves - and tests inject a fake session with no network, no disk, no `~/.pi`.
+6. **A subagent inherits nothing from the user's environment.** Its system
+   prompt goes through our own `StaticResourceLoader`: no extensions, no
+   skills, no context files. `DefaultResourceLoader` would re-read the disk on
+   every spawn and pull in non-deterministic context nobody asked for.
+7. **English everywhere** - documentation, comments, public API, agent system
+   prompts.
+
+## Mental model
+
+```
+definition (.md)   ──►  Agent      "who"    : prompt, model, tools
+spawn(agent)       ──►  Subagent   "alive"  : a session, a memory, a state
+subagent.ask(task) ──►  Result     "one turn of work"
+combinators        ──►  Workflow   "how"    : chain, fanOut, orchestrate, loop
+```
+
+Two levels of API, the second built on the first:
+
+```typescript
+// Low level: a live subagent whose lifetime you control
+const coder = await spawn(agents.coder, { lifetime: "workflow" });
+await coder.ask("Implement the parser");
+await coder.ask("Apply these remarks: …");   // it remembers the previous turn
+await coder.close();
+
+// High level: disposable, everything is handled (spawn → ask → close)
+const result = await run(agents.scout, "Find the authentication code");
+```
+
+`Result` is the one contract shared by everything else:
+
+```typescript
+type Result = {
+  agent: string;
+  output: string;          // last assistant text
+  messages: AgentMessage[];
+  usage: Usage;            // time, tokens, cost, turns, context
+  ok: boolean;
+  error?: string;
+};
+```
+
+A workflow is a function `(input) => Promise<Result | Result[]>`. Workflows
+compose because they share that signature - that is all.
+
+## Subagent lifetime
+
+**The central point of the project.** A subagent is a session: keeping it open
+means keeping a context, a memory, and a token cost that accumulates. Closing it
+means starting clean but amnesic. Both are legitimate; the choice must be
+**explicit and local**.
+
+| `lifetime` | The subagent… | Cost / context | When |
+|-----------|----------------|-----------------|-------|
+| `"task"` *(default)* | is born and dies with each task | minimal context, reproducible | exploration, fan-out, independent tasks |
+| `"workflow"` | lives for the workflow | remembers iterations, growing context | coding↔review loop, iterative refinement |
+| `"session"` | lives as long as the pi session | long memory, watch it | "companion" agent consulted several times |
+
+### Coding ↔ review loop: the two regimes
+
+Same workflow, two behaviours, one parameter:
+
+```typescript
+// "Team" regime: coder and reviewer remember the previous turns.
+// The reviewer does not repeat its remarks, the coder knows what it was told.
+await loop({
+  steps: [agents.coder, agents.reviewer],
+  lifetime: "workflow",
+  until: (r) => r.output.includes("LGTM"),
+  maxIterations: 5,
+});
+
+// "Freshness" regime: brand new subagents at every iteration.
+// No accumulated bias, every review starts from the code alone. More expensive
+// in re-reading, more honest about the result.
+await loop({
+  steps: [agents.coder, agents.reviewer],
+  lifetime: "task",
+  until: (r) => r.output.includes("LGTM"),
+});
+```
+
+Rules:
+
+- **`"task"` is the default.** Persistence is asked for, it is never obtained by
+  accident.
+- **A persistent `Subagent` is an explicit object** with `ask()`, `usage`,
+  `close()`. There is no global session cache hidden behind `run()`.
+- **Whoever opens, closes.** The owner of a `Subagent` is whoever `spawn()`ed
+  it. A workflow that creates its subagents closes them in a `finally`,
+  cancellation included. A workflow that *receives* live subagents **never**
+  closes them.
+- **Persistent subagents do not share their history.** "Working together" means
+  passing `Result`s as input, not merging contexts. If an agent must see another
+  one's work, you **tell** it in the task.
+- **Context growth is visible**: `subagent.usage.contextTokens` is reported to
+  the TUI. A `"workflow"` agent approaching its limit must either compact
+  (`session.compact()`) or fail cleanly - never truncate silently.
+- **No shared mutable state** between fan-out branches, whatever the lifetime.
+
+## Workflows to cover
+
+| Workflow | Shape | Semantics | Status |
+|----------|-------|------------|--------|
+| `chain` | 1→1→1 | output of step *n* is the input of *n+1* | done |
+| `fanOut` | 1→N | N subtasks in parallel, bounded concurrency | done |
+| `reduce` | N→1 | one agent synthesises a fan-out's results | to do |
+| `orchestrate` | 1→? | an agent *decides* the split, then delegates (dynamic fan-out) | to do |
+| `route` | 1→1 | a classifier agent picks the destination agent | to do |
+| `loop` | 1→1 | iterates until a criterion (judge, test, regex) is met | to do |
+
+Rules:
+
+- **Every workflow is an exported function**, not a class. No inheritance, no
+  global registry.
+- They all accept `{ lifetime, concurrency, signal, onEvent, bus, cwd,
+  sessionDir, spawn }` - same names, same defaults (`"task"`, `4`, none, none).
+- **`spawn` is an injectable parameter**, never a hard import inside a
+  combinator. That is what makes workflows testable without a network.
+- **Cancellation propagates**: the `AbortSignal` reaches every turn and closes
+  the sessions that were opened.
+- **`timeoutMs` is a per-turn deadline, with no default.** pi's agent loop is a
+  `while (true)` (`pi-agent-core/dist/agent-loop.js:84`) with **no step cap**: it
+  runs as long as the model keeps requesting tools. A weak model that
+  hallucinates a tool name, gets "unknown tool" back and asks again will loop
+  until something stops it - observed in the wild, 79 calls to a non-existent
+  `run` tool, ~500k input tokens in a single turn. A signal alone is not enough:
+  something has to fire it. No default value, though - the library does not get
+  to decide that a legitimate task took too long.
+- **A failure does not crash the workflow**: it becomes a `Result` with
+  `ok: false`. It is the caller (or an explicit `failFast` option) that decides
+  to stop.
+- **No speculative abstraction**: a combinator is added when a real example
+  needs it.
+
+## Measurements: time and tokens per subagent
+
+Nothing is estimated, nothing is recomputed by hand: pi already exposes the
+numbers, we **collect and attribute** them. The only things the library adds are
+**time** (pi does not measure it) and **aggregation per subagent**.
+
+```typescript
+type Usage = {
+  // time - measured here, on a monotonic clock (performance.now()), not Date.now()
+  wallMs: number;        // from spawn to close (includes waiting between two asks)
+  busyMs: number;        // time actually spent working (sum of the asks)
+  turns: number;
+
+  // tokens & cost - reported by pi, never reconstructed
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  cost: number;
+  contextTokens?: number;  // current context size (persistent agent)
+};
+```
+
+Where the numbers come from:
+
+- `session.getSessionStats()` → `{ tokens: { input, output, cacheRead,
+  cacheWrite, total }, cost, contextUsage, userMessages, assistantMessages,
+  toolCalls, … }`. This is **the** source of truth for tokens and cost.
+- `session.getContextUsage()` → context occupancy, to display for persistent
+  agents.
+- Time is measured around each `session.prompt()`: `busyMs` is the sum of the
+  `ask` calls, `wallMs` runs from `spawn` to `close`. On a `"task"` agent the
+  two are nearly equal; on a `"workflow"` agent the gap between them **is** the
+  interesting information (waiting time vs useful time).
+
+Rules:
+
+- **`getSessionStats()` is cumulative over the session.** A turn's usage is
+  therefore the **difference** between two snapshots, taken before and after
+  `prompt()`. That is what gives both `subagent.usage` (since spawn) and
+  `result.usage` (this turn) without ever recounting a token.
+- Counters are clamped at `0`: compaction can walk the totals backwards, and a
+  negative usage means nothing.
+- **A fan-out aggregates**, it does not average: total tokens, total cost,
+  `wallMs` = duration of the fan-out (not the sum of the branches), `busyMs` =
+  sum of the branches. The ratio of the two gives the real parallelism - that is
+  what we want to see.
+- **A failure counts too.** A subagent that crashed after 12k tokens cost 12k
+  tokens; its `Usage` is filled in even when `ok: false`.
+- **Never** estimate tokens by counting characters. If the provider does not
+  report them, the field is `0` and we say so.
+
+## Session export
+
+Two formats, two uses, both provided by pi (`AgentSession`):
+
+```typescript
+await session.exportToHtml(outputPath?);  // → path of the HTML file, readable/shareable
+session.exportToJsonl(outputPath?);       // → JSONL of the current branch, replayable
+```
+
+What the project must provide on top:
+
+- **An export covering the parent session *and* all its subagents.** An
+  orchestration export that lost the subagents' work would be useless. Target: a
+  `runs/<timestamp>/` directory with `main.html`, `main.jsonl`, one pair per
+  subagent (`<agent>-<n>.html` / `.jsonl`), and a `usage.json` summarising the
+  measurements above.
+- **Subagent sessions must be exportable.** Careful:
+  `SessionManager.inMemory()` persists nothing. For a subagent to be
+  exportable, it needs `SessionManager.create(cwd, sessionDir)` with a
+  `sessionDir` dedicated to the run. That is an **explicit flag**
+  (`sessionDir`), not the default: by default subagents stay in memory and do
+  not pollute `~/.pi`.
+- **Export can be triggered at any time**, not only at the end of a workflow: a
+  dedicated extension command, and a programmatic call. An interrupted workflow
+  (Ctrl+C) must export what was done.
+- **`usage.json` is the only artefact we produce ourselves**; we reimplement
+  neither pi's HTML nor its JSONL.
+- Not to be confused with `pi --export <file>` (CLI, on an existing session
+  file): useful when debugging, but the programmatic API is the normal path
+  here.
+
+## Display: herdr if present, pi TUI otherwise
+
+One event stream, several reporters. The core emits:
+
+```typescript
+type SubagentEvent =
+  | { type: "spawn";  id: string; agent: string; lifetime: Lifetime }
+  | { type: "status"; id: string; status: "working" | "idle" | "blocked" | "done" }
+  | { type: "text";   id: string; delta: string }
+  | { type: "tool";   id: string; name: string; args: unknown }
+  | { type: "usage";  id: string; usage: Usage }
+  | { type: "close";  id: string; result: Result };
+```
+
+A listener that throws is swallowed: a broken reporter must never take a
+workflow down with it.
+
+### herdr reporter (the default when available)
+
+**Detection, in this order**: the `HERDR_SOCKET_PATH` / `HERDR_ENV` /
+`HERDR_PANE_ID` variables injected into the pane, then a reachable API socket.
+If nothing answers → we fall back silently to the pi TUI. **Never an error,
+never a noisy warning** just because herdr is not there.
+
+What the reporter does (herdr socket API, protocol 16 - see
+`herdr api schema --json` and `herdr api snapshot`):
+
+- `pane.report_agent` to publish each subagent's state
+  (`working` / `idle` / `blocked` / `done`) - this is what makes them show up
+  "like Claude" in herdr.
+- `agent.start` / `pane.split` to give a subagent **its own pane** when you want
+  to watch it work (a fan-out visible side by side).
+- `agent.rename` to name the pane after the agent and iteration (`reviewer#2`),
+  `notification.show` at the end of a long workflow.
+- Useful CLI equivalents when debugging: `herdr agent list`,
+  `herdr agent read <target>`, `herdr agent wait <target> --status idle`.
+
+A **persistent** subagent keeps its pane across iterations (you watch its memory
+live); a `"task"` subagent opens and closes one every time. That is the direct
+visual translation of lifetime - and it is deliberate.
+
+### pi TUI reporter (always available)
+
+The extension registers the tool with `renderCall` / `renderResult` (see
+`docs/extensions.md`, *Custom Rendering*) and composes with
+`@earendil-works/pi-tui` (`Container`, `Text`, `Markdown`, `Spacer`).
+
+Display specification - this is the "Claude Code" bar we are aiming at:
+
+- **Collapsed view, compact, one line per subagent**: status icon
+  (`⏳` / `✓` / `✗`), agent name, truncated task, last tool called.
+- **Streaming**: you see tool calls arrive, not an opaque spinner. Handle
+  `isPartial`, call `context.invalidate()` sparingly.
+- **In parallel, everything advances at once**: `2/3 done, 1 running`.
+- **Expanded view (`app.tools.expand`)**: full task, all tool calls formatted
+  (`$ cmd`, `read ~/path:1-10`, `grep /pat/ in ~/path`), final output rendered as
+  **Markdown**, usage per subagent.
+- **Usage line**: `3 turns 12.4s ↑12k ↓2.1k R8k $0.0412 ctx:34k model` - and,
+  for a persistent agent, the **cumulative** usage since its spawn.
+- **End-of-workflow summary**: a table with one line per subagent (time, turns,
+  tokens, cost), a total at the bottom, and the export directory path if an
+  export was requested.
+- Use `keyHint("app.tools.expand", …)` rather than hard-coding "Ctrl+O": the
+  user's key configuration must be respected.
+- Reuse `context.lastComponent` instead of rebuilding the tree every frame.
+
+## The pi API: what you need to know
+
+Verified on pi `0.80.10`. **Pin the version**: `0.80.6` → `0.80.10` removed
+`AuthStorage` and `ModelRegistry` in favour of `ModelRuntime`. A pi "patch" can
+break the API; hence the `~0.80.10` in `package.json`, and the rule of always
+re-reading the installed version's `.d.ts` before quoting an API.
+
+Local reference docs: `node_modules/@earendil-works/pi-coding-agent/docs/`
+(read `sdk.md`, `extensions.md`, `tui.md`), examples in `examples/sdk/` and
+`examples/extensions/` - in particular `examples/extensions/subagent/`, which we
+take inspiration from but **do not copy**: it spawns one process per subagent
+and therefore has no notion of lifetime.
+
+Creating an isolated session (see `src/session.ts`, the only place the pi API
+lives):
+
+```typescript
+import { ModelRuntime, SessionManager, createAgentSession } from "@earendil-works/pi-coding-agent";
+
+const modelRuntime = await ModelRuntime.create();   // replaces AuthStorage + ModelRegistry
+
+const { session } = await createAgentSession({
+  cwd,
+  modelRuntime,
+  model: resolveCliModel({ cliProvider, cliModel, modelRuntime }).model,
+  tools: agent.tools,                       // ["read", "grep", "find", "ls"] …
+  resourceLoader: new StaticResourceLoader(agent.systemPrompt),
+  sessionManager: SessionManager.inMemory(cwd),
+});
+
+await session.prompt(task);
+const messages = session.messages;
+session.dispose();                          // ← always, in a finally
+```
+
+Points to watch:
+
+- Built-in tools: `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`
+  (default: `read`, `bash`, `edit`, `write`). `noTools: "all"` disables
+  everything.
+- A read-only subagent is `tools: ["read", "grep", "find", "ls"]`. **That is the
+  recommended default** for exploration agents. The allowlist is genuinely
+  enforced by pi - verified: a scout session exposes exactly those four tools.
+  A weak model will still *emit* calls to tools it does not have (`edit`,
+  `run`); they fail, and the model may retry them in a loop. That is an argument
+  for `loop`'s `maxIterations`, not for loosening the allowlist.
+- The system prompt goes through the `resourceLoader`, **not** through a
+  `systemPrompt` field on `createAgentSession`. We supply our own
+  (`StaticResourceLoader`): `DefaultResourceLoader` requires `cwd` and
+  `agentDir`, re-reads the disk on every spawn, and loads extensions, skills and
+  project trust - non-deterministic context a subagent does not need.
+- **`session.prompt()` does not accept an `AbortSignal`.** `PromptOptions` only
+  holds `expandPromptTemplates`, `images`, `streamingBehavior`, `source`,
+  `preflightResult`. Cancellation goes through `session.abort()`: we bridge the
+  signal by hand, and remove the listener after each turn.
+- Messages are read from `session.messages`; `session.agent.state.messages` is an
+  internal detail.
+- A turn can fail **without throwing**: look at the last assistant message's
+  `stopReason` (`"error"`, `"aborted"`).
+- **Not every provider reports tokens.** Several return a `usage` that is already
+  zero at the source; `getSessionStats()` then sums zeros. We display `0`, we
+  never estimate it. (Verified: `local/*` reports tokens, `opencode-go/*` and
+  `ilaas/*` do not.)
+- `session.subscribe(…)` is the source of every `SubagentEvent`:
+  `message_update`/`text_delta`, `tool_execution_start`, `turn_end`,
+  `agent_end`. Never log directly from the core.
+- `session.prompt()` in series on one session **is** a persistent subagent. That
+  is literally the whole implementation of `lifetime: "workflow"`.
+- `session.compact()` exists: it is the way out for a persistent agent whose
+  context is swelling.
+- Measurements and export are `AgentSession` methods: `getSessionStats()`,
+  `getContextUsage()`, `exportToHtml()`, `exportToJsonl()`. **Call them before
+  `dispose()`.**
+- `session.dispose()` releases the session; an undisposed session leaks.
+
+## Defining an agent
+
+Markdown + frontmatter, compatible with pi's convention
+(`~/.pi/agent/agents/*.md`, `.pi/agents/*.md`):
+
+```markdown
+---
+name: reviewer
+description: Reviews code and returns actionable remarks
+tools: read, grep, find, ls
+model: anthropic/claude-sonnet-5
+lifetime: workflow          # our own extension: default lifetime
+---
+
+You review the code produced and return at most 5 remarks…
+```
+
+- `name` and `description` are **mandatory**; a file without them is ignored
+  silently (pi's behaviour, we keep it).
+- `lifetime` in the frontmatter is only a **default**: an explicit call always
+  wins.
+- Project agents (`.pi/agents/`) are **repository-controlled** content: loaded
+  only on explicit request (`scope: "project" | "both"`), never by default. Do
+  not relax that rule "to keep things simple".
+- Agents are rediscovered on every call (hot editing works).
+
+## Code conventions
+
+- **TypeScript, ESM, run natively by Node ≥ 23.6** (`node src/x.ts`), no build
+  step. `tsc --noEmit` for typechecking. `erasableSyntaxOnly` is on: no enums, no
+  namespaces, no parameter properties - Node erases types, it does not compile
+  them.
+- **Dependencies kept to a strict minimum**: the pi SDK, and nothing else
+  without discussion. In particular, never import `@earendil-works/pi-agent-core`
+  or `pi-ai` directly - they are transitive, and undeclared. Derive what you need
+  from the public surface (`type AgentMessage = AgentSession["messages"][number]`).
+- **One file, one concept.** Past ~200 lines, it is mixing two.
+- Errors: a typed `Result` on normal paths; we only `throw` for programming
+  errors (invalid config, unknown agent, already-closed subagent).
+- Formatting: tabs, double quotes - like pi's own code.
+
+## Documentation
+
+Documentation is part of the deliverable, not a follow-up task.
+
+- **TSDoc on every public export**, stating the invariant it upholds whenever
+  that invariant is not obvious ("the delta, not the cumulative total",
+  "whoever opens, closes"). A comment that restates the signature is noise.
+- **Comments explain why, never what.** If a line needs a comment to say what it
+  does, rewrite the line.
+- **One executable example per combinator**, runnable directly
+  (`node examples/02-chain.ts`), showing the lifetime difference where relevant.
+- **`README.md` is updated in the same batch** as the code it describes.
+- **This file records decisions**, not the state of the code. When a decision is
+  reversed, the reversal is written down here with its reason.
+
+## Target structure
+
+```
+AGENTS.md  README.md  package.json  tsconfig.json
+src/
+  agent.ts          # type Agent + loading the .md files (frontmatter)
+  result.ts         # Result: the shared contract
+  session.ts        # SessionPort + StaticResourceLoader: all of the pi API
+  subagent.ts       # spawn() → Subagent { ask, usage, close }; lifetime
+  run.ts            # run(): disposable sugar over spawn/ask/close
+  events.ts         # SubagentEvent + bus
+  usage.ts          # Usage: time (measured) + tokens/cost/context (via pi)
+  export.ts         # runs/<timestamp>/: html + jsonl per agent + usage.json
+  workflows/
+    common.ts       # WorkflowOptions + SubagentPool (the lifetime rule)
+    chain.ts  fan-out.ts  orchestrate.ts  route.ts  loop.ts
+  reporters/
+    herdr.ts        # detection + socket API (pane.report_agent, agent.start…)
+    tui.ts          # pi-tui components shared with the extension
+    silent.ts
+extension/
+  index.ts          # pi.registerTool({ name: "subagent" }) + renderCall/renderResult
+agents/             # example definitions (scout, coder, reviewer, planner…)
+examples/           # one script per workflow, directly executable
+test/
+  fixtures/         # fake-session.ts, fake-subagent.ts
+  *.test.ts         # node --test, no network
+```
+
+## Tests
+
+- `node --test 'test/*.test.ts'`, **no network calls**. Workflows are tested
+  with an injected `spawn` (a fake subagent returning frozen `Result`s) - hence
+  the importance of `spawn` being an injectable parameter rather than a hard
+  import inside the combinators.
+- The fake session must reproduce the pi behaviours that are easy to get wrong,
+  or the tests will pass on broken code:
+  - `getSessionStats()` is **cumulative** - a fake returning per-turn stats
+    would hide the very bug the delta arithmetic exists to prevent;
+  - `messages` **grows** with every turn;
+  - `abort()` genuinely **cuts the in-flight turn short**. A fake that slept
+    through its own abort made the timeout tests pass while the turn still ran
+    for its full 5 seconds. Assert on *elapsed time*, not just on the error
+    message: a correct label on a still-hanging turn is not a guard.
+- Every new workflow primitive arrives with: a composition test, a failure test,
+  a cancellation test, and **a lifetime test** (the same scenario in `"task"` and
+  in `"workflow"` does not produce the same number of spawns).
+- Reporters are tested by recording the events emitted, never by inspecting a
+  terminal rendering.
+- `Usage` aggregation is tested without an agent: feed it frozen stats and check
+  the invariants (a fan-out has `busyMs > wallMs`, a failure keeps its tokens, a
+  sum of subagents equals the total).
+
+## When you work here
+
+- Read pi's `docs/sdk.md` and `docs/extensions.md` before inventing an API - it
+  probably already exists (`defineTool`, `parseFrontmatter`, `getAgentDir`,
+  `keyHint`, `resolveCliModel`…).
+- Check the installed pi version before quoting an API: this file describes
+  `0.80.10`, and patch releases have broken the surface before. For herdr,
+  `herdr api schema --json` is authoritative.
+- Before adding a layer of configuration, ask whether a function call would do.
+  The promise of this project is "simple and elegant".
