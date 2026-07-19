@@ -19,12 +19,18 @@ export {
 	createTuiCollector,
 	formatToolCall,
 	progressLine,
+	currentActivity,
+	detailLine,
+	elapsedMs,
 	statusIcon,
 	summaryTable,
+	widgetLines,
+	widgetRows,
 	type SubagentSnapshot,
 	type ToolCall,
 	type TuiCollector,
 	type TuiSnapshot,
+	type WidgetRow,
 } from "./tui.ts";
 
 export type AutoReporterOptions = HerdrOptions & {

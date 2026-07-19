@@ -4,10 +4,14 @@ import type { SubagentEvent } from "../src/events.ts";
 import {
 	collapsedLine,
 	createTuiCollector,
+	detailLine,
+	elapsedMs,
 	formatToolCall,
 	progressLine,
 	statusIcon,
 	summaryTable,
+	widgetLines,
+	widgetRows,
 	type TuiCollector,
 } from "../src/reporters/tui.ts";
 import { emptyUsage, type Usage } from "../src/usage.ts";
@@ -210,6 +214,105 @@ describe("collapsedLine", () => {
 
 		const line = collapsedLine(collector.snapshot().subagents[0]!, 20);
 		assert.ok(line.length < 60, line);
+	});
+});
+
+describe("the widget above the prompt", () => {
+	const spawnedWith = (id: string, model?: string): SubagentEvent => ({
+		type: "spawn",
+		id,
+		agent: id.split("#")[0] as string,
+		lifetime: "task",
+		openInHerdr: false,
+		model,
+	});
+
+	test("two lines per subagent: a dot with what it does, then the quiet detail", () => {
+		const collector = replay(
+			spawnedWith("scout#1", "ilaas/qwen-3.6-35b-instruct"),
+			{ type: "status", id: "scout#1", status: "working" },
+			{ type: "tool", id: "scout#1", name: "grep", args: { pattern: "lifetime" } },
+			{ type: "usage", id: "scout#1", usage: { ...emptyUsage(), input: 12_000, output: 209, busyMs: 12_400 } },
+		);
+
+		assert.deepEqual(widgetLines(collector.snapshot()), [
+			"● scout#1  grep /lifetime/",
+			"  ilaas/qwen-3.6-35b-instruct · ↑12k ↓209 · 12.4s",
+		]);
+	});
+
+	test("the dot becomes a check when it finishes, a cross when it fails", () => {
+		const ok = replay(spawned("scout#1"), closed("scout#1", true));
+		assert.match(widgetLines(ok.snapshot())[0] as string, /^✓ scout#1 {2}done/);
+
+		const bad = replay(spawned("scout#1"), closed("scout#1", false));
+		assert.match(widgetLines(bad.snapshot())[0] as string, /^✗ scout#1 {2}it broke/);
+	});
+
+	test("the activity is the tool in flight, or a word when there is none yet", () => {
+		const idle = replay(spawned("scout#1"));
+		assert.match(widgetLines(idle.snapshot())[0] as string, /waiting/);
+
+		const thinking = replay(spawned("scout#1"), { type: "status", id: "scout#1", status: "working" });
+		assert.match(widgetLines(thinking.snapshot())[0] as string, /thinking/);
+	});
+
+	test("one pair of lines per subagent, in launch order", () => {
+		const collector = replay(spawned("scout#1"), spawned("coder#1"));
+		const lines = widgetLines(collector.snapshot());
+
+		assert.equal(lines.length, 4);
+		assert.match(lines[0] as string, /scout#1/);
+		assert.match(lines[2] as string, /coder#1/);
+	});
+
+	test("no subagents means no widget at all", () => {
+		assert.deepEqual(widgetLines(createTuiCollector().snapshot()), []);
+	});
+
+	test("the rows say what they are, so the caller applies colour and we can test layout", () => {
+		const collector = replay(spawned("scout#1"), closed("scout#1", false));
+		const rows = widgetRows(collector.snapshot());
+
+		assert.equal(rows[0]?.kind, "activity");
+		assert.equal((rows[0] as { status: string }).status, "failed", "colour is chosen from this, not parsed back out");
+		assert.equal(rows[1]?.kind, "detail");
+	});
+
+	test("a missing model is simply left out, never guessed", () => {
+		const collector = replay(spawned("scout#1"));
+		const detail = widgetLines(collector.snapshot())[1] as string;
+
+		assert.ok(!detail.includes("undefined"), detail);
+		assert.match(detail, /↑0 ↓0/);
+	});
+
+	test("the clock counts up while it works, instead of sitting at 0.0s", () => {
+		// busyMs only lands when the turn ends, so a widget that read it alone
+		// would show 0.0s for the whole wait and then jump to the total.
+		const collector = replay(spawned("scout#1"), { type: "status", id: "scout#1", status: "working" });
+		const one = collector.snapshot().subagents[0]!;
+
+		const start = one.startedAt as number;
+		assert.equal(typeof start, "number", "a working subagent has a clock");
+		assert.equal(Math.round(elapsedMs(one, start + 3_000) / 1000), 3);
+		assert.match(detailLine(one, start + 12_400), /12\.4s/);
+	});
+
+	test("the clock stops once the turn ends, showing the measured time", () => {
+		const collector = replay(spawned("scout#1"), closed("scout#1", true, { busyMs: 9_200 }));
+		const one = collector.snapshot().subagents[0]!;
+
+		assert.equal(one.startedAt, undefined, "a finished subagent has no running clock");
+		assert.equal(elapsedMs(one, 1e12), 9_200, "the answer no longer depends on now");
+	});
+
+	test("cost appears only when the provider reported one", () => {
+		const free = replay(spawned("scout#1"), closed("scout#1", true, { input: 10 }));
+		assert.ok(!(widgetLines(free.snapshot())[1] as string).includes("$"));
+
+		const paid = replay(spawned("scout#1"), closed("scout#1", true, { input: 10, cost: 0.0412 }));
+		assert.match(widgetLines(paid.snapshot())[1] as string, /\$0\.0412/);
 	});
 });
 

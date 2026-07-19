@@ -35,6 +35,7 @@ import {
 	progressLine,
 	statusIcon,
 	summaryTable,
+	widgetRows,
 	type Agent,
 	type Lifetime,
 	type Result,
@@ -44,6 +45,28 @@ import {
 
 /** How many tool lines the collapsed view shows before it starts eliding. */
 const COLLAPSED_TOOLS = 3;
+
+/** Key for the widget that lives above the prompt while subagents work. */
+const WIDGET = "pi-subagent";
+
+/**
+ * Paints the dots that sit above the prompt.
+ *
+ * The lines themselves come from `widgetRows`, which knows nothing about
+ * colour; this only applies the theme. Keeping the two apart is what lets the
+ * layout be tested without a terminal.
+ */
+function paintWidget(snapshot: Parameters<typeof widgetRows>[0], theme: Theme): string[] {
+	return widgetRows(snapshot).map((row) => {
+		if (row.kind === "detail") return `  ${theme.fg("dim", row.text)}`;
+
+		const colour =
+			row.status === "failed" ? "error" : row.status === "done" ? "success" : row.status === "blocked" ? "warning" : "accent";
+		const dot = theme.fg(colour as never, row.icon);
+		// The id carries the weight; the activity is deliberately quiet.
+		return `${dot} ${theme.fg("toolTitle", row.id)}  ${theme.fg("muted", row.activity)}`;
+	});
+}
 
 const Params = Type.Object({
 	mode: Type.Optional(
@@ -119,12 +142,25 @@ export default function (pi: ExtensionAPI) {
 			const agents = loadAgents({ cwd: ctx.cwd, scope: asScope(params.scope) });
 			const mode = inferMode(params);
 
+			// A dot per subagent, right above the prompt, for as long as they work.
+			// The tool row keeps the full record, so this stays minimal.
+			const paint = () => {
+				if (!ctx.ui) return;
+				ctx.ui.setWidget(WIDGET, paintWidget(collector.snapshot(), ctx.ui.theme));
+			};
+
 			// Streaming: the row redraws as the subagents work, rather than
 			// sitting on an opaque spinner until the very end.
 			collector.onChange(() => {
-				const snapshot = collector.snapshot();
-				onUpdate?.({ content: [{ type: "text", text: progressLine(snapshot) }], details: undefined });
+				onUpdate?.({ content: [{ type: "text", text: progressLine(collector.snapshot()) }], details: undefined });
+				paint();
 			});
+
+			// Events alone are not enough: a subagent that thinks for twenty
+			// seconds without calling a tool emits nothing, and a frozen clock
+			// looks like a hung agent.
+			const tick = setInterval(paint, 250);
+			tick.unref?.();
 
 			// Two observers, one stream. The TUI collector always listens; the
 			// herdr reporter joins only when pi itself runs inside herdr, and is
@@ -146,37 +182,47 @@ export default function (pi: ExtensionAPI) {
 			let converged: boolean | undefined;
 			let iterations: number | undefined;
 
-			switch (mode) {
-				case "parallel": {
-					const tasks = params.tasks ?? [];
-					const outcome = await fanOut({ ...shared, agent: pick(agents, params.agent), tasks, concurrency: params.concurrency });
-					results = outcome.results;
-					break;
+			// The widget must go even when the workflow throws - an unknown agent
+			// name, for one - or a dead row of dots sits above the prompt forever.
+			try {
+				switch (mode) {
+					case "parallel": {
+						const tasks = params.tasks ?? [];
+						const outcome = await fanOut({ ...shared, agent: pick(agents, params.agent), tasks, concurrency: params.concurrency });
+						results = outcome.results;
+						break;
+					}
+					case "chain": {
+						const outcome = await chain({ ...shared, steps: steps(agents, params.steps), input: params.task ?? "" });
+						results = outcome.steps;
+						break;
+					}
+					case "loop": {
+						const needle = params.until;
+						const outcome = await loop({
+							...shared,
+							steps: steps(agents, params.steps),
+							input: params.task ?? "",
+							until: needle ? (step) => step.output.includes(needle) : undefined,
+							maxIterations: params.maxIterations,
+						});
+						results = outcome.steps;
+						converged = outcome.converged;
+						iterations = outcome.iterations;
+						break;
+					}
+					default: {
+						const outcome = await fanOut({ ...shared, agent: pick(agents, params.agent), tasks: [params.task ?? ""] });
+						results = outcome.results;
+						break;
+					}
 				}
-				case "chain": {
-					const outcome = await chain({ ...shared, steps: steps(agents, params.steps), input: params.task ?? "" });
-					results = outcome.steps;
-					break;
-				}
-				case "loop": {
-					const needle = params.until;
-					const outcome = await loop({
-						...shared,
-						steps: steps(agents, params.steps),
-						input: params.task ?? "",
-						until: needle ? (step) => step.output.includes(needle) : undefined,
-						maxIterations: params.maxIterations,
-					});
-					results = outcome.steps;
-					converged = outcome.converged;
-					iterations = outcome.iterations;
-					break;
-				}
-				default: {
-					const outcome = await fanOut({ ...shared, agent: pick(agents, params.agent), tasks: [params.task ?? ""] });
-					results = outcome.results;
-					break;
-				}
+			} finally {
+				clearInterval(tick);
+				// The widget lives only while the work does: the summary is one
+				// line up, in the tool row, and nothing should pile up above the
+				// prompt between two requests.
+				ctx.ui?.setWidget(WIDGET, undefined);
 			}
 
 			const wallMs = performance.now() - startedAt;

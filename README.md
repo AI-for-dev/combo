@@ -10,7 +10,7 @@ The intent behind the project and its structural decisions live in
 
 ```bash
 npm install
-npm test          # 170 tests, no network calls
+npm test          # 180 tests, no network calls
 npm run typecheck
 ```
 
@@ -243,7 +243,21 @@ launched.
 > use subagent to review src/usage.ts with coder then reviewer, looping until LGTM
 ```
 
-The collapsed row shows one line per subagent with its last tool calls; expand
+While the subagents work, a dot per subagent sits just above the prompt:
+
+```
+● scout#1  grep /lifetime/
+  ilaas/qwen-3.6-35b-instruct · ↑12k ↓209 · 12.4s
+✓ scout#2  done
+  ilaas/qwen-3.6-35b-instruct · ↑8k ↓150 · 8.1s
+```
+
+`●` while it works, `✓` when it succeeded, `✗` when it failed, coloured by
+status; the dimmed line underneath carries model, tokens and elapsed time,
+counting up live. The widget disappears the moment the work ends - the full
+record is one line below, in the tool row.
+
+That collapsed row shows one line per subagent with its last tool calls; expand
 it (the hint comes from your own keybinding config, not a hard-coded `Ctrl+O`)
 for the full task, every tool call, the output as Markdown, and usage per
 subagent. A parallel run shows the parallelism it achieved; a loop says whether

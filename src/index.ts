@@ -37,8 +37,13 @@ export {
 	HERDR_SOURCE,
 	progressLine,
 	silentReporter,
+	currentActivity,
+	detailLine,
+	elapsedMs,
 	statusIcon,
 	summaryTable,
+	widgetLines,
+	widgetRows,
 	type AutoReporterOptions,
 	type ConsoleReporterOptions,
 	type HerdrEnv,
@@ -48,6 +53,7 @@ export {
 	type ToolCall,
 	type TuiCollector,
 	type TuiSnapshot,
+	type WidgetRow,
 } from "./reporters/index.ts";
 export { failed, type Result, type WorkflowResult } from "./result.ts";
 export { run, type RunOptions } from "./run.ts";
@@ -61,7 +67,7 @@ export {
 	type SessionPort,
 } from "./session.ts";
 export { spawn, type AskOptions, type SpawnOptions, type Subagent } from "./subagent.ts";
-export { deltaUsage, emptyUsage, formatUsage, snapshotUsage, sumUsage, type Usage } from "./usage.ts";
+export { compact, deltaUsage, emptyUsage, formatUsage, snapshotUsage, sumUsage, type Usage } from "./usage.ts";
 export { chain, type ChainOptions } from "./workflows/chain.ts";
 export { SubagentPool, type SpawnFn, type WorkflowOptions } from "./workflows/common.ts";
 export { aggregate, fanOut, type FanOutOptions, type FanOutResult } from "./workflows/fan-out.ts";

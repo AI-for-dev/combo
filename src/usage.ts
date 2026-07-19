@@ -117,7 +117,8 @@ export function formatUsage(usage: Usage): string {
 	return parts.join(" ");
 }
 
-function compact(n: number): string {
+/** `12k`, `2.1k`, `1.4M` - a token count that fits in a narrow column. */
+export function compact(n: number): string {
 	if (n < 1000) return String(n);
 	if (n < 1_000_000) return `${trim((n / 1000).toFixed(n < 10_000 ? 1 : 0))}k`;
 	return `${trim((n / 1_000_000).toFixed(1))}M`;

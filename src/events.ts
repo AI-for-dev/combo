@@ -28,6 +28,8 @@ export type SubagentEvent =
 			 * it only listens.
 			 */
 			openInHerdr: boolean;
+			/** `provider/id` as pi resolved it. Absent when pi could not say. */
+			model?: string;
 	  }
 	| { type: "status"; id: string; status: SubagentStatus }
 	| { type: "text"; id: string; delta: string }

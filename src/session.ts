@@ -41,7 +41,21 @@ export type SessionPort = {
 	abort(): Promise<void>;
 	dispose(): void;
 	readonly messages: AgentMessage[];
+	/**
+	 * The model actually in use, once pi has resolved it.
+	 *
+	 * Read, never set: an agent declares a *pattern* (`"anthropic/claude-sonnet-5"`,
+	 * or nothing at all), and only the session knows what that became.
+	 */
+	readonly model?: { provider?: string; id?: string };
 };
+
+/** `provider/id`, or `undefined` when pi has not resolved a model. */
+export function modelLabel(session: SessionPort): string | undefined {
+	const model = session.model;
+	if (!model?.id) return undefined;
+	return model.provider ? `${model.provider}/${model.id}` : model.id;
+}
 
 /**
  * The session events we listen to.

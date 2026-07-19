@@ -12,7 +12,7 @@
 import type { Agent, Lifetime } from "./agent.ts";
 import { createEventBus, nextSubagentId, type EventBus, type EventListener, type SubagentEvent } from "./events.ts";
 import { failed, type Result } from "./result.ts";
-import { createDefaultSession, type AgentMessage, type CreateSession, type SessionPort } from "./session.ts";
+import { createDefaultSession, modelLabel, type AgentMessage, type CreateSession, type SessionPort } from "./session.ts";
 import { deltaUsage, emptyUsage, snapshotUsage, type Usage } from "./usage.ts";
 
 export type SpawnOptions = {
@@ -112,7 +112,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 	});
 
 	const openInHerdr = options.openInHerdr ?? agent.openInHerdr ?? false;
-	bus.emit({ type: "spawn", id, agent: agent.name, lifetime, openInHerdr });
+	bus.emit({ type: "spawn", id, agent: agent.name, lifetime, openInHerdr, model: modelLabel(session) });
 	bus.emit({ type: "status", id, status: "idle" });
 
 	const subagent: Subagent = {

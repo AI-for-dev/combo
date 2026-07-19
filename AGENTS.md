@@ -381,7 +381,21 @@ Load it with `pi -e extension` (the flag accepts a directory), or `pi install
 
 Display specification - this is the "Claude Code" bar we are aiming at:
 
-- **Collapsed view, compact, one line per subagent**: status icon
+- **A dot per subagent above the prompt**, via `ctx.ui.setWidget(key, lines)`
+  (`aboveEditor` is the default placement). `●` while it works, `✓` when it
+  succeeded, `✗` when it failed, coloured by status; then a dimmed line with
+  model, tokens and time. This is the Claude Code shape, and it is the *live*
+  view - the tool row below holds the record.
+  - The widget **disappears as soon as the work ends**, in a `finally` so a
+    thrown workflow does not leave a dead row of dots above the prompt.
+  - `widgetRows()` says *what* each line is and applies no colour, so the layout
+    is testable without a terminal; the extension paints it.
+  - **Events alone are not enough to keep a clock.** `usage.busyMs` only lands
+    when a turn ends, so a widget reading it would show `0.0s` for the whole
+    wait and then jump to the total. `SubagentSnapshot.startedAt` gives a live
+    figure, and the extension repaints on a 250 ms tick - a subagent thinking
+    for twenty seconds emits nothing, and a frozen clock reads as a hung agent.
+- **Collapsed tool row, compact, one line per subagent**: status icon
   (`⏳` / `✓` / `✗`), agent name, truncated task, last tool called.
 - **Streaming**: you see tool calls arrive, not an opaque spinner. Handle
   `isPartial`, call `context.invalidate()` sparingly.
