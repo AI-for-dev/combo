@@ -10,7 +10,7 @@ The intent behind the project and its structural decisions live in
 
 ```bash
 npm install
-npm test          # 297 tests, no network calls
+npm test          # 404 tests, no network calls
 npm run typecheck
 ```
 
@@ -72,7 +72,7 @@ it never closes what it was handed.
 
 ## Workflows
 
-Six combinators. A combinator is added when a real example needs it, not
+Nine combinators. A combinator is added when a real example needs it, not
 before.
 
 ```typescript
@@ -208,6 +208,60 @@ nothing behind. `subagent.export(dir)` exports on demand at any point, and
 `close()` exports before disposing, so an interrupted workflow still keeps what
 it did.
 
+## The whole flow: question → commit
+
+The pieces above compose into one pipeline, driven from pi by `/build`:
+
+```
+/build add a cache in front of the agent loader
+
+  interview   one question at a time, until you submit   → a brief
+  plan        who does what, validated before anything spawns
+  pair        a worker and a reviewer per subtask, until accepted
+  check       your own command runs; its verdict is final
+  audit       one agent reads the whole, names what still has to change
+  commit      an agent writes the message, this code makes the commit
+```
+
+It stops exactly twice: the brief before any work starts, the commit before
+anything reaches history. Refusing at either stop leaves everything where it is.
+
+From a script, without the interview:
+
+```typescript
+const built = await deliver({
+	planner, workers: [coder], reviewer, auditor,
+	brief,
+	verify: commandVerifier({ cwd, command: "npm", args: ["test"] }),
+});
+built.approved; // the auditor signed off AND the check passed
+```
+
+**Reading code is not running it.** That `verify` is not a precaution: without
+it, a pair once wrote a helper and its tests, the reviewer approved, the auditor
+approved, and the test file imported `./slugify.js` for a file named
+`slugify.ts` - the suite never even loaded. When a check is configured, a
+failure outranks every approval above it.
+
+**The commit is made by this code, not by an agent.** The committer agent has no
+`bash`: it reads the brief and the diff and writes a message. `src/git.ts` does
+the rest, and has no function for `push`, `reset`, `rebase` or `--force` - a
+prompt is not a permission boundary, so the boundary is the API. There is no
+shell either: arguments are arrays and the message is piped to `git commit -F -`,
+so a message containing `rm -rf /` gets committed rather than executed.
+
+## Interviewing the user
+
+```typescript
+const { brief, answers } = await interview({ agent: interviewer, input: request, ask });
+```
+
+`ask` is a port: a select card in pi, `readline` in an example, a scripted array
+in the tests - which is how a conversation with a human is replayed offline.
+One question at a time, because a good second question depends on the first
+answer. Returning `undefined` from `ask` is the **submit**: what was already
+answered still counts and the brief is still written.
+
 ## Defining an agent
 
 Markdown + frontmatter, following pi's convention (`~/.pi/agent/agents/*.md`,
@@ -308,6 +362,7 @@ this repository's `node_modules` - the version that matters is the pi you
 launched.
 
 ```
+> /build add a slugify helper with tests
 > use subagent to review src/usage.ts with coder then reviewer, looping until LGTM
 > use subagent with three scouts and reduceWith "synthesiser" to explain the export path
 > use subagent in orchestrate mode with planner and candidates scout, reviewer to audit the usage code
@@ -365,6 +420,8 @@ node examples/06-export.ts    # a fan-out exported to runs/<timestamp>/
 node examples/07-reduce.ts    # 3 scouts, then one synthesiser: N→1
 node examples/08-route.ts     # a classifier sends two tasks to two agents
 node examples/09-orchestrate.ts # the planner decides the split, then it runs
+node examples/10-interview.ts   # the interview, in a plain terminal
+node examples/11-build.ts       # the pipeline on a throwaway repo (it writes code)
 ```
 
 Not every provider reports tokens - several return zero. For the usage lines to
@@ -378,8 +435,9 @@ PI_SUBAGENT_MODEL=local/qwen/qwen3-coder-next node examples/03-fan-out.ts
 
 Shipped so far: the foundation - `Agent`, `Subagent`, `Result`, `Usage`, the
 event bus - three combinators (`chain`, `fanOut`, `loop`), the reporters (herdr,
-TUI, console, silent), the six combinators, the pi extension, and the session
-export.
+TUI, console, silent), the nine combinators, the session export, and the pi
+extension - the `subagent` tool, plus `/interview` and `/build`.
 
-Still to come: judging the interactive rendering in a real terminal. See [`NEXT.md`](NEXT.md) for what is left and
+Still to come: judging the interactive rendering, and the question card, in a
+real terminal. See [`NEXT.md`](NEXT.md) for what is left and
 the traps already paid for.

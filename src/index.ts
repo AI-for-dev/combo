@@ -16,6 +16,18 @@ export {
 } from "./agent.ts";
 export { scriptedAsk, type Answer, type AskUser, type Choice, type Question } from "./ask.ts";
 export {
+	branchName,
+	commitAll,
+	createBranch,
+	currentBranch,
+	diff,
+	diffStat,
+	isRepository,
+	status,
+	untracked,
+	type GitResult,
+} from "./git.ts";
+export {
 	copyMainSession,
 	createRunDir,
 	exportBaseName,
@@ -79,6 +91,7 @@ export {
 	type SessionPort,
 } from "./session.ts";
 export { spawn, type AskOptions, type SpawnOptions, type Subagent } from "./subagent.ts";
+export { commandVerifier, type CommandVerifierOptions, type Verification, type Verify } from "./verify.ts";
 export { compact, deltaUsage, emptyUsage, formatUsage, snapshotUsage, sumUsage, type Usage } from "./usage.ts";
 export { chain, type ChainOptions } from "./workflows/chain.ts";
 export {

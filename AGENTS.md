@@ -147,6 +147,9 @@ Rules:
 | `fanOut` | 1→N | N subtasks in parallel, bounded concurrency | done |
 | `loop` | 1→1 | iterates until a criterion (judge, test, regex) is met | done |
 | `reduce` | N→1 | one agent synthesises a fan-out's results | done |
+| `interview` | user→1 | an agent questions the *user*, one question at a time, and writes a brief | done |
+| `pair` | 1→1 | a worker and a reviewer discuss until the work is accepted | done |
+| `deliver` | brief→? | plan, a pair per subtask, a check, an audit, fixes | done |
 | `orchestrate` | 1→? | an agent *decides* the split, then delegates (dynamic fan-out) | done |
 | `route` | 1→1 | a classifier agent picks the destination agent | done |
 
@@ -232,6 +235,21 @@ Rules:
   step beginning "review the code identified by the scout". Nothing in the
   combinator can check that, and adding a dependency graph would be building
   `chain` a second time. When the work is sequential, use `chain`.
+- **Reading code is not running it.** `deliver` takes a `verify` port, and when
+  one is given **its verdict is final**: no approval makes a failing check a
+  success. This is not a precaution, it is a bug that shipped - in a real run a
+  pair wrote a helper and its tests, the reviewer approved, the auditor
+  approved, and the test file imported `./slugify.js` for a file named
+  `slugify.ts`. The suite never even loaded. Both agents had read the code.
+- **An agent that decides must see the roster.** The planner was given the list
+  of workers and the auditor was not, so it answered `agent: fix the quote` -
+  literally the word "agent" - and every fix was dropped as an unknown name.
+  Found by a real run, not by a test.
+- **A refusal in prose still has to reach someone.** An auditor that explains the
+  fix in English and names nobody is refusing all the same. With exactly one
+  worker the whole review goes to them - there is no ambiguity to resolve. With
+  several, dropping it stays right: guessing who owns a fix is how the wrong
+  file gets rewritten.
 - **No speculative abstraction**: a combinator is added when a real example
   needs it. `reduce` is deliberately not chunked: folding branches in batches to
   fit a context window is a real need when it appears, and until it does it
@@ -484,6 +502,36 @@ Display specification - this is the "Claude Code" bar we are aiming at:
   user's key configuration must be respected.
 - Reuse `context.lastComponent` instead of rebuilding the tree every frame.
 
+## Asking the user, and touching the world
+
+Two ports, one rule: **the agents produce text, our code performs the act.**
+
+- `src/ask.ts` - `AskUser`, one question at a time. The pi implementation is a
+  select card (`extension/ask-ui.ts`), an example uses readline, the tests use a
+  scripted array. Returning `undefined` is the **submit**, not a cancel: what was
+  already answered still counts, and the brief is still written. `esc` maps to it
+  for the same reason.
+- `src/verify.ts` - `Verify`, a command we run with `execFile` and no shell. Its
+  output is evidence the agents read and cannot argue with.
+- `src/git.ts` - the git a pipeline may do, as functions. There is no `push`, no
+  `reset`, no `rebase`, no `--force`, and no shell: arguments are arrays and the
+  commit message is piped to `git commit -F -`, so a message containing
+  `rm -rf /` is committed rather than executed.
+
+**Why the committer has no `bash`.** It was the obvious design - give the agent
+git and tell it what not to do - and it is exactly what "a prompt is not a
+permission boundary" forbids. The agent writes the message, which is what a
+model is for; the branch and the commit are ours. Adding a subcommand is a
+decision someone takes in a diff, not an argument a model produces at runtime.
+
+**Why the interactive flows are commands, not tools.** A question card owns the
+terminal until it is answered, and nobody can answer a question asked inside a
+model's turn. `/interview` and `/build` are therefore `pi.registerCommand`, and
+`/build` stops exactly twice: the brief before any work starts, the commit before
+anything reaches history. A refusal at either stop leaves everything where it is
+- the brief in the editor, the work in the working tree. Nothing is undone on the
+user's behalf.
+
 ## The pi API: what you need to know
 
 **Which pi matters is the one the code runs inside, not the one in
@@ -652,6 +700,9 @@ Documentation is part of the deliverable, not a follow-up task.
 AGENTS.md  README.md  package.json  tsconfig.json
 src/
   agent.ts          # type Agent + loading the .md files (frontmatter)
+  ask.ts            # AskUser: the one place a workflow blocks on a human
+  verify.ts         # Verify: running the project's own check, no shell
+  git.ts            # the git a pipeline may do - no push, no reset, no shell
   result.ts         # Result: the shared contract
   session.ts        # SessionPort + StaticResourceLoader: all of the pi API
   subagent.ts       # spawn() → Subagent { ask, usage, close }; lifetime
@@ -660,8 +711,12 @@ src/
   usage.ts          # Usage: time (measured) + tokens/cost/context (via pi)
   export.ts         # runs/<timestamp>/: html + jsonl per agent + usage.json
   workflows/
-    common.ts       # WorkflowOptions + SubagentPool (the lifetime rule)
-    chain.ts  fan-out.ts  loop.ts  orchestrate.ts  route.ts
+    common.ts       # WorkflowOptions + SubagentPool (the lifetime rule) + mapConcurrent
+    plan.ts         # makePlan/parsePlan: how an agent's decision is read
+    chain.ts  fan-out.ts  loop.ts  orchestrate.ts  route.ts  reduce.ts
+    interview.ts    # the user, one question at a time, then a brief
+    pair.ts         # worker ↔ reviewer until accepted
+    deliver.ts      # brief → plan → pairs → check → audit → fixes
   reporters/
     index.ts        # autoReporter(): herdr if present, fallback otherwise
     herdr-client.ts # detection (3 env vars) + socket transport
@@ -670,6 +725,9 @@ src/
     tui.ts          # state collection + formatting (no pi-tui import)
 extension/
   index.ts          # pi.registerTool({ name: "subagent" }) + renderCall/renderResult
+  execute.ts        # the tool body, every dependency injectable
+  ask-ui.ts         # the question card (SelectList + Other + submit)
+  build.ts          # /interview and /build, with their own injection seam
 agents/             # example definitions (scout, coder, reviewer, planner…)
 .pi/agents/         # the same, at pi's project location (symlinks)
 examples/           # one script per workflow, directly executable
@@ -698,6 +756,10 @@ test/
   in `"workflow"` does not produce the same number of spawns).
 - Reporters are tested by recording the events emitted, never by inspecting a
   terminal rendering.
+- **The commands have the same seam** (`extension/build.ts`, `BuildDeps`): the
+  agents, the interview, the delivery, the committer and **every git call** are
+  injected, so `test/build.test.ts` covers the two stops and the refusals without
+  touching a repository it did not make.
 - **The extension's tool body lives in `extension/execute.ts`, and everything it
   touches is injectable**: `loadAgents`, `spawn`, the second reporter, `ctx.ui`
   and the repaint timer. `extension/index.ts` keeps only what genuinely needs a

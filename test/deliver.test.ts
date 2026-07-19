@@ -59,6 +59,15 @@ describe("deliver", () => {
 		);
 	});
 
+	test("the auditor is given the names it may hand a fix to", async () => {
+		const fake = cast();
+		await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn });
+
+		const audit = fake.asks.find((ask) => ask.id.startsWith("auditor"))?.task ?? "";
+		assert.match(audit, /coder, scribe/, "an auditor that does not know the names invents one");
+		assert.match(audit, /`agent:` is not a name/);
+	});
+
 	test("the audit reads the brief and what each subtask claims, and is told to check the code", async () => {
 		const fake = cast();
 		await deliver({ planner, workers, reviewer, auditor, brief: "build a parser", spawn: fake.spawn });
@@ -100,6 +109,25 @@ describe("deliver", () => {
 
 		assert.equal(result.audits.length, 1, "asking the same question again would only cost tokens");
 		assert.equal(result.approved, false);
+	});
+
+	test("a refusal in prose still reaches the worker when there is only one", async () => {
+		// Observed for real: a check failed, the auditor explained the fix in
+		// English, named nobody, and a correct diagnosis went nowhere.
+		const fake = cast(["The quote on line 14 is not closed.", AUDIT_APPROVAL]);
+		const result = await deliver({ planner, workers: [coder], reviewer, auditor, brief: "x", spawn: fake.spawn });
+
+		assert.equal(result.audits[0]?.fixes.length, 1);
+		assert.equal(result.audits[0]?.fixes[0]?.agent.name, "coder");
+		assert.match(result.audits[0]?.fixes[0]?.task ?? "", /quote on line 14/);
+		assert.equal(result.approved, true, "and the second audit saw the fix");
+	});
+
+	test("with several workers a nameless refusal is still dropped: guessing owns nothing", async () => {
+		const fake = cast(["Something is wrong somewhere.", AUDIT_APPROVAL]);
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn });
+
+		assert.deepEqual(result.audits[0]?.fixes, []);
 	});
 
 	test("a fix naming an unknown agent is dropped, like any other plan", async () => {
@@ -227,6 +255,68 @@ describe("deliver", () => {
 
 		assert.ok(fake.spawned.every((entry) => entry.options.cwd === "/somewhere"));
 		assert.equal(fake.exported.length, fake.spawned.length);
+	});
+});
+
+describe("verification", () => {
+	const passing = async () => ({ ok: true, output: "12 tests passed", command: "npm test" });
+	const failing = async () => ({ ok: false, output: "1 test failed: slugify", command: "npm test" });
+
+	test("a passing check is evidence the auditor gets to see", async () => {
+		const fake = cast();
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", verify: passing, spawn: fake.spawn });
+
+		assert.equal(result.verification?.ok, true);
+		assert.equal(result.approved, true);
+		const audit = fake.asks.find((ask) => ask.id.startsWith("auditor"))?.task ?? "";
+		assert.match(audit, /npm test/);
+		assert.match(audit, /12 tests passed/);
+	});
+
+	test("a failing check outranks the auditor's approval", async () => {
+		const fake = cast([AUDIT_APPROVAL, AUDIT_APPROVAL]);
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", verify: failing, spawn: fake.spawn });
+
+		assert.equal(result.approved, false, "reading code is not running it");
+		assert.equal(result.verification?.ok, false);
+	});
+
+	test("the auditor is told the check failed, and that it is not an opinion", async () => {
+		const fake = cast(["coder: fix the import", AUDIT_APPROVAL]);
+		await deliver({ planner, workers, reviewer, auditor, brief: "x", verify: failing, spawn: fake.spawn });
+
+		const audit = fake.asks.find((ask) => ask.id.startsWith("auditor"))?.task ?? "";
+		assert.match(audit, /FAILED/);
+		assert.match(audit, /not an opinion/);
+	});
+
+	test("the check runs again after the fixes, and can turn the run around", async () => {
+		let attempt = 0;
+		const verify = async () => {
+			attempt++;
+			return { ok: attempt > 1, output: attempt > 1 ? "all good" : "boom", command: "npm test" };
+		};
+		const fake = cast(["coder: fix the import", AUDIT_APPROVAL]);
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", verify, spawn: fake.spawn });
+
+		assert.equal(attempt, 2, "the fixes are worth nothing until the check has seen them");
+		assert.equal(result.approved, true);
+	});
+
+	test("with no check configured, nothing pretends one ran", async () => {
+		const fake = cast();
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn });
+
+		assert.equal(result.verification, undefined);
+		const audit = fake.asks.find((ask) => ask.id.startsWith("auditor"))?.task ?? "";
+		assert.ok(!audit.includes("own check was run"));
+	});
+
+	test("a check runs even with no auditor at all", async () => {
+		const fake = cast();
+		const result = await deliver({ planner, workers, reviewer, brief: "x", verify: failing, spawn: fake.spawn });
+
+		assert.equal(result.approved, false, "the check is the bar when nobody else is watching");
 	});
 });
 
