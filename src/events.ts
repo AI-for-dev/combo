@@ -31,7 +31,19 @@ export type SubagentEvent =
 			/** `provider/id` as pi resolved it. Absent when pi could not say. */
 			model?: string;
 	  }
-	| { type: "status"; id: string; status: SubagentStatus }
+	| {
+			type: "status";
+			id: string;
+			status: SubagentStatus;
+			/**
+			 * The task this turn is about, on the `"working"` transition only.
+			 *
+			 * A reporter has no other way to learn it: `spawn` happens before
+			 * anyone knows what the subagent will be asked, and a persistent
+			 * subagent is asked several different things over its life.
+			 */
+			task?: string;
+	  }
 	| { type: "text"; id: string; delta: string }
 	| { type: "tool"; id: string; name: string; args: unknown }
 	| { type: "usage"; id: string; usage: Usage }

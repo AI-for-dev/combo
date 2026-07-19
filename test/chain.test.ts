@@ -145,9 +145,13 @@ describe("chain", () => {
 		assert.equal(buses.size, 1);
 		assert.notEqual([...buses][0], undefined);
 
-		// The bus carries the listener the caller gave us.
+		// Both steps reported on it, and the listener the caller gave us saw them.
+		assert.equal(seen.filter((type) => type === "spawn").length, 2);
+		assert.equal(seen.filter((type) => type === "close").length, 2);
+
+		const before = seen.length;
 		[...buses][0]!.emit({ type: "status", id: "x#1", status: "done" });
-		assert.deepEqual(seen, ["status"]);
+		assert.deepEqual(seen.slice(before), ["status"]);
 
 		// And the run settings reach every subagent.
 		assert.deepEqual(

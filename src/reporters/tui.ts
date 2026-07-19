@@ -106,6 +106,9 @@ export function createTuiCollector(): TuiCollector {
 		switch (event.type) {
 			case "status":
 				snapshot.status = event.status;
+				// The task rides on the "working" transition: a persistent
+				// subagent gets several, and the last one is the current one.
+				if (event.task !== undefined) snapshot.task = event.task;
 				// Start the live clock when it starts working, stop it otherwise.
 				snapshot.startedAt = event.status === "working" ? performance.now() : undefined;
 				break;

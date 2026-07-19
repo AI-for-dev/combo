@@ -53,6 +53,16 @@ export function fakeSpawn(reply: (task: string, agent: Agent) => FakeReply = () 
 		const id = `${agent.name}#${++counter}`;
 		spawned.push({ agent: agent.name, id, options });
 
+		// The fake emits the same events as the real `spawn`. Without that, a
+		// reporter wired above a combinator would see nothing here and every
+		// display test would pass on a stream that is empty in production.
+		const bus = options.bus;
+		let lastResult: Result | undefined;
+		if (options.onEvent) bus?.subscribe(options.onEvent);
+		const lifetime = options.lifetime ?? agent.lifetime ?? "task";
+		bus?.emit({ type: "spawn", id, agent: agent.name, lifetime, openInHerdr: options.openInHerdr ?? false });
+		bus?.emit({ type: "status", id, status: "idle" });
+
 		const subagent: Subagent = {
 			id,
 			agent,
@@ -65,6 +75,7 @@ export function fakeSpawn(reply: (task: string, agent: Agent) => FakeReply = () 
 				askOptions.push(options);
 				inFlight++;
 				maxConcurrent = Math.max(maxConcurrent, inFlight);
+				bus?.emit({ type: "status", id, status: "working", task });
 				try {
 					const answer = reply(task, agent);
 					if (answer.delayMs) await new Promise((resolve) => setTimeout(resolve, answer.delayMs));
@@ -79,13 +90,23 @@ export function fakeSpawn(reply: (task: string, agent: Agent) => FakeReply = () 
 						ok,
 					};
 					if (!ok) result.error = answer.error ?? "failed";
+					lastResult = result;
+					bus?.emit({ type: "usage", id, usage });
+					bus?.emit({ type: "status", id, status: ok ? "idle" : "blocked" });
 					return result;
 				} finally {
 					inFlight--;
 				}
 			},
 			async close() {
-				if (!closed.includes(id)) closed.push(id);
+				if (closed.includes(id)) return;
+				closed.push(id);
+				bus?.emit({ type: "status", id, status: "done" });
+				bus?.emit({
+					type: "close",
+					id,
+					result: lastResult ?? { agent: agent.name, output: "", messages: [], usage: emptyUsage(), ok: true },
+				});
 			},
 		};
 

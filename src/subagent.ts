@@ -146,7 +146,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 			const onAbort = () => void session.abort();
 			signal?.addEventListener("abort", onAbort, { once: true });
 
-			bus.emit({ type: "status", id, status: "working" });
+			bus.emit({ type: "status", id, status: "working", task });
 
 			let error: string | undefined;
 			try {

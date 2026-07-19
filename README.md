@@ -10,7 +10,7 @@ The intent behind the project and its structural decisions live in
 
 ```bash
 npm install
-npm test          # 180 tests, no network calls
+npm test          # 202 tests, no network calls
 npm run typecheck
 ```
 

@@ -277,7 +277,7 @@ One event stream, several reporters. The core emits:
 ```typescript
 type SubagentEvent =
   | { type: "spawn";  id: string; agent: string; lifetime: Lifetime }
-  | { type: "status"; id: string; status: "working" | "idle" | "blocked" | "done" }
+  | { type: "status"; id: string; status: "working" | "idle" | "blocked" | "done"; task?: string }
   | { type: "text";   id: string; delta: string }
   | { type: "tool";   id: string; name: string; args: unknown }
   | { type: "usage";  id: string; usage: Usage }
@@ -286,6 +286,11 @@ type SubagentEvent =
 
 A listener that throws is swallowed: a broken reporter must never take a
 workflow down with it.
+
+**The task rides on the `"working"` transition**, not on `spawn`: at spawn time
+nobody knows yet what the subagent will be asked, and a persistent subagent is
+asked several different things over its life. A reporter has no other way to
+learn it - and until it did, every collapsed row in the TUI showed a blank task.
 
 ### herdr reporter (the default when available)
 
@@ -626,12 +631,19 @@ test/
   in `"workflow"` does not produce the same number of spawns).
 - Reporters are tested by recording the events emitted, never by inspecting a
   terminal rendering.
-- **The extension's `execute` has no injection seam, so it is not covered.**
-  Its renderers are (`test/extension.test.ts`), but the path that wires the
-  reporters and calls the combinators only runs inside a real pi - and that is
-  where the two worst bugs so far have hidden. Until `execute` takes an
-  injectable `spawn`, changes to it must be exercised by hand, inside pi,
-  inside herdr.
+- **The extension's tool body lives in `extension/execute.ts`, and everything it
+  touches is injectable**: `loadAgents`, `spawn`, the second reporter, `ctx.ui`
+  and the repaint timer. `extension/index.ts` keeps only what genuinely needs a
+  terminal - the renderers. That split exists because the path that wires the
+  reporters and calls the combinators is where the three worst bugs so far have
+  hidden, each behind a green suite; it is now covered offline by
+  `test/execute.test.ts` (`test/extension.test.ts` still covers the renderers).
+  What a fake still cannot prove is that pi's own module has not changed shape -
+  a real pi run stays the only check for that.
+- **The fake `spawn` emits the same events as the real one.** Without that, a
+  reporter wired above a combinator sees an empty stream in tests and a full one
+  in production, and every display assertion passes on nothing. That is exactly
+  how the `task` field reached the TUI empty for as long as it did.
 - `Usage` aggregation is tested without an agent: feed it frozen stats and check
   the invariants (a fan-out has `busyMs > wallMs`, a failure keeps its tokens, a
   sum of subagents equals the total).
