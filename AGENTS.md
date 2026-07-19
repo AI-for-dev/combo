@@ -426,7 +426,12 @@ Points that cost time to discover:
   `herdr pane read <pane_id> --source visible`.
 
 **`openInHerdr` is opt-in, per subagent**, exactly like `lifetime`: a fan-out of
-twenty branches must not carpet the screen unless someone asked. It travels on
+twenty branches must not carpet the screen unless someone asked. The other
+regime - **watch everything** - belongs to the reporter, not to the core:
+`createHerdrReporter({ all: true })`, seeded by `PI_SUBAGENT_HERDR=all` and
+toggled for a session with `/herdr on`. Who gets a pane is a display decision,
+and the workflow runs identically either way; putting it on the spawn would have
+meant threading a flag through every call site to change what a terminal shows. It travels on
 the `spawn` event rather than being read back from the core - a reporter is a
 pure observer, it never queries anything.
 
@@ -531,6 +536,28 @@ model's turn. `/interview` and `/build` are therefore `pi.registerCommand`, and
 anything reaches history. A refusal at either stop leaves everything where it is
 - the brief in the editor, the work in the working tree. Nothing is undone on the
 user's behalf.
+
+## Resuming a build
+
+A delivery is long, it costs money and it writes to a working tree. `deliver`
+therefore takes `onProgress` and `resume`, and `src/resume.ts` turns the one
+into the other through `runs/<timestamp>/build.json`.
+
+- **Only what was approved survives.** A subtask still being argued over left the
+  tree in a state nobody signed off on, so it runs again. Approval is the only
+  claim from a previous life worth trusting.
+- **The plan is reused, never re-made.** Re-planning would re-split work that is
+  already half done on disk, and the plan was paid for.
+- **Nothing of the conversation is saved.** Agents are stored by name and
+  resolved again; `Result.messages` are dropped. A resumed build re-reads the
+  code rather than replaying a transcript - which is also what keeps the file
+  small enough to write after every step.
+- **A state whose agents no longer exist is refused whole.** Dropping the steps
+  that no longer resolve would silently drop work.
+- **The audit rounds already spent are spent.** Resuming continues the cycle, it
+  does not restart it.
+- `onProgress` is a reporting hook, so a listener that throws is swallowed - the
+  same rule as the event bus.
 
 ## The pi API: what you need to know
 
@@ -701,6 +728,7 @@ AGENTS.md  README.md  package.json  tsconfig.json
 src/
   agent.ts          # type Agent + loading the .md files (frontmatter)
   ask.ts            # AskUser: the one place a workflow blocks on a human
+  resume.ts         # build.json: what survives a Ctrl+C, and what deliberately does not
   verify.ts         # Verify: running the project's own check, no shell
   git.ts            # the git a pipeline may do - no push, no reset, no shell
   result.ts         # Result: the shared contract

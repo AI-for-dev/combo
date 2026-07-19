@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { after, describe, test } from "node:test";
 import { autoReporter, combineReporters, consoleReporter, silentReporter } from "../src/reporters/index.ts";
-import { createHerdrReporterWith } from "../src/reporters/herdr.ts";
+import { createHerdrReporterWith, herdrAllFromEnv } from "../src/reporters/herdr.ts";
 import { detectHerdr, type HerdrSend } from "../src/reporters/herdr-client.ts";
 import type { SubagentEvent } from "../src/events.ts";
 import { emptyUsage } from "../src/usage.ts";
@@ -273,6 +273,41 @@ describe("autoReporter", () => {
 
 		report(spawnEvent("scout#1", true));
 		assert.deepEqual(seen, ["spawn"]);
+	});
+});
+
+describe("watching every subagent", () => {
+	test("all: true opens a split for a subagent that never asked", () => {
+		const { send, calls } = recorder();
+		const reporter = createHerdrReporterWith(send, { dir: tmpDir(), all: true });
+
+		reporter(spawnEvent("scout#1", false));
+		assert.equal(calls.filter((call) => call.method === "agent.start").length, 1);
+	});
+
+	test("without it, opt-in still governs - a fan-out must not carpet the screen", () => {
+		const { send, calls } = recorder();
+		const reporter = createHerdrReporterWith(send, { dir: tmpDir() });
+
+		reporter(spawnEvent("scout#1", false));
+		reporter(spawnEvent("scout#2", true));
+		assert.equal(calls.filter((call) => call.method === "agent.start").length, 1);
+	});
+
+	test("the environment can turn it on for a whole shell", () => {
+		assert.equal(herdrAllFromEnv({} as NodeJS.ProcessEnv), false);
+		for (const value of ["all", "1", "true", "ALL"]) {
+			assert.equal(herdrAllFromEnv({ PI_SUBAGENT_HERDR: value } as NodeJS.ProcessEnv), true, value);
+		}
+		for (const value of ["off", "0", "", "no"]) {
+			assert.equal(herdrAllFromEnv({ PI_SUBAGENT_HERDR: value } as NodeJS.ProcessEnv), false, value);
+		}
+	});
+
+	test("an explicit option beats the environment, in both directions", () => {
+		const on = recorder();
+		createHerdrReporterWith(on.send, { dir: tmpDir(), all: false })(spawnEvent("scout#1", false));
+		assert.equal(on.calls.length, 0, "all: false means what it says");
 	});
 });
 

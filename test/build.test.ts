@@ -11,7 +11,9 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { initTheme } from "@earendil-works/pi-coding-agent";
-import { runBuild, runInterview, type BuildDeps, type CommandCtx } from "../extension/build.ts";
+import { runBuild, runInterview, toggleHerdr, type BuildDeps, type CommandCtx } from "../extension/build.ts";
+import { watchEverything, watchEverythingIs } from "../extension/execute.ts";
+import { BUILD_STATE_VERSION, type BuildState } from "../src/resume.ts";
 import { emptyUsage } from "../src/usage.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
 import { testTheme } from "./fixtures/theme.ts";
@@ -277,5 +279,187 @@ describe("/build", () => {
 		await runBuild("x", ctx, deps({ git }));
 
 		assert.equal(statuses.at(-1), undefined);
+	});
+});
+
+/** A state file for a build that stopped after one of two subtasks. */
+function interrupted(over: Partial<BuildState> = {}): BuildState {
+	return {
+		version: BUILD_STATE_VERSION,
+		request: "add a cache",
+		brief: "THE OLD BRIEF",
+		cwd: "/repo",
+		startedAt: "2026-07-19T10:00:00.000Z",
+		updatedAt: "2026-07-19T10:05:00.000Z",
+		plan: [
+			{ agent: "coder", task: "write the cache" },
+			{ agent: "coder", task: "test the cache" },
+		],
+		tasks: [
+			{
+				agent: "coder",
+				task: "write the cache",
+				output: "done",
+				ok: true,
+				approved: true,
+				rounds: 1,
+				usage: emptyUsage(),
+			},
+		],
+		audits: [],
+		done: false,
+		...over,
+	};
+}
+
+describe("/build resume", () => {
+	test("carries on the interrupted build: same brief, same plan, no second interview", async () => {
+		const { ctx, confirms } = fakeCtx();
+		const { git } = fakeGit();
+		let interviewed = false;
+		let resumed: unknown;
+
+		await runBuild("resume", ctx, deps({
+			git,
+			findResumable: () => ({ dir: "runs/2026-07-19_10-00-00", state: interrupted() }),
+			interview: (async () => ((interviewed = true), {})) as never,
+			deliver: (async (options: { resume?: unknown; brief: string }) => {
+				resumed = options.resume;
+				assert.equal(options.brief, "THE OLD BRIEF", "the user does not re-decide what they decided an hour ago");
+				return result({ brief: options.brief, plan: [], planning: {} as never, tasks: [], audits: [], approved: true });
+			}) as never,
+		}));
+
+		assert.equal(interviewed, false);
+		assert.match(confirms[0] ?? "", /Carry on\? 1\/2 subtask\(s\) already approved/);
+		assert.equal((resumed as { plan: unknown[] }).plan.length, 2, "the plan it already paid for");
+		assert.equal((resumed as { tasks: unknown[] }).tasks.length, 1);
+	});
+
+	test("writes into the directory the run started in, not a new one", async () => {
+		const { ctx } = fakeCtx();
+		const { git } = fakeGit();
+		const saved: string[] = [];
+
+		await runBuild("resume", ctx, deps({
+			git,
+			findResumable: () => ({ dir: "runs/2026-07-19_10-00-00", state: interrupted() }),
+			runDir: () => "runs/a-brand-new-one",
+			saveState: (dir) => (saved.push(dir), undefined),
+			deliver: (async (options: { onProgress?: (p: unknown) => void }) => {
+				options.onProgress?.({ plan: [], tasks: [], audits: [], done: false });
+				return result({ brief: "b", plan: [], planning: {} as never, tasks: [], audits: [], approved: true });
+			}) as never,
+		}));
+
+		assert.deepEqual(saved, ["runs/2026-07-19_10-00-00"], "one run, one folder");
+	});
+
+	test("progress is written as it goes, which is what makes resuming possible at all", async () => {
+		const { ctx } = fakeCtx();
+		const { git } = fakeGit();
+		const states: BuildState[] = [];
+
+		await runBuild("add a cache", ctx, deps({
+			git,
+			saveState: (_dir, state) => (states.push(state as BuildState), undefined),
+			deliver: (async (options: { onProgress?: (p: unknown) => void }) => {
+				options.onProgress?.({ plan: [], tasks: [], audits: [], done: false });
+				options.onProgress?.({ plan: [], tasks: [], audits: [], done: true });
+				return result({ brief: "b", plan: [], planning: {} as never, tasks: [], audits: [], approved: true });
+			}) as never,
+		}));
+
+		assert.equal(states.length, 2);
+		assert.equal(states[0]?.done, false);
+		assert.equal(states[1]?.done, true, "a finished build is not offered for resuming");
+		assert.equal(states[0]?.request, "add a cache");
+	});
+
+	test("nothing to carry on says so instead of starting a build nobody asked for", async () => {
+		const { ctx, said } = fakeCtx();
+		const { git } = fakeGit();
+		let delivered = false;
+
+		await runBuild("resume", ctx, deps({
+			git,
+			findResumable: () => undefined,
+			deliver: (async () => ((delivered = true), {})) as never,
+		}));
+
+		assert.equal(delivered, false);
+		assert.match(said(), /no interrupted build/);
+	});
+
+	test("a state whose agents no longer exist is refused, not half-applied", async () => {
+		const { ctx, said } = fakeCtx();
+		const { git } = fakeGit();
+		let delivered = false;
+
+		await runBuild("resume", ctx, deps({
+			git,
+			findResumable: () => ({ dir: "runs/x", state: interrupted({ plan: [{ agent: "ghost", task: "do magic" }] }) }),
+			deliver: (async () => ((delivered = true), {})) as never,
+		}));
+
+		assert.equal(delivered, false);
+		assert.match(said(), /no longer match/);
+	});
+
+	test("an unapproved run points at the way to carry it on", async () => {
+		const { ctx, said } = fakeCtx();
+		const { git } = fakeGit();
+		await runBuild("x", ctx, deps({
+			git,
+			deliver: async () =>
+				result({ brief: "b", plan: [], planning: {} as never, tasks: [], audits: [], approved: false }) as never,
+		}));
+
+		assert.match(said(), /\/build resume/);
+	});
+});
+
+describe("/herdr", () => {
+	test("on and off, and the state is remembered between calls", () => {
+		const { ctx, said } = fakeCtx();
+		try {
+			assert.equal(toggleHerdr("on", ctx), true);
+			assert.equal(watchEverything(), true, "it is a session preference, not an argument");
+			assert.equal(toggleHerdr("off", ctx), false);
+			assert.equal(watchEverything(), false);
+			// Outside herdr the "on" message is the warning; what matters here is
+			// that the switch itself is remembered.
+			assert.match(said(), /only the subagents that ask/);
+		} finally {
+			watchEverythingIs(false);
+		}
+	});
+
+	test("no argument reports where it stands rather than toggling blindly", () => {
+		const { ctx } = fakeCtx();
+		try {
+			toggleHerdr("on", ctx);
+			assert.equal(toggleHerdr("", ctx), true, "asking must not flip it");
+		} finally {
+			watchEverythingIs(false);
+		}
+	});
+
+	test("anything else is refused with the current state, not silently ignored", () => {
+		const { ctx, said } = fakeCtx();
+		assert.equal(toggleHerdr("maybe", ctx), false);
+		assert.match(said(), /say on or off/);
+	});
+
+	test("outside herdr it says nothing will open, rather than pretending", () => {
+		const { ctx, notes } = fakeCtx();
+		try {
+			toggleHerdr("on", ctx);
+			// The suite does not run inside herdr, so this is the real path.
+			assert.equal(notes.at(-1)?.type, "warning");
+			assert.match(notes.at(-1)?.message ?? "", /not running inside herdr/);
+		} finally {
+			watchEverythingIs(false);
+		}
 	});
 });

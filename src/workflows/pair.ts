@@ -42,6 +42,8 @@ export type PairOptions = WorkflowOptions & {
 };
 
 export type PairResult = Result & {
+	/** What the pair was asked for. A result that cannot say so cannot be resumed. */
+	input: string;
 	/** Every turn, worker and reviewer alternating, in order. */
 	steps: Result[];
 	/** The last review, whether it approved or not. */
@@ -75,6 +77,7 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 
 	const outcome = (work: Result, review: Result | undefined, rounds: number, approved: boolean): PairResult => ({
 		...work,
+		input,
 		usage: sumUsage(
 			steps.map((step) => step.usage),
 			performance.now() - startedAt,

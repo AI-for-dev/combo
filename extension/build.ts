@@ -26,6 +26,9 @@ import {
 	createRunDir,
 	commandVerifier,
 	createTuiCollector,
+	detectHerdr,
+	findResumableBuild,
+	fromBuildState,
 	deliver,
 	diff,
 	diffStat,
@@ -36,15 +39,19 @@ import {
 	run,
 	status,
 	untracked,
+	saveBuildState,
+	toBuildState,
 	usageReport,
 	writeUsageReport,
 	type Agent,
+	type BuildProgress,
+	type BuildState,
 	type DeliverResult,
 	type InterviewResult,
 	type Verify,
 } from "../src/index.ts";
 import { createAskUi, type AskUi } from "./ask-ui.ts";
-import { paintWidget } from "./execute.ts";
+import { paintWidget, watchEverything, watchEverythingIs } from "./execute.ts";
 
 /** Key for the footer status shown while an agent is thinking. */
 const STATUS = "pi-subagent";
@@ -76,6 +83,10 @@ export type BuildDeps = {
 	runDir?: () => string;
 	/** The project's own check. Defaults to asking the user for a command. */
 	verify?: Verify;
+	/** Where an interrupted build is looked for. Defaults to `runs/`. */
+	findResumable?: typeof findResumableBuild;
+	/** Persists progress. Defaults to writing `build.json` into the run directory. */
+	saveState?: typeof saveBuildState;
 	/** Widget repaint period. `0` disables the timer - tests want that. */
 	tickMs?: number;
 };
@@ -105,12 +116,49 @@ export default function registerCommands(pi: ExtensionAPI) {
 		},
 	});
 
+	pi.registerCommand("herdr", {
+		description: "Watch every subagent in its own herdr split (on | off)",
+		handler: async (args: string, ctx: ExtensionCommandContext) => {
+			toggleHerdr(args, ctx as unknown as CommandCtx);
+		},
+	});
+
 	pi.registerCommand("build", {
-		description: "Interview, plan, build with worker/reviewer pairs, audit, then commit",
+		description: "Interview, plan, build with worker/reviewer pairs, audit, then commit (`resume` to carry on)",
 		handler: async (args: string, ctx: ExtensionCommandContext) => {
 			await runBuild(args, ctx as unknown as CommandCtx);
 		},
 	});
+}
+
+/**
+ * `/herdr on|off` - or nothing, to see where it stands.
+ *
+ * It is a session preference, not a per-call argument: the point is to stop
+ * threading `openInHerdr` through every call while debugging a workflow. Outside
+ * herdr it still answers, and says plainly that nothing will open - silence
+ * would read as a broken command.
+ */
+export function toggleHerdr(args: string, ctx: CommandCtx): boolean {
+	const word = args.trim().toLowerCase();
+	const on = word === "on" || word === "all" ? true : word === "off" ? false : watchEverything();
+
+	if (word && word !== "on" && word !== "off" && word !== "all") {
+		ctx.ui.notify(`herdr: say on or off (currently ${watchEverything() ? "on" : "off"})`, "warning");
+		return watchEverything();
+	}
+
+	watchEverythingIs(on);
+	const inside = detectHerdr() !== undefined;
+	ctx.ui.notify(
+		on
+			? inside
+				? "herdr: every subagent gets its own split"
+				: "herdr: on, but pi is not running inside herdr - nothing will open"
+			: "herdr: only the subagents that ask for a split get one",
+		on && !inside ? "warning" : "info",
+	);
+	return on;
 }
 
 /** Which agent plays which part. Names, so a user can substitute their own. */
@@ -136,7 +184,22 @@ const CAST = {
  */
 export async function runBuild(request: string, ctx: CommandCtx, deps: BuildDeps = {}): Promise<DeliverResult | undefined> {
 	const git = deps.git ?? REAL_GIT;
-	if (!request.trim()) {
+
+	// `/build resume` carries on the last interrupted build in this directory:
+	// same brief, same plan, the approved subtasks kept. Everything the workers
+	// already wrote is still in the working tree, so redoing it would be paying
+	// twice and overwriting what a reviewer already accepted.
+	const resuming = request.trim().toLowerCase() === "resume";
+	let previous: { dir: string; state: BuildState } | undefined;
+	if (resuming) {
+		previous = (deps.findResumable ?? findResumableBuild)("runs", ctx.cwd);
+		if (!previous) {
+			ctx.ui.notify("build: no interrupted build to carry on here", "warning");
+			return undefined;
+		}
+	}
+
+	if (!resuming && !request.trim()) {
 		ctx.ui.notify("build: say what you want built, for example /build add a cache to the loader", "warning");
 		return undefined;
 	}
@@ -162,14 +225,28 @@ export async function runBuild(request: string, ctx: CommandCtx, deps: BuildDeps
 		return undefined;
 	}
 
-	const interviewed = await runInterview(request, ctx, deps);
-	if (!interviewed?.ok) return undefined;
+	// A resumed build already has its brief: interviewing again would ask the
+	// user to re-decide what they decided an hour ago.
+	const brief = previous ? previous.state.brief : (await runInterview(request, ctx, deps))?.brief;
+	if (!brief) return undefined;
 
-	const start = await ctx.ui.confirm("Build this?", firstLines(interviewed.brief, 12));
+	const resume: BuildProgress | undefined = previous ? fromBuildState(previous.state, agents) : undefined;
+	if (previous && !resume) {
+		ctx.ui.notify("build: that build cannot be carried on - its agents no longer match", "error");
+		return undefined;
+	}
+
+	const kept = resume?.tasks.filter((task) => task.approved).length ?? 0;
+	const start = await ctx.ui.confirm(
+		resume ? `Carry on? ${kept}/${resume.plan.length} subtask(s) already approved` : "Build this?",
+		firstLines(brief, 12),
+	);
 	if (!start) {
 		ctx.ui.notify("build: stopped before any work started - the brief is in the editor", "info");
 		return undefined;
 	}
+
+	const label = previous ? previous.state.request : request.trim();
 
 	// The bar the agents cannot talk their way past. Asked for once, here,
 	// because only the user knows what "it works" means in their project - and
@@ -178,9 +255,13 @@ export async function runBuild(request: string, ctx: CommandCtx, deps: BuildDeps
 
 	// A pipeline that writes code leaves its transcripts behind: when something
 	// went wrong, "what did the coder actually see" is the first question.
-	const exportDir = (deps.runDir ?? createRunDir)();
+	// A resumed build writes into the directory it started in: one run, one
+	// folder, whatever it took to finish it.
+	const exportDir = previous ? previous.dir : (deps.runDir ?? createRunDir)();
+	const save = deps.saveState ?? saveBuildState;
+	const startedAt = previous?.state.startedAt;
 	const collector = createTuiCollector();
-	const onEvent = combineReporters(collector.reporter, createHerdrReporter());
+	const onEvent = combineReporters(collector.reporter, createHerdrReporter({ all: watchEverything() }));
 
 	// The same dots the tool draws: one painter, so the two flows cannot drift.
 	const paint = () => ctx.ui.setWidget?.(STATUS, paintWidget(collector.snapshot(), ctx.ui.theme));
@@ -194,10 +275,14 @@ export async function runBuild(request: string, ctx: CommandCtx, deps: BuildDeps
 	try {
 		built = await (deps.deliver ?? deliver)({
 			...cast,
-			brief: interviewed.brief,
+			brief,
 			cwd: ctx.cwd,
 			exportDir,
 			verify,
+			resume,
+			// Written after the plan, after the subtasks and after every audit:
+			// whatever kills the process, what was paid for is on disk.
+			onProgress: (progress) => void save(exportDir, toBuildState(progress, { request: label, brief, cwd: ctx.cwd, startedAt })),
 			signal: ctx.signal,
 			onEvent,
 		});
@@ -209,12 +294,17 @@ export async function runBuild(request: string, ctx: CommandCtx, deps: BuildDeps
 	}
 
 	const check = built.verification ? `, check ${built.verification.ok ? "passed" : "FAILED"}` : "";
+	if (!built.approved) {
+		// The state file is still there and still `done: false` only if the run
+		// stopped short; say plainly what carrying on would mean.
+		ctx.ui.notify("build: `/build resume` carries this on, keeping the approved subtasks", "info");
+	}
 	ctx.ui.notify(
 		`${built.tasks.length} subtask(s), ${built.audits.length} audit(s)${check}, ${built.approved ? "approved" : "NOT approved"} - exported to ${exportDir}`,
 		built.approved ? "info" : "warning",
 	);
 
-	await submit(request, interviewed.brief, built, cast.committer, ctx, deps);
+	await submit(label, brief, built, cast.committer, ctx, deps);
 	return built;
 }
 

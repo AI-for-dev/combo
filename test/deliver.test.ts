@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { AUDIT_APPROVAL, auditPrompt, deliver } from "../src/workflows/deliver.ts";
 import { APPROVAL } from "../src/workflows/pair.ts";
+import { emptyUsage } from "../src/usage.ts";
 import { fakeSpawn, testAgent } from "./fixtures/fake-subagent.ts";
 
 const planner = testAgent("planner", { description: "Splits the work" });
@@ -258,6 +259,123 @@ describe("deliver", () => {
 	});
 });
 
+describe("resuming", () => {
+	const previously = (over: Partial<Parameters<typeof deliver>[0]["resume"] & object> = {}) => ({
+		plan: [
+			{ agent: coder, task: "write the parser" },
+			{ agent: scribe, task: "document the parser" },
+		],
+		tasks: [
+			{
+				agent: "coder",
+				input: "write the parser",
+				output: "the parser, from last time",
+				messages: [],
+				usage: emptyUsage(),
+				ok: true,
+				steps: [],
+				rounds: 1,
+				approved: true,
+			},
+		],
+		audits: [],
+		done: false,
+		...over,
+	});
+
+	test("the plan is reused, and an approved subtask is not paid for twice", async () => {
+		const fake = cast();
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", resume: previously(), spawn: fake.spawn });
+
+		assert.ok(!fake.spawned.some((entry) => entry.agent === "planner"), "the plan was already paid for");
+		assert.deepEqual(
+			fake.spawned.map((entry) => entry.agent),
+			["scribe", "reviewer", "auditor"],
+			"only the subtask nobody had approved ran again",
+		);
+		assert.equal(result.tasks.length, 2, "and the kept one is still part of the result");
+		assert.equal(result.tasks[0]?.output, "the parser, from last time");
+	});
+
+	test("a subtask that was not approved runs again: nobody signed off on that tree", async () => {
+		const fake = cast();
+		const unfinished = previously({
+			tasks: [
+				{
+					agent: "coder",
+					input: "write the parser",
+					output: "half of it",
+					messages: [],
+					usage: emptyUsage(),
+					ok: true,
+					steps: [],
+					rounds: 3,
+					approved: false,
+				},
+			],
+		});
+		await deliver({ planner, workers, reviewer, auditor, brief: "x", resume: unfinished, spawn: fake.spawn });
+
+		assert.ok(fake.spawned.some((entry) => entry.agent === "coder"), "an argued-over subtask is not a finished one");
+	});
+
+	test("audit rounds already spent are not spent again", async () => {
+		const fake = cast([AUDIT_APPROVAL]);
+		const withAudits = previously({
+			audits: [{ review: { agent: "auditor", output: "coder: again", messages: [], usage: emptyUsage(), ok: true }, approved: false, fixes: [], results: [] }],
+		});
+		const result = await deliver({
+			planner,
+			workers,
+			reviewer,
+			auditor,
+			brief: "x",
+			maxAuditRounds: 2,
+			resume: withAudits,
+			spawn: fake.spawn,
+		});
+
+		assert.equal(result.audits.length, 2, "the recorded round plus the one it had left");
+		assert.equal(fake.spawned.filter((entry) => entry.agent === "auditor").length, 1);
+	});
+
+	test("progress is reported after the plan, the subtasks and every audit", async () => {
+		const reported: { tasks: number; done: boolean }[] = [];
+		const fake = cast(["coder: fix it", AUDIT_APPROVAL]);
+		await deliver({
+			planner,
+			workers,
+			reviewer,
+			auditor,
+			brief: "x",
+			onProgress: (progress) => reported.push({ tasks: progress.tasks.length, done: progress.done }),
+			spawn: fake.spawn,
+		});
+
+		assert.ok(reported.length >= 3, `expected several reports, got ${reported.length}`);
+		assert.equal(reported[0]?.tasks, 0, "the first one carries the plan, before any work");
+		assert.equal(reported.at(-1)?.done, true, "and the last one says it is over");
+		assert.ok(reported.slice(0, -1).every((step) => !step.done));
+	});
+
+	test("a listener that throws does not take the build down", async () => {
+		const fake = cast();
+		const result = await deliver({
+			planner,
+			workers,
+			reviewer,
+			auditor,
+			brief: "x",
+			onProgress: () => {
+				throw new Error("bookkeeping exploded");
+			},
+			spawn: fake.spawn,
+		});
+
+		assert.equal(result.ok, true);
+	});
+});
+
 describe("verification", () => {
 	const passing = async () => ({ ok: true, output: "12 tests passed", command: "npm test" });
 	const failing = async () => ({ ok: false, output: "1 test failed: slugify", command: "npm test" });
@@ -325,8 +443,19 @@ describe("auditPrompt", () => {
 		const prompt = auditPrompt(
 			"the brief",
 			[
-				{ agent: "coder", output: "done", ok: true, approved: true, rounds: 1, steps: [], usage: {} as never, messages: [] },
-				{ agent: "scribe", output: "", ok: false, error: "boom", approved: false, rounds: 1, steps: [], usage: {} as never, messages: [] },
+				{ agent: "coder", input: "write it", output: "done", ok: true, approved: true, rounds: 1, steps: [], usage: {} as never, messages: [] },
+				{
+					agent: "scribe",
+					input: "document it",
+					output: "",
+					ok: false,
+					error: "boom",
+					approved: false,
+					rounds: 1,
+					steps: [],
+					usage: {} as never,
+					messages: [],
+				},
 			],
 			1,
 			2,

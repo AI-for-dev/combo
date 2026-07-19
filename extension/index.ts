@@ -57,6 +57,9 @@ const Schema = Type.Object({
 	reduceWith: Type.Optional(
 		Type.String({ description: "Agent that synthesises the parallel results into one answer (reduce mode)." }),
 	),
+	herdrAll: Type.Optional(
+		Type.Boolean({ description: "Give every subagent of this call its own herdr split, not only the ones that asked." }),
+	),
 	export: Type.Optional(
 		Type.Boolean({
 			description: "Write every subagent's transcript and a usage.json into runs/<timestamp>/.",
@@ -115,7 +118,7 @@ export default function (pi: ExtensionAPI) {
 			const who = args.agent ?? args.steps?.join(" → ") ?? args.candidates?.join(", ");
 			if (who) line += theme.fg("muted", ` ${who}`);
 			if (args.lifetime === "workflow") line += theme.fg("muted", " [workflow]");
-			if (args.openInHerdr) line += theme.fg("muted", " [herdr]");
+			if (args.openInHerdr || args.herdrAll) line += theme.fg("muted", args.herdrAll ? " [herdr:all]" : " [herdr]");
 			if (args.export) line += theme.fg("muted", " [export]");
 
 			const what = args.task ?? args.tasks?.[0];

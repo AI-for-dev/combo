@@ -22,7 +22,8 @@
 
 import type { Agent } from "./../agent.ts";
 import { failed, type Result } from "./../result.ts";
-import { sumUsage, type Usage } from "./../usage.ts";
+import { emptyUsage, sumUsage, type Usage } from "./../usage.ts";
+import type { BuildProgress } from "./../resume.ts";
 import type { Verification, Verify } from "./../verify.ts";
 import { mapConcurrent, SubagentPool, type WorkflowOptions } from "./common.ts";
 import { pair, type PairResult } from "./pair.ts";
@@ -64,6 +65,23 @@ export type DeliverOptions = WorkflowOptions & {
 	 * approved** whatever anyone says about it.
 	 */
 	verify?: Verify;
+	/**
+	 * What a previous, interrupted run already did.
+	 *
+	 * The plan is reused as it stands and every **approved** subtask is kept;
+	 * everything else is run again. Approval is the only thing worth trusting
+	 * from a previous life: a subtask that was still being argued over left the
+	 * working tree in a state nobody signed off on.
+	 */
+	resume?: BuildProgress;
+	/**
+	 * Called after the plan, after the subtasks and after every audit round.
+	 *
+	 * This is what makes a build resumable at all: the caller writes it down. It
+	 * is a reporting hook, so it must not throw - a listener that does is
+	 * swallowed, like everywhere else here.
+	 */
+	onProgress?: (progress: BuildProgress) => void;
 };
 
 /** One audit and whatever it asked for. */
@@ -122,13 +140,25 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 		maxRounds,
 		maxAuditRounds = 2,
 		verify,
+		resume,
+		onProgress,
 		...shared
 	} = options;
 
 	const startedAt = performance.now();
-	const audits: AuditRound[] = [];
+	const audits: AuditRound[] = [...(resume?.audits ?? [])];
 	let tasks: PairResult[] = [];
-	let verification: Verification | undefined;
+	let verification: Verification | undefined = resume?.verification;
+
+	// A reporting hook is an observer: a listener that throws must not take the
+	// build down, exactly like a reporter on the event bus.
+	const report = (plan: PlannedTask[], done = false) => {
+		try {
+			onProgress?.({ plan, tasks, audits, verification, done });
+		} catch {
+			// a caller's bookkeeping problem is not the workflow's problem
+		}
+	};
 
 	const outcome = (plan: PlannedTask[], planning: Result, signedOff: boolean, error?: string): DeliverResult => {
 		const usages = [planning.usage, ...tasks.map((task) => task.usage)];
@@ -151,16 +181,37 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 		};
 	};
 
-	const planned = await makePlan({ ...shared, planner, workers, input: brief, maxTasks });
+	// A resumed build keeps the plan it already paid for. Re-planning would also
+	// re-split work that is half done in the working tree.
+	const planned = resume?.plan.length
+		? { ok: true as const, plan: resume.plan, planning: reusedPlanning(planner, resume.plan) }
+		: await makePlan({ ...shared, planner, workers, input: brief, maxTasks });
 	if (!planned.ok) return outcome([], planned.planning, false, planned.error);
+	report(planned.plan);
 
 	const run = (step: PlannedTask) => pair({ ...shared, worker: step.agent, reviewer, input: step.task, maxRounds });
-	tasks = await mapConcurrent(planned.plan, concurrency, run);
+
+	// Only what was **approved** survives a resume: a subtask still being argued
+	// over left the tree in a state nobody signed off on, so it runs again.
+	const kept = new Map((resume?.tasks ?? []).filter((task) => task.approved).map((task) => [task.input, task]));
+	const todo = planned.plan.filter((step) => !kept.has(step.task));
+	const done = await mapConcurrent(todo, concurrency, run);
+
+	const byTask = new Map(done.map((task) => [task.input, task]));
+	tasks = planned.plan.flatMap((step) => {
+		const task = kept.get(step.task) ?? byTask.get(step.task);
+		return task ? [task] : [];
+	});
 	verification = await verify?.();
+	report(planned.plan);
 
-	if (!auditor) return outcome(planned.plan, planned.planning, true);
+	if (!auditor) {
+		report(planned.plan, true);
+		return outcome(planned.plan, planned.planning, true);
+	}
 
-	for (let round = 1; round <= maxAuditRounds; round++) {
+	// A resumed build has already spent the audit rounds it recorded.
+	for (let round = audits.length + 1; round <= maxAuditRounds; round++) {
 		if (shared.signal?.aborted) break;
 
 		const review = await auditOnce({ ...shared, auditor, workers, brief, tasks, verification, round, maxAuditRounds });
@@ -173,17 +224,38 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 		audits.push({ review, verification, approved, fixes, results });
 		tasks = [...tasks, ...results];
 		if (results.length > 0) verification = await verify?.();
+		report(planned.plan);
 
 		// An approval on top of a failing check is not an approval: keep going
 		// while there are rounds left, because the check is the one voice here
 		// that cannot be talked round.
-		if (approved && verification?.ok !== false) return outcome(planned.plan, planned.planning, true);
+		if (approved && verification?.ok !== false) {
+			report(planned.plan, true);
+			return outcome(planned.plan, planned.planning, true);
+		}
 		// Nothing actionable came back: another identical audit would only cost
 		// tokens.
 		if (results.length === 0) break;
 	}
 
+	report(planned.plan, true);
 	return outcome(planned.plan, planned.planning, false);
+}
+
+/**
+ * A stand-in for the planning turn a resumed build did not run.
+ *
+ * `ok: true` because the plan is real - it was made, and paid for, by the run
+ * being continued. The output says so rather than pretending to be model text.
+ */
+function reusedPlanning(planner: Agent, plan: readonly PlannedTask[]): Result {
+	return {
+		agent: planner.name,
+		output: `(plan reused from an interrupted run)\n${plan.map((step) => `${step.agent.name}: ${step.task}`).join("\n")}`,
+		messages: [],
+		usage: emptyUsage(),
+		ok: true,
+	};
 }
 
 type AuditOptions = WorkflowOptions & {

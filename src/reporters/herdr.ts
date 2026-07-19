@@ -25,7 +25,26 @@ export type HerdrOptions = {
 	send?: HerdrSend;
 	/** Directory for the live logs. Defaults to a per-run temp directory. */
 	dir?: string;
+	/**
+	 * Open a split for **every** subagent, whatever each one asked for.
+	 *
+	 * `openInHerdr` is opt-in per subagent so a fan-out of twenty branches
+	 * cannot carpet the screen by accident. This is the other regime, asked for
+	 * explicitly: watch everything. It belongs to the reporter and not to the
+	 * core, because "who gets a pane" is a display decision - the workflow runs
+	 * identically either way.
+	 *
+	 * Defaults to the environment: `PI_SUBAGENT_HERDR=all` turns it on for a
+	 * whole shell session, which is what you want while debugging a workflow.
+	 */
+	all?: boolean;
 };
+
+/** `PI_SUBAGENT_HERDR=all` (or `1`, or `true`) means "every subagent". */
+export function herdrAllFromEnv(env: NodeJS.ProcessEnv = process.env): boolean {
+	const value = env.PI_SUBAGENT_HERDR?.trim().toLowerCase();
+	return value === "all" || value === "1" || value === "true";
+}
 
 /**
  * Builds the herdr reporter, or `undefined` when herdr is not there.
@@ -44,6 +63,7 @@ export function createHerdrReporter(options: HerdrOptions = {}): EventListener |
 export function createHerdrReporterWith(send: HerdrSend, options: HerdrOptions = {}): EventListener {
 	const dir = options.dir ?? fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-"));
 	fs.mkdirSync(dir, { recursive: true });
+	const all = options.all ?? herdrAllFromEnv();
 
 	const panes = new Map<string, Pane>();
 
@@ -59,7 +79,8 @@ export function createHerdrReporterWith(send: HerdrSend, options: HerdrOptions =
 
 	function handle(event: SubagentEvent) {
 		if (event.type === "spawn") {
-			if (!event.openInHerdr) return; // opt-in, and the default is out
+			// Opt-in per subagent, unless the whole run was asked to be watched.
+			if (!event.openInHerdr && !all) return;
 			panes.set(event.id, openPane(send, dir, event.id, options));
 			return;
 		}

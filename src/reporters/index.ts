@@ -11,7 +11,7 @@ import { createHerdrReporter, type HerdrOptions } from "./herdr.ts";
 import { silentReporter } from "./silent.ts";
 
 export { consoleReporter, type ConsoleReporterOptions } from "./console.ts";
-export { createHerdrReporter, createHerdrReporterWith, type HerdrOptions } from "./herdr.ts";
+export { createHerdrReporter, createHerdrReporterWith, herdrAllFromEnv, type HerdrOptions } from "./herdr.ts";
 export { createHerdrSend, detectHerdr, HERDR_SOURCE, type HerdrEnv, type HerdrSend } from "./herdr-client.ts";
 export { silentReporter } from "./silent.ts";
 export {

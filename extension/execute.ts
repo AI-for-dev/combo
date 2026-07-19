@@ -21,6 +21,7 @@ import {
 	createHerdrReporter,
 	createTuiCollector,
 	fanOut,
+	herdrAllFromEnv,
 	findAgent,
 	loadAgents as loadAgentsFromDisk,
 	loop,
@@ -47,6 +48,27 @@ export const WIDGET = "pi-subagent";
 /** How often the widget repaints while subagents are working, in ms. */
 const TICK_MS = 250;
 
+/**
+ * Session-wide "open a herdr split for every subagent".
+ *
+ * A module-level switch rather than an argument threaded everywhere: it is a
+ * preference about this terminal, it survives across tool calls and commands,
+ * and `/herdr on` is how a user sets it without touching a single call site.
+ * The environment seeds it, so a shell can be started already watching.
+ */
+let watchAll = herdrAllFromEnv();
+
+/** Whether every subagent currently gets a split. */
+export function watchEverything(): boolean {
+	return watchAll;
+}
+
+/** Turns session-wide watching on or off. Returns the new state. */
+export function watchEverythingIs(on: boolean): boolean {
+	watchAll = on;
+	return watchAll;
+}
+
 /** The arguments the model sends. Every field optional: the mode is inferred. */
 export type Params = {
 	mode?: string;
@@ -61,6 +83,8 @@ export type Params = {
 	maxTasks?: number;
 	timeoutMs?: number;
 	openInHerdr?: boolean;
+	/** Give **every** subagent of this call a split, not only the ones that asked. */
+	herdrAll?: boolean;
 	scope?: string;
 	export?: boolean;
 	reduceWith?: string;
@@ -163,7 +187,12 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 	// reporter joins only when pi itself runs inside herdr. Forgetting this
 	// line is what once let `openInHerdr` reach the spawn event with nobody
 	// listening.
-	const onEvent = combineReporters(collector.reporter, deps.reporter ?? createHerdrReporter());
+	// `herdrAll` belongs to the reporter, not to the spawn: whether a pane opens
+	// is a display decision, and the workflow runs identically either way.
+	const onEvent = combineReporters(
+		collector.reporter,
+		deps.reporter ?? createHerdrReporter({ all: params.herdrAll || watchEverything() }),
+	);
 
 	// The directory is created up front: subagents export themselves as they
 	// close, so it has to exist before the first one finishes.

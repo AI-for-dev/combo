@@ -10,7 +10,7 @@ The intent behind the project and its structural decisions live in
 
 ```bash
 npm install
-npm test          # 404 tests, no network calls
+npm test          # 434 tests, no network calls
 npm run typecheck
 ```
 
@@ -226,6 +226,19 @@ The pieces above compose into one pipeline, driven from pi by `/build`:
 It stops exactly twice: the brief before any work starts, the commit before
 anything reaches history. Refusing at either stop leaves everything where it is.
 
+**Carrying on after an interruption**: every step is written to
+`runs/<timestamp>/build.json`, so a Ctrl+C, a dropped connection or a closed
+terminal costs nothing that was already paid for.
+
+```
+/build resume
+> Carry on? 2/3 subtask(s) already approved
+```
+
+Only **approved** subtasks are kept - one that was still being argued over left
+the tree in a state nobody signed off on. The plan is reused as it stands, the
+brief is not re-decided, and the audit rounds already spent stay spent.
+
 From a script, without the interview:
 
 ```typescript
@@ -299,6 +312,20 @@ await fanOut({ agent: scout, tasks, onEvent: (event) => console.log(event) });
 A reporter that throws is swallowed: it cannot take a workflow down.
 
 ### Watching subagents in herdr
+
+Per subagent it is opt-in (`openInHerdr`), so a fan-out of twenty branches
+cannot carpet the screen by accident. To watch **everything** while debugging a
+workflow:
+
+```bash
+/herdr on                     # for this pi session
+PI_SUBAGENT_HERDR=all node examples/03-fan-out.ts   # for a whole shell
+```
+
+```typescript
+createHerdrReporter({ all: true });   // from a script
+```
+
 
 Inside [herdr](https://herdr.dev), a subagent can get **its own split** and show
 you what it is doing:

@@ -58,6 +58,7 @@ export {
 	createTuiCollector,
 	detectHerdr,
 	formatToolCall,
+	herdrAllFromEnv,
 	HERDR_SOURCE,
 	progressLine,
 	silentReporter,
@@ -80,6 +81,17 @@ export {
 	type WidgetRow,
 } from "./reporters/index.ts";
 export { failed, type Result, type WorkflowResult } from "./result.ts";
+export {
+	BUILD_STATE_FILE,
+	BUILD_STATE_VERSION,
+	findResumableBuild,
+	fromBuildState,
+	loadBuildState,
+	saveBuildState,
+	toBuildState,
+	type BuildProgress,
+	type BuildState,
+} from "./resume.ts";
 export { run, type RunOptions } from "./run.ts";
 export {
 	createDefaultSession,
