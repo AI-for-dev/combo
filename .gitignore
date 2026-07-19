@@ -8,3 +8,7 @@ runs/
 
 # Local Claude Code settings
 .claude/settings.local.json
+
+# pi session exports dropped in the working directory
+pi-session-*.html
+pi-session-*.jsonl
