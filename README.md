@@ -10,7 +10,7 @@ The intent behind the project and its structural decisions live in
 
 ```bash
 npm install
-npm test          # 82 tests, no network calls
+npm test          # 100 tests, no network calls
 npm run typecheck
 ```
 
@@ -72,7 +72,7 @@ it never closes what it was handed.
 
 ## Workflows
 
-Two combinators for now. A combinator is added when a real example needs it,
+Three combinators for now. A combinator is added when a real example needs it,
 not before.
 
 ```typescript
@@ -83,10 +83,26 @@ result.steps; // the intermediate results
 // fanOut: 1→N, bounded concurrency, results in task order
 const { results, usage } = await fanOut({ agent: scout, tasks, concurrency: 2 });
 usage.busyMs / usage.wallMs; // the parallelism actually achieved
+
+// loop: 1→1, until a judge is satisfied
+const review = await loop({
+	steps: [coder, reviewer],
+	input: "Implement the parser",
+	until: (step) => step.output.includes("LGTM"),
+	maxIterations: 5, // defaults to 5; "forever" is never reachable
+	lifetime: "workflow", // the reviewer remembers what it already said
+});
+review.converged; // did it reach the bar, or just run out of iterations?
 ```
 
+`loop` reports `converged` separately from `ok`, because they answer different
+questions: `ok` says the last turn ran without a model error, `converged` says
+the work reached the bar. Exhausting `maxIterations` with every turn technically
+fine is `ok: true, converged: false` - and that distinction is the only thing
+worth knowing.
+
 They all accept the same options:
-`{ lifetime, signal, onEvent, bus, cwd, sessionDir, spawn }`.
+`{ lifetime, signal, timeoutMs, onEvent, bus, cwd, sessionDir, spawn }`.
 
 **A failure does not crash the workflow**: it becomes a `Result` with
 `ok: false`. In a fan-out the other branches carry on, unless `failFast`.
@@ -168,6 +184,7 @@ Directly executable, one per shape:
 node examples/01-run.ts       # disposable
 node examples/02-chain.ts     # the same chain in "task", then in "workflow"
 node examples/03-fan-out.ts   # 3 tasks, 2 at a time
+node examples/04-loop.ts      # coding ↔ review, as a team then with fresh eyes
 ```
 
 Not every provider reports tokens - several return zero. For the usage lines to
@@ -179,8 +196,8 @@ PI_SUBAGENT_MODEL=local/qwen/qwen3-coder-next node examples/03-fan-out.ts
 
 ## Status
 
-This first batch ships the foundation - `Agent`, `Subagent`, `Result`, `Usage`,
-the event bus - and two combinators, `chain` and `fanOut`.
+Shipped so far: the foundation - `Agent`, `Subagent`, `Result`, `Usage`, the
+event bus - and three combinators, `chain`, `fanOut` and `loop`.
 
-Still to come: `loop`, `orchestrate`, `route`, `reduce`, session export
+Still to come: `orchestrate`, `route`, `reduce`, session export
 (`runs/<timestamp>/`), the herdr and TUI reporters, and the pi extension.

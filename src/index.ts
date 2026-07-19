@@ -39,3 +39,4 @@ export { deltaUsage, emptyUsage, formatUsage, snapshotUsage, sumUsage, type Usag
 export { chain, type ChainOptions } from "./workflows/chain.ts";
 export { SubagentPool, type SpawnFn, type WorkflowOptions } from "./workflows/common.ts";
 export { aggregate, fanOut, type FanOutOptions, type FanOutResult } from "./workflows/fan-out.ts";
+export { loop, type LoopOptions, type LoopResult, type UntilPredicate } from "./workflows/loop.ts";

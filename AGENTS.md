@@ -43,7 +43,8 @@ Four founding requirements, non-negotiable:
    skills, no context files. `DefaultResourceLoader` would re-read the disk on
    every spawn and pull in non-deterministic context nobody asked for.
 7. **English everywhere** - documentation, comments, public API, agent system
-   prompts.
+   prompts, and **git commit messages**. Everything that lands in the repository
+   or in its history is English.
 
 ## Mental model
 
@@ -144,17 +145,19 @@ Rules:
 |----------|-------|------------|--------|
 | `chain` | 1→1→1 | output of step *n* is the input of *n+1* | done |
 | `fanOut` | 1→N | N subtasks in parallel, bounded concurrency | done |
+| `loop` | 1→1 | iterates until a criterion (judge, test, regex) is met | done |
 | `reduce` | N→1 | one agent synthesises a fan-out's results | to do |
 | `orchestrate` | 1→? | an agent *decides* the split, then delegates (dynamic fan-out) | to do |
 | `route` | 1→1 | a classifier agent picks the destination agent | to do |
-| `loop` | 1→1 | iterates until a criterion (judge, test, regex) is met | to do |
 
 Rules:
 
 - **Every workflow is an exported function**, not a class. No inheritance, no
   global registry.
-- They all accept `{ lifetime, concurrency, signal, onEvent, bus, cwd,
-  sessionDir, spawn }` - same names, same defaults (`"task"`, `4`, none, none).
+- They all accept `{ lifetime, signal, timeoutMs, onEvent, bus, cwd, sessionDir,
+  spawn }` - same names, same defaults (`"task"`, then none) - plus whatever is
+  specific to them (`concurrency` and `failFast` for `fanOut`, `until` and
+  `maxIterations` for `loop`).
 - **`spawn` is an injectable parameter**, never a hard import inside a
   combinator. That is what makes workflows testable without a network.
 - **Cancellation propagates**: the `AbortSignal` reaches every turn and closes
@@ -167,6 +170,17 @@ Rules:
   `run` tool, ~500k input tokens in a single turn. A signal alone is not enough:
   something has to fire it. No default value, though - the library does not get
   to decide that a legitimate task took too long.
+- **`loop`'s `maxIterations` does have a default (5).** That is not
+  inconsistent with the above: an iteration is a discrete, expensive unit with a
+  meaningful small default, whereas any default wall-clock deadline would be
+  arbitrary. The two guards sit at different levels - `timeoutMs` inside a turn,
+  `maxIterations` between turns - and "loop forever" must not be reachable by
+  forgetting an argument.
+- **Reaching a cap is not success.** `loop` reports `converged` separately from
+  `ok`: `ok` says the last turn ran without a model error, `converged` says the
+  work reached the bar. A loop that burns through `maxIterations` with every
+  turn technically fine is `ok: true, converged: false`, and collapsing those
+  two into one boolean would hide the only thing worth knowing.
 - **A failure does not crash the workflow**: it becomes a `Result` with
   `ok: false`. It is the caller (or an explicit `failFast` option) that decides
   to stop.
@@ -468,7 +482,7 @@ src/
   export.ts         # runs/<timestamp>/: html + jsonl per agent + usage.json
   workflows/
     common.ts       # WorkflowOptions + SubagentPool (the lifetime rule)
-    chain.ts  fan-out.ts  orchestrate.ts  route.ts  loop.ts
+    chain.ts  fan-out.ts  loop.ts  orchestrate.ts  route.ts
   reporters/
     herdr.ts        # detection + socket API (pane.report_agent, agent.start…)
     tui.ts          # pi-tui components shared with the extension
