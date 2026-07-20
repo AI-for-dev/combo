@@ -74,16 +74,23 @@ argument stays an argument.
 ## What a pipeline is not
 
 A programming language. There is no `if`, no `when`, no `${{ steps.x.output }}`.
-**Steps are linear, and each one receives the previous one's output** - that is
-the whole dataflow. A step is handed its own prose, then what reached it:
+**Steps are linear**, and each one is handed three things, in named sections:
 
 ```
-<the ## section>
+<the ## section: the instruction>
 
----
+## Request
 
-<the previous step's output>
+<what the pipeline was started on - every step gets it>
+
+## Output of step `look`
+
+<what the step before produced>
 ```
+
+The request travels the whole way on purpose. It used to reach the first step
+and stop there, and a real run said so at once: a synthesiser answered "there is
+no question asked in the prompt", because there was not.
 
 The moment a run needs a branch, a condition or a reference back to step two, it
 is a TypeScript [workflow](workflows.md), not a file. That line is what keeps
@@ -93,8 +100,11 @@ written in Markdown.
 Two conveniences follow from the linear rule:
 
 - **`reduce` folds the step before it.** A `fanOut` or an `orchestrate` exposes
-  its branches, and the next `reduce` synthesises them. A `reduce` with nothing
-  to fold fails without spawning anything.
+  its branches, and the next `reduce` synthesises them. It receives them
+  **once**, structurally - it is not also handed the previous output as text, or
+  every report would be printed twice, which is exactly what one run reported:
+  "duplicate reports, verbatim duplicates". A `reduce` with nothing to fold
+  fails without spawning anything.
 - **A `loop` with an `until` that never converges fails the pipeline.** Handing
   the next step work that never reached its bar is exactly the silent failure
   `converged` exists to expose.

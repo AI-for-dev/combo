@@ -39,10 +39,10 @@ describe("runPipeline", () => {
 			done.steps.map((step) => step.id),
 			["find", "judge"],
 		);
-		// The first step sees its own prose then the request; the second sees its
-		// prose then what the first produced.
-		assert.equal(fake.asks[0]?.task, "Locate it.\n\n---\n\nthe request");
-		assert.match(fake.asks[1]?.task ?? "", /^Judge it\.\n\n---\n\nscout\(/);
+		// The first step sees its prose and the request; the second sees its prose,
+		// the **same request**, and what the first produced.
+		assert.equal(fake.asks[0]?.task, "Locate it.\n\n## Request\n\nthe request");
+		assert.match(fake.asks[1]?.task ?? "", /^Judge it\.\n\n## Request\n\nthe request\n\n## Output of step `find`\n\nscout\(/);
 	});
 
 	test("a failing step stops the pipeline, and what ran is kept", async () => {
@@ -81,6 +81,26 @@ describe("runPipeline", () => {
 		assert.equal(fake.spawned.length, 0, "not one session was opened for a file that cannot run");
 	});
 
+	test("the request reaches every step, not only the first", async () => {
+		const fake = fakeSpawn();
+		await runPipeline({
+			pipeline: pipeline(
+				"name: p\nsteps:\n  - id: one\n    chain: scout\n  - id: two\n    chain: reviewer\n  - id: three\n    chain: coder",
+				"## one\nA.\n\n## two\nB.\n\n## three\nC.",
+			),
+			agents,
+			input: "what does this repository do",
+			spawn: fake.spawn,
+		});
+
+		// The bug this pins down was found in a real run: a step that only ever
+		// sees the previous output cannot tell what the run was for, and the last
+		// agent answered "there is no question asked in the prompt".
+		for (const ask of fake.asks) {
+			assert.match(ask.task, /## Request\n\nwhat does this repository do/);
+		}
+	});
+
 	test("reduce folds the branches of the step before it", async () => {
 		const fake = fakeSpawn();
 		const done = await runPipeline({
@@ -99,6 +119,27 @@ describe("runPipeline", () => {
 		const synthesis = fake.asks.at(-1)?.task ?? "";
 		assert.match(synthesis, /scout\(Look\.\n\na/);
 		assert.match(synthesis, /scout\(Look\.\n\nb/);
+	});
+
+	test("reduce is handed the branches once, not twice", async () => {
+		const fake = fakeSpawn();
+		await runPipeline({
+			pipeline: pipeline(
+				"name: p\nsteps:\n  - id: explore\n    fanOut: scout\n    tasks: [a, b]\n  - id: sum\n    reduce: synthesiser",
+				"## explore\nLook.\n\n## sum\nSynthesise.",
+			),
+			agents,
+			input: "the question",
+			spawn: fake.spawn,
+		});
+
+		// `reduce` formats the branches itself. Passing it the previous output as
+		// well printed every report twice, and a real run said so: "duplicate
+		// reports, verbatim duplicates".
+		const synthesis = fake.asks.at(-1)?.task ?? "";
+		assert.equal(synthesis.match(/scout\(Look\.\n\na/g)?.length, 1);
+		assert.doesNotMatch(synthesis, /## Output of step/);
+		assert.match(synthesis, /## Request\n\nthe question/, "and the question it is meant to answer is there");
 	});
 
 	test("a reduce with nothing to fold says so instead of spawning", async () => {
@@ -209,12 +250,20 @@ describe("runPipeline", () => {
 });
 
 describe("stepInput", () => {
-	test("joins the step's prose to what reached it", () => {
-		assert.equal(stepInput("Do this.", "context"), "Do this.\n\n---\n\ncontext");
+	test("the prose, the request, then the previous step's output, each named", () => {
+		assert.equal(
+			stepInput("Do this.", "the request", { id: "look", output: "what it found" }),
+			"Do this.\n\n## Request\n\nthe request\n\n## Output of step `look`\n\nwhat it found",
+		);
 	});
 
-	test("drops an empty part rather than padding it", () => {
-		assert.equal(stepInput("Do this.", ""), "Do this.");
-		assert.equal(stepInput("", "context"), "context");
+	test("a first step has no previous output, and gets no empty heading for one", () => {
+		assert.equal(stepInput("Do this.", "the request"), "Do this.\n\n## Request\n\nthe request");
+		assert.doesNotMatch(stepInput("Do this.", "the request"), /Output of step/);
+	});
+
+	test("an empty part is dropped rather than left as a heading with nothing under it", () => {
+		assert.equal(stepInput("Do this.", "   "), "Do this.");
+		assert.equal(stepInput("Do this.", "r", { id: "x", output: "  " }), "Do this.\n\n## Request\n\nr");
 	});
 });

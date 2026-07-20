@@ -13,10 +13,16 @@
  * - **Everything is resolved before anything is spawned.** Every agent name in
  *   every step is looked up first, so a typo in step four costs nothing rather
  *   than costing three steps of real work.
- * - **The dataflow is one line.** A step is handed its own prose, then the
- *   previous step's output, joined. There is no templating, no `${{ }}`, and no
- *   way to reach back to step two - the moment a run needs that, it is a
- *   TypeScript workflow, not a file.
+ * - **The dataflow is two named sections.** A step is handed its own prose, the
+ *   **request** the pipeline was started on, and the **previous step's output**.
+ *   No templating, no `${{ }}`, no reaching back to step two - the moment a run
+ *   needs that, it is a TypeScript workflow, not a file.
+ *
+ *   The request travels the whole way on purpose. It used to reach step one and
+ *   stop there, which a real run exposed at once: a synthesiser answered "there
+ *   is no question asked in the prompt", because there was not. The same bug
+ *   silently starved the shipped `build` pipeline, whose delivery step saw a
+ *   scout's report and never the brief.
  *
  * What this file never does is act on the world. `verify` arrives as a port
  * built by the caller: a pipeline names a command, and running one is a decision
@@ -117,8 +123,8 @@ export type PipelineRunOptions = WorkflowOptions & {
 	};
 };
 
-/** The separator between a step's own prose and what reaches it from before. */
-const JOIN = "\n\n---\n\n";
+/** Heading of the section carrying the request the pipeline was started on. */
+const REQUEST = "## Request";
 
 /**
  * Runs the steps in order, feeding each one the previous one's output.
@@ -138,8 +144,7 @@ export async function runPipeline(options: PipelineRunOptions): Promise<Pipeline
 
 	const startedAt = performance.now();
 	const done: PipelineStepResult[] = [];
-	let carried = input;
-	let previous: Result[] | undefined;
+	let previous: Previous | undefined;
 	let error: string | undefined;
 
 	for (const { step, cast } of resolved) {
@@ -148,7 +153,7 @@ export async function runPipeline(options: PipelineRunOptions): Promise<Pipeline
 			break;
 		}
 
-		const outcome = await runStep(step, cast, carried, previous, { ...shared, verify, delivery });
+		const outcome = await runStep(step, cast, input, previous, { ...shared, verify, delivery });
 		done.push(outcome);
 		report(onStep, outcome);
 
@@ -156,8 +161,7 @@ export async function runPipeline(options: PipelineRunOptions): Promise<Pipeline
 			error = `step "${step.id}" (${step.kind}) failed: ${outcome.result.error ?? "unknown error"}`;
 			break;
 		}
-		carried = outcome.result.output;
-		previous = outcome.results;
+		previous = { id: step.id, output: outcome.result.output, results: outcome.results };
 	}
 
 	const wallMs = performance.now() - startedAt;
@@ -208,16 +212,37 @@ type ResolvedCast = {
 	fallback?: Agent;
 };
 
-/** A step's prose, then what reached it. Empty parts are dropped, not padded. */
-export function stepInput(prompt: string, incoming: string): string {
-	return [prompt.trim(), incoming.trim()].filter(Boolean).join(JOIN);
+/** What the step before this one produced. */
+type Previous = {
+	/** Its `id`, so the section that carries its output can name it. */
+	id: string;
+	/** Its last output - the material a `chain`-like step works from. */
+	output: string;
+	/** Its branches, when it had several. This is what a `reduce` folds. */
+	results?: Result[];
+};
+
+/**
+ * What a step is actually asked, in named sections.
+ *
+ * The prose first, because it is the instruction; then the request, which every
+ * step gets - a step that only ever sees the previous output cannot tell what
+ * the run was for; then that previous output, labelled with the step it came
+ * from. Empty parts are dropped rather than left as a heading with nothing
+ * under it.
+ */
+export function stepInput(prompt: string, request: string, previous?: { id: string; output: string }): string {
+	const parts = [prompt.trim()];
+	if (request.trim()) parts.push(`${REQUEST}\n\n${request.trim()}`);
+	if (previous?.output.trim()) parts.push(`## Output of step \`${previous.id}\`\n\n${previous.output.trim()}`);
+	return parts.filter(Boolean).join("\n\n");
 }
 
 async function runStep(
 	step: PipelineStep,
 	cast: ResolvedCast,
-	incoming: string,
-	previous: Result[] | undefined,
+	request: string,
+	previous: Previous | undefined,
 	shared: WorkflowOptions & Pick<PipelineRunOptions, "verify" | "delivery">,
 ): Promise<PipelineStepResult> {
 	const { verify, delivery, ...workflow } = shared;
@@ -227,7 +252,7 @@ async function runStep(
 		openInHerdr: step.openInHerdr ?? workflow.openInHerdr,
 		timeoutMs: step.timeoutMs ?? workflow.timeoutMs,
 	};
-	const text = stepInput(step.prompt, incoming);
+	const text = stepInput(step.prompt, request, previous);
 	const entry = (result: Result, results?: Result[], built?: DeliverResult): PipelineStepResult => ({
 		id: step.id,
 		kind: step.kind,
@@ -245,7 +270,7 @@ async function runStep(
 		case "fanOut": {
 			// `agents` is either one for every branch or one per task: the shape
 			// was checked when the file was parsed, so this cannot be undefined.
-			const tasks = (step.tasks as string[]).map((task) => stepInput(`${step.prompt}\n\n${task}`, incoming));
+			const tasks = (step.tasks as string[]).map((task) => stepInput(`${step.prompt}\n\n${task}`, request, previous));
 			const done = await fanOut({
 				...common,
 				agent: cast.agents.length === 1 ? cast.agents[0] : undefined,
@@ -277,7 +302,7 @@ async function runStep(
 		}
 
 		case "reduce": {
-			const results = previous ?? [];
+			const results = previous?.results ?? [];
 			if (results.length === 0) {
 				return entry(
 					failed(
@@ -286,7 +311,15 @@ async function runStep(
 					),
 				);
 			}
-			const done = await reduce({ ...common, agent: cast.agents[0] as Agent, results, input: text });
+			// **Not** `text`: `reduce` formats the branches itself, from `results`.
+			// Handing it the previous output as well printed every report twice,
+			// and a real run duly reported "duplicate reports, verbatim".
+			const done = await reduce({
+				...common,
+				agent: cast.agents[0] as Agent,
+				results,
+				input: stepInput(step.prompt, request),
+			});
 			return entry(done, done.steps);
 		}
 

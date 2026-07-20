@@ -125,6 +125,23 @@ What the library consumes from a pi session - nothing more.
 `AgentSession` satisfies this type structurally: no adapter to write, and a
 fake session fits in fifty lines.
 
+## `situate`
+
+*function*
+
+```typescript
+export function situate(systemPrompt: string, cwd: string): string { … }
+```
+
+The agent's prompt, plus the one fact it cannot do its job without: where it is.
+
+A subagent inherits nothing from the user's environment, deliberately - but
+its own working directory is not inherited context, it is the ground every
+tool call stands on. Without it a model guesses, and a real run showed exactly
+what that costs: a scout called `ls /Users/loic/gouarin/…` - the user's name
+with a dot turned into a slash - got "no such path", and gave up without
+trying a relative one. One branch of three, wasted on a fabricated path.
+
 ## `StaticResourceLoader`
 
 *class*

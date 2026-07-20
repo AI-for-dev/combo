@@ -294,7 +294,26 @@ Rules:
   in code the caller reads the flag, and in a file there is nobody to read it.
 - **`reduce` folds the step before it.** That is what the linear rule buys: no
   templating, no `${{ steps.x.output }}`, and the one N-to-1 case that matters
-  still works. A `reduce` with nothing to fold fails without spawning.
+  still works. A `reduce` with nothing to fold fails without spawning. It is
+  handed those branches **once**: `reduce` formats them itself from `results`,
+  so passing the previous output as text too printed every report twice - and
+  the synthesiser duly reported "duplicate reports, verbatim duplicates".
+- **The request reaches every step, not only the first.** A step that sees only
+  the previous output cannot tell what the run was for. Found by a real run of
+  `explore`: the synthesiser answered "there is no question asked in the
+  prompt", because there was not - the user's question had been overwritten by
+  the fan-out's output. The same bug silently starved the shipped `build`
+  pipeline, whose delivery step saw the scout's report and never the brief. The
+  dataflow is therefore two named sections, `## Request` and `## Output of step
+  <id>`, and not one anonymous blob: a model asked to answer a question it
+  cannot distinguish from the evidence answers about the evidence.
+- **A subagent is told where it is.** One line appended to its system prompt by
+  `situate()`. It sits oddly beside "a subagent inherits nothing from the user's
+  environment", and it is not the same thing: the working directory is not
+  inherited context, it is the ground every tool call stands on. A scout that
+  was not told called `ls /Users/loic/gouarin/…` - a name with a dot turned into
+  a slash - got "no such path", and gave up without trying a relative one. One
+  branch of three, spent on a fabricated path.
 - **`/run` exists because `/build` delivers a change.** An interview settles what
   "done" means and a commit stop protects history; a pipeline that only reads
   needs neither, and putting one through `/build` means being interviewed about a

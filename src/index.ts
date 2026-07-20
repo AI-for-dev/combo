@@ -120,6 +120,7 @@ export { run, type RunOptions } from "./run.ts";
 export {
 	createDefaultSession,
 	READ_ONLY_TOOLS,
+	situate,
 	StaticResourceLoader,
 	type AgentMessage,
 	type CreateSession,

@@ -18,10 +18,16 @@ Two decisions worth stating, because they are what makes a run reproducible:
 - **Everything is resolved before anything is spawned.** Every agent name in
   every step is looked up first, so a typo in step four costs nothing rather
   than costing three steps of real work.
-- **The dataflow is one line.** A step is handed its own prose, then the
-  previous step's output, joined. There is no templating, no `${{ }}`, and no
-  way to reach back to step two - the moment a run needs that, it is a
-  TypeScript workflow, not a file.
+- **The dataflow is two named sections.** A step is handed its own prose, the
+  **request** the pipeline was started on, and the **previous step's output**.
+  No templating, no `${{ }}`, no reaching back to step two - the moment a run
+  needs that, it is a TypeScript workflow, not a file.
+
+  The request travels the whole way on purpose. It used to reach step one and
+  stop there, which a real run exposed at once: a synthesiser answered "there
+  is no question asked in the prompt", because there was not. The same bug
+  silently starved the shipped `build` pipeline, whose delivery step saw a
+  scout's report and never the brief.
 
 What this file never does is act on the world. `verify` arrives as a port
 built by the caller: a pipeline names a command, and running one is a decision
@@ -160,7 +166,13 @@ and it throws *before* spawning anything.
 *function*
 
 ```typescript
-export function stepInput(prompt: string, incoming: string): string { … }
+export function stepInput(prompt: string, request: string, previous?: { id: string; output: string }): string { … }
 ```
 
-A step's prose, then what reached it. Empty parts are dropped, not padded.
+What a step is actually asked, in named sections.
+
+The prose first, because it is the instruction; then the request, which every
+step gets - a step that only ever sees the previous output cannot tell what
+the run was for; then that previous output, labelled with the step it came
+from. Empty parts are dropped rather than left as a heading with nothing
+under it.

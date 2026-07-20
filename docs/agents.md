@@ -106,8 +106,13 @@ allowlist.
 
 Nothing from your environment. The system prompt goes through the library's own
 resource loader: no extensions, no skills, no context files, no project trust.
-A subagent sees its own definition and its `cwd`, which is what makes a run
-reproducible.
+A subagent sees its own definition, which is what makes a run reproducible.
+
+One line is appended to it: **where it is**. That is not inherited context, it is
+the ground every tool call stands on, and without it a model guesses. A real run
+showed the cost - a scout called `ls /Users/loic/gouarin/…`, the user's name with
+a dot turned into a slash, got "no such path" and gave up without ever trying a
+relative one.
 
 ## Agents shipped here
 

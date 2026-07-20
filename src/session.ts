@@ -119,12 +119,26 @@ export const createDefaultSession: CreateSession = async (agent, options) => {
 		cwd,
 		...(await buildModelOptions(agent)),
 		tools: agent.tools ?? [...READ_ONLY_TOOLS],
-		resourceLoader: new StaticResourceLoader(agent.systemPrompt),
+		resourceLoader: new StaticResourceLoader(situate(agent.systemPrompt, cwd)),
 		sessionManager: options.sessionDir ? SessionManager.create(cwd, options.sessionDir) : SessionManager.inMemory(cwd),
 	});
 
 	return session;
 };
+
+/**
+ * The agent's prompt, plus the one fact it cannot do its job without: where it is.
+ *
+ * A subagent inherits nothing from the user's environment, deliberately - but
+ * its own working directory is not inherited context, it is the ground every
+ * tool call stands on. Without it a model guesses, and a real run showed exactly
+ * what that costs: a scout called `ls /Users/loic/gouarin/…` - the user's name
+ * with a dot turned into a slash - got "no such path", and gave up without
+ * trying a relative one. One branch of three, wasted on a fabricated path.
+ */
+export function situate(systemPrompt: string, cwd: string): string {
+	return `${systemPrompt}\n\nYour working directory is \`${cwd}\`. Tool paths are resolved from it: use relative paths, and never invent an absolute one.`;
+}
 
 /**
  * A `ResourceLoader` that loads nothing: it returns the agent's system prompt,

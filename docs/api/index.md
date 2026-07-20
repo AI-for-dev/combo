@@ -25,7 +25,7 @@ library, in [`README.md`](../../README.md); this is the exhaustive surface.
 | [`result`](result.md) | `Result`: the single contract shared by everything else. | 3 |
 | [`resume`](resume.md) | Saving a build so it can be picked up again. | 9 |
 | [`run`](run.md) | `run()`: the disposable form. Spawn, ask, close. | 2 |
-| [`session`](session.md) | The whole pi API lives here, and nowhere else. | 7 |
+| [`session`](session.md) | The whole pi API lives here, and nowhere else. | 8 |
 | [`subagent`](subagent.md) | A subagent: a live session, a memory, a state. | 4 |
 | [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 7 |
 | [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 4 |

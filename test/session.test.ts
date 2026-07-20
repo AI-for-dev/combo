@@ -10,7 +10,7 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { buildRegistry, type PiModule } from "../src/session.ts";
+import { buildRegistry, situate, type PiModule } from "../src/session.ts";
 
 /** pi 0.80.7 and later: one ModelRuntime. */
 const modern: PiModule = {
@@ -60,5 +60,23 @@ describe("buildRegistry", () => {
 
 	test("a half-present legacy API is not enough", async () => {
 		await assert.rejects(() => buildRegistry({ AuthStorage: legacy.AuthStorage }), /Unsupported pi version/);
+	});
+});
+
+describe("situate", () => {
+	test("tells the subagent where it is, which nothing else does", () => {
+		const prompt = situate("You locate code.", "/repo/app");
+
+		assert.match(prompt, /^You locate code\./, "the agent's own prompt comes first, untouched");
+		assert.match(prompt, /`\/repo\/app`/);
+		assert.match(prompt, /relative paths/);
+	});
+
+	test("it is appended, never substituted for the definition", () => {
+		// The failure it exists for: a scout invented `/Users/loic/gouarin/…`,
+		// got "no such path" and gave up without trying a relative one. A prompt
+		// that silently replaced the agent's own would trade one bug for a worse
+		// one.
+		assert.ok(situate("BODY", "/x").startsWith("BODY\n\n"));
 	});
 });
