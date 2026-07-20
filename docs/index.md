@@ -70,4 +70,4 @@ See [Quickstart](quickstart.md) for the full first run.
 ## Development
 
 - [Development](development.md) - tests, typechecking, conventions, how the docs stay honest.
-- [Design decisions](../AGENTS.md) - why the library is shaped this way, and what was reversed.
+- [Design decisions](decisions.md) - why the library is shaped this way, and what was reversed.

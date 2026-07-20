@@ -97,9 +97,11 @@ resolves, every page is listed in `docs.json`, and every symbol a code fence
 imports from `pi-subagent` really exists. A renamed export therefore breaks the
 documentation build, not a reader's afternoon.
 
-`AGENTS.md` records **decisions**, not the state of the code. When a decision is
-reversed, the reversal is written there with its reason. This directory explains
-how to use what those decisions produced.
+[Design decisions](decisions.md) records **decisions**, not the state of the
+code. When a decision is reversed, the reversal is written there with its reason.
+`AGENTS.md` keeps only the short version - the invariants an agent must not
+violate - and the rest of this directory explains how to use what those decisions
+produced.
 
 ## Conventions
 

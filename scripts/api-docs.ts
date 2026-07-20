@@ -248,7 +248,7 @@ export function renderIndex(modules: DocModule[]): string {
 		"# API reference",
 		"",
 		"Generated from the TSDoc of everything `src/index.ts` exports. The intent",
-		"behind the design lives in [`AGENTS.md`](../../AGENTS.md); how to use the",
+		"behind the design lives in [Design decisions](../decisions.md); how to use the",
 		"library, in [`README.md`](../../README.md); this is the exhaustive surface.",
 		"",
 		"| Module | What it is for | Exports |",

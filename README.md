@@ -12,7 +12,8 @@ plumbing every time.
   readable HTML and replayable JSONL export of a whole run.
 
 The full manual is in [`docs/`](docs/index.md). The intent behind the design and
-every decision that shaped it live in [`AGENTS.md`](AGENTS.md).
+every decision that shaped it live in
+[Design decisions](docs/decisions.md).
 
 ## Getting started
 
@@ -122,5 +123,6 @@ See [Extension](docs/extension.md) and [Display](docs/display.md).
 - [API reference](docs/api/index.md) - every public export, generated from the
   source and checked by the test suite.
 - [Examples](docs/examples.md) - one runnable script per shape.
-- [`AGENTS.md`](AGENTS.md) - the decisions, and the ones that were reversed.
+- [Design decisions](docs/decisions.md) - the decisions, and the ones that were
+  reversed.
 - [`NEXT.md`](NEXT.md) - what is left, and the traps already paid for.

@@ -33,7 +33,10 @@
 		},
 		{
 			"title": "Development",
-			"items": [{ "title": "Development", "path": "development.md" }]
+			"items": [
+				{ "title": "Development", "path": "development.md" },
+				{ "title": "Design decisions", "path": "decisions.md" }
+			]
 		}
 	]
 }
