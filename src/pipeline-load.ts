@@ -19,6 +19,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir } from "@earendil-works/pi-coding-agent";
 import type { AgentScope } from "./agent.ts";
+import { BUILTIN_PIPELINES_DIR } from "./builtin.ts";
 import { parsePipeline, type Pipeline } from "./pipeline.ts";
 
 /** Directory name under `~/.pi/agent/` and under `.pi/`. */
@@ -48,10 +49,13 @@ export type PipelineCatalogue = {
  * The scope defaults to `"user"` for the same reason it does for agents: a
  * pipeline carries prose that becomes an instruction to a model, so a
  * repository's pipelines are third-party instructions and are loaded only on
- * explicit request. With `"both"`, a project pipeline shadows a user one of the
- * same name.
+ * explicit request.
+ *
+ * Precedence runs from the least specific to the most - shipped, then the
+ * user's, then the repository's - so writing your own `build.md` replaces ours
+ * without having to remove anything.
  */
-export function loadPipelines(options: { cwd?: string; scope?: AgentScope } = {}): PipelineCatalogue {
+export function loadPipelines(options: { cwd?: string; scope?: AgentScope; builtin?: boolean } = {}): PipelineCatalogue {
 	const cwd = options.cwd ?? process.cwd();
 	const scope = options.scope ?? "user";
 
@@ -63,6 +67,9 @@ export function loadPipelines(options: { cwd?: string; scope?: AgentScope } = {}
 		broken.push(...found.broken);
 	};
 
+	// Least specific first, so a `build.md` of your own replaces the one shipped
+	// here rather than competing with it. Off by default, like the agents.
+	if (options.builtin) take(loadPipelinesFromDir(BUILTIN_PIPELINES_DIR));
 	if (scope !== "project") take(loadPipelinesFromDir(path.join(getAgentDir(), PIPELINES_DIR)));
 	if (scope !== "user") {
 		const projectDir = findProjectPipelinesDir(cwd);

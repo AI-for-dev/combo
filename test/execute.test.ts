@@ -171,10 +171,16 @@ describe("executeSubagent", () => {
 			{ agent: "scout", task: "x", scope: "both" },
 			deps({ spawn: fake.spawn, loadAgents: recordScope }),
 		);
-		assert.deepEqual(seen, [{ cwd: undefined, scope: "both" }]);
+		// `builtin: true` is not part of the scope question and is never optional:
+		// without it the tool only works where the definitions were copied by hand.
+		assert.deepEqual(seen, [{ cwd: undefined, scope: "both", builtin: true }]);
 
 		await executeSubagent({ agent: "scout", task: "x", scope: "nonsense" }, deps({ spawn: fake.spawn, loadAgents: recordScope }));
-		assert.deepEqual(seen[1], { cwd: undefined, scope: undefined }, "an unknown scope falls back to the default");
+		assert.deepEqual(
+			seen[1],
+			{ cwd: undefined, scope: undefined, builtin: true },
+			"an unknown scope falls back to the default, and the built-ins stay",
+		);
 	});
 
 	test("an unknown agent is a caller error, and still clears the widget", async () => {

@@ -33,8 +33,13 @@ The same convention as [agents](agents.md), so there is nothing new to learn:
 
 | Location | Scope | Loaded |
 | --- | --- | --- |
+| shipped with the package | `builtin` | on explicit request (the extension always asks) |
 | `~/.pi/agent/pipelines/*.md` | `"user"` | by default |
 | `.pi/pipelines/*.md` | `"project"` | on explicit request |
+
+**Precedence runs from the least specific to the most.** A `build.md` of your
+own replaces the one shipped here by having the same name; a repository's
+replaces both. Nothing has to be removed to be overridden.
 
 A repository's pipelines carry prose that becomes an instruction to a model, so
 they are third-party instructions and follow the agent rule exactly:
@@ -123,17 +128,18 @@ parse** along with the reason - those are the most likely reason you are running
 the command at all. With nothing loaded it says where to put a file, because that
 is the actual question being asked.
 
-A pipeline of one repository is invisible from another, by design. If you want
-yours everywhere, they go in `~/.pi/agent/pipelines/`.
+The pipelines shipped here are available everywhere the extension is loaded. A
+pipeline written *in a repository* stays visible only from that repository, by
+design; if you want your own everywhere, they go in `~/.pi/agent/pipelines/`.
 
 ## Running one
 
 Two ways, and the difference is what surrounds the run.
 
 **`/build`** delivers a change: an interview to settle what "done" means, then
-the pipeline, then the commit. With no `build.md` of your own it runs a built-in
-default, which is the flow `/build` has always had, expressed as data - one code
-path, nothing to drift.
+the pipeline, then the commit. With no `build.md` of your own it runs the one the
+package ships - so there is exactly one default, and it is a file you can read
+and copy rather than a constant buried in the code.
 
 ```
 /build add a cache in front of the agent loader

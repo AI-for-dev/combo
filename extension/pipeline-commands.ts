@@ -77,7 +77,7 @@ export function pipelineLines(catalogue: PipelineCatalogue, cwd: string): string
 
 /** `/pipelines` - what is loaded, from where, and what does not parse. */
 export function listPipelines(ctx: CommandCtx, deps: BuildDeps = {}): string[] {
-	const catalogue = (deps.loadPipelines ?? loadPipelines)({ cwd: ctx.cwd, scope: "both" });
+	const catalogue = (deps.loadPipelines ?? loadPipelines)({ cwd: ctx.cwd, scope: "both", builtin: true });
 	const lines = pipelineLines(catalogue, ctx.cwd);
 	ctx.ui.notify(lines.join("\n"), catalogue.broken.length > 0 ? "warning" : "info");
 	return lines;
@@ -101,10 +101,10 @@ export async function runNamed(args: string, ctx: CommandCtx, deps: BuildDeps = 
 		return undefined;
 	}
 
-	const agents = (deps.loadAgents ?? loadAgents)({ cwd: ctx.cwd, scope: "both" });
+	const agents = (deps.loadAgents ?? loadAgents)({ cwd: ctx.cwd, scope: "both", builtin: true });
 	let pipeline: Pipeline;
 	try {
-		pipeline = findPipeline((deps.loadPipelines ?? loadPipelines)({ cwd: ctx.cwd, scope: "both" }), name);
+		pipeline = findPipeline((deps.loadPipelines ?? loadPipelines)({ cwd: ctx.cwd, scope: "both", builtin: true }), name);
 		// Before anything is spawned, as everywhere: a typo costs a second.
 		checkPipelineAgents(pipeline, agents);
 	} catch (cause) {

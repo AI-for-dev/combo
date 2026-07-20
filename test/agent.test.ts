@@ -118,6 +118,30 @@ describe("loadAgents", () => {
 			["proj"],
 		);
 	});
+
+	test("the agents shipped here are off unless asked for", () => {
+		const dir = tmpAgentsDir({});
+
+		assert.deepEqual(loadAgents({ cwd: dir, scope: "project" }), [], "a script asking for the user's agents gets no others");
+		assert.ok(
+			loadAgents({ cwd: dir, scope: "project", builtin: true }).some((agent) => agent.name === "scout"),
+			"the extension asks for them: without that it works only where they were copied by hand",
+		);
+	});
+
+	test("a repository's agent replaces a shipped one of the same name", () => {
+		const dir = tmpAgentsDir({
+			"scout.md": "---\nname: scout\ndescription: mine\n---\nMy own scout.",
+		});
+
+		const agents = loadAgents({ cwd: dir, scope: "project", builtin: true });
+		const scouts = agents.filter((agent) => agent.name === "scout");
+
+		assert.equal(scouts.length, 1, "one name, one agent");
+		assert.equal(scouts[0]?.description, "mine", "whoever is closer to the work wins the name");
+		assert.equal(scouts[0]?.source, "project");
+		assert.ok(agents.some((agent) => agent.name === "planner"), "and the shipped ones it does not override remain");
+	});
 });
 
 describe("findAgent", () => {

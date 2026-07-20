@@ -42,7 +42,6 @@ import {
 	findPipeline,
 	loadAgents,
 	loadPipelines,
-	parsePipeline,
 	run,
 	runPipeline,
 	status,
@@ -188,30 +187,6 @@ const CAST = {
 } as const;
 
 /**
- * The flow `/build` runs when nobody has written one: today's, expressed as data.
- *
- * It exists so there is exactly **one** code path. The command does not have a
- * built-in behaviour *and* a pipeline mode that drifts from it; it has a default
- * file, which a user overrides by writing `build.md` of their own - and which
- * they can read to learn the vocabulary.
- */
-export const DEFAULT_BUILD_PIPELINE = `---
-name: build
-description: Plan the brief, build each subtask as a worker/reviewer pair, check it, then audit
-steps:
-  - id: work
-    deliver: ${CAST.planner}
-    workers: [${CAST.workers.join(", ")}]
-    reviewer: ${CAST.reviewer}
-    auditor: ${CAST.auditor}
----
-
-## work
-
-Deliver what the brief below asks for, and nothing beyond it.
-`;
-
-/**
  * `/build [--pipeline <name>] <request>`.
  *
  * A flag rather than a positional word, because a request is free text: any
@@ -264,7 +239,7 @@ export async function runBuild(args: string, ctx: CommandCtx, deps: BuildDeps = 
 		return undefined;
 	}
 
-	const agents = (deps.loadAgents ?? loadAgents)({ cwd: ctx.cwd, scope: "both" });
+	const agents = (deps.loadAgents ?? loadAgents)({ cwd: ctx.cwd, scope: "both", builtin: true });
 
 	// Everything a bad file can cost is spent here, before the interview: the
 	// pipeline is chosen, parsed and resolved against the roster while the only
@@ -381,22 +356,23 @@ function report(done: PipelineRunResult, built: DeliverResult | undefined, expor
 /**
  * The pipeline this build runs, or a thrown explanation.
  *
- * A **broken** file is refused rather than silently replaced by the default: a
- * `build.md` sitting there and quietly not being used is exactly the failure
+ * With no `--pipeline`, it is the one named `build`: the package ships one, and
+ * a `build.md` of your own replaces it by having the same name. There is
+ * therefore exactly **one** default, and it is a file you can read and copy -
+ * a second one written in TypeScript would differ from it within two changes.
+ *
+ * A **broken** file is refused rather than silently replaced: a `build.md`
+ * sitting there and quietly not being used is exactly the failure
  * `findPipeline` exists to make loud.
  */
 function choosePipeline(wanted: string | undefined, ctx: CommandCtx, deps: BuildDeps): Pipeline {
-	const catalogue = (deps.loadPipelines ?? loadPipelines)({ cwd: ctx.cwd, scope: "both" });
+	const catalogue = (deps.loadPipelines ?? loadPipelines)({ cwd: ctx.cwd, scope: "both", builtin: true });
 	const name = wanted ?? "build";
 
 	const broken = catalogue.broken.find((one) => one.name === name);
 	if (broken) throw new Error(`build: ${broken.filePath} does not parse: ${broken.error}`);
 
-	const found = catalogue.pipelines.find((one) => one.name === name);
-	if (found) return found;
-	if (wanted) return findPipeline(catalogue, wanted);
-
-	return parsePipeline(DEFAULT_BUILD_PIPELINE, "<built-in>");
+	return findPipeline(catalogue, name);
 }
 
 
@@ -528,7 +504,7 @@ export async function runInterview(request: string, ctx: CommandCtx, deps: Build
 		return undefined;
 	}
 
-	const agents = (deps.loadAgents ?? loadAgents)({ cwd: ctx.cwd, scope: "both" });
+	const agents = (deps.loadAgents ?? loadAgents)({ cwd: ctx.cwd, scope: "both", builtin: true });
 	let interviewer: Agent;
 	try {
 		interviewer = findAgent(agents, "interviewer");

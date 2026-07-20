@@ -129,7 +129,7 @@ export type ExecuteDeps = {
 	onUpdate?: (update: ToolUpdate) => void;
 	ui?: ToolUi;
 	/** Defaults to reading the agent directories from disk. */
-	loadAgents?: (options: { cwd?: string; scope?: AgentScope }) => Agent[];
+	loadAgents?: (options: { cwd?: string; scope?: AgentScope; builtin?: boolean }) => Agent[];
 	/** Defaults to the real `spawn`, through the combinators. */
 	spawn?: SpawnFn;
 	/**
@@ -160,7 +160,10 @@ export type ExecuteDeps = {
  */
 export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): Promise<ToolOutput> {
 	const collector = createTuiCollector();
-	const agents = (deps.loadAgents ?? loadAgentsFromDisk)({ cwd: deps.cwd, scope: asScope(params.scope) });
+	// `builtin: true`: the agents shipped with this extension are always in the
+	// roster, at the lowest priority - one of the user's own, or the
+	// repository's, replaces any of them by name.
+	const agents = (deps.loadAgents ?? loadAgentsFromDisk)({ cwd: deps.cwd, scope: asScope(params.scope), builtin: true });
 	const mode = inferMode(params);
 
 	// A dot per subagent, right above the prompt, for as long as they work.

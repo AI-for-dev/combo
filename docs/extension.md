@@ -49,11 +49,15 @@ owns the terminal until it is answered, and nobody can answer a question asked
 inside a model's turn. See [Deliver a change](build.md) and
 [Pipelines](pipelines.md).
 
-Agents and pipelines both come from your own `~/.pi/agent/` or from the
-repository you are in. **An extension never brings its own**: loading one with
-`pi -e` must not be a way to acquire instructions you did not ask for, so
-`pi -e ../elsewhere/extension` gives you the tool and the commands, never the
-agents or the pipelines of that other directory.
+**The extension brings its own agents and pipelines**, so it works the moment it
+is loaded rather than only inside a repository where the definitions were copied
+by hand. They sit at the **lowest priority**: a definition of the same name in
+`~/.pi/agent/` replaces one of ours, and one in the repository replaces both.
+
+That is safe for a reason worth stating plainly: loading an extension already
+runs its code - pi's own documentation says so - so reading Markdown from the
+same directory adds no risk that installing it did not already accept. What
+matters is that it can never take a name away from you.
 
 ## Which pi it runs against
 

@@ -65,10 +65,14 @@ Where to look for definitions. Defaults to `"user"` - see {@link loadAgents}.
 *type*
 
 ```typescript
-export type AgentSource = "user" | "project";
+export type AgentSource = "user" | "project" | "builtin";
 ```
 
 Where an agent definition came from.
+
+`"builtin"` is what this package ships. It is the lowest priority of the
+three: a `"user"` definition of the same name replaces it, and a `"project"`
+one replaces both.
 
 ## `findAgent`
 
@@ -103,7 +107,7 @@ Lifetime of a subagent - the central choice of this library.
 *function*
 
 ```typescript
-export function loadAgents(options: { cwd?: string; scope?: AgentScope } = {}): Agent[] { … }
+export function loadAgents(options: { cwd?: string; scope?: AgentScope; builtin?: boolean } = {}): Agent[] { … }
 ```
 
 Discovers the available agents.
@@ -112,7 +116,10 @@ The scope defaults to `"user"`, and that is not a detail: project agents
 (`.pi/agents/`) are repository-controlled content, hence third-party
 instructions. They are only loaded on explicit request.
 
-With `"both"`, a project agent shadows the user agent of the same name.
+Precedence runs from the least specific to the most: the shipped definitions
+first when `builtin` is set, then the user's, then the repository's. Whoever
+is closer to the work wins the name.
+
 Discovery happens on every call: editing a `.md` is enough to reload it.
 
 ## `loadAgentsFromDir`

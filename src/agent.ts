@@ -9,6 +9,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
+import { BUILTIN_AGENTS_DIR } from "./builtin.ts";
 
 /**
  * Lifetime of a subagent - the central choice of this library.
@@ -21,8 +22,14 @@ export type Lifetime = "task" | "workflow" | "session";
 
 const LIFETIMES: readonly string[] = ["task", "workflow", "session"];
 
-/** Where an agent definition came from. */
-export type AgentSource = "user" | "project";
+/**
+ * Where an agent definition came from.
+ *
+ * `"builtin"` is what this package ships. It is the lowest priority of the
+ * three: a `"user"` definition of the same name replaces it, and a `"project"`
+ * one replaces both.
+ */
+export type AgentSource = "user" | "project" | "builtin";
 
 /** Where to look for definitions. Defaults to `"user"` - see {@link loadAgents}. */
 export type AgentScope = "user" | "project" | "both";
@@ -101,15 +108,24 @@ export function parseAgent(content: string, filePath: string, source: AgentSourc
  * (`.pi/agents/`) are repository-controlled content, hence third-party
  * instructions. They are only loaded on explicit request.
  *
- * With `"both"`, a project agent shadows the user agent of the same name.
+ * Precedence runs from the least specific to the most: the shipped definitions
+ * first when `builtin` is set, then the user's, then the repository's. Whoever
+ * is closer to the work wins the name.
+ *
  * Discovery happens on every call: editing a `.md` is enough to reload it.
  */
-export function loadAgents(options: { cwd?: string; scope?: AgentScope } = {}): Agent[] {
+export function loadAgents(options: { cwd?: string; scope?: AgentScope; builtin?: boolean } = {}): Agent[] {
 	const cwd = options.cwd ?? process.cwd();
 	const scope = options.scope ?? "user";
 
 	const byName = new Map<string, Agent>();
 
+	// Off by default: a script that asks for "the user's agents" must not be
+	// handed ours as well. The extension asks for them, because there it is the
+	// difference between working out of the box and not working at all.
+	if (options.builtin) {
+		for (const agent of loadAgentsFromDir(BUILTIN_AGENTS_DIR, "builtin")) byName.set(agent.name, agent);
+	}
 	if (scope !== "project") {
 		for (const agent of loadAgentsFromDir(path.join(getAgentDir(), "agents"), "user")) {
 			byName.set(agent.name, agent);

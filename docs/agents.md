@@ -49,7 +49,24 @@ const reviewer = findAgent(agents, "reviewer");    // throws on an unknown name
 
 - `"user"` (the default) reads `~/.pi/agent/agents/`.
 - `"project"` reads `.pi/agents/` of the current repository.
-- `"both"` reads the two, and a project agent shadows a user agent of the same name.
+- `"both"` reads the two.
+
+There is a third source, off by default: the agents **shipped with this
+package** (`scout`, `coder`, `reviewer`, `planner`, `router`, `synthesiser`,
+`interviewer`, `auditor`, `committer`). Pass `builtin: true` to include them -
+which the pi extension always does, because otherwise its commands only work
+inside a repository where someone has already copied the definitions by hand.
+
+**Precedence runs from the least specific to the most**: shipped, then yours,
+then the repository's. Whoever is closer to the work wins the name, so writing
+your own `scout.md` replaces ours without having to remove anything.
+
+```typescript
+loadAgents({ scope: "both", builtin: true });
+```
+
+It is off by default for scripts on purpose: asking for "the user's agents" must
+not hand you ours as well.
 
 **Project agents are never loaded by default**, and that is a security boundary
 rather than a preference: `.pi/agents/` is repository-controlled content, so its

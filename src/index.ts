@@ -99,6 +99,7 @@ export {
 	type PipelineStep,
 	type StepKind,
 } from "./pipeline.ts";
+export { BUILTIN_AGENTS_DIR, BUILTIN_PIPELINES_DIR, PACKAGE_ROOT } from "./builtin.ts";
 export {
 	findPipeline,
 	loadPipelines,

@@ -55,7 +55,7 @@ claiming it does not exist. Getting "unknown pipeline: build" for a
 *function*
 
 ```typescript
-export function loadPipelines(options: { cwd?: string; scope?: AgentScope } = {}): PipelineCatalogue { … }
+export function loadPipelines(options: { cwd?: string; scope?: AgentScope; builtin?: boolean } = {}): PipelineCatalogue { … }
 ```
 
 Discovers the available pipelines.
@@ -63,8 +63,11 @@ Discovers the available pipelines.
 The scope defaults to `"user"` for the same reason it does for agents: a
 pipeline carries prose that becomes an instruction to a model, so a
 repository's pipelines are third-party instructions and are loaded only on
-explicit request. With `"both"`, a project pipeline shadows a user one of the
-same name.
+explicit request.
+
+Precedence runs from the least specific to the most - shipped, then the
+user's, then the repository's - so writing your own `build.md` replaces ours
+without having to remove anything.
 
 ## `loadPipelinesFromDir`
 

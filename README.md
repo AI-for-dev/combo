@@ -93,9 +93,9 @@ anything reaches history. An interrupted build resumes with `/build resume`, and
 only approved subtasks survive.
 
 What runs between the two stops is a **pipeline**: a Markdown file, next to your
-agents, that says which combinators run in which order. Drop a `build.md` in
-`.pi/pipelines/` and `/build` runs yours instead of the built-in one, with no
-code to change.
+agents, that says which combinators run in which order. The package ships one, so
+`/build` works as soon as the extension is loaded; drop a `build.md` in
+`.pi/pipelines/` and yours replaces it, with no code to change.
 
 See [Deliver a change](docs/build.md) and [Pipelines](docs/pipelines.md).
 

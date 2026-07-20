@@ -1,7 +1,6 @@
 ---
 name: build
 description: Locate the code, split the work, implement it in pairs, audit the whole
-verify: [npm, test]
 steps:
   - id: locate
     chain: scout

@@ -308,13 +308,25 @@ Rules:
   to ask. Found by running it in a scratch directory, not by reading the code.
   The listing shows the broken files **beside** the good ones: a file that does
   not parse is the most likely reason anyone is looking.
-- **An extension never brings its own agents or pipelines.** `pi -e
-  ../elsewhere/extension` gives the tool and the commands and nothing else.
-  Loading an extension must not be a way to acquire instructions nobody asked
-  for, which is the same rule as project agents, one level up. It is also why
-  running this outside its own repository means copying `agents/` and
-  `pipelines/` into that repository - see `NEXT.md`, which is where that is
-  unresolved rather than decided.
+- **The extension does bring its own agents and pipelines, at the lowest
+  priority.** This **reverses** the rule written one commit earlier ("an
+  extension never brings its own"), and the reversal is the honest one: loading
+  an extension already runs its code - pi's own documentation says so - so
+  reading Markdown from the same directory adds no risk that installing it did
+  not already accept. What the old rule was really protecting is *not silently
+  losing a name*, and precedence protects that directly: shipped, then the
+  user's, then the repository's, so a `scout.md` of your own replaces ours
+  without removing anything. `builtin` is **off by default** in the library: a
+  script asking for the user's agents must not be handed ours as well. Found the
+  hard way - `/build --pipeline explore` in a scratch directory found nothing at
+  all, because the definitions only existed in this repository.
+- **One default, and it is a file.** `DEFAULT_BUILD_PIPELINE` lived exactly as
+  long as it took to ship `pipelines/build.md`: a default written in TypeScript
+  *and* a default written in Markdown would have differed within two changes,
+  which is the drift the constant was introduced to prevent in the first place.
+  The shipped file names **no `verify`**, deliberately - imposing `npm test` on a
+  project that has none is worse than asking, and `/build` asks when the pipeline
+  is silent.
 - **`/build` and `/run` paint the same run the same way**, through one
   `liveRun` in `extension/run-ui.ts`: two call sites, two timers and two ways of
   clearing a widget is exactly how the one nobody is watching that day drifts.
@@ -833,6 +845,7 @@ scripts/
 pipelines/          # example pipelines (symlinked into .pi/pipelines)
 src/
   agent.ts          # type Agent + loading the .md files (frontmatter)
+  builtin.ts        # the agents and pipelines this package ships, lowest priority
   pipeline.ts       # a workflow as data: parsing and validating the .md
   pipeline-load.ts  # finding them: ~/.pi/agent/pipelines, .pi/pipelines
   ask.ts            # AskUser: the one place a workflow blocks on a human

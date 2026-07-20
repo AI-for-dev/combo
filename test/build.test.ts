@@ -99,6 +99,12 @@ function workingTree(calls: string[]): Git {
 	};
 }
 
+/** Stands in for the `build` pipeline the package ships. */
+const shipped = parsePipeline(
+	"---\nname: build\nsteps:\n  - id: work\n    deliver: planner\n    workers: [coder]\n    reviewer: reviewer\n    auditor: auditor\n---\n\n## work\nDeliver the brief.\n",
+	"<shipped>/pipelines/build.md",
+);
+
 /**
  * A pipeline run that delivered, as the runner reports one.
  *
@@ -127,6 +133,7 @@ function delivered(over: Partial<DeliverResult> = {}) {
 function deps(over: BuildDeps = {}): BuildDeps {
 	return {
 		loadAgents: () => agents,
+		loadPipelines: () => ({ pipelines: [shipped], broken: [] }),
 		tickMs: 0,
 		runDir: () => "/tmp/never-written",
 		interview: async () => result({ brief: "THE BRIEF", answers: [], steps: [], submitted: false }) as never,
@@ -340,21 +347,54 @@ function interrupted(over: Partial<BuildState> = {}): BuildState {
 }
 
 describe("/build and its pipeline", () => {
-	test("with no pipeline of your own, the built-in one runs - and it is a real file", async () => {
+	test("with no pipeline of your own, the one the package ships runs", async () => {
 		const { ctx } = fakeCtx();
 		const { git } = fakeGit();
 		let ran: string | undefined;
 
 		await runBuild("add a cache", ctx, deps({
 			git,
-			loadPipelines: () => ({ pipelines: [], broken: [] }),
-			runPipeline: (async (options: { pipeline: { name: string; steps: { kind: string }[] } }) => {
-				ran = `${options.pipeline.name}:${options.pipeline.steps.map((step) => step.kind).join(",")}`;
+			runPipeline: (async (options: { pipeline: { name: string; filePath: string } }) => {
+				ran = `${options.pipeline.name} from ${options.pipeline.filePath}`;
 				return delivered();
 			}) as never,
 		}));
 
-		assert.equal(ran, "build:deliver", "the default is the flow /build always had, expressed as data");
+		assert.match(ran ?? "", /^build from .*pipelines\/build\.md$/, "the default is a file, not a constant");
+	});
+
+	test("the agents and the pipelines shipped here are asked for, at the lowest priority", async () => {
+		const { ctx } = fakeCtx();
+		const { git } = fakeGit();
+		const asked: unknown[] = [];
+
+		await runBuild("x", ctx, deps({
+			git,
+			loadAgents: (options) => (asked.push(options), agents),
+			loadPipelines: (options) => (asked.push(options), { pipelines: [shipped], broken: [] }),
+		}));
+
+		// Both sources, and both asked for the built-ins: without that, `/build`
+		// only works inside a repository that already has the definitions.
+		assert.ok(asked.length >= 2);
+		for (const options of asked) {
+			assert.deepEqual(options, { cwd: "/repo", scope: "both", builtin: true });
+		}
+	});
+
+	test("no pipeline named build anywhere says so, rather than inventing one", async () => {
+		const { ctx, said } = fakeCtx();
+		const { git } = fakeGit();
+		let ran = false;
+
+		await runBuild("x", ctx, deps({
+			git,
+			loadPipelines: () => ({ pipelines: [], broken: [] }),
+			runPipeline: (async () => ((ran = true), {})) as never,
+		}));
+
+		assert.equal(ran, false);
+		assert.match(said(), /Unknown pipeline "build"/);
 	});
 
 	test("a build.md of your own replaces it, without touching the code", async () => {
