@@ -295,6 +295,29 @@ Rules:
 - **`reduce` folds the step before it.** That is what the linear rule buys: no
   templating, no `${{ steps.x.output }}`, and the one N-to-1 case that matters
   still works. A `reduce` with nothing to fold fails without spawning.
+- **`/run` exists because `/build` delivers a change.** An interview settles what
+  "done" means and a commit stop protects history; a pipeline that only reads
+  needs neither, and putting one through `/build` means being interviewed about a
+  request that wants no decision and then told there is nothing to commit. `/run`
+  is the pipeline and its answer, nothing around it - and it is **lighter, not
+  safer**: what a step writes is still written, because what an agent may do is
+  its toolset, never the command that started it.
+- **`/pipelines` is there because the error message was not enough.** A pipeline
+  of one repository is invisible from another - by design - and the failure
+  reported where pipelines live without saying what had been loaded, with no way
+  to ask. Found by running it in a scratch directory, not by reading the code.
+  The listing shows the broken files **beside** the good ones: a file that does
+  not parse is the most likely reason anyone is looking.
+- **An extension never brings its own agents or pipelines.** `pi -e
+  ../elsewhere/extension` gives the tool and the commands and nothing else.
+  Loading an extension must not be a way to acquire instructions nobody asked
+  for, which is the same rule as project agents, one level up. It is also why
+  running this outside its own repository means copying `agents/` and
+  `pipelines/` into that repository - see `NEXT.md`, which is where that is
+  unresolved rather than decided.
+- **`/build` and `/run` paint the same run the same way**, through one
+  `liveRun` in `extension/run-ui.ts`: two call sites, two timers and two ways of
+  clearing a widget is exactly how the one nobody is watching that day drifts.
 
 ## Measurements: time and tokens per subagent
 
@@ -839,6 +862,8 @@ src/
     tui.ts          # state collection + formatting (no pi-tui import)
 extension/
   index.ts          # pi.registerTool({ name: "subagent" }) + renderCall/renderResult
+  pipeline-commands.ts # /pipelines and /run: seeing what there is, and running it
+  run-ui.ts         # the dots, the footer and the export - one painter for both commands
   execute.ts        # the tool body, every dependency injectable
   ask-ui.ts         # the question card (SelectList + Other + submit)
   build.ts          # /interview and /build, with their own injection seam

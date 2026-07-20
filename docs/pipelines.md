@@ -107,11 +107,33 @@ Nothing, and that is deliberate. Before a single session is opened:
 
 A typo in step four therefore costs a second, not three steps of real work.
 
+## Seeing what you have
+
+```
+/pipelines
+```
+
+```
+build    chain → deliver - Locate the code, split the work, implement it in pairs, audit the whole
+explore  fanOut → reduce - Three scouts read the code in parallel, then one agent answers
+```
+
+It lists what is loaded, the shape of each run, and **the files that do not
+parse** along with the reason - those are the most likely reason you are running
+the command at all. With nothing loaded it says where to put a file, because that
+is the actual question being asked.
+
+A pipeline of one repository is invisible from another, by design. If you want
+yours everywhere, they go in `~/.pi/agent/pipelines/`.
+
 ## Running one
 
-`/build` runs a pipeline. With no `build.md` of your own it runs a built-in
-default, which is the flow `/build` has always had, expressed as data - there is
-exactly one code path, so there is nothing to drift.
+Two ways, and the difference is what surrounds the run.
+
+**`/build`** delivers a change: an interview to settle what "done" means, then
+the pipeline, then the commit. With no `build.md` of your own it runs a built-in
+default, which is the flow `/build` has always had, expressed as data - one code
+path, nothing to drift.
 
 ```
 /build add a cache in front of the agent loader
@@ -122,6 +144,24 @@ exactly one code path, so there is nothing to drift.
 The two stops are unchanged: the brief before any work starts, the commit before
 anything reaches history. The pipeline covers what happens between them. See
 [Deliver a change](build.md).
+
+**`/run`** is the pipeline and nothing else:
+
+```
+/run explore how is usage measured, and can it be trusted
+```
+
+No interview, no commit stop. The answer lands in the prompt editor, so sending
+it on to the model stays your decision, and the transcripts land in
+`runs/<timestamp>/` as usual.
+
+This is where a pipeline that only *reads* belongs. Put one through `/build` and
+you will be interviewed about a request that wants no decision, then told there
+is nothing to commit.
+
+`/run` is **lighter than `/build`, not safer**: whatever a step writes to the
+working tree is still written. What an agent may do is decided by its toolset, as
+always - see [Agents](agents.md).
 
 From a script:
 

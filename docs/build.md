@@ -129,7 +129,10 @@ otherwise - the flow described above, expressed as data. Another one by name:
 
 A `build.md` that does not parse is **refused**, never silently replaced by the
 default: a file sitting right there and quietly not being used is worse than an
-error. See [Pipelines](pipelines.md).
+error. `/pipelines` lists what is loaded and what does not parse.
+
+For a pipeline that only reads, use `/run` instead: no interview, no commit stop.
+See [Pipelines](pipelines.md).
 
 ## Why these are commands, not tools
 

@@ -54,6 +54,39 @@ reverting the previous fix. Nothing in `deliver` can repair that, and no prompt
 will. Worth trying with a strong model before concluding anything about the
 shape of the pipeline.
 
+## 3. Making agents and pipelines available on install
+
+Today they are only ever loaded from `~/.pi/agent/{agents,pipelines}/` or from
+the repository you are standing in. That is why `pi -e ../subagent/extension`
+inside another directory finds neither: the extension brings the tool and the
+commands, never the content. Testing anywhere but this repository means copying
+`agents/` and `pipelines/` into that repository's `.pi/`, by hand, which is what
+was done for the throwaway one.
+
+**pi's own packaging does not solve it.** `docs/packages.md`: a package bundles
+extensions, skills, prompt templates and themes. Agents are not in that list, and
+neither, obviously, are pipelines. So there is no `pi install` that drops a
+`scout.md` into place for us.
+
+Three ways out, none of them free:
+
+1. **An install step that copies** `agents/` and `pipelines/` into
+   `~/.pi/agent/`. Honest and boring; the copies then drift from the repository,
+   and updating means copying again.
+2. **The extension registers its own directory as a third source**, after the
+   user's and the project's. Convenient, and it walks straight into the rule
+   written down in `AGENTS.md`: an extension must not be a way to acquire
+   instructions nobody asked for. If it happens at all it is opt-in, named, and
+   loud - `PI_SUBAGENT_BUILTIN=1`, or a `/agents install` that says what it wrote
+   and where.
+3. **Ship them as skills instead.** pi *does* package those, and a skill is
+   already "content the model may pull in". It is the wrong shape for an agent
+   definition (frontmatter, tools, lifetime) and would mean maintaining two.
+
+The decision to take is really the second one's: whether a directory the user
+pointed `-e` at is a legitimate source of agents. Nothing needs deciding before
+somebody actually wants to run this outside the repository.
+
 ## How to verify anything here
 
 ```bash

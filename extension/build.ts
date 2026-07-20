@@ -26,13 +26,10 @@
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import {
 	branchName,
-	combineReporters,
 	commitAll,
 	createBranch,
-	createHerdrReporter,
 	createRunDir,
 	commandVerifier,
-	createTuiCollector,
 	detectHerdr,
 	findResumableBuild,
 	fromBuildState,
@@ -52,8 +49,6 @@ import {
 	untracked,
 	saveBuildState,
 	toBuildState,
-	usageReport,
-	writeUsageReport,
 	type Agent,
 	type BuildProgress,
 	type BuildState,
@@ -64,10 +59,8 @@ import {
 	type Verify,
 } from "../src/index.ts";
 import { createAskUi, type AskUi } from "./ask-ui.ts";
-import { paintWidget, watchEverything, watchEverythingIs } from "./execute.ts";
-
-/** Key for the footer status shown while an agent is thinking. */
-const STATUS = "pi-subagent";
+import { watchEverything, watchEverythingIs } from "./execute.ts";
+import { liveRun, pipelineVerifier, STATUS } from "./run-ui.ts";
 
 /**
  * Everything these commands reach for, injectable.
@@ -314,7 +307,7 @@ export async function runBuild(args: string, ctx: CommandCtx, deps: BuildDeps = 
 	// own check has already stated it, once, in a file; otherwise the user is
 	// asked, because only they know what "it works" means in their project - and
 	// an empty answer is a legitimate "there is nothing to run".
-	const verify = deps.verify ?? fromPipeline(pipeline, ctx) ?? (await askForCheck(ctx));
+	const verify = deps.verify ?? pipelineVerifier(pipeline, ctx.cwd) ?? (await askForCheck(ctx));
 
 	// A pipeline that writes code leaves its transcripts behind: when something
 	// went wrong, "what did the coder actually see" is the first question.
@@ -323,15 +316,8 @@ export async function runBuild(args: string, ctx: CommandCtx, deps: BuildDeps = 
 	const exportDir = previous ? previous.dir : (deps.runDir ?? createRunDir)();
 	const save = deps.saveState ?? saveBuildState;
 	const startedAt = previous?.state.startedAt;
-	const collector = createTuiCollector();
-	const onEvent = combineReporters(collector.reporter, createHerdrReporter({ all: watchEverything() }));
-
-	// The same dots the tool draws: one painter, so the two flows cannot drift.
-	const paint = () => ctx.ui.setWidget?.(STATUS, paintWidget(collector.snapshot(), ctx.ui.theme));
-	collector.onChange(paint);
-	const tickMs = deps.tickMs ?? 250;
-	const tick = tickMs > 0 ? setInterval(paint, tickMs) : undefined;
-	tick?.unref?.();
+	// The same dots the tool draws, and the same ones `/run` draws.
+	const live = liveRun(ctx.ui, deps.tickMs ?? 250);
 
 	let done: PipelineRunResult | undefined;
 	ctx.ui.setStatus(STATUS, "building…");
@@ -354,13 +340,10 @@ export async function runBuild(args: string, ctx: CommandCtx, deps: BuildDeps = 
 					void save(exportDir, toBuildState(progress, { request: label, brief, cwd: ctx.cwd, startedAt, step: stepId })),
 			},
 			signal: ctx.signal,
-			onEvent,
+			onEvent: live.onEvent,
 		});
 	} finally {
-		if (tick) clearInterval(tick);
-		ctx.ui.setStatus(STATUS, undefined);
-		ctx.ui.setWidget?.(STATUS, undefined);
-		writeRunReport(exportDir, collector, done);
+		live.stop(exportDir, done?.usage.wallMs ?? 0);
 	}
 
 	// The last delivery is what a human acts on. A pipeline with no `deliver`
@@ -416,12 +399,6 @@ function choosePipeline(wanted: string | undefined, ctx: CommandCtx, deps: Build
 	return parsePipeline(DEFAULT_BUILD_PIPELINE, "<built-in>");
 }
 
-/** The check a pipeline names, as a port. Absent means the user is asked. */
-function fromPipeline(pipeline: Pipeline, ctx: CommandCtx): Verify | undefined {
-	const parts = pipeline.verify;
-	if (!parts || parts.length === 0) return undefined;
-	return commandVerifier({ cwd: ctx.cwd, command: parts[0] as string, args: parts.slice(1) });
-}
 
 /**
  * Asks once for the command that says whether the work is good.
@@ -527,13 +504,6 @@ export function commitPrompt(brief: string, patch: string, added: readonly strin
 }
 
 /** `usage.json` beside the transcripts. Never lets an export break a finished run. */
-function writeRunReport(dir: string, collector: ReturnType<typeof createTuiCollector>, done: PipelineRunResult | undefined): void {
-	try {
-		writeUsageReport(dir, usageReport(collector.snapshot(), done?.usage.wallMs ?? 0));
-	} catch {
-		// an export is an observer of the run, never a participant
-	}
-}
 
 /** The first `n` lines, for a dialog that must stay readable. */
 function firstLines(text: string, n: number): string {

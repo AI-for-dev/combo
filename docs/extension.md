@@ -37,13 +37,23 @@ What the run looks like while it happens is covered in [Display](display.md).
 | Command | What it does |
 | --- | --- |
 | `/interview <request>` | Turns a vague request into a brief, one question at a time. |
-| `/build <request>` | The whole pipeline: interview, plan, pairs, check, audit, commit. |
+| `/build <request>` | Interview, then the build pipeline, then the commit. |
+| `/build --pipeline <name> <request>` | The same, with a pipeline of your choosing. |
 | `/build resume` | Carries on an interrupted build from `runs/<timestamp>/build.json`. |
+| `/pipelines` | Lists the pipelines that are loaded, and the files that do not parse. |
+| `/run <name> <input>` | Runs a pipeline with no interview and no commit stop. |
 | `/herdr on\|off` | Give every subagent its own herdr split for this session. |
 
 `/interview` and `/build` are commands rather than tools because a question card
 owns the terminal until it is answered, and nobody can answer a question asked
-inside a model's turn. See [Deliver a change](build.md).
+inside a model's turn. See [Deliver a change](build.md) and
+[Pipelines](pipelines.md).
+
+Agents and pipelines both come from your own `~/.pi/agent/` or from the
+repository you are in. **An extension never brings its own**: loading one with
+`pi -e` must not be a way to acquire instructions you did not ask for, so
+`pi -e ../elsewhere/extension` gives you the tool and the commands, never the
+agents or the pipelines of that other directory.
 
 ## Which pi it runs against
 
