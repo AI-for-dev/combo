@@ -302,6 +302,17 @@ Rules:
   is the pipeline and its answer, nothing around it - and it is **lighter, not
   safer**: what a step writes is still written, because what an agent may do is
   its toolset, never the command that started it.
+- **A finished `/run` leaves its answer in the conversation, not in the prompt
+  editor.** The editor is right for `/interview` - a brief is read, edited and
+  sent - and wrong for an exploration, which is read and then *asked about*:
+  putting it where the user types means they have to send their own report back
+  before the model knows anything about it. It is a **custom** message and not an
+  assistant one because pi has no door for the latter: `sendMessage` (custom, in
+  context), `sendUserMessage` (a user message, always triggers a turn) and
+  `appendEntry` (drawn, invisible to the model) are all there is, and
+  `convertToLlm` turns a custom message into the **user** role. Hence the
+  framing line naming the pipeline: unattributed findings in a user slot read as
+  an instruction.
 - **`/pipelines` is there because the error message was not enough.** A pipeline
   of one repository is invisible from another - by design - and the failure
   reported where pipelines live without saying what had been loaded, with no way

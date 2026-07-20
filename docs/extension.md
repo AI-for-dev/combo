@@ -41,7 +41,7 @@ What the run looks like while it happens is covered in [Display](display.md).
 | `/build --pipeline <name> <request>` | The same, with a pipeline of your choosing. |
 | `/build resume` | Carries on an interrupted build from `runs/<timestamp>/build.json`. |
 | `/pipelines` | Lists the pipelines that are loaded, and the files that do not parse. |
-| `/run <name> <input>` | Runs a pipeline with no interview and no commit stop. |
+| `/run <name> <input>` | Runs a pipeline with no interview and no commit stop; its answer lands in the conversation. |
 | `/herdr on\|off` | Give every subagent its own herdr split for this session. |
 
 `/interview` and `/build` are commands rather than tools because a question card

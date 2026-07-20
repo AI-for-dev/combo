@@ -157,9 +157,17 @@ anything reaches history. The pipeline covers what happens between them. See
 /run explore how is usage measured, and can it be trusted
 ```
 
-No interview, no commit stop. The answer lands in the prompt editor, so sending
-it on to the model stays your decision, and the transcripts land in
-`runs/<timestamp>/` as usual.
+No interview, no commit stop. The answer lands **in the conversation**, so the
+model has it and you can simply ask the next question about it; the transcripts
+land in `runs/<timestamp>/` as usual.
+
+It arrives as a *custom* message rather than an assistant one, because pi's
+extension API has no door for an assistant message: `sendMessage` (custom, in
+the model's context), `sendUserMessage` (a user message, and it always triggers a
+turn) and `appendEntry` (drawn, invisible to the model) are the three there are.
+pi converts a custom message to the **user** role on the way to the model, so the
+text is prefixed with the pipeline it came from - unattributed findings arriving
+in a user slot read as an instruction.
 
 This is where a pipeline that only *reads* belongs. Put one through `/build` and
 you will be interviewed about a request that wants no decision, then told there

@@ -13,6 +13,7 @@ import { describe, test } from "node:test";
 import { initTheme } from "@earendil-works/pi-coding-agent";
 import type { Component } from "@earendil-works/pi-tui";
 import extension from "../extension/index.ts";
+import { PIPELINE_MESSAGE } from "../extension/pipeline-commands.ts";
 import { emptyUsage } from "../src/usage.ts";
 import type { SubagentSnapshot } from "../src/reporters/tui.ts";
 import { testTheme } from "./fixtures/theme.ts";
@@ -24,15 +25,17 @@ initTheme();
 function registered() {
 	let tool: any;
 	const commands = new Map<string, any>();
+	const messageRenderers = new Map<string, any>();
 	extension({
 		registerTool: (definition: unknown) => void (tool = definition),
 		registerCommand: (name: string, options: unknown) => void commands.set(name, options),
+		registerMessageRenderer: (customType: string, renderer: unknown) => void messageRenderers.set(customType, renderer),
 	} as never);
 	assert.ok(tool, "the extension must register a tool");
-	return { tool, commands };
+	return { tool, commands, messageRenderers };
 }
 
-const { tool, commands } = registered();
+const { tool, commands, messageRenderers } = registered();
 const theme = testTheme();
 
 /** A render context with nothing cached, as on the first frame. */
@@ -187,5 +190,33 @@ describe("renderResult", () => {
 		});
 		const text = lines(tool.renderResult(busy, { expanded: false, isPartial: false }, theme, context));
 		assert.match(text, /6 earlier calls/);
+	});
+});
+
+describe("the message a finished pipeline leaves in the conversation", () => {
+	const render = (message: unknown) => {
+		const renderer = messageRenderers.get(PIPELINE_MESSAGE);
+		assert.ok(renderer, "a pipeline's answer must not fall back to pi's default rendering");
+		return (renderer(message, { expanded: false }, theme) as Component).render(80).join("\n");
+	};
+
+	test("names the pipeline and its steps, and renders the answer as Markdown", () => {
+		const drawn = render({
+			customType: PIPELINE_MESSAGE,
+			content: "Result of the `explore` pipeline.\n\n# Findings\n\nIt reads files.",
+			display: true,
+			details: { pipeline: "explore", steps: ["look", "answer"] },
+		});
+
+		assert.match(drawn, /explore/);
+		assert.match(drawn, /look → answer/);
+		assert.match(drawn, /Findings/);
+		assert.match(drawn, /It reads files\./);
+	});
+
+	test("details it did not write do not make it throw", () => {
+		// A renderer that throws makes pi fall back silently, so the shapes that
+		// can reach it - an older session, a hand-written entry - must all render.
+		assert.doesNotThrow(() => render({ customType: PIPELINE_MESSAGE, content: "bare", display: true }));
 	});
 });

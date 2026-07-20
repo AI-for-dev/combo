@@ -29,8 +29,38 @@ import {
 import type { BuildDeps, CommandCtx } from "./build.ts";
 import { liveRun, pipelineVerifier, STATUS } from "./run-ui.ts";
 
+/**
+ * `customType` of the message a finished pipeline leaves in the session.
+ *
+ * A **custom** message, and not for want of trying: pi's extension API offers
+ * exactly three doors into a conversation - `sendMessage` (custom, in the
+ * model's context), `sendUserMessage` (a user message, and it always triggers a
+ * turn) and `appendEntry` (drawn, but invisible to the model). There is no
+ * assistant-message injection. A custom message is the only one that lands the
+ * answer in context without launching a turn nobody asked for.
+ *
+ * pi converts it to the **user** role on the way to the model
+ * (`convertToLlm`, `role: "custom"` → `role: "user"`), so the content carries a
+ * header naming the pipeline: read as something the user typed, an unattributed
+ * report is confusing; read as a quoted result, it is exactly right.
+ */
+export const PIPELINE_MESSAGE = "pipeline-result";
+
+/** How a finished run reaches the conversation. Injected, so a test can catch it. */
+export type SendMessage = (message: {
+	customType: string;
+	content: string;
+	display: boolean;
+	details?: unknown;
+}) => void;
+
+/** {@link BuildDeps}, plus the one thing only these commands do. */
+export type PipelineDeps = BuildDeps & { sendMessage?: SendMessage };
+
 /** Registers `/pipelines` and `/run`. */
 export default function registerPipelineCommands(pi: ExtensionAPI) {
+	const sendMessage: SendMessage = (message) => pi.sendMessage(message);
+
 	pi.registerCommand("pipelines", {
 		description: "List the pipelines that are loaded, and where they come from",
 		handler: async (_args: string, ctx: ExtensionCommandContext) => {
@@ -41,7 +71,7 @@ export default function registerPipelineCommands(pi: ExtensionAPI) {
 	pi.registerCommand("run", {
 		description: "Run a pipeline by name, with no interview and no commit",
 		handler: async (args: string, ctx: ExtensionCommandContext) => {
-			await runNamed(args, ctx as unknown as CommandCtx);
+			await runNamed(args, ctx as unknown as CommandCtx, { sendMessage });
 		},
 	});
 }
@@ -76,7 +106,7 @@ export function pipelineLines(catalogue: PipelineCatalogue, cwd: string): string
 }
 
 /** `/pipelines` - what is loaded, from where, and what does not parse. */
-export function listPipelines(ctx: CommandCtx, deps: BuildDeps = {}): string[] {
+export function listPipelines(ctx: CommandCtx, deps: PipelineDeps = {}): string[] {
 	const catalogue = (deps.loadPipelines ?? loadPipelines)({ cwd: ctx.cwd, scope: "both", builtin: true });
 	const lines = pipelineLines(catalogue, ctx.cwd);
 	ctx.ui.notify(lines.join("\n"), catalogue.broken.length > 0 ? "warning" : "info");
@@ -91,10 +121,12 @@ export function listPipelines(ctx: CommandCtx, deps: BuildDeps = {}): string[] {
  * lighter than `/build`, not safer - so the pipeline's own agents decide that,
  * as they always did.
  *
- * The answer goes into the prompt editor rather than a notification: it is
- * usually long, and sending it on to the model stays the user's decision.
+ * The answer lands **in the conversation** ({@link PIPELINE_MESSAGE}), not in
+ * the prompt editor. An exploration is read, and then asked about; putting it
+ * where the user types means they have to send their own report back to the
+ * model before it knows anything about it.
  */
-export async function runNamed(args: string, ctx: CommandCtx, deps: BuildDeps = {}): Promise<PipelineRunResult | undefined> {
+export async function runNamed(args: string, ctx: CommandCtx, deps: PipelineDeps = {}): Promise<PipelineRunResult | undefined> {
 	const [name, ...rest] = args.trim().split(/\s+/).filter(Boolean);
 	if (!name) {
 		ctx.ui.notify("run: say which pipeline, for example /run explore how usage is measured. /pipelines lists them", "warning");
@@ -137,10 +169,27 @@ export async function runNamed(args: string, ctx: CommandCtx, deps: BuildDeps = 
 		return done;
 	}
 
-	ctx.ui.setEditorText(done.output);
+	deps.sendMessage?.({
+		customType: PIPELINE_MESSAGE,
+		content: pipelineAnswer(pipeline.name, rest.join(" "), done.output),
+		display: true,
+		details: { pipeline: pipeline.name, steps: done.steps.map((step) => step.id), exportDir },
+	});
 	ctx.ui.notify(
 		`${pipeline.name}: ${done.steps.length} step(s), ${done.usage.turns} turns - exported to ${exportDir}`,
 		"info",
 	);
 	return done;
+}
+
+/**
+ * The answer, framed so a user-role slot does not misread it.
+ *
+ * pi hands custom messages to the model as user messages, and an unattributed
+ * report arriving in that slot reads as an instruction. Two lines of framing
+ * turn it back into what it is: the result of something that was run.
+ */
+export function pipelineAnswer(name: string, input: string, output: string): string {
+	const asked = input.trim() ? `, asked to: ${input.trim()}` : "";
+	return `Result of the \`${name}\` pipeline${asked}.\n\n${output.trim()}`;
 }

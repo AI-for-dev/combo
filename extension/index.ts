@@ -22,7 +22,7 @@ import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { collapsedLine, formatToolCall, formatUsage, statusIcon, summaryTable } from "../src/index.ts";
 import registerCommands from "./build.ts";
-import registerPipelineCommands from "./pipeline-commands.ts";
+import registerPipelineCommands, { PIPELINE_MESSAGE } from "./pipeline-commands.ts";
 import { executeSubagent, inferMode, type Details, type Params } from "./execute.ts";
 
 /** How many tool lines the collapsed view shows before it starts eliding. */
@@ -73,6 +73,22 @@ export default function (pi: ExtensionAPI) {
 	// terminal question by question, which a model's turn cannot.
 	registerCommands(pi);
 	registerPipelineCommands(pi);
+
+	// A finished pipeline leaves its answer in the conversation. Drawn as its own
+	// block, because pi hands custom messages to the model as *user* messages,
+	// and a wall of synthesised Markdown looking like something the user typed is
+	// the one reading that must not happen.
+	pi.registerMessageRenderer(PIPELINE_MESSAGE, (message, _options, theme: Theme) => {
+		const details = message.details as { pipeline?: string; steps?: string[] } | undefined;
+		const container = new Container();
+		const steps = details?.steps?.length ? ` · ${details.steps.join(" → ")}` : "";
+
+		container.addChild(
+			new Text(`${theme.fg("accent", "◆")} ${theme.fg("toolTitle", theme.bold(details?.pipeline ?? "pipeline"))}${theme.fg("dim", steps)}`, 0, 0),
+		);
+		container.addChild(new Markdown(String(message.content).trim(), 0, 0, getMarkdownTheme()));
+		return container;
+	});
 
 	pi.registerTool({
 		name: "subagent",

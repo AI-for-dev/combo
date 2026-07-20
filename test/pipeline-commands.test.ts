@@ -11,8 +11,15 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { initTheme } from "@earendil-works/pi-coding-agent";
-import type { BuildDeps, CommandCtx } from "../extension/build.ts";
-import { listPipelines, pipelineLines, runNamed } from "../extension/pipeline-commands.ts";
+import type { CommandCtx } from "../extension/build.ts";
+import {
+	listPipelines,
+	pipelineAnswer,
+	pipelineLines,
+	PIPELINE_MESSAGE,
+	runNamed,
+	type PipelineDeps,
+} from "../extension/pipeline-commands.ts";
 import { parsePipeline } from "../src/pipeline.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
 import { testTheme } from "./fixtures/theme.ts";
@@ -75,7 +82,7 @@ function fakeCtx() {
 	return { ctx, notes, statuses, widgets, said: () => notes.map((note) => note.message).join("\n"), editorText: () => editorText };
 }
 
-function deps(over: BuildDeps = {}): BuildDeps {
+function deps(over: PipelineDeps = {}): PipelineDeps {
 	return {
 		loadAgents: () => agents,
 		loadPipelines: () => ({ pipelines: [explore], broken: [] }),
@@ -132,7 +139,7 @@ describe("/pipelines", () => {
 
 describe("/run", () => {
 	test("runs the named pipeline on the rest of the line", async () => {
-		const { ctx, editorText, said } = fakeCtx();
+		const { ctx, said } = fakeCtx();
 		let input: string | undefined;
 
 		const done = await runNamed("explore what does this repository do", ctx, deps({
@@ -144,8 +151,35 @@ describe("/run", () => {
 
 		assert.equal(input, "what does this repository do");
 		assert.equal(done?.ok, true);
-		assert.equal(editorText(), "the answer", "the answer is long: sending it on stays the user's decision");
 		assert.match(said(), /explore: 0 step\(s\)/);
+	});
+
+	test("the answer lands in the conversation, not in the prompt editor", async () => {
+		const { ctx, editorText } = fakeCtx();
+		const sent: { customType: string; content: string; display: boolean }[] = [];
+
+		await runNamed("explore what does this do", ctx, deps({
+			sendMessage: (message) => void sent.push(message),
+			runPipeline: (async () => ({ pipeline: "explore", steps: [], output: "the answer", usage: {}, ok: true })) as never,
+		}));
+
+		assert.equal(sent.length, 1);
+		assert.equal(sent[0]?.customType, PIPELINE_MESSAGE);
+		assert.equal(sent[0]?.display, true);
+		assert.match(sent[0]?.content ?? "", /the answer/);
+		assert.equal(editorText(), "", "an exploration is read and then asked about, not re-typed by the user");
+	});
+
+	test("a failing run leaves nothing in the conversation", async () => {
+		const { ctx } = fakeCtx();
+		const sent: unknown[] = [];
+
+		await runNamed("explore x", ctx, deps({
+			sendMessage: (message) => void sent.push(message),
+			runPipeline: (async () => ({ pipeline: "explore", steps: [], output: "", usage: {}, ok: false, error: "boom" })) as never,
+		}));
+
+		assert.deepEqual(sent, [], "a failure is reported, never handed to the model as a finding");
 	});
 
 	test("no name says how to find one instead of guessing", async () => {
@@ -183,14 +217,13 @@ describe("/run", () => {
 	});
 
 	test("a failing run says where what ran was kept", async () => {
-		const { ctx, said, editorText } = fakeCtx();
+		const { ctx, said } = fakeCtx();
 		await runNamed("explore x", ctx, deps({
 			runPipeline: (async () => ({ pipeline: "explore", steps: [], output: "", usage: {}, ok: false, error: "step \"look\" failed" })) as never,
 		}));
 
 		assert.match(said(), /step "look" failed/);
 		assert.match(said(), /\/tmp\/never-written/);
-		assert.equal(editorText(), "", "a failure is not an answer to hand to the model");
 	});
 
 	test("the widget goes when the run ends, thrown or not", async () => {
@@ -201,5 +234,17 @@ describe("/run", () => {
 
 		assert.equal(widgets.at(-1), undefined, "no dead row of dots above the prompt");
 		assert.equal(statuses.at(-1), undefined, "and no stale footer for the rest of the session");
+	});
+});
+
+describe("pipelineAnswer", () => {
+	test("names the pipeline and what it was asked, because the model reads it as a user message", () => {
+		const framed = pipelineAnswer("explore", "what does this do", "It does things.");
+		assert.match(framed, /^Result of the `explore` pipeline, asked to: what does this do\.\n\n/);
+		assert.match(framed, /It does things\.$/);
+	});
+
+	test("with no input it still says where the text came from", () => {
+		assert.match(pipelineAnswer("explore", "   ", "Findings."), /^Result of the `explore` pipeline\.\n\nFindings\.$/);
 	});
 });
