@@ -29,7 +29,15 @@ export type AgentScope = "user" | "project" | "both";
 
 /** An agent: the "who". Inert data, no state, no session. */
 export type Agent = {
+	/** Unique name, and how every caller refers to it. Mandatory in the file. */
 	name: string;
+	/**
+	 * What this agent is for, in one line. Mandatory in the file.
+	 *
+	 * Not decoration: `route` and `orchestrate` hand this text to a model to
+	 * decide who does the work, so a vague description produces vague routing
+	 * that no parser can repair.
+	 */
 	description: string;
 	/** Markdown body, used verbatim as the system prompt. */
 	systemPrompt: string;
@@ -46,6 +54,7 @@ export type Agent = {
 	 * time, whoever calls it.
 	 */
 	openInHerdr?: boolean;
+	/** Where the definition was found - a repository's agents are loaded only on request. */
 	source: AgentSource;
 	/** File path, or a free label for an agent built in memory. */
 	filePath: string;

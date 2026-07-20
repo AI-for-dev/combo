@@ -14,12 +14,18 @@ export type Usage = {
 	wallMs: number;
 	/** Time actually spent working: the sum of the `ask` calls. */
 	busyMs: number;
+	/** Completed `ask` calls. A turn is one `session.prompt()`, however many tools it ran. */
 	turns: number;
 
+	/** Input tokens, as pi reported them. `0` when the provider does not say. */
 	input: number;
+	/** Output tokens, as pi reported them. Never estimated from characters. */
 	output: number;
+	/** Tokens served from the prompt cache. */
 	cacheRead: number;
+	/** Tokens written to the prompt cache. */
 	cacheWrite: number;
+	/** What pi says it cost, in the provider's currency. Summed, never recomputed. */
 	cost: number;
 
 	/** Current context size. Mostly relevant for a persistent agent. */

@@ -6,10 +6,17 @@
  * and nobody can answer a question that is being asked inside a model's turn.
  * A tool the model calls could never do this.
  *
- * `/build` is the whole flow - interview, plan, worker↔reviewer pairs, audit,
- * commit - and it stops at three points to ask: the brief before any work
- * starts, the commit before anything is written to history, and nothing else.
- * Everything between those is the library's, unchanged and injectable.
+ * `/build` is the whole flow - interview, then a **pipeline**, then the commit -
+ * and it stops exactly twice to ask: the brief before any work starts, the
+ * commit before anything is written to history, and nothing else.
+ *
+ * What runs between those two stops is not hard-coded here: it is a pipeline
+ * file, the user's own `build.md` if they wrote one and a built-in default
+ * otherwise. The default is itself a pipeline, parsed by the same parser and
+ * run by the same runner, so there is exactly one code path and nothing to
+ * drift. The interview and the commit stay out of it deliberately: a question
+ * card owns the terminal, and "the agent writes the message, this code makes
+ * the commit" is a boundary a file must not be able to move.
  *
  * Project agents are loaded here (`scope: "both"`). A user typing `/build` in a
  * repository *is* the explicit request the rule asks for - what must never
@@ -29,14 +36,18 @@ import {
 	detectHerdr,
 	findResumableBuild,
 	fromBuildState,
-	deliver,
 	diff,
 	diffStat,
 	findAgent,
 	interview,
 	isRepository,
+	checkPipelineAgents,
+	findPipeline,
 	loadAgents,
+	loadPipelines,
+	parsePipeline,
 	run,
+	runPipeline,
 	status,
 	untracked,
 	saveBuildState,
@@ -48,6 +59,8 @@ import {
 	type BuildState,
 	type DeliverResult,
 	type InterviewResult,
+	type Pipeline,
+	type PipelineRunResult,
 	type Verify,
 } from "../src/index.ts";
 import { createAskUi, type AskUi } from "./ask-ui.ts";
@@ -65,8 +78,11 @@ const STATUS = "pi-subagent";
  */
 export type BuildDeps = {
 	loadAgents?: typeof loadAgents;
+	/** Where the pipelines come from. Defaults to `~/.pi/agent/pipelines` and `.pi/pipelines`. */
+	loadPipelines?: typeof loadPipelines;
 	interview?: typeof interview;
-	deliver?: typeof deliver;
+	/** Runs the pipeline. The command's one seam onto the whole of the work. */
+	runPipeline?: typeof runPipeline;
 	/** Runs one throwaway agent - here, the one writing the commit message. */
 	run?: typeof run;
 	/** Every git call, so a test never touches a repository it did not make. */
@@ -108,6 +124,13 @@ export type CommandCtx = {
 	};
 };
 
+/**
+ * Registers `/interview`, `/build` and `/herdr`.
+ *
+ * Commands rather than tools, and that is not a style choice: a question card
+ * owns the terminal until it is answered, and nobody can answer a question
+ * asked inside a model's turn.
+ */
 export default function registerCommands(pi: ExtensionAPI) {
 	pi.registerCommand("interview", {
 		description: "Turn a vague request into a brief, one question at a time",
@@ -124,7 +147,7 @@ export default function registerCommands(pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("build", {
-		description: "Interview, plan, build with worker/reviewer pairs, audit, then commit (`resume` to carry on)",
+		description: "Interview, run the build pipeline, then commit (`--pipeline <name>`, or `resume` to carry on)",
 		handler: async (args: string, ctx: ExtensionCommandContext) => {
 			await runBuild(args, ctx as unknown as CommandCtx);
 		},
@@ -172,6 +195,43 @@ const CAST = {
 } as const;
 
 /**
+ * The flow `/build` runs when nobody has written one: today's, expressed as data.
+ *
+ * It exists so there is exactly **one** code path. The command does not have a
+ * built-in behaviour *and* a pipeline mode that drifts from it; it has a default
+ * file, which a user overrides by writing `build.md` of their own - and which
+ * they can read to learn the vocabulary.
+ */
+export const DEFAULT_BUILD_PIPELINE = `---
+name: build
+description: Plan the brief, build each subtask as a worker/reviewer pair, check it, then audit
+steps:
+  - id: work
+    deliver: ${CAST.planner}
+    workers: [${CAST.workers.join(", ")}]
+    reviewer: ${CAST.reviewer}
+    auditor: ${CAST.auditor}
+---
+
+## work
+
+Deliver what the brief below asks for, and nothing beyond it.
+`;
+
+/**
+ * `/build [--pipeline <name>] <request>`.
+ *
+ * A flag rather than a positional word, because a request is free text: any
+ * convention that reads the first word as a pipeline name eventually swallows
+ * someone's "build fix the parser".
+ */
+export function parseBuildArgs(args: string): { pipeline?: string; request: string } {
+	const match = /^\s*--pipeline(?:=|\s+)(\S+)\s*/.exec(args);
+	if (!match) return { request: args.trim() };
+	return { pipeline: match[1] as string, request: args.slice(match[0].length).trim() };
+}
+
+/**
  * `/build <request>` - the whole flow, with three stops.
  *
  * Interview → **confirm the brief** → plan, pairs, audit → **confirm the
@@ -182,8 +242,9 @@ const CAST = {
  * still in the editor, the work is still in the working tree. Nothing is undone
  * on the user's behalf.
  */
-export async function runBuild(request: string, ctx: CommandCtx, deps: BuildDeps = {}): Promise<DeliverResult | undefined> {
+export async function runBuild(args: string, ctx: CommandCtx, deps: BuildDeps = {}): Promise<PipelineRunResult | undefined> {
 	const git = deps.git ?? REAL_GIT;
+	const { pipeline: wanted, request } = parseBuildArgs(args);
 
 	// `/build resume` carries on the last interrupted build in this directory:
 	// same brief, same plan, the approved subtasks kept. Everything the workers
@@ -211,15 +272,16 @@ export async function runBuild(request: string, ctx: CommandCtx, deps: BuildDeps
 	}
 
 	const agents = (deps.loadAgents ?? loadAgents)({ cwd: ctx.cwd, scope: "both" });
-	let cast: { planner: Agent; workers: Agent[]; reviewer: Agent; auditor: Agent; committer: Agent };
+
+	// Everything a bad file can cost is spent here, before the interview: the
+	// pipeline is chosen, parsed and resolved against the roster while the only
+	// thing at stake is the user's next second.
+	let pipeline: Pipeline;
+	let committer: Agent;
 	try {
-		cast = {
-			planner: findAgent(agents, CAST.planner),
-			workers: CAST.workers.map((name) => findAgent(agents, name)),
-			reviewer: findAgent(agents, CAST.reviewer),
-			auditor: findAgent(agents, CAST.auditor),
-			committer: findAgent(agents, CAST.committer),
-		};
+		pipeline = choosePipeline(wanted, ctx, deps);
+		checkPipelineAgents(pipeline, agents);
+		committer = findAgent(agents, CAST.committer);
 	} catch (cause) {
 		ctx.ui.notify(cause instanceof Error ? cause.message : String(cause), "error");
 		return undefined;
@@ -248,10 +310,11 @@ export async function runBuild(request: string, ctx: CommandCtx, deps: BuildDeps
 
 	const label = previous ? previous.state.request : request.trim();
 
-	// The bar the agents cannot talk their way past. Asked for once, here,
-	// because only the user knows what "it works" means in their project - and
+	// The bar the agents cannot talk their way past. A pipeline that names its
+	// own check has already stated it, once, in a file; otherwise the user is
+	// asked, because only they know what "it works" means in their project - and
 	// an empty answer is a legitimate "there is nothing to run".
-	const verify = deps.verify ?? (await askForCheck(ctx));
+	const verify = deps.verify ?? fromPipeline(pipeline, ctx) ?? (await askForCheck(ctx));
 
 	// A pipeline that writes code leaves its transcripts behind: when something
 	// went wrong, "what did the coder actually see" is the first question.
@@ -270,19 +333,26 @@ export async function runBuild(request: string, ctx: CommandCtx, deps: BuildDeps
 	const tick = tickMs > 0 ? setInterval(paint, tickMs) : undefined;
 	tick?.unref?.();
 
-	let built: DeliverResult | undefined;
+	let done: PipelineRunResult | undefined;
 	ctx.ui.setStatus(STATUS, "building…");
 	try {
-		built = await (deps.deliver ?? deliver)({
-			...cast,
-			brief,
+		done = await (deps.runPipeline ?? runPipeline)({
+			pipeline,
+			agents,
+			input: brief,
 			cwd: ctx.cwd,
 			exportDir,
 			verify,
-			resume,
-			// Written after the plan, after the subtasks and after every audit:
-			// whatever kills the process, what was paid for is on disk.
-			onProgress: (progress) => void save(exportDir, toBuildState(progress, { request: label, brief, cwd: ctx.cwd, startedAt })),
+			delivery: {
+				// A saved step carries on only in the step it belongs to: a
+				// two-delivery pipeline must not hand the second one the first
+				// one's approved subtasks.
+				resume: (stepId) => (resume && (previous?.state.step ?? stepId) === stepId ? resume : undefined),
+				// Written after the plan, after the subtasks and after every audit:
+				// whatever kills the process, what was paid for is on disk.
+				onProgress: (stepId, progress) =>
+					void save(exportDir, toBuildState(progress, { request: label, brief, cwd: ctx.cwd, startedAt, step: stepId })),
+			},
 			signal: ctx.signal,
 			onEvent,
 		});
@@ -290,7 +360,27 @@ export async function runBuild(request: string, ctx: CommandCtx, deps: BuildDeps
 		if (tick) clearInterval(tick);
 		ctx.ui.setStatus(STATUS, undefined);
 		ctx.ui.setWidget?.(STATUS, undefined);
-		writeRunReport(exportDir, collector, built);
+		writeRunReport(exportDir, collector, done);
+	}
+
+	// The last delivery is what a human acts on. A pipeline with no `deliver`
+	// step has no `approved` to report, and saying "NOT approved" about a run
+	// that was never audited would be a lie about the work.
+	const built = done.steps.map((step) => step.delivery).filter(Boolean).at(-1);
+	report(done, built, exportDir, ctx);
+
+	await submit(label, brief, built?.approved ?? done.ok, committer, ctx, deps);
+	return done;
+}
+
+/** Says what the run amounted to, in the terms the pipeline actually supports. */
+function report(done: PipelineRunResult, built: DeliverResult | undefined, exportDir: string, ctx: CommandCtx): void {
+	if (!built) {
+		ctx.ui.notify(
+			`${done.steps.length} step(s), ${done.ok ? "all ran" : `stopped: ${done.error}`} - exported to ${exportDir}`,
+			done.ok ? "info" : "warning",
+		);
+		return;
 	}
 
 	const check = built.verification ? `, check ${built.verification.ok ? "passed" : "FAILED"}` : "";
@@ -303,9 +393,34 @@ export async function runBuild(request: string, ctx: CommandCtx, deps: BuildDeps
 		`${built.tasks.length} subtask(s), ${built.audits.length} audit(s)${check}, ${built.approved ? "approved" : "NOT approved"} - exported to ${exportDir}`,
 		built.approved ? "info" : "warning",
 	);
+}
 
-	await submit(label, brief, built, cast.committer, ctx, deps);
-	return built;
+/**
+ * The pipeline this build runs, or a thrown explanation.
+ *
+ * A **broken** file is refused rather than silently replaced by the default: a
+ * `build.md` sitting there and quietly not being used is exactly the failure
+ * `findPipeline` exists to make loud.
+ */
+function choosePipeline(wanted: string | undefined, ctx: CommandCtx, deps: BuildDeps): Pipeline {
+	const catalogue = (deps.loadPipelines ?? loadPipelines)({ cwd: ctx.cwd, scope: "both" });
+	const name = wanted ?? "build";
+
+	const broken = catalogue.broken.find((one) => one.name === name);
+	if (broken) throw new Error(`build: ${broken.filePath} does not parse: ${broken.error}`);
+
+	const found = catalogue.pipelines.find((one) => one.name === name);
+	if (found) return found;
+	if (wanted) return findPipeline(catalogue, wanted);
+
+	return parsePipeline(DEFAULT_BUILD_PIPELINE, "<built-in>");
+}
+
+/** The check a pipeline names, as a port. Absent means the user is asked. */
+function fromPipeline(pipeline: Pipeline, ctx: CommandCtx): Verify | undefined {
+	const parts = pipeline.verify;
+	if (!parts || parts.length === 0) return undefined;
+	return commandVerifier({ cwd: ctx.cwd, command: parts[0] as string, args: parts.slice(1) });
 }
 
 /**
@@ -332,7 +447,7 @@ async function askForCheck(ctx: CommandCtx): Promise<Verify | undefined> {
 async function submit(
 	request: string,
 	brief: string,
-	built: DeliverResult,
+	approved: boolean,
 	committer: Agent,
 	ctx: CommandCtx,
 	deps: BuildDeps,
@@ -376,7 +491,7 @@ async function submit(
 	const branch = branchName(request);
 	const go = await ctx.ui.confirm(`Commit on ${branch}?`, `${summary}\n\n${firstLines(final, 6)}`);
 	if (!go) {
-		ctx.ui.notify(`build: no commit - the work is in the working tree, ${built.approved ? "audited" : "NOT audited"}`, "info");
+		ctx.ui.notify(`build: no commit - the work is in the working tree, ${approved ? "audited" : "NOT audited"}`, "info");
 		return;
 	}
 
@@ -412,9 +527,9 @@ export function commitPrompt(brief: string, patch: string, added: readonly strin
 }
 
 /** `usage.json` beside the transcripts. Never lets an export break a finished run. */
-function writeRunReport(dir: string, collector: ReturnType<typeof createTuiCollector>, built: DeliverResult | undefined): void {
+function writeRunReport(dir: string, collector: ReturnType<typeof createTuiCollector>, done: PipelineRunResult | undefined): void {
 	try {
-		writeUsageReport(dir, usageReport(collector.snapshot(), built?.usage.wallMs ?? 0));
+		writeUsageReport(dir, usageReport(collector.snapshot(), done?.usage.wallMs ?? 0));
 	} catch {
 		// an export is an observer of the run, never a participant
 	}

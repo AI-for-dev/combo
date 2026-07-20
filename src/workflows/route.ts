@@ -6,11 +6,13 @@ import type { Agent } from "./../agent.ts";
 import { failed, type Result, type WorkflowResult } from "./../result.ts";
 import { SubagentPool, type WorkflowOptions } from "./common.ts";
 
+/** The classifier, the agents it may pick from, and what to do when it picks nobody. */
 export type RouteOptions = WorkflowOptions & {
 	/** The agent that classifies. It sees the destinations, never the work. */
 	router: Agent;
 	/** Where the task may go. Their `description` is what the classifier reads. */
 	destinations: Agent[];
+	/** The work to route. The classifier is asked about it; only the destination does it. */
 	input: string;
 	/** Taken when the classifier names nothing recognisable. */
 	fallback?: Agent;
@@ -20,6 +22,7 @@ export type RouteOptions = WorkflowOptions & {
 	format?: (input: string, destinations: readonly Agent[]) => string;
 };
 
+/** The destination's result, plus who was picked and how. */
 export type RouteResult = WorkflowResult & {
 	/** Who was chosen, or `undefined` when nothing was. */
 	destination?: Agent;

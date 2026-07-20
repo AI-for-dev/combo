@@ -13,19 +13,28 @@
  */
 
 /** One proposed answer. `description` says what picking it implies. */
-export type Choice = { label: string; description?: string };
+export type Choice = {
+	/** What the user reads and picks. A few words, not a sentence. */
+	label: string;
+	/** What choosing it commits to, when the label alone leaves that open. */
+	description?: string;
+};
 
+/** One question, in the shape a card can draw and a script can answer. */
 export type Question = {
 	/** Very short label for the question - a chip, not a sentence. */
 	header?: string;
+	/** The question itself, asked whole - it is also what a transcript keeps. */
 	question: string;
 	/** Two to four concrete, mutually exclusive options. */
 	options: Choice[];
 };
 
+/** What came back: the question, the answer, and whether it was typed or picked. */
 export type Answer = {
 	/** The question as it was asked, so a transcript reads on its own. */
 	question: string;
+	/** A choice's `label`, or free text when `custom`. */
 	answer: string;
 	/** True when the user typed their own answer instead of picking one. */
 	custom: boolean;

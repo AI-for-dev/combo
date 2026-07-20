@@ -23,8 +23,11 @@ import type { SessionPort } from "./session.ts";
 
 /** What one subagent left on disk. Both paths are absent when nothing could be written. */
 export type SessionExport = {
+	/** The subagent this transcript belongs to, e.g. `reviewer#2`. */
 	id: string;
+	/** Path of the HTML page pi rendered. Absent when it could not be produced. */
 	html?: string;
+	/** Path of the JSONL transcript. Attempted separately from the HTML. */
 	jsonl?: string;
 	/** Why the export did not happen. Never thrown, always reported. */
 	error?: string;
@@ -89,27 +92,41 @@ export async function exportSession(session: SessionPort, dir: string, id: strin
 
 /** One subagent's line in `usage.json`. */
 export type UsageReportEntry = {
+	/** The subagent, e.g. `scout#1` - what the transcript files are named after. */
 	id: string;
+	/** The agent it was spawned from. Several subagents may share one agent. */
 	agent: string;
+	/** The lifetime it actually ran with, not the agent's declared default. */
 	lifetime: string;
+	/** `provider/id` as pi resolved it, when pi could say. */
 	model?: string;
+	/** Its last known status: what it was doing when the run ended. */
 	status: string;
+	/** Whether its last turn succeeded. Absent while it is still running. */
 	ok?: boolean;
+	/** The failure, when there was one. A failed subagent keeps its usage. */
 	error?: string;
+	/** The last task it was given - a report of ids alone reads like nothing. */
 	task: string;
+	/** How many tools it called. The cheapest signal that a turn ran away. */
 	toolCalls: number;
+	/** Its {@link Usage}, flattened: time measured here, tokens as pi reported them. */
 	usage: Record<string, number | undefined>;
 };
 
 /** The whole `usage.json` document. */
 export type UsageReport = {
+	/** When the report was written, ISO 8601. The run's own timestamp is the directory. */
 	generatedAt: string;
 	/** Wall time of the run itself, not the sum of the subagents. */
 	wallMs: number;
+	/** One entry per subagent, in the order they were spawned. */
 	subagents: UsageReportEntry[];
+	/** The sum over every subagent - failures included, because they cost too. */
 	total: Record<string, number>;
 	/** Busy time over wall time: the parallelism actually achieved. */
 	parallelism: number;
+	/** Where each transcript landed, and why one is missing when it is. */
 	exports?: SessionExport[];
 };
 

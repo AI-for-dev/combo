@@ -12,19 +12,30 @@ import type { EventListener, SubagentStatus } from "../events.ts";
 import { compact, emptyUsage, formatUsage, type Usage } from "../usage.ts";
 
 /** A tool call as it happened, kept for the expanded view. */
-export type ToolCall = { name: string; args: unknown };
+export type ToolCall = {
+	/** The tool pi ran, e.g. `read` or `bash`. */
+	name: string;
+	/** Its arguments, untouched: the expanded view formats them, we only keep them. */
+	args: unknown;
+};
 
 /** Everything known about one subagent, at one instant. */
 export type SubagentSnapshot = {
+	/** The subagent, e.g. `scout#1`. Unique for the life of the process. */
 	id: string;
+	/** The agent it came from. Several subagents may share one agent. */
 	agent: string;
+	/** The lifetime it is running with - the row says whether it will remember. */
 	lifetime: string;
+	/** What it is doing right now. `"done"` covers success and failure alike. */
 	status: SubagentStatus;
 	/** The task it was given. Empty until the first `ask`. */
 	task: string;
+	/** Every tool call so far, in order. The last one is what the collapsed row shows. */
 	tools: ToolCall[];
 	/** Assistant text, accumulated from the deltas. */
 	output: string;
+	/** Cumulative since spawn - for a persistent subagent, that is several turns. */
 	usage: Usage;
 	/** `provider/id` as pi resolved it, when it could. */
 	model?: string;
@@ -35,23 +46,29 @@ export type SubagentSnapshot = {
 	 * would read `0.0s` for the whole wait and then jump straight to the total.
 	 */
 	startedAt?: number;
+	/** Whether its last turn succeeded. Absent until it has finished one. */
 	ok?: boolean;
+	/** The failure, when there was one - shown on the row rather than swallowed. */
 	error?: string;
 };
 
 /** The whole picture: every subagent, plus what it adds up to. */
 export type TuiSnapshot = {
+	/** In spawn order, so a fan-out reads top to bottom as it was launched. */
 	subagents: SubagentSnapshot[];
 	/** Finished, whatever the outcome. */
 	done: number;
 	/** Currently working. */
 	running: number;
+	/** Finished with `ok: false`. Counted apart: `2/3 done` hides a crash. */
 	failed: number;
+	/** Spawned so far, which is what `done` and `running` are counted against. */
 	total: number;
 	/** Sum over every subagent. `wallMs` is filled in by the caller. */
 	usage: Usage;
 };
 
+/** The live state behind the TUI: subscribe it, then read it on every frame. */
 export type TuiCollector = {
 	/** Subscribe this to the event bus. */
 	reporter: EventListener;
@@ -263,6 +280,12 @@ export type WidgetRow =
 	| { kind: "activity"; icon: string; status: SubagentStatus | "failed"; id: string; activity: string }
 	| { kind: "detail"; text: string };
 
+/**
+ * The widget, as rows that say what they are: one activity line per subagent,
+ * one dimmed detail line under it.
+ *
+ * Layout without colour, so it can be asserted on without a terminal.
+ */
 export function widgetRows(snapshot: TuiSnapshot): WidgetRow[] {
 	const rows: WidgetRow[] = [];
 

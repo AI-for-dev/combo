@@ -30,13 +30,21 @@ import { failed, type Result } from "./../result.ts";
 import { SubagentPool, type WorkflowOptions } from "./common.ts";
 
 /** One subtask an agent asked for. */
-export type PlannedTask = { agent: Agent; task: string };
+/** One step of a plan: a *resolved* agent - an unknown name never gets this far - and its task. */
+export type PlannedTask = {
+	/** Already resolved: an unknown name is dropped by the parser, never carried here. */
+	agent: Agent;
+	/** What that agent is asked to do, in the planner's own words. */
+	task: string;
+};
 
+/** Who plans, who may be delegated to, and how large a plan may get. */
 export type PlanOptions = WorkflowOptions & {
 	/** The agent that decides the split. */
 	planner: Agent;
 	/** Who it may delegate to. Their `description` is what the planner reads. */
 	workers: Agent[];
+	/** What is to be split. The planner sees this and the roster, nothing else. */
 	input: string;
 	/**
 	 * How many subtasks a plan may contain. Defaults to 8.
@@ -53,12 +61,15 @@ export type PlanOptions = WorkflowOptions & {
 	format?: (input: string, workers: readonly Agent[], maxTasks: number) => string;
 };
 
+/** A validated plan, or the reason there is none - decided before anything is spawned. */
 export type PlanOutcome = {
 	/** What the planner asked for, after validation. Empty when nothing is runnable. */
 	plan: PlannedTask[];
 	/** The planner's own turn. Kept whatever happened next. */
 	planning: Result;
+	/** False when the planner failed, or produced nothing runnable. */
 	ok: boolean;
+	/** Set if and only if `ok` is false. It carries what the planner actually wrote. */
 	error?: string;
 };
 

@@ -6,6 +6,7 @@ import type { Agent } from "./../agent.ts";
 import { failed, type Result, type WorkflowResult } from "./../result.ts";
 import { SubagentPool, type WorkflowOptions } from "./common.ts";
 
+/** The synthesiser, the branches it folds, and the instruction that frames them. */
 export type ReduceOptions = WorkflowOptions & {
 	/** The agent doing the synthesis. */
 	agent: Agent;

@@ -6,6 +6,7 @@ import type { Agent } from "./../agent.ts";
 import { failed, type Result, type WorkflowResult } from "./../result.ts";
 import { SubagentPool, type WorkflowOptions } from "./common.ts";
 
+/** What a chain needs: the agents, in order, and the task for the first one. */
 export type ChainOptions = WorkflowOptions & {
 	/** The agents to run, in order. The same agent may appear several times. */
 	steps: Agent[];

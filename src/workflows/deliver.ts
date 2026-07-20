@@ -32,6 +32,7 @@ import { makePlan, parsePlan, type PlannedTask } from "./plan.ts";
 /** The word the auditor says when the whole thing holds together. */
 export const AUDIT_APPROVAL = "APPROVED";
 
+/** The cast of a delivery, and every cap that keeps it affordable. */
 export type DeliverOptions = WorkflowOptions & {
 	/** Splits the brief into subtasks. */
 	planner: Agent;
@@ -43,6 +44,7 @@ export type DeliverOptions = WorkflowOptions & {
 	auditor?: Agent;
 	/** The specification. Usually an {@link interview}'s brief. */
 	brief: string;
+	/** Subtasks the plan may contain. Defaults to 8, and is checked before spawning. */
 	maxTasks?: number;
 	/**
 	 * Subtasks in flight at once. Defaults to **2**, not 4.
@@ -85,10 +87,13 @@ export type DeliverOptions = WorkflowOptions & {
 };
 
 /** One audit and whatever it asked for. */
+/** One pass of the audit cycle: what was said, what it cost, what was fixed. */
 export type AuditRound = {
+	/** The auditor's turn, in full. It is the evidence behind `approved`. */
 	review: Result;
 	/** The check as it stood when this audit ran, when there is one. */
 	verification?: Verification;
+	/** Whether this round signed off. A failing check makes it `false` whatever the prose. */
 	approved: boolean;
 	/** The fixes the auditor asked for, as it named them. */
 	fixes: PlannedTask[];
@@ -96,12 +101,17 @@ export type AuditRound = {
 	results: PairResult[];
 };
 
+/** Everything a delivery produced, and the two words that say whether it counts. */
 export type DeliverResult = {
+	/** The specification the delivery worked from, as given. */
 	brief: string;
+	/** The subtasks, after validation against the roster. */
 	plan: PlannedTask[];
+	/** The planner's own turn. Kept whatever happened next. */
 	planning: Result;
 	/** One per planned subtask, in plan order. */
 	tasks: PairResult[];
+	/** The audit rounds that ran, in order. Empty when no auditor was given. */
 	audits: AuditRound[];
 	/** The last verification, when one was configured. */
 	verification?: Verification;
@@ -110,9 +120,11 @@ export type DeliverResult = {
 	 * passed. `true` with neither an auditor nor a check - there was no bar.
 	 */
 	approved: boolean;
+	/** Aggregate over planning, every pair, the audits and the fixes. */
 	usage: Usage;
 	/** Every turn ran without a model error. Says nothing about quality - read `approved`. */
 	ok: boolean;
+	/** Set if and only if `ok` is false. */
 	error?: string;
 };
 

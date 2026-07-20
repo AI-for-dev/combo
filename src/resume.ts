@@ -45,39 +45,67 @@ type SavedAudit = {
 	fixes: SavedStep[];
 };
 
+/** The build as it is written to `build.json`, and read back by `/build resume`. */
 export type BuildState = {
+	/** {@link BUILD_STATE_VERSION}. A state from another version is refused whole. */
 	version: number;
 	/** What the user typed, kept for the branch name and for a human reading it. */
 	request: string;
+	/** The specification the interview produced. It is not re-negotiated on resume. */
 	brief: string;
+	/**
+	 * The pipeline step this progress belongs to.
+	 *
+	 * Optional, and deliberately so: a state written before pipelines existed
+	 * has none, and a pipeline with a single delivery has nothing to
+	 * disambiguate. It matters only when a pipeline delivers twice - handing the
+	 * second one the first one's approved subtasks would resume the wrong work.
+	 */
+	step?: string;
+	/** Where the work was done. Resuming elsewhere would resume onto another tree. */
 	cwd: string;
+	/** ISO 8601, first write. Kept across saves, so a build has one age. */
 	startedAt: string;
+	/** ISO 8601, last write. This is what tells a stale run from a live one. */
 	updatedAt: string;
+	/** The plan, by agent name. Reused on resume, never made again. */
 	plan: SavedStep[];
 	/** Finished subtasks, in plan order. Shorter than `plan` while it runs. */
 	tasks: SavedTask[];
+	/** The audit rounds already spent. Resuming continues the cycle, it does not restart it. */
 	audits: SavedAudit[];
+	/** The last verdict of the project's own check, when one was run. */
 	verification?: Verification;
 	/** True once the build reached its own end - approved or not. */
 	done: boolean;
 };
 
 /** What `deliver` reports as it goes, and what it accepts to start again from. */
+/** The same picture in memory: live results rather than names and text. */
 export type BuildProgress = {
+	/** The subtasks, with their agents resolved. */
 	plan: PlannedTask[];
+	/** Finished subtasks, in plan order. Only the approved ones survive a resume. */
 	tasks: PairResult[];
+	/** One entry per audit round, in order. */
 	audits: AuditRound[];
+	/** The check's verdict, when a `verify` port was given. It is final. */
 	verification?: Verification;
+	/** True once the build reached its own end - approved or not. */
 	done: boolean;
 };
 
 /** Turns live results into something that survives the process. */
-export function toBuildState(progress: BuildProgress, about: { request: string; brief: string; cwd: string; startedAt?: string }): BuildState {
+export function toBuildState(
+	progress: BuildProgress,
+	about: { request: string; brief: string; cwd: string; startedAt?: string; step?: string },
+): BuildState {
 	const now = new Date().toISOString();
 	return {
 		version: BUILD_STATE_VERSION,
 		request: about.request,
 		brief: about.brief,
+		step: about.step,
 		cwd: about.cwd,
 		startedAt: about.startedAt ?? now,
 		updatedAt: now,

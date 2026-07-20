@@ -21,6 +21,13 @@ const run = promisify(execFile);
 /** Output is capped: a diff can be enormous, and it ends up in a prompt. */
 const MAX_BUFFER = 10 * 1024 * 1024;
 
+/**
+ * What a git call gives back: a value, or git's own words about why not.
+ *
+ * A typed result rather than an exception, for the same reason a workflow turns
+ * a model failure into `ok: false`: a commit that could not be made is an
+ * outcome the caller must decide about, not a crash.
+ */
 export type GitResult<T> = { ok: true; value: T } | { ok: false; error: string };
 
 /** Runs one git command. Arguments are an array: no shell, no interpolation. */

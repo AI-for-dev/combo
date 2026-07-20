@@ -16,6 +16,7 @@ import type { EventListener, SubagentEvent, SubagentStatus } from "../events.ts"
 import { formatUsage } from "../usage.ts";
 import { createHerdrSend, detectHerdr, HERDR_SOURCE, nextSeq, paneIdOf, type HerdrSend } from "./herdr-client.ts";
 
+/** How the herdr reporter behaves: where splits open, and for whom. */
 export type HerdrOptions = {
 	/** Where the split opens. Defaults to `"right"`. */
 	split?: "right" | "down";

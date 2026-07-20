@@ -92,6 +92,29 @@ export {
 	type BuildProgress,
 	type BuildState,
 } from "./resume.ts";
+export {
+	parsePipeline,
+	STEP_KINDS,
+	type Pipeline,
+	type PipelineStep,
+	type StepKind,
+} from "./pipeline.ts";
+export {
+	findPipeline,
+	loadPipelines,
+	loadPipelinesFromDir,
+	PIPELINES_DIR,
+	type BrokenPipeline,
+	type PipelineCatalogue,
+} from "./pipeline-load.ts";
+export {
+	checkPipelineAgents,
+	runPipeline,
+	stepInput,
+	type PipelineRunOptions,
+	type PipelineRunResult,
+	type PipelineStepResult,
+} from "./workflows/pipeline-run.ts";
 export { run, type RunOptions } from "./run.ts";
 export {
 	createDefaultSession,

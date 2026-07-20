@@ -1,0 +1,39 @@
+{
+	"navigation": [
+		{
+			"title": "Start here",
+			"items": [
+				{ "title": "Overview", "path": "index.md" },
+				{ "title": "Quickstart", "path": "quickstart.md" },
+				{ "title": "Agents", "path": "agents.md" },
+				{ "title": "Lifetime", "path": "lifetime.md" },
+				{ "title": "Workflows", "path": "workflows.md" },
+				{ "title": "Pipelines", "path": "pipelines.md" },
+				{ "title": "Deliver a change", "path": "build.md" }
+			]
+		},
+		{
+			"title": "Watching and measuring",
+			"items": [
+				{ "title": "Display", "path": "display.md" },
+				{ "title": "Measurements", "path": "measurements.md" },
+				{ "title": "Export", "path": "export.md" }
+			]
+		},
+		{
+			"title": "Using it from pi",
+			"items": [{ "title": "Extension", "path": "extension.md" }]
+		},
+		{
+			"title": "Reference",
+			"items": [
+				{ "title": "API reference", "path": "api/index.md" },
+				{ "title": "Examples", "path": "examples.md" }
+			]
+		},
+		{
+			"title": "Development",
+			"items": [{ "title": "Development", "path": "development.md" }]
+		}
+	]
+}

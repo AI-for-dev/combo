@@ -11,7 +11,9 @@ import { createConnection } from "node:net";
 
 /** The three variables herdr injects into a pane. All three, or nothing. */
 export type HerdrEnv = {
+	/** The unix socket herdr listens on, from `HERDR_SOCKET_PATH`. */
 	socketPath: string;
+	/** The pane we were launched in, from `HERDR_PANE_ID`. Ours are opened beside it. */
 	paneId: string;
 };
 
@@ -66,6 +68,7 @@ export function createHerdrSend(env: HerdrEnv): HerdrSend {
  */
 let seq = Date.now() * 1000;
 
+/** The next ordering number. Every request and every status report takes one. */
 export function nextSeq(): number {
 	return ++seq;
 }

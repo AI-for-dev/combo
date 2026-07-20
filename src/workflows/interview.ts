@@ -20,6 +20,7 @@ import { SubagentPool, type WorkflowOptions } from "./common.ts";
 /** The agent says this - alone - when it has enough to write the brief. */
 export const READY = "READY";
 
+/** Who asks, what about, how it reaches the user, and when it must stop. */
 export type InterviewOptions = WorkflowOptions & {
 	/** The agent conducting the interview. */
 	agent: Agent;
@@ -40,6 +41,7 @@ export type InterviewOptions = WorkflowOptions & {
 	parse?: (output: string) => Question | undefined;
 };
 
+/** The brief, and everything that led to it. */
 export type InterviewResult = {
 	/** The consolidated specification. This is what the rest of the pipeline reads. */
 	brief: string;
@@ -49,8 +51,11 @@ export type InterviewResult = {
 	steps: Result[];
 	/** True when the user submitted before the agent said it was done. */
 	submitted: boolean;
+	/** Aggregate over every turn of the interviewer, the brief included. */
 	usage: Usage;
+	/** Every turn ran without a model error. A short brief can still be `true`. */
 	ok: boolean;
+	/** Set if and only if `ok` is false. */
 	error?: string;
 };
 

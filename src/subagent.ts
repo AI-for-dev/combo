@@ -17,9 +17,11 @@ import { failed, type Result } from "./result.ts";
 import { createDefaultSession, modelLabel, type AgentMessage, type CreateSession, type SessionPort } from "./session.ts";
 import { deltaUsage, emptyUsage, snapshotUsage, type Usage } from "./usage.ts";
 
+/** Everything that can be decided about a subagent before it exists. */
 export type SpawnOptions = {
 	/** Overrides the lifetime declared by the agent. Defaults to `"task"`. */
 	lifetime?: Lifetime;
+	/** Working directory the subagent's tools act in. Defaults to the process's own. */
 	cwd?: string;
 	/** Dedicated session directory, required for the session to be exportable. */
 	sessionDir?: string;
@@ -53,6 +55,7 @@ export type SpawnOptions = {
 	openInHerdr?: boolean;
 };
 
+/** What governs one turn: how it can be stopped, and when it must be. */
 export type AskOptions = {
 	/**
 	 * Cancels this turn. pi's `prompt()` takes no signal, so we bridge it to
@@ -74,8 +77,11 @@ export type AskOptions = {
 
 /** A living subagent. Its owner is whoever called {@link spawn}. */
 export type Subagent = {
+	/** Unique for the process, e.g. `reviewer#2`. Names its transcript files. */
 	readonly id: string;
+	/** The definition it was spawned from. Inert data - it is not re-read. */
 	readonly agent: Agent;
+	/** Resolved once, at spawn: the argument, then the frontmatter, then `"task"`. */
 	readonly lifetime: Lifetime;
 	/** Cumulative measurements since spawn. Read `Result.usage` for a single turn. */
 	readonly usage: Usage;

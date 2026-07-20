@@ -20,6 +20,7 @@ const run = promisify(execFile);
 
 /** What a verification says. `output` is fed to the agents, so it is trimmed. */
 export type Verification = {
+	/** Whether the command exited zero. When a check is given, this verdict is final. */
 	ok: boolean;
 	/** Command output, truncated. Both streams: a failure usually speaks on stderr. */
 	output: string;
@@ -30,10 +31,13 @@ export type Verification = {
 /** Runs the project's own check. Injected, so a test never spawns anything. */
 export type Verify = () => Promise<Verification>;
 
+/** The check to run: an executable and its arguments, never a shell line. */
 export type CommandVerifierOptions = {
+	/** Where to run it - the working tree the agents have been editing. */
 	cwd: string;
 	/** The executable. Not a shell line: `"npm"`, not `"npm test && lint"`. */
 	command: string;
+	/** Its arguments, one per entry: `["test"]`, not `"test --watch=false"`. */
 	args?: string[];
 	/** How long the check may take. Defaults to two minutes. */
 	timeoutMs?: number;

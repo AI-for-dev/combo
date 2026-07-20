@@ -34,11 +34,17 @@ export type AgentMessage = AgentSession["messages"][number];
  * fake session fits in fifty lines.
  */
 export type SessionPort = {
+	/** One turn. Returns when the model stops asking for tools; see `timeoutMs`. */
 	prompt(text: string): Promise<void>;
+	/** Every event of the turn. Returns the unsubscribe function. */
 	subscribe(listener: (event: SessionEvent) => void): () => void;
+	/** **Cumulative** over the session: a turn's usage is the difference of two snapshots. */
 	getSessionStats(): SessionStats;
+	/** How full the context is - what a persistent subagent has to be watched on. */
 	getContextUsage(): ContextUsage | undefined;
+	/** Cuts the in-flight turn short. `prompt()` takes no signal, so this is the bridge. */
 	abort(): Promise<void>;
+	/** Releases the session. An undisposed session leaks; measurements come first. */
 	dispose(): void;
 	/**
 	 * Writes the session as a readable HTML page. **Before `dispose()`.**
@@ -50,6 +56,7 @@ export type SessionPort = {
 	exportToHtml?(outputPath?: string): Promise<string>;
 	/** Writes the current branch as replayable JSONL. **Before `dispose()`.** */
 	exportToJsonl?(outputPath?: string): string;
+	/** The transcript so far. It **grows** with every turn. */
 	readonly messages: AgentMessage[];
 	/**
 	 * The model actually in use, once pi has resolved it.
@@ -84,6 +91,7 @@ export const READ_ONLY_TOOLS = ["read", "grep", "find", "ls"] as const;
 
 /** Session creation settings, passed through by `spawn()`. */
 export type CreateSessionOptions = {
+	/** Working directory of the session. Defaults to the process's own. */
 	cwd?: string;
 	/**
 	 * Session directory dedicated to this run. Absent means an in-memory

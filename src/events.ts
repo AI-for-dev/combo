@@ -52,7 +52,9 @@ export type SubagentEvent =
 /** A subscriber. Throwing from here must never break the workflow. */
 export type EventListener = (event: SubagentEvent) => void;
 
+/** The one channel between the core and every reporter. */
 export type EventBus = {
+	/** Delivers to every listener; a listener that throws is swallowed. */
 	emit(event: SubagentEvent): void;
 	/** Returns the unsubscribe function. */
 	subscribe(listener: EventListener): () => void;

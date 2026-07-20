@@ -8,6 +8,7 @@
 import type { EventListener } from "../events.ts";
 import { formatUsage } from "../usage.ts";
 
+/** How much the console reporter says, and where it says it. */
 export type ConsoleReporterOptions = {
 	/** Where to write. Defaults to `console.log`, but tests pass a recorder. */
 	write?: (line: string) => void;

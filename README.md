@@ -1,221 +1,86 @@
 # pi-subagent
 
-Write [pi](https://pi.dev) subagents and compose workflows, without rewriting
-the plumbing every time.
+Write [pi](https://pi.dev) subagents and compose workflows, without rewriting the
+plumbing every time.
 
-The intent behind the project and its structural decisions live in
-[`AGENTS.md`](AGENTS.md). This file only says how to use it.
+- **In-process subagents**, isolated and composable in TypeScript.
+- An **explicit lifetime**: disposable, or persistent across a workflow. The
+  caller decides, never the library.
+- A **live view** of the work, in [herdr](https://herdr.dev) if it is running and
+  in pi's TUI otherwise, with no change to the calling code.
+- **Everything measured and exportable**: time and tokens per subagent, plus a
+  readable HTML and replayable JSONL export of a whole run.
+
+The full manual is in [`docs/`](docs/index.md). The intent behind the design and
+every decision that shaped it live in [`AGENTS.md`](AGENTS.md).
 
 ## Getting started
 
 ```bash
 npm install
-npm test          # 434 tests, no network calls
+npm test          # offline, no network calls
 npm run typecheck
 ```
 
-Node ≥ 23.6 runs TypeScript natively: there is no build step.
-
-## Two levels of API
-
-The low level gives you a live subagent whose lifetime you control:
+Node 23.6 or later runs TypeScript natively: there is no build step.
 
 ```typescript
-import { spawn, loadAgents, findAgent } from "pi-subagent";
+import { findAgent, loadAgents, run } from "pi-subagent";
 
 const agents = loadAgents();
-const coder = await spawn(findAgent(agents, "coder"), { lifetime: "workflow" });
+const result = await run(findAgent(agents, "scout"), "Find the authentication code");
+```
+
+The low level form gives you a live subagent whose lifetime you control:
+
+```typescript
+import { spawn } from "pi-subagent";
+
+const coder = await spawn(coderAgent, { lifetime: "workflow" });
 try {
 	await coder.ask("Implement the parser");
-	await coder.ask("Apply these remarks: …"); // it remembers the previous turn
-	console.log(coder.usage); // cumulative since spawn
+	await coder.ask("Apply these remarks: …");   // it remembers the previous turn
 } finally {
 	await coder.close();
 }
 ```
 
-The high level is disposable, and handles everything:
-
-```typescript
-import { run } from "pi-subagent";
-
-const result = await run(scout, "Find the authentication code");
-```
-
 Both return the same `Result`: `{ agent, output, messages, usage, ok, error? }`.
 It is the one shared contract, and it is what makes workflows composable.
 
-## Lifetime
-
-The central choice of the project. It is **explicit and local**: the argument
-wins over the agent's frontmatter, which wins over the default.
-
-| `lifetime` | The subagent… | When |
-|-----------|----------------|-------|
-| `"task"` *(default)* | is born and dies with each task | exploration, fan-out, independent tasks |
-| `"workflow"` | lives for the workflow | coding↔review loop, iterative refinement |
-| `"session"` | lives as long as the pi session | "companion" agent consulted several times |
-
-Same workflow, two regimes, one parameter:
-
-```typescript
-// "team": the reviewer does not repeat its remarks, the coder remembers them
-await chain({ steps: [coder, reviewer, coder], input: task, lifetime: "workflow" });
-
-// "freshness": brand new subagents at every step, no accumulated bias
-await chain({ steps: [coder, reviewer, coder], input: task, lifetime: "task" });
-```
-
-**Whoever opens, closes.** The owner of a `Subagent` is whoever `spawn()`ed it.
-A workflow closes everything it created in a `finally`, cancellation included;
-it never closes what it was handed.
+See [Quickstart](docs/quickstart.md).
 
 ## Workflows
 
-Nine combinators. A combinator is added when a real example needs it, not
-before.
+Nine combinators - `chain`, `fanOut`, `loop`, `reduce`, `route`, `orchestrate`,
+`pair`, `interview`, `deliver` - all taking the same options and all returning
+`Result`s.
 
 ```typescript
-// chain: 1→1→1, the output of n is the input of n+1
-const result = await chain({ steps: [scout, reviewer], input: "…" });
-result.steps; // the intermediate results
-
-// fanOut: 1→N, bounded concurrency, results in task order
 const { results, usage } = await fanOut({ agent: scout, tasks, concurrency: 2 });
-usage.busyMs / usage.wallMs; // the parallelism actually achieved
+usage.busyMs / usage.wallMs;   // the parallelism actually achieved
 
-// loop: 1→1, until a judge is satisfied
 const review = await loop({
 	steps: [coder, reviewer],
 	input: "Implement the parser",
 	until: (step) => step.output.includes("LGTM"),
-	maxIterations: 5, // defaults to 5; "forever" is never reachable
-	lifetime: "workflow", // the reviewer remembers what it already said
+	lifetime: "workflow",       // the reviewer remembers what it already said
 });
-review.converged; // did it reach the bar, or just run out of iterations?
-
-// reduce: N→1, one agent turns the branches into a single answer
-const answer = await reduce({ agent: synthesiser, results, input: question });
-answer.steps; // the branches, then the synthesis - the cost of the whole N→1
+review.converged;               // did it reach the bar, or just run out of iterations?
 ```
 
-`reduce` **shows** the branches that failed rather than dropping them: a
-synthesis of six reports when two of them crashed, with nothing saying so, is a
-confident lie. Pass only the successes if that is what you want - filtering an
-array needs no option.
+A failure does not crash a workflow: it becomes a `Result` with `ok: false`.
+`timeoutMs` is a per-turn deadline with no default, and you want one on anything
+unattended - pi's agent loop has no step cap.
 
-Two of them put a model in charge of the decision:
+See [Workflows](docs/workflows.md) and [Lifetime](docs/lifetime.md).
 
-```typescript
-// route: 1→1, a classifier picks who does the work
-const handled = await route({ router, destinations: [coder, scout], input: task });
-handled.destination?.name; // who was picked, or undefined
-
-// orchestrate: 1→?, the planner decides the split, then it runs
-const done = await orchestrate({
-	planner,
-	workers: [scout, reviewer],
-	input: "Explain how usage is measured, and whether it can be trusted",
-	reduceWith: synthesiser, // optional: one answer instead of N
-	maxTasks: 3,             // defaults to 8; a hallucinated plan must not be affordable
-});
-done.plan;   // what the planner asked for, validated against the known agents
-done.answer; // present only when reduceWith was given
-```
-
-Both read the destinations' **`description`** - the field pi already makes
-mandatory - so routing and planning need no second vocabulary. Both are lenient
-about the answer's shape and strict about its content: an agent name that does
-not exist is dropped, never remapped, and an ambiguous routing answer resolves
-to nothing rather than to the first match. `orchestrate` validates the whole
-plan **before** spawning anything.
-
-`loop` reports `converged` separately from `ok`, because they answer different
-questions: `ok` says the last turn ran without a model error, `converged` says
-the work reached the bar. Exhausting `maxIterations` with every turn technically
-fine is `ok: true, converged: false` - and that distinction is the only thing
-worth knowing.
-
-They all accept the same options:
-`{ lifetime, signal, timeoutMs, openInHerdr, onEvent, bus, cwd, sessionDir, exportDir, spawn }`.
-
-**A failure does not crash the workflow**: it becomes a `Result` with
-`ok: false`. In a fan-out the other branches carry on, unless `failFast`.
-
-## Deadlines
-
-One `ask` is one `session.prompt()`, and pi's agent loop has **no step cap**: it
-runs as long as the model keeps requesting tools. A model that hallucinates a
-tool name, gets "unknown tool" back and asks again will loop until something
-stops it. Nothing will, unless you say so:
-
-```typescript
-await coder.ask(task, { timeoutMs: 120_000 });
-await fanOut({ agent: scout, tasks, timeoutMs: 60_000 }); // per branch, not total
-```
-
-There is no default. The library does not get to decide that a legitimate task
-took too long - but you should set one on anything unattended.
-
-## Measurements
-
-Tokens and cost come from pi; time is measured here, on a monotonic clock.
-Nothing is estimated by counting characters: a field the provider does not
-report is `0`, and we say so.
-
-```typescript
-subagent.usage; // cumulative since spawn
-result.usage;   // this turn only
-```
-
-Because `getSessionStats()` is cumulative, a turn's usage is the **difference**
-between two snapshots. On a persistent agent, the gap between `wallMs` and
-`busyMs` is the interesting information: waiting time versus useful time.
-
-A fan-out **aggregates**: `busyMs` is the sum of the branches, `wallMs` the real
-duration. Their ratio is the parallelism.
-
-## Export
-
-Ask for a directory and every subagent writes its own transcript into it as it
-closes - pi's HTML and pi's JSONL, we render neither:
-
-```typescript
-import { createRunDir, createTuiCollector, fanOut, usageReport, writeUsageReport } from "pi-subagent";
-
-const dir = createRunDir();              // runs/<timestamp>/
-const collector = createTuiCollector();
-
-const startedAt = performance.now();
-await fanOut({ agent: scout, tasks, exportDir: dir, onEvent: collector.reporter });
-writeUsageReport(dir, usageReport(collector.snapshot(), performance.now() - startedAt));
-```
-
-```
-runs/2026-07-19_17-16-48/
-├── scout-1.html   scout-1.jsonl
-├── scout-2.html   scout-2.jsonl
-└── usage.json
-```
-
-`usage.json` is the one file we produce ourselves: time, tokens and cost per
-subagent, plus the parallelism actually achieved. Everything else is pi's.
-
-`exportDir` implies a session directory (`<exportDir>/.sessions`), because pi
-cannot render an in-memory session to HTML - asking for an export is asking for
-the session to be kept long enough to export it. Without it, a subagent leaves
-nothing behind. `subagent.export(dir)` exports on demand at any point, and
-`close()` exports before disposing, so an interrupted workflow still keeps what
-it did.
-
-## The whole flow: question → commit
-
-The pieces above compose into one pipeline, driven from pi by `/build`:
+## The whole flow: question to commit
 
 ```
 /build add a cache in front of the agent loader
 
-  interview   one question at a time, until you submit   → a brief
+  interview   one question at a time, until you submit   -> a brief
   plan        who does what, validated before anything spawns
   pair        a worker and a reviewer per subtask, until accepted
   check       your own command runs; its verdict is final
@@ -224,247 +89,38 @@ The pieces above compose into one pipeline, driven from pi by `/build`:
 ```
 
 It stops exactly twice: the brief before any work starts, the commit before
-anything reaches history. Refusing at either stop leaves everything where it is.
+anything reaches history. An interrupted build resumes with `/build resume`, and
+only approved subtasks survive.
 
-**Carrying on after an interruption**: every step is written to
-`runs/<timestamp>/build.json`, so a Ctrl+C, a dropped connection or a closed
-terminal costs nothing that was already paid for.
+What runs between the two stops is a **pipeline**: a Markdown file, next to your
+agents, that says which combinators run in which order. Drop a `build.md` in
+`.pi/pipelines/` and `/build` runs yours instead of the built-in one, with no
+code to change.
 
-```
-/build resume
-> Carry on? 2/3 subtask(s) already approved
-```
-
-Only **approved** subtasks are kept - one that was still being argued over left
-the tree in a state nobody signed off on. The plan is reused as it stands, the
-brief is not re-decided, and the audit rounds already spent stay spent.
-
-From a script, without the interview:
-
-```typescript
-const built = await deliver({
-	planner, workers: [coder], reviewer, auditor,
-	brief,
-	verify: commandVerifier({ cwd, command: "npm", args: ["test"] }),
-});
-built.approved; // the auditor signed off AND the check passed
-```
-
-**Reading code is not running it.** That `verify` is not a precaution: without
-it, a pair once wrote a helper and its tests, the reviewer approved, the auditor
-approved, and the test file imported `./slugify.js` for a file named
-`slugify.ts` - the suite never even loaded. When a check is configured, a
-failure outranks every approval above it.
-
-**The commit is made by this code, not by an agent.** The committer agent has no
-`bash`: it reads the brief and the diff and writes a message. `src/git.ts` does
-the rest, and has no function for `push`, `reset`, `rebase` or `--force` - a
-prompt is not a permission boundary, so the boundary is the API. There is no
-shell either: arguments are arrays and the message is piped to `git commit -F -`,
-so a message containing `rm -rf /` gets committed rather than executed.
-
-## Interviewing the user
-
-```typescript
-const { brief, answers } = await interview({ agent: interviewer, input: request, ask });
-```
-
-`ask` is a port: a select card in pi, `readline` in an example, a scripted array
-in the tests - which is how a conversation with a human is replayed offline.
-One question at a time, because a good second question depends on the first
-answer. Returning `undefined` from `ask` is the **submit**: what was already
-answered still counts and the brief is still written.
-
-## Defining an agent
-
-Markdown + frontmatter, following pi's convention (`~/.pi/agent/agents/*.md`,
-`.pi/agents/*.md`):
-
-```markdown
----
-name: reviewer
-description: Reviews code and returns actionable remarks
-tools: read, grep, find, ls
-model: anthropic/claude-sonnet-5
-lifetime: workflow
----
-
-You review the code produced and return at most 5 remarks…
-```
-
-`name` and `description` are mandatory; a file without them is ignored silently.
-Without `tools`, the subagent is read-only (`read`, `grep`, `find`, `ls`) - the
-recommended default for exploration.
-
-`loadAgents()` only loads user agents. Project agents (`.pi/agents/`) are
-repository-controlled content: ask for them explicitly with `scope: "project"`
-or `"both"`.
-
-## Display
-
-Display is an **observer, never a participant**. Unplug every reporter and the
-result is identical.
-
-```typescript
-await fanOut({ agent: scout, tasks, onEvent: (event) => console.log(event) });
-```
-
-A reporter that throws is swallowed: it cannot take a workflow down.
-
-### Watching subagents in herdr
-
-Per subagent it is opt-in (`openInHerdr`), so a fan-out of twenty branches
-cannot carpet the screen by accident. To watch **everything** while debugging a
-workflow:
-
-```bash
-/herdr on                     # for this pi session
-PI_SUBAGENT_HERDR=all node examples/03-fan-out.ts   # for a whole shell
-```
-
-```typescript
-createHerdrReporter({ all: true });   // from a script
-```
-
-
-Inside [herdr](https://herdr.dev), a subagent can get **its own split** and show
-you what it is doing:
-
-```typescript
-await fanOut({
-	agent: scout,
-	tasks,
-	concurrency: 3,
-	openInHerdr: true,   // opt-in, per subagent
-	onEvent: autoReporter(),
-});
-```
-
-`autoReporter()` picks herdr when it is running and stays silent otherwise -
-the same code runs either way, with no warning when herdr is absent.
-
-A herdr pane cannot host an in-process subagent: there is no process and no TTY
-to attach. So the pane does not host it - it tails a file we write, showing tool
-calls, streamed text, and the final usage line. Splits close on their own when
-their subagent does.
-
-`openInHerdr` is opt-in per subagent, like `lifetime`: a fan-out of twenty
-branches will not carpet your screen unless you asked for it. It can also be a
-default on the agent itself, which is often what you want - a scout is worth
-watching whoever calls it:
-
-```markdown
----
-name: scout
-description: Locates the code relevant to a question
-tools: read, grep, find, ls
-openInHerdr: true
----
-```
-
-`onEvent` takes a single listener, so watching in two places at once needs
-composing:
-
-```typescript
-onEvent: combineReporters(collector.reporter, createHerdrReporter());
-```
-
-`createHerdrReporter()` returns `undefined` outside herdr, and
-`combineReporters` drops it.
+See [Deliver a change](docs/build.md) and [Pipelines](docs/pipelines.md).
 
 ## Using it from pi
 
-The extension exposes everything above as a `subagent` tool the model can call,
-rendered live in pi's TUI.
-
 ```bash
-pi -e extension                      # this session only
-pi install ./extension               # permanently, via settings
+pi -e extension          # this session only
+pi install ./extension   # permanently, via settings
 ```
-
-Works with pi 0.80.6 (what Homebrew ships) and 0.80.10 (npm): those two
-disagree on the model API, and `src/session.ts` detects which one it is running
-inside. Note that an extension resolves **pi's own copy** of the package, not
-this repository's `node_modules` - the version that matters is the pi you
-launched.
 
 ```
 > /build add a slugify helper with tests
 > use subagent to review src/usage.ts with coder then reviewer, looping until LGTM
-> use subagent with three scouts and reduceWith "synthesiser" to explain the export path
-> use subagent in orchestrate mode with planner and candidates scout, reviewer to audit the usage code
 ```
 
-While the subagents work, a dot per subagent sits just above the prompt:
+While the subagents work, a dot per subagent sits above the prompt with its
+model, tokens and a clock counting up live; the tool row below holds the record.
 
-```
-● scout#1  grep /lifetime/
-  ilaas/qwen-3.6-35b-instruct · ↑12k ↓209 · 12.4s
-✓ scout#2  done
-  ilaas/qwen-3.6-35b-instruct · ↑8k ↓150 · 8.1s
-```
+See [Extension](docs/extension.md) and [Display](docs/display.md).
 
-`●` while it works, `✓` when it succeeded, `✗` when it failed, coloured by
-status; the dimmed line underneath carries model, tokens and elapsed time,
-counting up live. The widget disappears the moment the work ends - the full
-record is one line below, in the tool row.
+## Documentation
 
-That collapsed row shows one line per subagent with its last tool calls; expand
-it (the hint comes from your own keybinding config, not a hard-coded `Ctrl+O`)
-for the full task, every tool call, the output as Markdown, and usage per
-subagent. A parallel run shows the parallelism it achieved; a loop says whether
-it **converged** or merely ran out of iterations.
-
-Agents come from `~/.pi/agent/agents/` by default. This repository ships its
-demo agents in `.pi/agents/`, so ask for them explicitly:
-
-```
-> use subagent with scope "project" and agent "scout" to find the auth code
-```
-
-That is deliberate: project agents are repository-controlled content, so they
-are never loaded by default.
-
-Ask for `export: true` and the run leaves a `runs/<timestamp>/` behind - every
-subagent's transcript, the parent session's JSONL, and `usage.json` - with the
-path shown in the tool row:
-
-```
-> use subagent with export true to explore the parser with three scouts
-```
-
-## Examples
-
-Directly executable, one per shape:
-
-```bash
-node examples/01-run.ts       # disposable
-node examples/02-chain.ts     # the same chain in "task", then in "workflow"
-node examples/03-fan-out.ts   # 3 tasks, 2 at a time
-node examples/04-loop.ts      # coding ↔ review, as a team then with fresh eyes
-node examples/05-herdr.ts     # a fan-out with one herdr split per branch
-node examples/06-export.ts    # a fan-out exported to runs/<timestamp>/
-node examples/07-reduce.ts    # 3 scouts, then one synthesiser: N→1
-node examples/08-route.ts     # a classifier sends two tasks to two agents
-node examples/09-orchestrate.ts # the planner decides the split, then it runs
-node examples/10-interview.ts   # the interview, in a plain terminal
-node examples/11-build.ts       # the pipeline on a throwaway repo (it writes code)
-```
-
-Not every provider reports tokens - several return zero. For the usage lines to
-mean anything, pick one that does:
-
-```bash
-PI_SUBAGENT_MODEL=local/qwen/qwen3-coder-next node examples/03-fan-out.ts
-```
-
-## Status
-
-Shipped so far: the foundation - `Agent`, `Subagent`, `Result`, `Usage`, the
-event bus - three combinators (`chain`, `fanOut`, `loop`), the reporters (herdr,
-TUI, console, silent), the nine combinators, the session export, and the pi
-extension - the `subagent` tool, plus `/interview` and `/build`.
-
-Still to come: judging the interactive rendering, and the question card, in a
-real terminal. See [`NEXT.md`](NEXT.md) for what is left and
-the traps already paid for.
+- [Manual](docs/index.md) - agents, lifetime, workflows, pipelines, display, export.
+- [API reference](docs/api/index.md) - every public export, generated from the
+  source and checked by the test suite.
+- [Examples](docs/examples.md) - one runnable script per shape.
+- [`AGENTS.md`](AGENTS.md) - the decisions, and the ones that were reversed.
+- [`NEXT.md`](NEXT.md) - what is left, and the traps already paid for.

@@ -19,6 +19,7 @@ export type Result = {
 	messages: AgentMessage[];
 	/** Measurements of **this turn**. Cumulative usage lives on the `Subagent`. */
 	usage: Usage;
+	/** Whether the turn ran to completion. A model error is `false`, never a throw. */
 	ok: boolean;
 	/** Set if and only if `ok` is false. */
 	error?: string;

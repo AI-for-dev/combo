@@ -8,4 +8,5 @@
 
 import type { EventListener } from "../events.ts";
 
+/** Receives every event and does nothing with it. */
 export const silentReporter: EventListener = () => {};

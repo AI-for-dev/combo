@@ -113,8 +113,10 @@ export type ToolUi = {
 	setWidget(key: string, lines: string[] | undefined): void;
 };
 
+/** A streamed update: text for the model, no details until the run is over. */
 export type ToolUpdate = { content: { type: "text"; text: string }[]; details: undefined };
 
+/** The tool's final answer: what the model reads, plus what the renderers draw. */
 export type ToolOutput = {
 	content: { type: "text"; text: string }[];
 	details: Details;

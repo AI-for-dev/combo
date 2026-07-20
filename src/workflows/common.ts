@@ -27,9 +27,13 @@ export type WorkflowOptions = {
 	 * {@link AskOptions.timeoutMs} for why that guard is needed at all.
 	 */
 	timeoutMs?: number;
+	/** A single listener for the whole workflow. Compose with {@link combineReporters}. */
 	onEvent?: EventListener;
+	/** Report onto an existing bus instead of a private one - the extension's case. */
 	bus?: EventBus;
+	/** Working directory of every subagent. Defaults to the process's own. */
 	cwd?: string;
+	/** Where the session files live. Implied by `exportDir`; set it to move them. */
 	sessionDir?: string;
 	/**
 	 * Where every subagent of this workflow writes its transcript when it

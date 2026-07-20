@@ -11,9 +11,9 @@
 		"noFallthroughCasesInSwitch": true,
 		"verbatimModuleSyntax": true,
 
-		// Node exécute le TypeScript nativement : il efface les types, il ne les
-		// compile pas. `erasableSyntaxOnly` interdit donc enum, namespace et
-		// paramètres-propriétés, qui demanderaient une vraie étape de build.
+		// Node runs TypeScript natively: it erases types, it does not compile
+		// them. `erasableSyntaxOnly` therefore forbids enum, namespace and
+		// parameter properties, which would require a real build step.
 		"allowImportingTsExtensions": true,
 		"erasableSyntaxOnly": true,
 		"noEmit": true,
@@ -21,5 +21,5 @@
 		"skipLibCheck": true,
 		"types": ["node"]
 	},
-	"include": ["src/**/*.ts", "test/**/*.ts", "examples/**/*.ts", "extension/**/*.ts"]
+	"include": ["src/**/*.ts", "test/**/*.ts", "examples/**/*.ts", "extension/**/*.ts", "scripts/**/*.ts"]
 }

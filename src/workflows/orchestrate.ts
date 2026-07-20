@@ -13,6 +13,7 @@ import { fanOut } from "./fan-out.ts";
 import { makePlan, type PlannedTask, type PlanOptions } from "./plan.ts";
 import { reduce } from "./reduce.ts";
 
+/** {@link PlanOptions}, plus how the planned subtasks are run and folded. */
 export type OrchestrateOptions = PlanOptions & {
 	/** Subtasks in flight at once, as in {@link fanOut}. Defaults to 4. */
 	concurrency?: number;
@@ -20,6 +21,7 @@ export type OrchestrateOptions = PlanOptions & {
 	reduceWith?: Agent;
 };
 
+/** The plan, what it produced, and optionally the one answer it was folded into. */
 export type OrchestrateResult = {
 	/** What the planner asked for, after validation. Empty when planning failed. */
 	plan: PlannedTask[];
@@ -33,6 +35,7 @@ export type OrchestrateResult = {
 	usage: Usage;
 	/** False when the planning failed or produced nothing runnable. */
 	ok: boolean;
+	/** Set if and only if `ok` is false. */
 	error?: string;
 };
 

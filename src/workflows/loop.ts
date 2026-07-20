@@ -17,6 +17,7 @@ import { SubagentPool, type WorkflowOptions } from "./common.ts";
  */
 export type UntilPredicate = (result: Result, iteration: number) => boolean | Promise<boolean>;
 
+/** The cycle: what runs, on what, and the two guards that end it. */
 export type LoopOptions = WorkflowOptions & {
 	/** Agents run in order, once per iteration. Output flows from one to the next. */
 	steps: Agent[];
@@ -38,6 +39,7 @@ export type LoopOptions = WorkflowOptions & {
 	maxIterations?: number;
 };
 
+/** A {@link WorkflowResult}, plus whether the bar was actually reached. */
 export type LoopResult = WorkflowResult & {
 	/** Iterations actually run, including the one that satisfied `until`. */
 	iterations: number;

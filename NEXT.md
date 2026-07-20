@@ -9,8 +9,11 @@ State: 434 offline tests, clean typecheck, working tree clean.
 Shipped: the foundation (`Agent`, `Subagent`, `Result`, `Usage`, event bus),
 nine combinators (`chain`, `fanOut`, `loop`, `reduce`, `route`, `orchestrate`,
 `interview`, `pair`, `deliver`), four reporters (herdr, TUI, console, silent),
-the session export, and the pi extension: the `subagent` tool plus `/interview`,
-`/herdr` and `/build` (with `/build resume`).
+the session export, **pipelines** (a workflow written in Markdown, discovered in
+`~/.pi/agent/pipelines` and `.pi/pipelines`, run by `/build`), a generated and
+test-enforced `docs/`, and the pi extension: the `subagent` tool plus
+`/interview`, `/herdr` and `/build` (with `/build resume` and
+`/build --pipeline <name>`).
 
 All four founding requirements of `AGENTS.md` are met, and the end-to-end flow
 (question → interview → plan → worker/reviewer pairs → check → audit → commit)
@@ -28,6 +31,7 @@ pi -e extension
 /interview add a cache in front of the agent loader
 /herdr on                                  # a split per subagent, to watch it work
 /build add a slugify helper with tests      # in a throwaway repository
+/build --pipeline explore how usage is measured
 /build resume                               # after interrupting one
 ```
 

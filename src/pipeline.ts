@@ -40,12 +40,14 @@ export const STEP_KINDS = [
 	"deliver",
 ] as const;
 
+/** The name of a combinator, narrowed to the ones a pipeline may name. */
 export type StepKind = (typeof STEP_KINDS)[number];
 
 /** One combinator call. `agents` are names; resolution happens later. */
 export type PipelineStep = {
 	/** Joins the frontmatter entry to its `## <id>` section. Unique. */
 	id: string;
+	/** The combinator this step calls. Exactly one per step, checked at parse time. */
 	kind: StepKind;
 	/** The agents carried by the verb itself, in order. */
 	agents: string[];
@@ -71,21 +73,33 @@ export type PipelineStep = {
 	 */
 	tasks?: string[];
 
+	/** Overrides the run's lifetime for this step alone. Defaults to the run's. */
 	lifetime?: Lifetime;
+	/** Give this step's subagents their own herdr split. Opt-in, like everywhere. */
 	openInHerdr?: boolean;
+	/** `fanOut` / `orchestrate` / `deliver`: branches in flight at once. */
 	concurrency?: number;
+	/** `fanOut`: stop at the first failing branch instead of letting the others finish. */
 	failFast?: boolean;
 	/** `loop`: converged when the output contains this text. */
 	until?: string;
+	/** `loop`: hard cap on iterations. Defaults to 5 - never reachable by omission. */
 	maxIterations?: number;
+	/** `pair` / `deliver`: worker-review exchanges per subtask. Defaults to 3. */
 	maxRounds?: number;
+	/** `orchestrate` / `deliver`: how many subtasks a plan may contain. Defaults to 8. */
 	maxTasks?: number;
+	/** `deliver`: audit then fix cycles. Defaults to 2. */
 	maxAuditRounds?: number;
+	/** Deadline **per turn** of this step. No default: see `AskOptions.timeoutMs`. */
 	timeoutMs?: number;
 };
 
+/** A whole pipeline: its identity, its steps, and the check they must pass. */
 export type Pipeline = {
+	/** How the pipeline is asked for. Mandatory, like an agent's. */
 	name: string;
+	/** One line on what it delivers. For a human reading a listing. */
 	description?: string;
 	/**
 	 * The project's own check: a command and its arguments, as a list.
@@ -95,6 +109,7 @@ export type Pipeline = {
 	 * `execFile` with no shell precisely so that an argument stays an argument.
 	 */
 	verify?: string[];
+	/** Run in order, each one receiving the previous one's output. Never empty. */
 	steps: PipelineStep[];
 	/** File path, or a free label for a pipeline built in memory. */
 	filePath: string;

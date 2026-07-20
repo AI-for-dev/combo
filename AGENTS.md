@@ -255,6 +255,47 @@ Rules:
   fit a context window is a real need when it appears, and until it does it
   would be a configuration knob nobody asked for.
 
+## Pipelines: a workflow written down
+
+`src/pipeline.ts` parses one, `src/pipeline-load.ts` finds it, and
+`src/workflows/pipeline-run.ts` walks it. `/build` runs one.
+
+- **`/build` has no built-in behaviour any more, it has a default file.**
+  `DEFAULT_BUILD_PIPELINE` is a pipeline like any other, parsed by the same
+  parser and run by the same runner. Had the command kept a hard-coded path
+  "for the simple case", that path and the pipeline path would have drifted
+  within two changes, and the file would have become the untested one.
+- **Only the middle is a pipeline.** The interview and the commit stay stops of
+  the command: a question card owns the terminal, and "the agent writes the
+  message, our code makes the commit" is a boundary a file must not be able to
+  move. A pipeline describes *work*, not *acts on the world* - which is also why
+  `runPipeline` takes a `Verify` port and never builds one from the `verify`
+  field itself. Naming a command and running it are two decisions, and the
+  second belongs to whoever owns the working tree.
+- **An agent does not write pipelines.** It was considered and dropped: what a
+  generated pipeline buys is a reviewable artefact, and `orchestrate` already
+  gives that with a parser and a cap. A second, larger place where a model
+  decides the shape of a run is more surface for the same benefit. A user writes
+  the file; the file is data; the run is ours.
+- **A broken `build.md` is refused, never silently replaced by the default.**
+  The whole point of `findPipeline` reporting a parse error is that a file
+  sitting right there and quietly not being used is the failure nobody detects.
+- **Everything is resolved before the interview.** Parsing, shape checks and
+  every agent name, so a typo costs a second rather than a conversation and
+  three steps of real work. That is the same reasoning as `orchestrate`
+  validating a plan before spawning, one level up.
+- **Resuming is keyed by step id.** `BuildState.step` is optional: a state
+  written before pipelines existed has none, and a single-delivery pipeline has
+  nothing to disambiguate. It earns its place the day a pipeline delivers twice,
+  where handing the second delivery the first one's approved subtasks would
+  resume the wrong work.
+- **A `loop` that never converges fails its pipeline.** Passing unconverged work
+  to the next step is exactly the silent success `converged` exists to expose;
+  in code the caller reads the flag, and in a file there is nobody to read it.
+- **`reduce` folds the step before it.** That is what the linear rule buys: no
+  templating, no `${{ steps.x.output }}`, and the one N-to-1 case that matters
+  still works. A `reduce` with nothing to fold fails without spawning.
+
 ## Measurements: time and tokens per subagent
 
 Nothing is estimated, nothing is recomputed by hand: pi already exposes the
@@ -721,12 +762,56 @@ Documentation is part of the deliverable, not a follow-up task.
 - **This file records decisions**, not the state of the code. When a decision is
   reversed, the reversal is written down here with its reason.
 
+### The reference is generated, and the drift is a test
+
+`docs/api/` is produced by `scripts/gen-docs.ts` from the TSDoc of everything
+`src/index.ts` re-exports, and `test/docs.test.ts` compares the checked-in pages
+against what the generator produces today. That is the whole point: a reference
+page maintained by hand is a second copy of the code, and the copy is wrong the
+moment someone edits a signature - silently, because nothing else in the suite
+reads Markdown. Editing a signature without `npm run docs` is now a red test.
+
+- **The TypeScript compiler API, not a documentation generator.** `typescript` is
+  already a devDependency (it is what `npm run typecheck` runs), so the choice
+  costs nothing; typedoc would have added a dependency and produced an artefact
+  nobody can review in a diff.
+- **Type declarations are rendered verbatim**, members' TSDoc included. A page
+  listing `DeliverOptions` without saying what `maxRounds` does sends the reader
+  back to the source, which is the failure the page exists to prevent. That is
+  also why the coverage rule demands **members on the public surface**: an
+  options type a caller has to fill in is unusable without a word per field.
+  Internal record shapes are exempt, because demanding prose there produces the
+  comment that restates the signature.
+- **Grouped by declaring file, not by barrel.** `reporters/` is one export line
+  in `src/index.ts` and four genuinely different concerns.
+- **What is written by hand is checked mechanically, not left to discipline.**
+  The pages under `docs/` explain decisions, so they cannot be generated - but a
+  dead link, a page missing from `docs.json`, and a code fence importing a symbol
+  that no longer exists are all mechanical, so all three are tests. Keeping those
+  failures out of the way is what leaves review free for the only question a
+  machine cannot answer: is the paragraph still true.
+- **`docs/` follows pi's own shape** (`index.md`, topic pages, `docs.json`
+  navigation), because a reader arriving from pi's documentation should not have
+  to learn a second layout. `README.md` is the landing page and links into it
+  rather than repeating it - two copies of the same explanation drift, and the
+  longer one always loses.
+
 ## Target structure
 
 ```
 AGENTS.md  README.md  package.json  tsconfig.json
+docs/               # the manual: index.md, topic pages, docs.json (pi's shape)
+  api/              # generated by `npm run docs`, never edited by hand
+scripts/
+  api-docs.ts       # source -> documentation model -> Markdown
+  gen-docs.ts       # writes docs/api/
+  doc-coverage.ts   # every export documented, as data a test can fail on
+  doc-links.ts      # dead links, unreachable pages, imports that no longer exist
+pipelines/          # example pipelines (symlinked into .pi/pipelines)
 src/
   agent.ts          # type Agent + loading the .md files (frontmatter)
+  pipeline.ts       # a workflow as data: parsing and validating the .md
+  pipeline-load.ts  # finding them: ~/.pi/agent/pipelines, .pi/pipelines
   ask.ts            # AskUser: the one place a workflow blocks on a human
   resume.ts         # build.json: what survives a Ctrl+C, and what deliberately does not
   verify.ts         # Verify: running the project's own check, no shell
@@ -742,6 +827,7 @@ src/
     common.ts       # WorkflowOptions + SubagentPool (the lifetime rule) + mapConcurrent
     plan.ts         # makePlan/parsePlan: how an agent's decision is read
     chain.ts  fan-out.ts  loop.ts  orchestrate.ts  route.ts  reduce.ts
+    pipeline-run.ts # walking a pipeline: our code decides the order, never an agent
     interview.ts    # the user, one question at a time, then a brief
     pair.ts         # worker ↔ reviewer until accepted
     deliver.ts      # brief → plan → pairs → check → audit → fixes

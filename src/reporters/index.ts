@@ -33,6 +33,7 @@ export {
 	type WidgetRow,
 } from "./tui.ts";
 
+/** {@link HerdrOptions}, plus what to do when there is no herdr to talk to. */
 export type AutoReporterOptions = HerdrOptions & {
 	/** Used when herdr is absent. Defaults to {@link silentReporter}. */
 	fallback?: EventListener;

@@ -7,11 +7,13 @@ import { failed, type Result } from "./../result.ts";
 import { sumUsage, type Usage } from "./../usage.ts";
 import { mapConcurrent, SubagentPool, type WorkflowOptions } from "./common.ts";
 
+/** The branches, who runs them, and how many may run at once. */
 export type FanOutOptions = WorkflowOptions & {
 	/** The agent running every branch, unless {@link FanOutOptions.agents} is given. */
 	agent?: Agent;
 	/** One agent per task, when branches use different agents. */
 	agents?: Agent[];
+	/** One task per branch. Their order is the order of the results. */
 	tasks: string[];
 	/** Maximum number of branches in flight. Defaults to 4. */
 	concurrency?: number;
@@ -19,6 +21,7 @@ export type FanOutOptions = WorkflowOptions & {
 	failFast?: boolean;
 };
 
+/** The branches' results, and what the parallelism actually was. */
 export type FanOutResult = {
 	/** One result per task, **in the order of `tasks`** - not of completion. */
 	results: Result[];

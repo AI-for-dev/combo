@@ -19,11 +19,13 @@ import { SubagentPool, type WorkflowOptions } from "./common.ts";
 /** The word a reviewer says when it has nothing left to ask for. */
 export const APPROVAL = "LGTM";
 
+/** The two agents, the work, and what counts as an approval. */
 export type PairOptions = WorkflowOptions & {
 	/** The agent doing the work. Needs the tools to actually do it. */
 	worker: Agent;
 	/** The agent reviewing it. Read-only is the point. */
 	reviewer: Agent;
+	/** The work to do. It is also what a resumed build re-issues verbatim. */
 	input: string;
 	/**
 	 * Decides whether the review is an approval. Defaults to {@link APPROVAL}
@@ -41,6 +43,7 @@ export type PairOptions = WorkflowOptions & {
 	maxRounds?: number;
 };
 
+/** The worker's last output, plus how the pair got there and whether it was accepted. */
 export type PairResult = Result & {
 	/** What the pair was asked for. A result that cannot say so cannot be resumed. */
 	input: string;
@@ -48,6 +51,7 @@ export type PairResult = Result & {
 	steps: Result[];
 	/** The last review, whether it approved or not. */
 	review?: Result;
+	/** Worker→review exchanges actually run. Reaching `maxRounds` is not approval. */
 	rounds: number;
 	/** Whether the reviewer accepted the work. Distinct from `ok`. */
 	approved: boolean;
