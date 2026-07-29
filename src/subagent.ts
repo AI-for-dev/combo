@@ -130,6 +130,21 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 	const usage: Usage = emptyUsage();
 	let closed = false;
 	let asking = false;
+	/**
+	 * How the last turn ended, so `close()` can say so.
+	 *
+	 * Without it `close()` announced `ok: true` unconditionally, and every
+	 * reporter reading the `close` event drew a green tick on a subagent that had
+	 * just failed - a 402 from the provider showed up as `✓ explorer#1`, with an
+	 * empty output nobody had a reason to look at. The verdicts were never wrong,
+	 * because a workflow reads the `Result` from `ask()`; only the display lied,
+	 * which is the one place a lie is not caught by anything downstream.
+	 *
+	 * The **last** turn and not "any turn ever": a persistent subagent that
+	 * failed a turn and then recovered is working, and `status: blocked` / `idle`
+	 * already follows the same rule turn by turn.
+	 */
+	let lastError: string | undefined;
 
 	// Streaming events are forwarded as they arrive - never buffered until the
 	// end of the turn, otherwise the TUI would show an opaque spinner.
@@ -225,6 +240,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 				? failed(agent.name, error, turn, messages)
 				: { agent: agent.name, output: lastAssistantText(messages), messages, usage: turn, ok: true };
 
+			lastError = error;
 			bus.emit({ type: "usage", id, usage: turn });
 			bus.emit({ type: "status", id, status: error ? "blocked" : "idle" });
 			return result;
@@ -254,13 +270,15 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 			bus.emit({
 				type: "close",
 				id,
-				result: {
-					agent: agent.name,
-					output: lastAssistantText(session.messages),
-					messages: [],
-					usage: finalUsage,
-					ok: true,
-				},
+				result: lastError
+					? { agent: agent.name, output: "", messages: [], usage: finalUsage, ok: false, error: lastError }
+					: {
+							agent: agent.name,
+							output: lastAssistantText(session.messages),
+							messages: [],
+							usage: finalUsage,
+							ok: true,
+						},
 			});
 		},
 	};

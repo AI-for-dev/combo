@@ -40,6 +40,20 @@ no enums, no namespaces, no parameter properties.
    (`StaticResourceLoader`, never `DefaultResourceLoader`). The single exception
    is `situate()`: its working directory, because that is the ground every tool
    call stands on.
+
+   **This invariant does not hold for the model, and that is a known hole.** An
+   agent with no `model:` gets `resolveModel() === undefined`, and pi's session
+   then falls back to `defaultProvider`/`defaultModel`/`defaultThinkingLevel`
+   from `~/.pi/agent/settings.json`. Measured: every shipped agent - none of
+   which declares a model - ran on `cerebras/gemma-4-31b` and returned 402
+   inside a session started with `--provider test-ilaas`, and every subagent
+   silently got `thinkingLevel: high` because the operator's settings said so.
+   So the caller's `--provider`/`--model` do not reach the subagents, and the
+   operator's personal file does. Two knock-on facts: `PI_SUBAGENT_MODEL` is
+   honoured by `examples/shared.ts` only, not by the extension, so frontmatter
+   is the *only* way to pin a subagent's model today; and an experiment that
+   pins its repository with a tag while leaving this floating is measuring the
+   operator. Until it is fixed, **declare `model:` in every agent file.**
 6. **`lifetime: "task"` is the default**; persistence is asked for, never
    obtained by accident. **Whoever opens, closes** - in a `finally`,
    cancellation included; a workflow that *receives* live subagents never closes

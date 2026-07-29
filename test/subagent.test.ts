@@ -244,6 +244,57 @@ describe("close", () => {
 		await subagent.close();
 		await assert.rejects(() => subagent.ask("a"), /is closed/);
 	});
+
+	// The close event is what every reporter draws its final state from. It used
+	// to announce `ok: true` whatever had happened, so a 402 from the provider
+	// was rendered `✓ explorer#1` with an empty output - "did not do the work"
+	// read as "worked fine", in the one place nothing downstream catches it.
+	test("the close event reports the failure of the last turn, not a green tick", async () => {
+		const closes: { ok: boolean; error?: string }[] = [];
+		const session = fakeSession([{ throws: "402 status code (no body)" }]);
+		const subagent = await spawn(scout, {
+			createSession: async () => session,
+			onEvent: (event) => {
+				if (event.type === "close") closes.push({ ok: event.result.ok, error: event.result.error });
+			},
+		});
+
+		const result = await subagent.ask("a");
+		await subagent.close();
+
+		assert.equal(result.ok, false, "the Result already said so");
+		assert.deepEqual(closes, [{ ok: false, error: "402 status code (no body)" }], "and so must the display");
+	});
+
+	test("a turn that failed then recovered closes green: the last turn is what counts", async () => {
+		const closes: boolean[] = [];
+		const session = fakeSession([{ throws: "boom" }, { text: "recovered" }]);
+		const subagent = await spawn(testAgent("reviewer", { lifetime: "workflow" }), {
+			createSession: async () => session,
+			onEvent: (event) => {
+				if (event.type === "close") closes.push(event.result.ok);
+			},
+		});
+
+		assert.equal((await subagent.ask("a")).ok, false);
+		assert.equal((await subagent.ask("b")).ok, true);
+		await subagent.close();
+
+		assert.deepEqual(closes, [true]);
+	});
+
+	test("a subagent nobody asked anything closes green: nothing failed", async () => {
+		const closes: boolean[] = [];
+		const subagent = await spawn(scout, {
+			createSession: async () => fakeSession([]),
+			onEvent: (event) => {
+				if (event.type === "close") closes.push(event.result.ok);
+			},
+		});
+
+		await subagent.close();
+		assert.deepEqual(closes, [true]);
+	});
 });
 
 describe("events", () => {
