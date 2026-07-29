@@ -131,6 +131,7 @@ A typo in step four therefore costs a second, not three steps of real work.
 ```
 build    chain → deliver - Locate the code, split the work, implement it in pairs, audit the whole
 explore  fanOut → reduce - Three scouts read the code in parallel, then one agent answers
+split    orchestrate → reduce - A planner splits a read-only question between a scout and a reviewer
 ```
 
 It lists what is loaded, the shape of each run, and **the files that do not
