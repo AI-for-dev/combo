@@ -101,6 +101,7 @@ export {
 	findResumableBuild,
 	fromBuildState,
 	loadBuildState,
+	missingAgents,
 	saveBuildState,
 	toBuildState,
 	type BuildProgress,

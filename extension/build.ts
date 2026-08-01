@@ -43,6 +43,7 @@ import {
 	findPipeline,
 	loadAgents,
 	loadPipelines,
+	missingAgents,
 	run,
 	runPipeline,
 	status,
@@ -55,6 +56,7 @@ import {
 	type DeliverResult,
 	type InterviewResult,
 	type Pipeline,
+	type PipelineRunOptions,
 	type PipelineRunResult,
 	type Verify,
 } from "../src/index.ts";
@@ -179,6 +181,20 @@ export function toggleHerdr(args: string, ctx: CommandCtx): boolean {
 	return on;
 }
 
+/**
+ * The roster every command runs with.
+ *
+ * `scope: "both"` because a user typing a command in a repository *is* the
+ * explicit request the project-agents rule asks for; `builtin: true` because the
+ * agents shipped with this extension are always available, at the lowest
+ * priority - one of the user's own, or the repository's, replaces any of them by
+ * name. Written once: three call sites drifting on either flag is how `/build`
+ * and `/run` end up disagreeing about who exists.
+ */
+export function loadRoster(ctx: CommandCtx, deps: BuildDeps = {}): Agent[] {
+	return (deps.loadAgents ?? loadAgents)({ cwd: ctx.cwd, scope: "both", builtin: true });
+}
+
 /** Which agent plays which part. Names, so a user can substitute their own. */
 const CAST = {
 	planner: "planner",
@@ -236,6 +252,56 @@ export function parseLeadingFlags(args: string, names: readonly string[]): { fla
  * on the user's behalf.
  */
 export async function runBuild(args: string, ctx: CommandCtx, deps: BuildDeps = {}): Promise<PipelineRunResult | undefined> {
+	const plan = await validateBuild(args, ctx, deps);
+	if (!plan) return undefined;
+
+	const started = await loadOrResume(plan, ctx, deps);
+	if (!started) return undefined;
+
+	if (!(await confirmBrief(started, ctx))) {
+		return refuse(ctx, "build: stopped before any work started - the brief is in the editor", "info");
+	}
+
+	const ran = await runTheWork(plan, started, ctx, deps);
+
+	// The last delivery is what a human acts on. A pipeline with no `deliver`
+	// step has no `approved` to report, and saying "NOT approved" about a run
+	// that was never audited would be a lie about the work.
+	const built = ran.done.steps.map((step) => step.delivery).filter(Boolean).at(-1);
+	report(ran.done, built, ran.exportDir, ctx);
+
+	await submit(ran.label, started.brief, built?.approved ?? ran.done.ok, plan.committer, ctx, deps);
+	return ran.done;
+}
+
+/** Notifies and returns `undefined` - the shape every refusal in these commands has. */
+export function refuse(ctx: CommandCtx, message: string, level: "info" | "warning" | "error"): undefined {
+	ctx.ui.notify(message, level);
+	return undefined;
+}
+
+/** What a build needs settled before anybody is asked anything. */
+type BuildPlan = {
+	git: typeof REAL_GIT;
+	agents: Agent[];
+	pipeline: Pipeline;
+	/** The agent that writes the commit message. Resolved early: it is needed last. */
+	committer: Agent;
+	model?: string;
+	/** What the user typed, minus the flags. */
+	request: string;
+	/** The interrupted build being carried on, when this is a `/build resume`. */
+	previous?: { dir: string; state: BuildState };
+};
+
+/**
+ * Everything a mistake can cost, spent before the interview.
+ *
+ * The repository, the roster, the pipeline, the cast and `--model` are all
+ * checked while the only thing at stake is the user's next second - not the
+ * conversation they would otherwise have sat through first.
+ */
+async function validateBuild(args: string, ctx: CommandCtx, deps: BuildDeps): Promise<BuildPlan | undefined> {
 	const git = deps.git ?? REAL_GIT;
 	const { pipeline: wanted, model, request } = parseBuildArgs(args);
 
@@ -243,68 +309,86 @@ export async function runBuild(args: string, ctx: CommandCtx, deps: BuildDeps = 
 	// same brief, same plan, the approved subtasks kept. Everything the workers
 	// already wrote is still in the working tree, so redoing it would be paying
 	// twice and overwriting what a reviewer already accepted.
-	const resuming = request.trim().toLowerCase() === "resume";
 	let previous: { dir: string; state: BuildState } | undefined;
-	if (resuming) {
+	if (request.trim().toLowerCase() === "resume") {
 		previous = (deps.findResumable ?? findResumableBuild)("runs", ctx.cwd);
-		if (!previous) {
-			ctx.ui.notify("build: no interrupted build to carry on here", "warning");
-			return undefined;
-		}
+		if (!previous) return refuse(ctx, "build: no interrupted build to carry on here", "warning");
+	} else if (!request.trim()) {
+		return refuse(ctx, "build: say what you want built, for example /build add a cache to the loader", "warning");
 	}
 
-	if (!resuming && !request.trim()) {
-		ctx.ui.notify("build: say what you want built, for example /build add a cache to the loader", "warning");
-		return undefined;
-	}
 	if (!(await git.isRepository(ctx.cwd))) {
 		// Not pedantry: the whole point of the last step is that the work lands
 		// on a branch of its own, and there is no branch without a repository.
-		ctx.ui.notify("build: this is not a git repository - the work would have nowhere to land", "error");
-		return undefined;
+		return refuse(ctx, "build: this is not a git repository - the work would have nowhere to land", "error");
 	}
 
-	const agents = (deps.loadAgents ?? loadAgents)({ cwd: ctx.cwd, scope: "both", builtin: true });
-
-	// Everything a bad file can cost is spent here, before the interview: the
-	// pipeline is chosen, parsed and resolved against the roster while the only
-	// thing at stake is the user's next second.
-	let pipeline: Pipeline;
-	let committer: Agent;
+	const agents = loadRoster(ctx, deps);
 	try {
-		pipeline = choosePipeline(wanted, ctx, deps);
+		const pipeline = choosePipeline(wanted, ctx, deps);
 		checkPipelineAgents(pipeline, agents);
-		committer = findAgent(agents, CAST.committer);
-		// Same reasoning as the two lines above: a mistyped model must cost a
-		// second, not the interview it would otherwise sit through first.
+		const committer = findAgent(agents, CAST.committer);
+		// Same reasoning as the lines above: a mistyped model must cost a second,
+		// not the interview it would otherwise sit through first.
 		if (model) await (deps.checkModel ?? checkModel)(model);
+		return { git, agents, pipeline, committer, model, request, previous };
 	} catch (cause) {
-		ctx.ui.notify(cause instanceof Error ? cause.message : String(cause), "error");
-		return undefined;
+		return refuse(ctx, cause instanceof Error ? cause.message : String(cause), "error");
+	}
+}
+
+/** The brief a run starts from, and the progress it carries on with. */
+type StartingPoint = { brief: string; resume?: BuildProgress };
+
+/**
+ * Where the work starts: the saved brief and progress, or a fresh interview.
+ *
+ * A resumed build is never re-interviewed - that would ask the user to decide
+ * again what they decided an hour ago.
+ */
+async function loadOrResume(plan: BuildPlan, ctx: CommandCtx, deps: BuildDeps): Promise<StartingPoint | undefined> {
+	const previous = plan.previous;
+	if (!previous) {
+		const brief = (await runInterview(plan.request, ctx, deps))?.brief;
+		return brief ? { brief } : undefined;
 	}
 
-	// A resumed build already has its brief: interviewing again would ask the
-	// user to re-decide what they decided an hour ago.
-	const brief = previous ? previous.state.brief : (await runInterview(request, ctx, deps))?.brief;
-	if (!brief) return undefined;
-
-	const resume: BuildProgress | undefined = previous ? fromBuildState(previous.state, agents) : undefined;
-	if (previous && !resume) {
-		ctx.ui.notify("build: that build cannot be carried on - its agents no longer match", "error");
-		return undefined;
+	const resume = fromBuildState(previous.state, plan.agents);
+	if (!resume) {
+		// Naming them is the difference between a message that can be acted on
+		// and one that can only be shrugged at: the fix is to bring that agent
+		// back, or to start over. The directory is named too - it is where the
+		// state and the transcripts of that build are.
+		const missing = missingAgents(previous.state, plan.agents);
+		const why =
+			missing.length > 0
+				? `its plan needs ${missing.join(", ")}, and no agent of that name is loaded - the agents no longer match`
+				: "it was saved by another version of combo";
+		return refuse(ctx, `build: ${previous.dir} cannot be carried on - ${why}`, "error");
 	}
+	return { brief: previous.state.brief, resume };
+}
 
+/** The first of the two stops: the brief, before anything runs. */
+async function confirmBrief(started: StartingPoint, ctx: CommandCtx): Promise<boolean> {
+	const resume = started.resume;
 	const kept = resume?.tasks.filter((task) => task.approved).length ?? 0;
-	const start = await ctx.ui.confirm(
+	return await ctx.ui.confirm(
 		resume ? `Carry on? ${kept}/${resume.plan.length} subtask(s) already approved` : "Build this?",
-		firstLines(brief, 12),
+		firstLines(started.brief, 12),
 	);
-	if (!start) {
-		ctx.ui.notify("build: stopped before any work started - the brief is in the editor", "info");
-		return undefined;
-	}
+}
 
-	const label = previous ? previous.state.request : request.trim();
+/** The work itself: the check, the transcripts, the progress saves, the dots. */
+async function runTheWork(
+	plan: BuildPlan,
+	started: StartingPoint,
+	ctx: CommandCtx,
+	deps: BuildDeps,
+): Promise<{ done: PipelineRunResult; exportDir: string; label: string }> {
+	const { previous, pipeline, agents, model } = plan;
+	const { brief, resume } = started;
+	const label = previous ? previous.state.request : plan.request.trim();
 
 	// The bar the agents cannot talk their way past. A pipeline that names its
 	// own check has already stated it, once, in a file; otherwise the user is
@@ -317,8 +401,6 @@ export async function runBuild(args: string, ctx: CommandCtx, deps: BuildDeps = 
 	// A resumed build writes into the directory it started in: one run, one
 	// folder, whatever it took to finish it.
 	const exportDir = previous ? previous.dir : (deps.runDir ?? createRunDir)();
-	const save = deps.saveState ?? saveBuildState;
-	const startedAt = previous?.state.startedAt;
 	// The same dots the tool draws, and the same ones `/run` draws.
 	const live = liveRun(ctx.ui, { tickMs: deps.tickMs });
 
@@ -333,16 +415,7 @@ export async function runBuild(args: string, ctx: CommandCtx, deps: BuildDeps = 
 			exportDir,
 			verify,
 			model,
-			delivery: {
-				// A saved step carries on only in the step it belongs to: a
-				// two-delivery pipeline must not hand the second one the first
-				// one's approved subtasks.
-				resume: (stepId) => (resume && (previous?.state.step ?? stepId) === stepId ? resume : undefined),
-				// Written after the plan, after the subtasks and after every audit:
-				// whatever kills the process, what was paid for is on disk.
-				onProgress: (stepId, progress) =>
-					void save(exportDir, toBuildState(progress, { request: label, brief, cwd: ctx.cwd, startedAt, step: stepId })),
-			},
+			delivery: deliveryWiring(plan, started, { exportDir, label }, ctx, deps),
 			signal: ctx.signal,
 			onEvent: live.onEvent,
 		});
@@ -350,14 +423,35 @@ export async function runBuild(args: string, ctx: CommandCtx, deps: BuildDeps = 
 		live.stop(exportDir, done?.usage.wallMs ?? 0);
 	}
 
-	// The last delivery is what a human acts on. A pipeline with no `deliver`
-	// step has no `approved` to report, and saying "NOT approved" about a run
-	// that was never audited would be a lie about the work.
-	const built = done.steps.map((step) => step.delivery).filter(Boolean).at(-1);
-	report(done, built, exportDir, ctx);
+	return { done, exportDir, label };
+}
+/**
+ * How a delivery step finds what was already paid for, and where it saves what
+ * it pays for next.
+ *
+ * Both halves carry a subtlety worth stating: a saved step carries on only in
+ * the step it belongs to, and progress is written after every unit of work
+ * rather than at the end, so whatever kills the process, what was paid for is
+ * already on disk.
+ */
+function deliveryWiring(
+	plan: BuildPlan,
+	started: StartingPoint,
+	where: { exportDir: string; label: string },
+	ctx: CommandCtx,
+	deps: BuildDeps,
+): NonNullable<PipelineRunOptions["delivery"]> {
+	const save = deps.saveState ?? saveBuildState;
+	const { previous } = plan;
+	const about = { request: where.label, brief: started.brief, cwd: ctx.cwd, startedAt: previous?.state.startedAt };
 
-	await submit(label, brief, built?.approved ?? done.ok, committer, ctx, deps);
-	return done;
+	return {
+		// A two-delivery pipeline must not hand the second step the first one's
+		// approved subtasks.
+		resume: (stepId) =>
+			started.resume && (previous?.state.step ?? stepId) === stepId ? started.resume : undefined,
+		onProgress: (stepId, progress) => void save(where.exportDir, toBuildState(progress, { ...about, step: stepId })),
+	};
 }
 
 /** Says what the run amounted to, in the terms the pipeline actually supports. */
@@ -392,18 +486,18 @@ function report(done: PipelineRunResult, built: DeliverResult | undefined, expor
  *
  * A **broken** file is refused rather than silently replaced: a `build.md`
  * sitting there and quietly not being used is exactly the failure
- * `findPipeline` exists to make loud.
+ * `findPipeline` exists to make loud. `command` only names the caller in that
+ * message - `/run` refuses a broken file for the same reason `/build` does.
  */
-function choosePipeline(wanted: string | undefined, ctx: CommandCtx, deps: BuildDeps): Pipeline {
+export function choosePipeline(wanted: string | undefined, ctx: CommandCtx, deps: BuildDeps, command = "build"): Pipeline {
 	const catalogue = (deps.loadPipelines ?? loadPipelines)({ cwd: ctx.cwd, scope: "both", builtin: true });
 	const name = wanted ?? "build";
 
 	const broken = catalogue.broken.find((one) => one.name === name);
-	if (broken) throw new Error(`build: ${broken.filePath} does not parse: ${broken.error}`);
+	if (broken) throw new Error(`${command}: ${broken.filePath} does not parse: ${broken.error}`);
 
 	return findPipeline(catalogue, name);
 }
-
 
 /**
  * Asks once for the command that says whether the work is good.
@@ -437,7 +531,7 @@ async function submit(
 	const git = deps.git ?? REAL_GIT;
 	const dirty = await git.status(ctx.cwd);
 	if (!dirty.ok || !dirty.value.trim()) {
-		ctx.ui.notify("build: nothing changed on disk, so there is nothing to commit", "warning");
+		refuse(ctx, "build: nothing changed on disk, so there is nothing to commit", "warning");
 		return;
 	}
 
@@ -457,7 +551,7 @@ async function submit(
 	}
 
 	if (!message) {
-		ctx.ui.notify("build: no commit message was produced - the work is still in the working tree", "warning");
+		refuse(ctx, "build: no commit message was produced - the work is still in the working tree", "warning");
 		return;
 	}
 
@@ -466,26 +560,44 @@ async function submit(
 	const edited = await ctx.ui.editor("Commit message - edit it, or empty it to skip the commit", message);
 	const final = edited?.trim();
 	if (!final) {
-		ctx.ui.notify("build: no commit - everything is still in the working tree", "info");
+		refuse(ctx, "build: no commit - everything is still in the working tree", "info");
 		return;
 	}
 
-	const branch = branchName(request);
-	const go = await ctx.ui.confirm(`Commit on ${branch}?`, `${summary}\n\n${firstLines(final, 6)}`);
+	await makeCommit(branchName(request), final, summary, approved, ctx, deps);
+}
+
+/**
+ * The second of the two stops, and the only act in this file that reaches
+ * history.
+ *
+ * A branch of its own, always: the work lands somewhere the user can throw away
+ * without touching what they had. Nothing is pushed - that is theirs to decide.
+ */
+async function makeCommit(
+	branch: string,
+	message: string,
+	summary: string,
+	approved: boolean,
+	ctx: CommandCtx,
+	deps: BuildDeps,
+): Promise<void> {
+	const git = deps.git ?? REAL_GIT;
+	const go = await ctx.ui.confirm(`Commit on ${branch}?`, `${summary}\n\n${firstLines(message, 6)}`);
 	if (!go) {
-		ctx.ui.notify(`build: no commit - the work is in the working tree, ${approved ? "audited" : "NOT audited"}`, "info");
+		refuse(ctx, `build: no commit - the work is in the working tree, ${approved ? "audited" : "NOT audited"}`, "info");
 		return;
 	}
 
 	const branched = await git.createBranch(ctx.cwd, branch);
 	if (!branched.ok) {
-		ctx.ui.notify(`build: could not create ${branch}: ${branched.error}`, "error");
+		refuse(ctx, `build: could not create ${branch}: ${branched.error}`, "error");
 		return;
 	}
 
-	const committed = await git.commitAll(ctx.cwd, final);
+	const committed = await git.commitAll(ctx.cwd, message);
 	if (!committed.ok) {
-		ctx.ui.notify(`build: commit failed: ${committed.error}`, "error");
+		refuse(ctx, `build: commit failed: ${committed.error}`, "error");
 		return;
 	}
 
@@ -525,21 +637,18 @@ function firstLines(text: string, n: number): string {
  */
 export async function runInterview(request: string, ctx: CommandCtx, deps: BuildDeps = {}): Promise<InterviewResult | undefined> {
 	if (!request.trim()) {
-		ctx.ui.notify("interview: say what you want built, for example /interview add a cache to the loader", "warning");
-		return undefined;
+		return refuse(ctx, "interview: say what you want built, for example /interview add a cache to the loader", "warning");
 	}
 	if (ctx.hasUI === false) {
-		ctx.ui.notify("interview: there is nobody to ask outside an interactive session", "error");
-		return undefined;
+		return refuse(ctx, "interview: there is nobody to ask outside an interactive session", "error");
 	}
 
-	const agents = (deps.loadAgents ?? loadAgents)({ cwd: ctx.cwd, scope: "both", builtin: true });
+	const agents = loadRoster(ctx, deps);
 	let interviewer: Agent;
 	try {
 		interviewer = findAgent(agents, "interviewer");
 	} catch (cause) {
-		ctx.ui.notify(cause instanceof Error ? cause.message : String(cause), "error");
-		return undefined;
+		return refuse(ctx, cause instanceof Error ? cause.message : String(cause), "error");
 	}
 
 	ctx.ui.setStatus(STATUS, "interviewing…");

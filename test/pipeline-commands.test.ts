@@ -232,6 +232,31 @@ describe("/run", () => {
 		assert.match(said(), /\/pipelines lists them/);
 	});
 
+	test("a name with nothing after it is refused: an empty request costs real tokens", async () => {
+		const { ctx, said } = fakeCtx();
+		let ran = false;
+		await runNamed("explore", ctx, deps({ runPipeline: (async () => ((ran = true), {})) as never }));
+
+		assert.equal(ran, false);
+		assert.match(said(), /say what explore should work on/);
+	});
+
+	test("a broken file is named, rather than reported as an unknown pipeline", async () => {
+		const { ctx, said } = fakeCtx();
+		let ran = false;
+		await runNamed(
+			"explore x",
+			ctx,
+			deps({
+				loadPipelines: () => ({ pipelines: [], broken: [{ name: "explore", filePath: ".pi/pipelines/explore.md", error: "no steps" }] }),
+				runPipeline: (async () => ((ran = true), {})) as never,
+			}),
+		);
+
+		assert.equal(ran, false);
+		assert.match(said(), /run: \.pi\/pipelines\/explore\.md does not parse: no steps/);
+	});
+
 	test("an unknown name stops before anything is spawned", async () => {
 		const { ctx, said } = fakeCtx();
 		let ran = false;

@@ -681,6 +681,8 @@ describe("/build resume", () => {
 
 		assert.equal(ran, false);
 		assert.match(said(), /no longer match/);
+		assert.match(said(), /ghost/, "the missing agent is named: the fix is to bring it back, or start over");
+		assert.match(said(), /runs\/x/, "and so is the directory that state and its transcripts are in");
 	});
 
 	test("an unapproved run points at the way to carry it on", async () => {
