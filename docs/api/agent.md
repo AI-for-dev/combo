@@ -130,7 +130,11 @@ Discovery happens on every call: editing a `.md` is enough to reload it.
 export function loadAgentsFromDir(dir: string, source: AgentSource): Agent[] { … }
 ```
 
-Reads every `.md` in a directory. A missing or unreadable directory yields `[]`.
+Reads every `.md` in a directory.
+
+A file that does not parse is **dropped in silence** - that is pi's own
+behaviour for an agent, and we keep it. A missing or unreadable directory
+yields `[]`.
 
 ## `parseAgent`
 

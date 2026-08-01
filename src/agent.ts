@@ -6,10 +6,10 @@
  * data. Bringing an agent to life is `spawn()`'s job.
  */
 
-import * as fs from "node:fs";
 import * as path from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import { BUILTIN_AGENTS_DIR } from "./builtin.ts";
+import { asBoolean, asString, findProjectDir, readMarkdownDir } from "./markdown.ts";
 
 /**
  * Lifetime of a subagent - the central choice of this library.
@@ -132,7 +132,7 @@ export function loadAgents(options: { cwd?: string; scope?: AgentScope; builtin?
 		}
 	}
 	if (scope !== "user") {
-		const projectDir = findProjectAgentsDir(cwd);
+		const projectDir = findProjectDir(cwd, "agents");
 		if (projectDir) {
 			for (const agent of loadAgentsFromDir(projectDir, "project")) {
 				byName.set(agent.name, agent);
@@ -167,58 +167,18 @@ export function findAgent(agents: Agent[], name: string): Agent {
 	throw new Error(`Unknown agent "${name}". Loaded agents: ${agents.map((candidate) => candidate.name).join(", ")}`);
 }
 
-/** Reads every `.md` in a directory. A missing or unreadable directory yields `[]`. */
+/**
+ * Reads every `.md` in a directory.
+ *
+ * A file that does not parse is **dropped in silence** - that is pi's own
+ * behaviour for an agent, and we keep it. A missing or unreadable directory
+ * yields `[]`.
+ */
 export function loadAgentsFromDir(dir: string, source: AgentSource): Agent[] {
-	let entries: fs.Dirent[];
-	try {
-		entries = fs.readdirSync(dir, { withFileTypes: true });
-	} catch {
-		return [];
-	}
-
 	const agents: Agent[] = [];
-	for (const entry of entries) {
-		if (!entry.name.endsWith(".md")) continue;
-		if (!entry.isFile() && !entry.isSymbolicLink()) continue;
-
-		const filePath = path.join(dir, entry.name);
-		let content: string;
-		try {
-			content = fs.readFileSync(filePath, "utf-8");
-		} catch {
-			continue;
-		}
-
-		const agent = parseAgent(content, filePath, source);
+	for (const file of readMarkdownDir(dir)) {
+		const agent = parseAgent(file.content, file.filePath, source);
 		if (agent) agents.push(agent);
 	}
 	return agents;
-}
-
-/** Walks up parent directories to the first `.pi/agents/`. */
-function findProjectAgentsDir(cwd: string): string | undefined {
-	let dir = path.resolve(cwd);
-	for (;;) {
-		const candidate = path.join(dir, CONFIG_DIR_NAME, "agents");
-		try {
-			if (fs.statSync(candidate).isDirectory()) return candidate;
-		} catch {
-			// not here, walk up
-		}
-		const parent = path.dirname(dir);
-		if (parent === dir) return undefined;
-		dir = parent;
-	}
-}
-
-function asString(value: unknown): string | undefined {
-	return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
-}
-
-/** Frontmatter is YAML-ish: a flag may arrive as a boolean or as the text "true". */
-function asBoolean(value: unknown): boolean | undefined {
-	if (typeof value === "boolean") return value;
-	if (value === "true") return true;
-	if (value === "false") return false;
-	return undefined;
 }
