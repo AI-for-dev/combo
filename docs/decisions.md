@@ -924,3 +924,30 @@ Three rules the arithmetic depends on:
 Flag columns are the union of the outcome keys actually seen, so a study
 comparing `converged` gets a `converged` column with nothing configured. `error`
 never becomes one: a column of distinct sentences compares nothing.
+
+## The public surface: one entry point, grouped as it is learnt
+
+`src/index.ts` is the only door - the examples and the extension import from it,
+never from a file inside `src/`. What changed is that it is now **grouped the way
+the library is learnt** rather than alphabetically: start here (an agent, a run, a
+result), the combinators, watching a run, measuring a run, pipelines, the ports
+that touch the world, the pi session. A reader who needs a dozen symbols finds
+them in the first section instead of scanning ninety.
+
+Two rules decide whether a symbol belongs on that list at all:
+
+- **A type named by a public option or return value is public.** `HerdrSend` is
+  `HerdrOptions.send`, `HerdrEnv` is what `detectHerdr` returns, `CreateSession`
+  is `SpawnOptions.createSession` - remove any of them and the option cannot be
+  written from outside. This is why the option and result types of every
+  combinator stay, even though nothing in this repository names them.
+- **Test-only is a reason to stay off it.** Tests reach into `src/` directly, so a
+  helper exported for one is not part of the surface. Eleven symbols left on that
+  basis: the package's own directory constants (`PACKAGE_ROOT`,
+  `BUILTIN_AGENTS_DIR`, `BUILTIN_PIPELINES_DIR`), the herdr transport under
+  `detectHerdr` (`createHerdrSend`, `HERDR_SOURCE`), the leaf formatters
+  `widgetRows` already composes (`currentActivity`, `detailLine`, `elapsedMs`,
+  `widgetLines`) and the id counters (`nextSubagentId`, `resetSubagentIds`).
+
+Both rules are stated at the top of the file, because the next person adding an
+export will read that before they read this.
