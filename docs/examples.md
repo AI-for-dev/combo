@@ -38,12 +38,9 @@ runs one per model, which is what an [experiment](experiments.md) is.
 
 ## Watching them work
 
-```bash
-COMBO_HERDR=all node examples/03-fan-out.ts
-```
-
-Inside [herdr](https://herdr.dev), that gives every subagent its own split. See
-[Display](display.md).
+`examples/05-herdr.ts` asks for a split per subagent with `openInHerdr: true`.
+Inside [herdr](https://herdr.dev) that gives every branch its own pane, and
+outside it the run is identical. See [Display](display.md).
 
 ## A note on what an example may do
 

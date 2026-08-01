@@ -119,13 +119,15 @@ core, because who gets a pane is a display decision and the workflow runs
 identically either way:
 
 ```bash
-/herdr on                                            # for this pi session
-COMBO_HERDR=all node examples/03-fan-out.ts    # for a whole shell
+/herdr on                              # for this pi session
 ```
 
 ```typescript
-createHerdrReporter({ all: true });                  // from a script
+createHerdrReporter({ all: true });    // from a script
 ```
+
+There is no environment variable for it, and there will not be: configuration is
+an argument or a command, never something a shell exported three days ago.
 
 ## The pi TUI
 

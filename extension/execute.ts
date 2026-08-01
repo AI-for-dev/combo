@@ -21,7 +21,6 @@ import {
 	createHerdrReporter,
 	createTuiCollector,
 	fanOut,
-	herdrAllFromEnv,
 	findAgent,
 	loadAgents as loadAgentsFromDisk,
 	loop,
@@ -54,9 +53,9 @@ const TICK_MS = 250;
  * A module-level switch rather than an argument threaded everywhere: it is a
  * preference about this terminal, it survives across tool calls and commands,
  * and `/herdr on` is how a user sets it without touching a single call site.
- * The environment seeds it, so a shell can be started already watching.
+ * It starts off: nothing ambient turns it on.
  */
-let watchAll = herdrAllFromEnv();
+let watchAll = false;
 
 /** Whether every subagent currently gets a split. */
 export function watchEverything(): boolean {
