@@ -1,7 +1,14 @@
 # combo
 
-Write [pi](https://pi.dev) subagents and compose workflows, without rewriting the
-plumbing every time.
+[pi](https://pi.dev) is a coding agent that ships an SDK: a session can be started
+inside your own process rather than driven through a terminal. combo is the layer
+above it. A Markdown file becomes an **agent**, an agent becomes a **subagent
+whose lifetime you control**, and subagents compose into **workflows written in
+TypeScript**.
+
+Reach for it when one agent is not enough: a coder and a reviewer looping until
+they agree, three scouts reading a codebase in parallel, the same workflow run
+against four models to see which one is worth its price.
 
 - **In-process subagents**, isolated and composable in TypeScript.
 - An **explicit lifetime**: disposable, or persistent across a workflow. The
@@ -11,16 +18,11 @@ plumbing every time.
 - **Everything measured and exportable**: time and tokens per subagent, plus a
   readable HTML and replayable JSONL export of a whole run.
 
-The full manual is in [`docs/`](docs/index.md). The intent behind the design and
-every decision that shaped it live in
-[Design decisions](docs/decisions.md).
-
 ## Getting started
 
 ```bash
 npm install
 npm test          # offline, no network calls
-npm run typecheck
 ```
 
 Node 23.6 or later runs TypeScript natively: there is no build step.
@@ -30,26 +32,14 @@ import { findAgent, loadAgents, run } from "combo";
 
 const agents = loadAgents();
 const result = await run(findAgent(agents, "scout"), "Find the authentication code");
+result.ok; // a model failure is a Result, never a throw
 ```
 
-The low level form gives you a live subagent whose lifetime you control:
+Everything returns that same `Result` - `{ agent, output, messages, usage, ok,
+error? }` - which is the one contract that makes workflows composable.
 
-```typescript
-import { spawn } from "combo";
-
-const coder = await spawn(coderAgent, { lifetime: "workflow" });
-try {
-	await coder.ask("Implement the parser");
-	await coder.ask("Apply these remarks: …");   // it remembers the previous turn
-} finally {
-	await coder.close();
-}
-```
-
-Both return the same `Result`: `{ agent, output, messages, usage, ok, error? }`.
-It is the one shared contract, and it is what makes workflows composable.
-
-See [Quickstart](docs/quickstart.md).
+**[Quickstart](docs/quickstart.md)** is the guided version: a disposable
+subagent, one that remembers, a workflow, and the same thing from inside pi.
 
 ## Workflows
 

@@ -16,32 +16,10 @@ Four things it promises:
 4. **Everything measured and exportable**: time and tokens per subagent, plus a
    readable HTML and replayable JSONL export of a whole run.
 
-## Quick start
-
-```bash
-npm install
-npm test          # offline, no network calls
-npm run typecheck
-```
-
-Node 23.6 or later runs TypeScript natively, so there is no build step.
-
-```typescript
-import { findAgent, loadAgents, run } from "combo";
-
-const agents = loadAgents();
-const result = await run(findAgent(agents, "scout"), "Find the authentication code");
-console.log(result.output, result.usage);
-```
-
-Then, from pi itself:
-
-```bash
-pi -e extension
-/build add a slugify helper with tests
-```
-
-See [Quickstart](quickstart.md) for the full first run.
+The first hour is [Quickstart](quickstart.md): installing, one disposable
+subagent, one that remembers, a workflow, and the same thing from inside pi. It is
+the only page that opens with a first example - everything here builds on it
+rather than restating it.
 
 ## Start here
 

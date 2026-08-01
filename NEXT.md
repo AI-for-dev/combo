@@ -62,14 +62,19 @@ Decided and done for the loading side: the extension ships `agents/` and
 anything being copied. `AGENTS.md` records why that reverses the rule it
 replaced.
 
-What is *not* done is the packaging itself. pi's `docs/packages.md` lists
-extensions, skills, prompt templates and themes - agents are not on that list, so
-`pi install` will not place anything in `~/.pi/agent/agents/`. It does not have
-to any more, since the extension carries its own; but before publishing to npm,
-check that `agents/` and `pipelines/` actually land in the tarball. There is no
-`files` field in `package.json` today, so they do - and adding one later without
-listing them would break `/build` silently. `test/pipeline-load.test.ts` asserts
-that a pipeline named `build` is shipped, which is the tripwire for exactly that.
+The tarball is now explicit: `files` lists `src`, `extension`, `agents`,
+`pipelines`, `README.md` and `docs` - 113 files, 191 kB, with `test/` and
+`examples/` left out. `npm pack --dry-run` is the check, and
+`test/pipeline-load.test.ts` fails if `files` ever stops listing `agents` or
+`pipelines`, which would break `/build` for every installed user while every
+other test still passed.
+
+What is *not* done is publishing. pi's `docs/packages.md` lists extensions,
+skills, prompt templates and themes - agents are not on that list, so `pi
+install` will not place anything in `~/.pi/agent/agents/`. It does not have to
+any more, since the extension carries its own and asks for them at the lowest
+priority. Nobody has run `npm publish`, and the name `combo` is unclaimed on the
+registry as far as this repository knows.
 
 ## How to verify anything here
 
