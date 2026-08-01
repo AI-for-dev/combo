@@ -13,7 +13,7 @@ import { describe, test } from "node:test";
 import { initTheme } from "@earendil-works/pi-coding-agent";
 import { parseBuildArgs, runBuild, runInterview, toggleHerdr, type BuildDeps, type CommandCtx } from "../extension/build.ts";
 import { parsePipeline } from "../src/pipeline.ts";
-import { watchEverything, watchEverythingIs } from "../extension/execute.ts";
+import { watchEverything, watchEverythingIs } from "../extension/run-ui.ts";
 import { BUILD_STATE_VERSION, type BuildState } from "../src/resume.ts";
 import type { DeliverResult } from "../src/workflows/deliver.ts";
 import type { PipelineRunResult } from "../src/workflows/pipeline-run.ts";

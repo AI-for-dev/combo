@@ -13,7 +13,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, test } from "node:test";
-import { executeSubagent, inferMode, paintWidget, textForModel, WIDGET } from "../extension/execute.ts";
+import { executeSubagent, inferMode, textForModel } from "../extension/execute.ts";
+import { paintWidget, STATUS } from "../extension/run-ui.ts";
 import type { SubagentEvent } from "../src/events.ts";
 import type { Details } from "../extension/execute.ts";
 import { fakeSpawn, testAgent } from "./fixtures/fake-subagent.ts";
@@ -34,7 +35,7 @@ function fakeUi() {
 		ui: {
 			theme: { fg: (_colour: string, text: string) => text },
 			setWidget(key: string, lines: string[] | undefined) {
-				assert.equal(key, WIDGET);
+				assert.equal(key, STATUS);
 				widgets.push(lines);
 			},
 		},
@@ -297,6 +298,22 @@ describe("executeSubagent", () => {
 				executeSubagent({ agent: "ghost", task: "x", export: true }, deps({ spawn: fakeSpawn().spawn, runDir: () => dir })),
 			);
 			assert.ok(fs.existsSync(path.join(dir, "usage.json")), "an interrupted run must export what it did");
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	test("export: with no session file to copy, usage.json claims no export at all", async () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-run-"));
+		try {
+			await executeSubagent(
+				{ agent: "scout", task: "a", export: true },
+				deps({ spawn: fakeSpawn().spawn, runDir: () => dir }),
+			);
+
+			const report = JSON.parse(fs.readFileSync(path.join(dir, "usage.json"), "utf8"));
+			assert.equal(report.exports, undefined, "an empty promise about the parent session is worse than none");
+			assert.ok(!fs.existsSync(path.join(dir, "main.jsonl")));
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}

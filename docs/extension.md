@@ -99,6 +99,14 @@ That split exists because the path that wires the reporters and calls the
 combinators is where the three worst bugs so far have hidden, each behind a green
 suite. It is now covered offline.
 
+**One live-run path.** The dots above the prompt, the repaint timer, the herdr
+reporter, the clean-up and `usage.json` are `liveRun()` in
+`extension/run-ui.ts` - one implementation, used by the `subagent` tool,
+`/build` and `/run`. They must look identical while they run, and three call
+sites with three timers is exactly how the one nobody is watching that day
+drifts. It reaches for neither the tool nor the commands, so the dependency runs
+one way.
+
 ## Reference
 
 - [Display](display.md) - the widget, the tool row, herdr splits.

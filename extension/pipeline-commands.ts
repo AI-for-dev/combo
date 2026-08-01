@@ -149,7 +149,7 @@ export async function runNamed(args: string, ctx: CommandCtx, deps: PipelineDeps
 	}
 
 	const exportDir = (deps.runDir ?? createRunDir)();
-	const live = liveRun(ctx.ui, deps.tickMs ?? 250);
+	const live = liveRun(ctx.ui, { tickMs: deps.tickMs });
 	ctx.ui.setStatus(STATUS, `running ${pipeline.name}…`);
 
 	let done: PipelineRunResult | undefined;
