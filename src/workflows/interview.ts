@@ -14,6 +14,7 @@
 import type { Agent } from "./../agent.ts";
 import type { Answer, AskUser, Choice, Question } from "./../ask.ts";
 import { failed, type Result } from "./../result.ts";
+import { jsonObjects, saysWord } from "./../text.ts";
 import { sumUsage, type Usage } from "./../usage.ts";
 import { SubagentPool, type WorkflowOptions } from "./common.ts";
 
@@ -145,10 +146,7 @@ export async function interview(options: InterviewOptions): Promise<InterviewRes
 
 /** `READY` on its own line, whatever decoration the model put around it. */
 function isReady(output: string): boolean {
-	return output
-		.trim()
-		.split("\n")
-		.some((line) => line.replace(/[*_`#\s.]/g, "").toUpperCase() === READY);
+	return saysWord(output, READY);
 }
 
 /** The opening turn: what the user wants, and how to ask about it. */
@@ -251,43 +249,3 @@ function readChoices(value: unknown): Choice[] {
 	return choices;
 }
 
-/**
- * Every balanced `{…}` block in the text that parses as JSON, in order.
- *
- * Shared shape with `parsePlan`'s scanner and kept separate on purpose: that one
- * collects steps, this one collects questions, and merging them would mean a
- * generic "find me some JSON" utility that neither caller could read.
- */
-function* jsonObjects(output: string): Generator<unknown> {
-	let depth = 0;
-	let start = -1;
-	let inString = false;
-	let escaped = false;
-
-	for (let i = 0; i < output.length; i++) {
-		const char = output[i];
-
-		if (inString) {
-			if (escaped) escaped = false;
-			else if (char === "\\") escaped = true;
-			else if (char === '"') inString = false;
-			continue;
-		}
-
-		if (char === '"') inString = true;
-		else if (char === "{") {
-			if (depth === 0) start = i;
-			depth++;
-		} else if (char === "}" && depth > 0) {
-			depth--;
-			if (depth === 0 && start >= 0) {
-				try {
-					yield JSON.parse(output.slice(start, i + 1));
-				} catch {
-					// not JSON after all - keep scanning
-				}
-				start = -1;
-			}
-		}
-	}
-}

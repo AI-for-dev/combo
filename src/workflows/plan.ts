@@ -27,9 +27,9 @@
 
 import type { Agent } from "./../agent.ts";
 import { failed, type Result } from "./../result.ts";
+import { jsonObjects, truncate } from "./../text.ts";
 import { SubagentPool, type WorkflowOptions } from "./common.ts";
 
-/** One subtask an agent asked for. */
 /** One step of a plan: a *resolved* agent - an unknown name never gets this far - and its task. */
 export type PlannedTask = {
 	/** Already resolved: an unknown name is dropped by the parser, never carried here. */
@@ -114,7 +114,7 @@ export async function makePlan(options: PlanOptions): Promise<PlanOutcome> {
 
 	const plan = parse(planning.output, workers);
 	if (plan.length === 0) {
-		return { plan: [], planning, ok: false, error: `no runnable plan: the planner answered ${JSON.stringify(preview(planning.output))}` };
+		return { plan: [], planning, ok: false, error: `no runnable plan: the planner answered ${JSON.stringify(truncate(planning.output, 120))}` };
 	}
 	if (plan.length > maxTasks) {
 		return {
@@ -179,7 +179,7 @@ export function parsePlan(output: string, workers: readonly Agent[]): PlannedTas
 type RawStep = { agent: string; task: string };
 
 /**
- * Every `{…}` block in the text that parses as a step, in order.
+ * Every JSON object in the text that carries a step, in order.
  *
  * Scanning for balanced braces rather than matching the whole answer is what
  * makes the array optional: an array, a bare object, several objects on their
@@ -187,47 +187,15 @@ type RawStep = { agent: string; task: string };
  */
 function parseJsonPlan(output: string): RawStep[] | undefined {
 	const steps: RawStep[] = [];
-
-	let depth = 0;
-	let start = -1;
-	let inString = false;
-	let escaped = false;
-
-	for (let i = 0; i < output.length; i++) {
-		const char = output[i];
-
-		if (inString) {
-			if (escaped) escaped = false;
-			else if (char === "\\") escaped = true;
-			else if (char === '"') inString = false;
-			continue;
-		}
-
-		if (char === '"') inString = true;
-		else if (char === "{") {
-			if (depth === 0) start = i;
-			depth++;
-		} else if (char === "}" && depth > 0) {
-			depth--;
-			if (depth === 0 && start >= 0) {
-				const step = readStep(output.slice(start, i + 1));
-				if (step) steps.push(step);
-				start = -1;
-			}
-		}
+	for (const block of jsonObjects(output)) {
+		const step = readStep(block);
+		if (step) steps.push(step);
 	}
-
 	return steps.length > 0 ? steps : undefined;
 }
 
 /** One JSON object, kept only if it really carries a step. */
-function readStep(text: string): RawStep | undefined {
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(text);
-	} catch {
-		return undefined;
-	}
+function readStep(parsed: unknown): RawStep | undefined {
 	const step = parsed as { agent?: unknown; task?: unknown };
 	if (typeof step?.agent !== "string" || typeof step?.task !== "string") return undefined;
 	return { agent: step.agent, task: step.task };
@@ -243,9 +211,4 @@ function parseLinePlan(output: string): RawStep[] {
 		steps.push({ agent: line.slice(0, colon), task: line.slice(colon + 1) });
 	}
 	return steps;
-}
-
-function preview(text: string, max = 120): string {
-	const flat = text.replace(/\s+/g, " ").trim();
-	return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
 }

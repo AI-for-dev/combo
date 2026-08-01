@@ -144,6 +144,7 @@ export {
 	type SessionPort,
 } from "./session.ts";
 export { spawn, type AskOptions, type SpawnOptions, type Subagent } from "./subagent.ts";
+export { truncate } from "./text.ts";
 export { commandVerifier, type CommandVerifierOptions, type Verification, type Verify } from "./verify.ts";
 export { compact, deltaUsage, emptyUsage, formatUsage, snapshotUsage, sumUsage, type Usage } from "./usage.ts";
 export { chain, type ChainOptions } from "./workflows/chain.ts";

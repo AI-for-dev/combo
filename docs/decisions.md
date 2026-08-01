@@ -247,6 +247,27 @@ Rules:
   fit a context window is a real need when it appears, and until it does it
   would be a configuration knob nobody asked for.
 
+### Reading what a model wrote lives in one file
+
+`src/text.ts` holds `truncate`, `firstLine`, `scalar`, `saysWord` and
+`jsonObjects`: everything that turns free-form assistant text into something a
+workflow can act on. Only `truncate` is on the public surface, because the
+extension needs it and an extension imports from `src/index.ts`, never from an
+internal file.
+
+**This reverses a decision.** `interview.ts` carried a comment saying its brace
+scanner was kept apart from `plan.ts`'s on purpose, since "merging them would
+mean a generic find-me-some-JSON utility that neither caller could read". The two
+had since become character-identical, and what they share is only the **scan** -
+each caller still keeps its own filter (`readStep`, the question reader), which
+is where the readability actually lives. The same held for the `LGTM` /
+`APPROVED` / `READY` matcher, written three times, and for `truncate`, written
+five times and already drifting: one copy trimmed, one did not.
+
+The rule that survives is the one that made the original call defensible: **a
+shared helper takes the part that is identical, never the part that is
+interpretation.**
+
 ## Pipelines: a workflow written down
 
 `src/pipeline.ts` parses one, `src/pipeline-load.ts` finds it, and

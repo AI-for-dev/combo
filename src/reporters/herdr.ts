@@ -13,6 +13,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { EventListener, SubagentEvent, SubagentStatus } from "../events.ts";
+import { scalar, truncate } from "../text.ts";
 import { formatUsage } from "../usage.ts";
 import { createHerdrSend, detectHerdr, HERDR_SOURCE, nextSeq, paneIdOf, type HerdrSend } from "./herdr-client.ts";
 
@@ -205,14 +206,7 @@ function formatArgs(args: unknown): string {
 	if (!args || typeof args !== "object") return "";
 	const summary = Object.entries(args as Record<string, unknown>)
 		.filter(([, value]) => value !== undefined && value !== null && value !== "")
-		.map(([key, value]) => `${key}=${short(value)}`)
+		.map(([key, value]) => `${key}=${truncate(scalar(value), 40)}`)
 		.join(" ");
 	return summary ? ` ${summary}` : "";
-}
-
-function short(value: unknown): string {
-	const text = typeof value === "string" ? value : JSON.stringify(value);
-	if (!text) return "";
-	const oneLine = text.replace(/\s+/g, " ");
-	return oneLine.length > 40 ? `${oneLine.slice(0, 39)}…` : oneLine;
 }

@@ -20,7 +20,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
-import { collapsedLine, formatToolCall, formatUsage, statusIcon, summaryTable } from "../src/index.ts";
+import { collapsedLine, formatToolCall, formatUsage, statusIcon, summaryTable, truncate } from "../src/index.ts";
 import registerCommands from "./build.ts";
 import registerPipelineCommands, { PIPELINE_MESSAGE } from "./pipeline-commands.ts";
 import { executeSubagent, inferMode, type Details, type Params } from "./execute.ts";
@@ -283,11 +283,6 @@ function totalLine(details: Details): string {
 		line += `  ×${(snapshot.usage.busyMs / details.wallMs).toFixed(2)}`;
 	}
 	return line;
-}
-
-function truncate(text: string, max: number): string {
-	const flat = text.replace(/\s+/g, " ").trim();
-	return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
 }
 
 // Kept so the collapsed helpers stay reachable from a script too.

@@ -13,6 +13,7 @@
 
 import type { Agent } from "./../agent.ts";
 import { failed, type Result } from "./../result.ts";
+import { saysWord } from "./../text.ts";
 import { sumUsage, type Usage } from "./../usage.ts";
 import { SubagentPool, type WorkflowOptions } from "./common.ts";
 
@@ -151,10 +152,7 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 
 /** `LGTM` on a line of its own, whatever decoration the model put around it. */
 function approvedByDefault(review: Result): boolean {
-	return review.output
-		.trim()
-		.split("\n")
-		.some((line) => line.replace(/[*_`#\s.]/g, "").toUpperCase() === APPROVAL);
+	return saysWord(review.output, APPROVAL);
 }
 
 /** What the reviewer is asked: the goal, then what was done about it. */

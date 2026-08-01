@@ -22,6 +22,7 @@
 
 import type { Agent } from "./../agent.ts";
 import { failed, type Result } from "./../result.ts";
+import { saysWord } from "./../text.ts";
 import { emptyUsage, sumUsage, type Usage } from "./../usage.ts";
 import type { BuildProgress } from "./../resume.ts";
 import type { Verification, Verify } from "./../verify.ts";
@@ -323,10 +324,7 @@ function fixesFrom(review: Result, workers: readonly Agent[]): PlannedTask[] {
 
 /** `APPROVED` on a line of its own, whatever decoration the model added. */
 function isApproved(output: string): boolean {
-	return output
-		.trim()
-		.split("\n")
-		.some((line) => line.replace(/[*_`#\s.]/g, "").toUpperCase() === AUDIT_APPROVAL);
+	return saysWord(output, AUDIT_APPROVAL);
 }
 
 /** What the auditor reads: the brief, then what each subtask claims it did. */

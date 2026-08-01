@@ -79,11 +79,14 @@ no enums, no namespaces, no parameter properties.
 src/                the library
   session.ts        the whole pi API, and nowhere else
   agent.ts subagent.ts run.ts result.ts usage.ts events.ts export.ts
+  text.ts           reading what a model wrote: truncate, saysWord, jsonObjects
+  experiment.ts experiment-report.ts    one workflow, M models, N repetitions
   ask.ts verify.ts git.ts resume.ts     the ports that touch the world
   pipeline.ts pipeline-load.ts builtin.ts
   workflows/        chain fan-out loop reduce route orchestrate
                     interview pair deliver pipeline-run, common.ts
-  reporters/        herdr, tui (collects and formats, draws nothing), console, silent
+  reporters/        herdr, tui (collects and formats, draws nothing), console,
+                    silent, record (the event stream on disk)
 extension/          the pi extension: tool, commands, renderers, UI
 agents/ pipelines/  shipped definitions (symlinked into .pi/)
 examples/ scripts/ test/ docs/
