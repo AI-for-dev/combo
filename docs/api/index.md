@@ -22,6 +22,7 @@ library, in [`README.md`](../../README.md); this is the exhaustive surface.
 | [`reporters/herdr-client`](reporters/herdr-client.md) | Detection and transport for herdr's socket API. Nothing else lives here. | 5 |
 | [`reporters/herdr`](reporters/herdr.md) | The herdr reporter: one split per subagent, showing it work. | 4 |
 | [`reporters/index`](reporters/index.md) | Choosing a reporter, so the caller does not have to. | 3 |
+| [`reporters/record`](reporters/record.md) | The event stream, on disk: one JSON object per line, in the order it happened. | 1 |
 | [`reporters/silent`](reporters/silent.md) | The no-op reporter. | 1 |
 | [`reporters/tui`](reporters/tui.md) | State and formatting for the pi TUI, with no pi-tui in sight. | 16 |
 | [`result`](result.md) | `Result`: the single contract shared by everything else. | 3 |

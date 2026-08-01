@@ -108,6 +108,28 @@ describe("experiment", () => {
 			);
 		});
 
+		test("every cell keeps its own event stream, interleaving included", async () => {
+			const report = await experiment({
+				models: ["a/one"],
+				runsDir: tmpDir(),
+				spawn: fakeSpawn().spawn,
+				run: async (cell) => ({ ok: (await chain({ ...cell.options, steps: [coder], input: "x" })).ok }),
+			});
+
+			const events = fs
+				.readFileSync(path.join(report.dir, "a-one", "rep-1", "events.jsonl"), "utf8")
+				.trimEnd()
+				.split("\n")
+				.map((line) => JSON.parse(line));
+
+			assert.deepEqual(
+				events.map((one) => one.type),
+				["spawn", "status", "status", "usage", "status", "status", "close"],
+			);
+			assert.equal(events[0].agent, "coder");
+			assert.ok(events.every((one) => typeof one.ts === "string"));
+		});
+
 		test("the subagents export into their own cell", async () => {
 			const fake = fakeSpawn();
 			const report = await experiment({

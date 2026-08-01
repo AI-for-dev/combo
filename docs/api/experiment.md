@@ -17,8 +17,9 @@ cell is the caller's business - a combinator, a `runPipeline`, or a whole
 script - and the only contract is that the cell's `options` are spread into
 it, so every subagent lands on that cell's model and in that cell's directory.
 
-Measurement is reused, never reinvented: each cell gets its own collector, and
-its `usage.json` is the same document a single run writes.
+Measurement is reused, never reinvented: each cell gets its own collector, its
+`usage.json` is the same document a single run writes, and its whole event
+stream is kept in `events.jsonl` next to it.
 
 ## `experiment`
 
@@ -55,8 +56,9 @@ export type ExperimentCell = {
 	 *
 	 * Spreading it is the contract: it carries the cell's `model` and
 	 * `exportDir`, the experiment's `signal`, `timeoutMs`, `cwd` and `spawn`, and
-	 * an `onEvent` combining the cell's own collector with the caller's listener.
-	 * A callback that rebuilds these by hand measures something else.
+	 * an `onEvent` combining the cell's own collector, its `events.jsonl`
+	 * recorder and the caller's listener. A callback that rebuilds these by hand
+	 * measures something else.
 	 */
 	options: WorkflowOptions;
 };

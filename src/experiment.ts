@@ -12,8 +12,9 @@
  * script - and the only contract is that the cell's `options` are spread into
  * it, so every subagent lands on that cell's model and in that cell's directory.
  *
- * Measurement is reused, never reinvented: each cell gets its own collector, and
- * its `usage.json` is the same document a single run writes.
+ * Measurement is reused, never reinvented: each cell gets its own collector, its
+ * `usage.json` is the same document a single run writes, and its whole event
+ * stream is kept in `events.jsonl` next to it.
  */
 
 import fs from "node:fs";
@@ -26,7 +27,7 @@ import {
 } from "./experiment-report.ts";
 import { createRunDir, exportBaseName, usageReport, writeUsageReport } from "./export.ts";
 import type { EventListener } from "./events.ts";
-import { combineReporters, createTuiCollector } from "./reporters/index.ts";
+import { combineReporters, createTuiCollector, recordReporter } from "./reporters/index.ts";
 import { abortError, mapConcurrent, type SpawnFn, type WorkflowOptions } from "./workflows/common.ts";
 
 /**
@@ -56,8 +57,9 @@ export type ExperimentCell = {
 	 *
 	 * Spreading it is the contract: it carries the cell's `model` and
 	 * `exportDir`, the experiment's `signal`, `timeoutMs`, `cwd` and `spawn`, and
-	 * an `onEvent` combining the cell's own collector with the caller's listener.
-	 * A callback that rebuilds these by hand measures something else.
+	 * an `onEvent` combining the cell's own collector, its `events.jsonl`
+	 * recorder and the caller's listener. A callback that rebuilds these by hand
+	 * measures something else.
 	 */
 	options: WorkflowOptions;
 };
@@ -155,7 +157,13 @@ async function runCell(
 			timeoutMs: options.timeoutMs,
 			cwd: options.cwd,
 			spawn: options.spawn,
-			onEvent: combineReporters(collector.reporter, options.onEvent),
+			// The recorder is not optional: a cell whose stream was not kept is a
+			// cell that can only ever be re-run, and a matrix is expensive.
+			onEvent: combineReporters(
+				collector.reporter,
+				recordReporter(path.join(dir, "events.jsonl")),
+				options.onEvent,
+			),
 		},
 	};
 

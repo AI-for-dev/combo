@@ -605,6 +605,23 @@ Display specification - this is the "Claude Code" bar we are aiming at:
   user's key configuration must be respected.
 - Reuse `context.lastComponent` instead of rebuilding the tree every frame.
 
+### The stream on disk
+
+`recordReporter(file)` appends every event as one JSON line. It is a reporter
+like the others - the run is identical without it - and it earns its place
+because pi's per-subagent JSONL cannot show the **interleaving**, nor carry a
+timestamp pi does not have.
+
+- **Verbatim, no filtering, no knob.** A recorder that edits its own record is
+  worse than a large file, and the question it will be asked is the one nobody
+  planned in advance.
+- **`appendFileSync`, not a write stream.** One syscall per event is the cost;
+  the run worth reading afterwards is the interrupted one, and a buffered stream
+  loses its tail exactly then. Same trade as the export.
+- **Every experiment cell gets one**, at `events.jsonl`, with no option to turn
+  it off. A cell whose stream was not kept can only be re-run, and a matrix is
+  expensive. The day someone needs it off is the day the knob is justified.
+
 ## Asking the user, and touching the world
 
 Two ports, one rule: **the agents produce text, our code performs the act.**
