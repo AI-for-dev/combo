@@ -59,8 +59,7 @@ import {
 	type Verify,
 } from "../src/index.ts";
 import { createAskUi, type AskUi } from "./ask-ui.ts";
-import { watchEverything, watchEverythingIs } from "./execute.ts";
-import { liveRun, pipelineVerifier, STATUS } from "./run-ui.ts";
+import { liveRun, pipelineVerifier, STATUS, watchEverything, watchEverythingIs } from "./run-ui.ts";
 
 /**
  * Everything these commands reach for, injectable.
@@ -321,7 +320,7 @@ export async function runBuild(args: string, ctx: CommandCtx, deps: BuildDeps = 
 	const save = deps.saveState ?? saveBuildState;
 	const startedAt = previous?.state.startedAt;
 	// The same dots the tool draws, and the same ones `/run` draws.
-	const live = liveRun(ctx.ui, deps.tickMs ?? 250);
+	const live = liveRun(ctx.ui, { tickMs: deps.tickMs });
 
 	let done: PipelineRunResult | undefined;
 	ctx.ui.setStatus(STATUS, "building…");

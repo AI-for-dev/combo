@@ -15,11 +15,7 @@
 
 import {
 	chain,
-	combineReporters,
-	copyMainSession,
 	createRunDir,
-	createHerdrReporter,
-	createTuiCollector,
 	fanOut,
 	findAgent,
 	loadAgents as loadAgentsFromDisk,
@@ -28,9 +24,6 @@ import {
 	reduce,
 	route,
 	progressLine,
-	usageReport,
-	widgetRows,
-	writeUsageReport,
 	type Agent,
 	type AgentScope,
 	type EventListener,
@@ -38,35 +31,8 @@ import {
 	type Result,
 	type SpawnFn,
 	type SubagentSnapshot,
-	type TuiSnapshot,
 } from "../src/index.ts";
-
-/** Key for the widget that lives above the prompt while subagents work. */
-export const WIDGET = "combo";
-
-/** How often the widget repaints while subagents are working, in ms. */
-const TICK_MS = 250;
-
-/**
- * Session-wide "open a herdr split for every subagent".
- *
- * A module-level switch rather than an argument threaded everywhere: it is a
- * preference about this terminal, it survives across tool calls and commands,
- * and `/herdr on` is how a user sets it without touching a single call site.
- * It starts off: nothing ambient turns it on.
- */
-let watchAll = false;
-
-/** Whether every subagent currently gets a split. */
-export function watchEverything(): boolean {
-	return watchAll;
-}
-
-/** Turns session-wide watching on or off. Returns the new state. */
-export function watchEverythingIs(on: boolean): boolean {
-	watchAll = on;
-	return watchAll;
-}
+import { liveRun, type RunUi } from "./run-ui.ts";
 
 /** The arguments the model sends. Every field optional: the mode is inferred. */
 export type Params = {
@@ -105,15 +71,6 @@ export type Details = {
 	exportDir?: string;
 };
 
-/** The colour subset of pi's `Theme` the widget needs. */
-export type WidgetTheme = { fg(colour: string, text: string): string };
-
-/** The slice of `ctx.ui` the tool uses; a test passes a double. */
-export type ToolUi = {
-	theme: WidgetTheme;
-	setWidget(key: string, lines: string[] | undefined): void;
-};
-
 /** A streamed update: text for the model, no details until the run is over. */
 export type ToolUpdate = { content: { type: "text"; text: string }[]; details: undefined };
 
@@ -128,7 +85,7 @@ export type ExecuteDeps = {
 	cwd?: string;
 	signal?: AbortSignal;
 	onUpdate?: (update: ToolUpdate) => void;
-	ui?: ToolUi;
+	ui?: RunUi;
 	/** Defaults to reading the agent directories from disk. */
 	loadAgents?: (options: { cwd?: string; scope?: AgentScope; builtin?: boolean }) => Agent[];
 	/** Defaults to the real `spawn`, through the combinators. */
@@ -160,45 +117,24 @@ export type ExecuteDeps = {
  * result.
  */
 export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): Promise<ToolOutput> {
-	const collector = createTuiCollector();
 	// `builtin: true`: the agents shipped with this extension are always in the
 	// roster, at the lowest priority - one of the user's own, or the
 	// repository's, replaces any of them by name.
 	const agents = (deps.loadAgents ?? loadAgentsFromDisk)({ cwd: deps.cwd, scope: asScope(params.scope), builtin: true });
 	const mode = inferMode(params);
 
-	// A dot per subagent, right above the prompt, for as long as they work.
-	// The tool row keeps the full record, so this stays minimal.
-	const ui = deps.ui;
-	const paint = () => {
-		if (!ui) return;
-		ui.setWidget(WIDGET, paintWidget(collector.snapshot(), ui.theme));
-	};
-
-	// Streaming: the row redraws as the subagents work, rather than sitting on
-	// an opaque spinner until the very end.
-	collector.onChange(() => {
-		deps.onUpdate?.({ content: [{ type: "text", text: progressLine(collector.snapshot()) }], details: undefined });
-		paint();
+	// The same dots, timer and report `/build` and `/run` get. Streaming the
+	// progress line is the one thing only the tool does: the row redraws as the
+	// subagents work, rather than sitting on an opaque spinner until the end.
+	const live = liveRun(deps.ui, {
+		tickMs: deps.tickMs,
+		reporter: deps.reporter,
+		herdrAll: params.herdrAll,
+		mainSessionFile: deps.mainSessionFile,
+		onChange: (snapshot) =>
+			deps.onUpdate?.({ content: [{ type: "text", text: progressLine(snapshot) }], details: undefined }),
 	});
-
-	// Events alone are not enough: a subagent that thinks for twenty seconds
-	// without calling a tool emits nothing, and a frozen clock looks like a
-	// hung agent.
-	const tickMs = deps.tickMs ?? TICK_MS;
-	const tick = tickMs > 0 ? setInterval(paint, tickMs) : undefined;
-	tick?.unref?.();
-
-	// Two observers, one stream. The TUI collector always listens; the herdr
-	// reporter joins only when pi itself runs inside herdr. Forgetting this
-	// line is what once let `openInHerdr` reach the spawn event with nobody
-	// listening.
-	// `herdrAll` belongs to the reporter, not to the spawn: whether a pane opens
-	// is a display decision, and the workflow runs identically either way.
-	const onEvent = combineReporters(
-		collector.reporter,
-		deps.reporter ?? createHerdrReporter({ all: params.herdrAll || watchEverything() }),
-	);
+	const collector = live.collector;
 
 	// The directory is created up front: subagents export themselves as they
 	// close, so it has to exist before the first one finishes.
@@ -213,7 +149,7 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 		model: params.model,
 		cwd: deps.cwd,
 		spawn: deps.spawn,
-		onEvent,
+		onEvent: live.onEvent,
 	};
 
 	const startedAt = performance.now();
@@ -303,15 +239,10 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 			}
 		}
 	} finally {
-		if (tick) clearInterval(tick);
-		// The widget lives only while the work does: the summary is one line up,
-		// in the tool row, and nothing should pile up above the prompt between
-		// two requests.
-		ui?.setWidget(WIDGET, undefined);
 		// In the `finally` on purpose: a run that was cancelled, or that died on
 		// an unknown agent, still has work worth keeping. The subagents' own
-		// transcripts landed as they closed; this adds what only we can produce.
-		if (exportDir) writeRunReport(exportDir, collector.snapshot(), performance.now() - startedAt, deps.mainSessionFile);
+		// transcripts landed as they closed; `stop` adds what only we produce.
+		live.stop(exportDir, performance.now() - startedAt);
 	}
 
 	const wallMs = performance.now() - startedAt;
@@ -322,41 +253,6 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 		content: [{ type: "text", text: textForModel(results, converged, iterations) }],
 		details: { mode, subagents: snapshot.subagents, wallMs, converged, iterations, decision, exportDir },
 	};
-}
-
-/**
- * Writes the two artefacts only this level can write: the parent session's
- * JSONL, and `usage.json`.
- *
- * Swallows its own failures - a full disk must not turn a finished workflow
- * into an error the model has to reason about.
- */
-function writeRunReport(dir: string, snapshot: TuiSnapshot, wallMs: number, mainSessionFile?: string): void {
-	try {
-		const main = copyMainSession(mainSessionFile, dir);
-		writeUsageReport(dir, usageReport(snapshot, wallMs, [main]));
-	} catch {
-		// an export is an observer of the run, never a participant
-	}
-}
-
-/**
- * Paints the dots that sit above the prompt.
- *
- * The lines themselves come from `widgetRows`, which knows nothing about
- * colour; this only applies the theme. Keeping the two apart is what lets the
- * layout be tested without a terminal.
- */
-export function paintWidget(snapshot: Parameters<typeof widgetRows>[0], theme: WidgetTheme): string[] {
-	return widgetRows(snapshot).map((row) => {
-		if (row.kind === "detail") return `  ${theme.fg("dim", row.text)}`;
-
-		const colour =
-			row.status === "failed" ? "error" : row.status === "done" ? "success" : row.status === "blocked" ? "warning" : "accent";
-		const dot = theme.fg(colour, row.icon);
-		// The id carries the weight; the activity is deliberately quiet.
-		return `${dot} ${theme.fg("toolTitle", row.id)}  ${theme.fg("muted", row.activity)}`;
-	});
 }
 
 /** What the model gets back: the outputs, plainly labelled. */
