@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="combo">
+  <title>combo</title>
+  <!-- The symmetric variant, light ground. Not the mark. -->
+  <g fill="#232B33">
+    <rect x="26" y="16" width="12" height="6" />
+    <rect x="26" y="29" width="12" height="6" />
+    <rect x="26" y="42" width="12" height="6" />
+  </g>
+  <path fill="#A97C2A" d="M8 12 H22 V18 H14 V46 H22 V52 H8 Z M56 12 H42 V18 H50 V46 H42 V52 H56 Z" />
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="combo">
+  <title>combo</title>
+  <!-- Favicon, avatar, social image. Carries its own ground and the small geometry. -->
+  <rect width="64" height="64" rx="13" fill="#232B33" />
+  <g transform="translate(32 32) scale(0.74) translate(-32 -32)">
+    <g fill="#EEF1F3">
+      <rect x="28" y="19" width="28" height="8" />
+      <rect x="28" y="36" width="28" height="8" />
+    </g>
+    <path fill="#C79338" d="M8 11 H23 V18.5 H15.5 V45.5 H23 V53 H8 Z" />
+  </g>
+</svg>

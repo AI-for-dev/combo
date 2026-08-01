@@ -35,6 +35,7 @@
 			"title": "Development",
 			"items": [
 				{ "title": "Development", "path": "development.md" },
+				{ "title": "The mark", "path": "logo.md" },
 				{ "title": "Design decisions", "path": "decisions.md" }
 			]
 		}

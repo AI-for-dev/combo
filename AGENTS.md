@@ -89,7 +89,10 @@ src/                the library
   reporters/        herdr, tui (collects and formats, draws nothing), console, silent
 extension/          the pi extension: tool, commands, renderers, UI
 agents/ pipelines/  shipped definitions (symlinked into .pi/)
+tools/              the logo generators and the vendored font: run by hand, never by
+                    the build, and the only Python in the repository
 examples/ scripts/ test/ docs/
+docs/_static/logo/  the mark, the lockups, the tile
 ```
 
 **One file, one concept.** Past roughly 200 lines it is mixing two.
@@ -140,6 +143,7 @@ not a bibliography:
 | change the extension, a command or a card | [docs/extension.md](docs/extension.md) |
 | add or change a pipeline | [docs/pipelines.md](docs/pipelines.md), [docs/build.md](docs/build.md) |
 | define an agent | [docs/agents.md](docs/agents.md) |
+| touch the mark, a lockup or the tile | [docs/logo.md](docs/logo.md) - edit the generator in `tools/`, never the path data |
 | pick up the project cold | [NEXT.md](NEXT.md) - what is left, and the traps already paid for |
 
 ## Conventions

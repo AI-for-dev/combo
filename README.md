@@ -1,4 +1,10 @@
-# combo
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)"
+            srcset="docs/_static/logo/combo-lockup-dark.svg">
+    <img src="docs/_static/logo/combo-lockup-light.svg" alt="combo" height="46">
+  </picture>
+</h1>
 
 Write [pi](https://pi.dev) subagents and compose workflows, without rewriting the
 plumbing every time.
