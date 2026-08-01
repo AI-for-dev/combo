@@ -22,7 +22,7 @@ afterEach(() => {
 
 /** A repository with one commit in it, so `HEAD` exists. */
 function repo(): string {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-git-"));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-git-"));
 	scratch.push(dir);
 
 	const run = (...args: string[]) => execFileSync("git", args, { cwd: dir, stdio: "pipe" });
@@ -42,7 +42,7 @@ describe("reading a repository", () => {
 	test("recognises a working tree, and says no elsewhere", async () => {
 		assert.equal(await isRepository(repo()), true);
 
-		const empty = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-plain-"));
+		const empty = fs.mkdtempSync(path.join(os.tmpdir(), "combo-plain-"));
 		scratch.push(empty);
 		assert.equal(await isRepository(empty), false);
 	});
@@ -93,18 +93,18 @@ describe("reading a repository", () => {
 describe("createBranch", () => {
 	test("creates the branch and switches to it", async () => {
 		const dir = repo();
-		const result = await createBranch(dir, "pi-subagent/demo");
+		const result = await createBranch(dir, "combo/demo");
 
-		assert.equal(result.ok && result.value, "pi-subagent/demo");
-		assert.equal(await currentBranch(dir), "pi-subagent/demo");
+		assert.equal(result.ok && result.value, "combo/demo");
+		assert.equal(await currentBranch(dir), "combo/demo");
 	});
 
 	test("refuses an existing branch rather than landing on somebody else's work", async () => {
 		const dir = repo();
-		await createBranch(dir, "pi-subagent/demo");
+		await createBranch(dir, "combo/demo");
 		execFileSync("git", ["checkout", "main"], { cwd: dir, stdio: "pipe" });
 
-		const again = await createBranch(dir, "pi-subagent/demo");
+		const again = await createBranch(dir, "combo/demo");
 		assert.equal(again.ok, false);
 		assert.equal(await currentBranch(dir), "main", "and it stays where it was");
 	});
@@ -167,7 +167,7 @@ describe("commitAll", () => {
 		await createBranch(dir, branchName("add a cache to the loader"));
 		await commitAll(dir, "Add a cache");
 
-		assert.match(branches(dir), /pi-subagent\/add-a-cache-to-the-loader/);
+		assert.match(branches(dir), /combo\/add-a-cache-to-the-loader/);
 		execFileSync("git", ["checkout", "main"], { cwd: dir, stdio: "pipe" });
 		assert.equal(log(dir).match(/Add a cache/), null, "main never saw it");
 	});
@@ -175,17 +175,17 @@ describe("commitAll", () => {
 
 describe("branchName", () => {
 	test("slugifies the request under a prefix that says where it came from", () => {
-		assert.equal(branchName("Add a cache to the loader"), "pi-subagent/add-a-cache-to-the-loader");
-		assert.equal(branchName("Fix: the parser!! (again)"), "pi-subagent/fix-the-parser-again");
+		assert.equal(branchName("Add a cache to the loader"), "combo/add-a-cache-to-the-loader");
+		assert.equal(branchName("Fix: the parser!! (again)"), "combo/fix-the-parser-again");
 	});
 
 	test("stays short, and never ends on a dash", () => {
 		const name = branchName("a".repeat(80));
-		assert.ok(name.length <= "pi-subagent/".length + 40);
+		assert.ok(name.length <= "combo/".length + 40);
 		assert.ok(!name.endsWith("-"));
 	});
 
 	test("a request with nothing usable still names a branch", () => {
-		assert.equal(branchName("!!!"), "pi-subagent/work");
+		assert.equal(branchName("!!!"), "combo/work");
 	});
 });

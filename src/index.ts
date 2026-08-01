@@ -1,5 +1,5 @@
 /**
- * Public surface of pi-subagent.
+ * Public surface of combo.
  *
  * Examples and the pi extension import from here, never from an internal file.
  */

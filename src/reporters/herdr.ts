@@ -35,15 +35,15 @@ export type HerdrOptions = {
 	 * core, because "who gets a pane" is a display decision - the workflow runs
 	 * identically either way.
 	 *
-	 * Defaults to the environment: `PI_SUBAGENT_HERDR=all` turns it on for a
+	 * Defaults to the environment: `COMBO_HERDR=all` turns it on for a
 	 * whole shell session, which is what you want while debugging a workflow.
 	 */
 	all?: boolean;
 };
 
-/** `PI_SUBAGENT_HERDR=all` (or `1`, or `true`) means "every subagent". */
+/** `COMBO_HERDR=all` (or `1`, or `true`) means "every subagent". */
 export function herdrAllFromEnv(env: NodeJS.ProcessEnv = process.env): boolean {
-	const value = env.PI_SUBAGENT_HERDR?.trim().toLowerCase();
+	const value = env.COMBO_HERDR?.trim().toLowerCase();
 	return value === "all" || value === "1" || value === "true";
 }
 
@@ -62,7 +62,7 @@ export function createHerdrReporter(options: HerdrOptions = {}): EventListener |
 
 /** The reporter proper, with the transport already chosen. Exported for tests. */
 export function createHerdrReporterWith(send: HerdrSend, options: HerdrOptions = {}): EventListener {
-	const dir = options.dir ?? fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-"));
+	const dir = options.dir ?? fs.mkdtempSync(path.join(os.tmpdir(), "combo-"));
 	fs.mkdirSync(dir, { recursive: true });
 	const all = options.all ?? herdrAllFromEnv();
 

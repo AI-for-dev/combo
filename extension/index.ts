@@ -7,7 +7,7 @@
  * `createTuiCollector` collected.
  *
  * Install with:
- *   ln -s <repo>/extension/index.ts ~/.pi/agent/extensions/pi-subagent.ts
+ *   ln -s <repo>/extension/index.ts ~/.pi/agent/extensions/combo.ts
  */
 
 import {

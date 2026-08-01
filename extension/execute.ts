@@ -43,7 +43,7 @@ import {
 } from "../src/index.ts";
 
 /** Key for the widget that lives above the prompt while subagents work. */
-export const WIDGET = "pi-subagent";
+export const WIDGET = "combo";
 
 /** How often the widget repaints while subagents are working, in ms. */
 const TICK_MS = 250;

@@ -1,5 +1,5 @@
 {
-	"name": "pi-subagent",
+	"name": "combo",
 	"version": "0.1.0",
 	"description": "Write pi subagents and compose workflows, simply",
 	"type": "module",

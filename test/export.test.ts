@@ -32,7 +32,7 @@ const scratch: string[] = [];
 
 /** A temporary directory, removed after the test. */
 function tmpDir(): string {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-export-"));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-export-"));
 	scratch.push(dir);
 	return dir;
 }

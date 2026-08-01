@@ -1,6 +1,6 @@
-# pi-subagent documentation
+# combo documentation
 
-pi-subagent is a small TypeScript library for writing [pi](https://pi.dev)
+combo is a small TypeScript library for writing [pi](https://pi.dev)
 subagents and composing them into workflows: orchestrator, fan-out, chain,
 coding/review loop, and a full delivery pipeline. Subagents run **in-process**,
 through pi's SDK, so a subagent is an object with a lifetime you control rather
@@ -27,7 +27,7 @@ npm run typecheck
 Node 23.6 or later runs TypeScript natively, so there is no build step.
 
 ```typescript
-import { findAgent, loadAgents, run } from "pi-subagent";
+import { findAgent, loadAgents, run } from "combo";
 
 const agents = loadAgents();
 const result = await run(findAgent(agents, "scout"), "Find the authentication code");

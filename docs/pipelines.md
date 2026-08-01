@@ -191,7 +191,7 @@ always - see [Agents](agents.md).
 From a script:
 
 ```typescript
-import { checkPipelineAgents, findPipeline, loadAgents, loadPipelines, runPipeline } from "pi-subagent";
+import { checkPipelineAgents, findPipeline, loadAgents, loadPipelines, runPipeline } from "combo";
 
 const agents = loadAgents({ scope: "both" });
 const pipeline = findPipeline(loadPipelines({ scope: "both" }), "build");

@@ -12,10 +12,10 @@ Node 23.6 or later is required: it runs TypeScript natively, and there is no
 build step. `tsc` is used only to typecheck.
 
 A model is needed for anything that actually talks to a provider. pi resolves it
-the usual way, and the examples honour `PI_SUBAGENT_MODEL`:
+the usual way, and the examples honour `COMBO_MODEL`:
 
 ```bash
-PI_SUBAGENT_MODEL=local/qwen/qwen3-coder-next node examples/01-run.ts
+COMBO_MODEL=local/qwen/qwen3-coder-next node examples/01-run.ts
 ```
 
 Not every provider reports tokens. When one does not, the usage lines read `0`,
@@ -27,7 +27,7 @@ and that is deliberate: nothing here is estimated by counting characters. See
 The high level form is disposable: it spawns, asks, and closes.
 
 ```typescript
-import { findAgent, loadAgents, run } from "pi-subagent";
+import { findAgent, loadAgents, run } from "combo";
 
 const agents = loadAgents();
 const scout = findAgent(agents, "scout");
@@ -45,7 +45,7 @@ and an `error`, and the usage it managed to spend is still filled in.
 The low level form gives you the object, and you decide how long it lives.
 
 ```typescript
-import { spawn } from "pi-subagent";
+import { spawn } from "combo";
 
 const coder = await spawn(coderAgent, { lifetime: "workflow" });
 try {
@@ -68,7 +68,7 @@ Combinators take agents and give back results. They compose because they all
 speak the same `Result`.
 
 ```typescript
-import { chain, fanOut, loop } from "pi-subagent";
+import { chain, fanOut, loop } from "combo";
 
 await chain({ steps: [scout, reviewer], input: "Explain how usage is measured" });
 

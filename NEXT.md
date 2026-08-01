@@ -77,10 +77,10 @@ that a pipeline named `build` is shipped, which is the tripwire for exactly that
 npm test                       # 434 offline tests, no network
 npm run typecheck
 
-PI_SUBAGENT_MODEL=ilaas/qwen-3.6-35b-instruct node examples/03-fan-out.ts
-PI_SUBAGENT_MODEL=ilaas/qwen-3.6-35b-instruct node examples/06-export.ts
-PI_SUBAGENT_MODEL=ilaas/qwen-3.6-35b-instruct node examples/07-reduce.ts
-PI_SUBAGENT_MODEL=ilaas/qwen-3.6-35b-instruct node examples/09-orchestrate.ts
+COMBO_MODEL=ilaas/qwen-3.6-35b-instruct node examples/03-fan-out.ts
+COMBO_MODEL=ilaas/qwen-3.6-35b-instruct node examples/06-export.ts
+COMBO_MODEL=ilaas/qwen-3.6-35b-instruct node examples/07-reduce.ts
+COMBO_MODEL=ilaas/qwen-3.6-35b-instruct node examples/09-orchestrate.ts
 node examples/10-interview.ts "add a cache"          # the interview, in readline
 node examples/11-build.ts <throwaway-repo> "…"       # the pipeline, minus the commit
 pi -e extension                # interactive, to actually see the TUI

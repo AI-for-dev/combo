@@ -22,7 +22,7 @@ import { checkPipelineAgents } from "../src/workflows/pipeline-run.ts";
 const scratch: string[] = [];
 
 function tmpDir(files: Record<string, string>): string {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-pipelines-"));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-pipelines-"));
 	scratch.push(dir);
 	for (const [name, content] of Object.entries(files)) fs.writeFileSync(path.join(dir, name), content);
 	return dir;
@@ -30,7 +30,7 @@ function tmpDir(files: Record<string, string>): string {
 
 /** A throwaway repository with its own `.pi/pipelines/`. */
 function tmpProject(files: Record<string, string>): string {
-	const repo = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-project-"));
+	const repo = fs.mkdtempSync(path.join(os.tmpdir(), "combo-project-"));
 	scratch.push(repo);
 	const dir = path.join(repo, ".pi", "pipelines");
 	fs.mkdirSync(dir, { recursive: true });
@@ -69,7 +69,7 @@ describe("loadPipelinesFromDir", () => {
 	});
 
 	test("a missing directory is not an error: most people have none", () => {
-		const found = loadPipelinesFromDir(path.join(os.tmpdir(), "pi-subagent-does-not-exist"));
+		const found = loadPipelinesFromDir(path.join(os.tmpdir(), "combo-does-not-exist"));
 		assert.deepEqual(found, { pipelines: [], broken: [] });
 	});
 

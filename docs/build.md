@@ -43,7 +43,7 @@ and ask around it forever.
 From a script, without the interview:
 
 ```typescript
-import { commandVerifier, deliver } from "pi-subagent";
+import { commandVerifier, deliver } from "combo";
 
 const built = await deliver({
 	planner,
