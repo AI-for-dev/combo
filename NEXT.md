@@ -88,8 +88,18 @@ pi -e extension                # interactive, to actually see the TUI
 
 Notes that save time:
 
-- `ilaas/*` and `opencode-go/*` report **no tokens** - usage lines read `↑0 ↓0`.
-  `local/qwen/qwen3-coder-next` does report them, but is much slower.
+- **`ilaas/*` now reports tokens, and still no cost.** Measured on 2026-08-01
+  against `ilaas/qwen-3.6-35b-instruct` and `ilaas/gemma-4`: `↑28k ↓8.3k` on a
+  single turn, `$0.0000` throughout. It used to report neither, so a provider's
+  counters are worth re-checking rather than trusted from this list.
+  `opencode-go/*` has not been re-measured since. `local/*` reports both, and is
+  much slower.
+- **A weak model can burn a turn without ending it.** In that same run a coder
+  made **111 tool calls in one turn** before `timeoutMs` cut it at 120s, and pi
+  counted the prompt on every request: `↑2.6M` for a 14k context. That is not an
+  aggregation bug, it is what a runaway turn costs - and the reason `timeoutMs`
+  has no default but belongs on anything unattended. Budget 300s per turn for
+  these models; 120s fails roughly half the cells.
 - To test herdr from a plain shell, export the three variables herdr injects:
   `HERDR_ENV=1`, `HERDR_SOCKET_PATH=~/.config/herdr/herdr.sock`,
   `HERDR_PANE_ID=<a real pane>`. `herdr pane list` shows the splits appear and

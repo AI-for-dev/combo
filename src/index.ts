@@ -39,6 +39,20 @@ export {
 	type UsageReportEntry,
 } from "./export.ts";
 export {
+	experiment,
+	type ExperimentCell,
+	type ExperimentOptions,
+	type ExperimentOutcome,
+} from "./experiment.ts";
+export {
+	experimentReport,
+	experimentTable,
+	writeExperimentReport,
+	type ExperimentModelSummary,
+	type ExperimentReport,
+	type ExperimentRun,
+} from "./experiment-report.ts";
+export {
 	createEventBus,
 	nextSubagentId,
 	resetSubagentIds,

@@ -74,6 +74,11 @@ even though pi refuses to render its page.
 
 The run directory's path is shown in the tool row.
 
+## One run, or a matrix of them
+
+[Experiments](experiments.md) nests this layout one level deeper: a directory per
+model, `rep-<n>/` inside it, and each cell writing the very same `usage.json`.
+
 ## Reference
 
 - [`export`](api/export.md) - `createRunDir`, `exportSession`, `usageReport`, `writeUsageReport`.
