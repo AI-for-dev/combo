@@ -153,3 +153,15 @@ configuration, ask whether a function call would do.
 Documentation ships with the code, not after it: `README.md` and the affected
 `docs/` page in the same batch, `npm run docs` for the generated reference, and
 the decision written into `docs/decisions.md` when you took one.
+
+## Other rules
+
+This is rules for any bug fix, new feature, documentation, ... in the repository
+
+- make the implementation clean and concise
+- don't repeat yourself and use the rule "divide and conquer"
+- never add your name in the commit, in the documentation, in the PR description
+- avoid documentation or remark that is not useful
+  - the number of tests passed is not relevant
+  - the comment that indicates that theses lines fix the previous implementation is not relevant
+- The PR must be small enough to be readable by a human. Split it if it's not the case
