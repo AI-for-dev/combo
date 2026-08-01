@@ -7,6 +7,14 @@
 	"exports": {
 		".": "./src/index.ts"
 	},
+	"files": [
+		"src",
+		"extension",
+		"agents",
+		"pipelines",
+		"README.md",
+		"docs"
+	],
 	"engines": {
 		"node": ">=23.6"
 	},

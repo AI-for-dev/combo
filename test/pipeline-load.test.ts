@@ -112,6 +112,17 @@ describe("the pipelines this repository ships", () => {
 		);
 	});
 
+	test("the tarball carries the definitions the extension needs", () => {
+		// `files` is what npm publishes. The loaders find `agents/` and
+		// `pipelines/` inside the package, so dropping either from this list
+		// breaks `/build` for every installed user while every test here still
+		// passes - the repository has the files either way.
+		const manifest = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")) as { files?: string[] };
+		for (const needed of ["src", "extension", "agents", "pipelines"]) {
+			assert.ok(manifest.files?.includes(needed), `package.json "files" must list ${needed}`);
+		}
+	});
+
 	test("the shipped build names no check: only the user knows what theirs is", () => {
 		const found = loadPipelinesFromDir(path.join(root, "pipelines"));
 		const build = found.pipelines.find((one) => one.name === "build");
