@@ -19,15 +19,13 @@ import {
 	checkModel,
 	checkPipelineAgents,
 	createRunDir,
-	findPipeline,
-	loadAgents,
 	loadPipelines,
 	runPipeline,
 	type Pipeline,
 	type PipelineCatalogue,
 	type PipelineRunResult,
 } from "../src/index.ts";
-import { parseLeadingFlags, type BuildDeps, type CommandCtx } from "./build.ts";
+import { choosePipeline, loadRoster, parseLeadingFlags, refuse, type BuildDeps, type CommandCtx } from "./build.ts";
 import { liveRun, pipelineVerifier, STATUS } from "./run-ui.ts";
 
 /**
@@ -132,20 +130,26 @@ export async function runNamed(args: string, ctx: CommandCtx, deps: PipelineDeps
 	const model = flags.model;
 	const [name, ...rest] = text.split(/\s+/).filter(Boolean);
 	if (!name) {
-		ctx.ui.notify("run: say which pipeline, for example /run explore how usage is measured. /pipelines lists them", "warning");
-		return undefined;
+		return refuse(ctx, "run: say which pipeline, for example /run explore how usage is measured. /pipelines lists them", "warning");
+	}
+	const input = rest.join(" ");
+	if (!input.trim()) {
+		// A pipeline with nothing to work on spawns agents that read a blank
+		// request and answer about nothing, which costs real tokens to discover.
+		return refuse(ctx, `run: say what ${name} should work on, for example /run ${name} how usage is measured`, "warning");
 	}
 
-	const agents = (deps.loadAgents ?? loadAgents)({ cwd: ctx.cwd, scope: "both", builtin: true });
+	const agents = loadRoster(ctx, deps);
 	let pipeline: Pipeline;
 	try {
-		pipeline = findPipeline((deps.loadPipelines ?? loadPipelines)({ cwd: ctx.cwd, scope: "both", builtin: true }), name);
+		// The same chooser `/build` uses, so a broken file is named here too
+		// rather than reported as an unknown pipeline.
+		pipeline = choosePipeline(name, ctx, deps, "run");
 		// Before anything is spawned, as everywhere: a typo costs a second.
 		checkPipelineAgents(pipeline, agents);
 		if (model) await (deps.checkModel ?? checkModel)(model);
 	} catch (cause) {
-		ctx.ui.notify(cause instanceof Error ? cause.message : String(cause), "error");
-		return undefined;
+		return refuse(ctx, cause instanceof Error ? cause.message : String(cause), "error");
 	}
 
 	const exportDir = (deps.runDir ?? createRunDir)();
@@ -157,7 +161,7 @@ export async function runNamed(args: string, ctx: CommandCtx, deps: PipelineDeps
 		done = await (deps.runPipeline ?? runPipeline)({
 			pipeline,
 			agents,
-			input: rest.join(" "),
+			input,
 			cwd: ctx.cwd,
 			exportDir,
 			verify: deps.verify ?? pipelineVerifier(pipeline, ctx.cwd),
@@ -170,13 +174,13 @@ export async function runNamed(args: string, ctx: CommandCtx, deps: PipelineDeps
 	}
 
 	if (!done.ok) {
-		ctx.ui.notify(`run: ${done.error ?? "unknown error"} - what ran is in ${exportDir}`, "error");
+		refuse(ctx, `run: ${done.error ?? "unknown error"} - what ran is in ${exportDir}`, "error");
 		return done;
 	}
 
 	deps.sendMessage?.({
 		customType: PIPELINE_MESSAGE,
-		content: pipelineAnswer(pipeline.name, rest.join(" "), done.output),
+		content: pipelineAnswer(pipeline.name, input, done.output),
 		display: true,
 		details: { pipeline: pipeline.name, steps: done.steps.map((step) => step.id), exportDir },
 	});

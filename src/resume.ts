@@ -189,6 +189,18 @@ export function saveBuildState(dir: string, state: BuildState): string | undefin
 	}
 }
 
+/**
+ * The plan's agents the roster no longer has, in the order they appear.
+ *
+ * {@link fromBuildState} refuses a state it cannot rebuild, and refusing without
+ * saying which name is missing leaves the user nothing to act on. Empty means
+ * every agent is there.
+ */
+export function missingAgents(state: BuildState, agents: readonly Agent[]): string[] {
+	const known = new Set(agents.map((agent) => agent.name));
+	return [...new Set(state.plan.map((step) => step.agent).filter((name) => !known.has(name)))];
+}
+
 /** Reads a state file. `undefined` when it is missing, unreadable or foreign. */
 export function loadBuildState(file: string): BuildState | undefined {
 	try {

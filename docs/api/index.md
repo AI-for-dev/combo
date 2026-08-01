@@ -26,7 +26,7 @@ library, in [`README.md`](../../README.md); this is the exhaustive surface.
 | [`reporters/silent`](reporters/silent.md) | The no-op reporter. | 1 |
 | [`reporters/tui`](reporters/tui.md) | State and formatting for the pi TUI, with no pi-tui in sight. | 16 |
 | [`result`](result.md) | `Result`: the single contract shared by everything else. | 3 |
-| [`resume`](resume.md) | Saving a build so it can be picked up again. | 9 |
+| [`resume`](resume.md) | Saving a build so it can be picked up again. | 10 |
 | [`run`](run.md) | `run()`: the disposable form. Spawn, ask, close. | 2 |
 | [`session`](session.md) | The whole pi API lives here, and nowhere else. | 9 |
 | [`subagent`](subagent.md) | A subagent: a live session, a memory, a state. | 4 |

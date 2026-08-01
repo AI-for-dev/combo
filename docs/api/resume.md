@@ -137,6 +137,20 @@ export function loadBuildState(file: string): BuildState | undefined { … }
 
 Reads a state file. `undefined` when it is missing, unreadable or foreign.
 
+## `missingAgents`
+
+*function*
+
+```typescript
+export function missingAgents(state: BuildState, agents: readonly Agent[]): string[] { … }
+```
+
+The plan's agents the roster no longer has, in the order they appear.
+
+{@link fromBuildState} refuses a state it cannot rebuild, and refusing without
+saying which name is missing leaves the user nothing to act on. Empty means
+every agent is there.
+
 ## `saveBuildState`
 
 *function*
