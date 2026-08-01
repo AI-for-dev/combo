@@ -9,7 +9,8 @@
  */
 
 import type { EventListener, SubagentStatus } from "../events.ts";
-import { compact, emptyUsage, formatUsage, type Usage } from "../usage.ts";
+import { firstLine, scalar, truncate } from "../text.ts";
+import { compact, emptyUsage, formatUsage, sumUsage, type Usage } from "../usage.ts";
 
 /** A tool call as it happened, kept for the expanded view. */
 export type ToolCall = {
@@ -174,17 +175,12 @@ export function createTuiCollector(): TuiCollector {
 }
 
 function sumSnapshots(subagents: readonly SubagentSnapshot[]): Usage {
-	const total = emptyUsage();
-	for (const one of subagents) {
-		total.busyMs += one.usage.busyMs;
-		total.turns += one.usage.turns;
-		total.input += one.usage.input;
-		total.output += one.usage.output;
-		total.cacheRead += one.usage.cacheRead;
-		total.cacheWrite += one.usage.cacheWrite;
-		total.cost += one.usage.cost;
-	}
-	return total;
+	// `wallMs` stays 0: the collector cannot know it, and the caller passes the
+	// real elapsed time to `formatUsage`/`usageReport` when it has one.
+	return sumUsage(
+		subagents.map((one) => one.usage),
+		0,
+	);
 }
 
 /** `⏳` while it works, `✓` when it succeeded, `✗` when it did not. */
@@ -355,23 +351,10 @@ export function summaryTable(snapshot: TuiSnapshot, wallMs: number): string[] {
 	return lines;
 }
 
-function scalar(value: unknown): string {
-	return typeof value === "string" ? value : JSON.stringify(value) ?? "";
-}
-
-function firstLine(text: string): string {
-	return text.split("\n", 1)[0] ?? "";
-}
-
 function tilde(filePath: string | undefined): string {
 	if (!filePath) return "";
 	const home = process.env.HOME;
 	return home && filePath.startsWith(home) ? `~${filePath.slice(home.length)}` : filePath;
-}
-
-function truncate(text: string, max: number): string {
-	const flat = text.replace(/\s+/g, " ").trim();
-	return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
 }
 
 function pad(text: string, width: number): string {

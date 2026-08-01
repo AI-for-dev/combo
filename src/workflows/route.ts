@@ -4,6 +4,7 @@
 
 import type { Agent } from "./../agent.ts";
 import { failed, type Result, type WorkflowResult } from "./../result.ts";
+import { truncate } from "./../text.ts";
 import { SubagentPool, type WorkflowOptions } from "./common.ts";
 
 /** The classifier, the agents it may pick from, and what to do when it picks nobody. */
@@ -72,7 +73,7 @@ export async function route(options: RouteOptions): Promise<RouteResult> {
 		if (!destination) {
 			const unrouted = failed(
 				router.name,
-				`no destination matched: the router answered ${JSON.stringify(truncate(routing.output))}`,
+				`no destination matched: the router answered ${JSON.stringify(truncate(routing.output, 80))}`,
 				routing.usage,
 				routing.messages,
 			);
@@ -147,9 +148,4 @@ function mentioned(text: string, names: readonly string[]): string[] {
 
 function escapeRegExp(text: string): string {
 	return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function truncate(text: string, max = 80): string {
-	const flat = text.replace(/\s+/g, " ").trim();
-	return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
 }

@@ -30,6 +30,7 @@ library, in [`README.md`](../../README.md); this is the exhaustive surface.
 | [`run`](run.md) | `run()`: the disposable form. Spawn, ask, close. | 2 |
 | [`session`](session.md) | The whole pi API lives here, and nowhere else. | 9 |
 | [`subagent`](subagent.md) | A subagent: a live session, a memory, a state. | 4 |
+| [`text`](text.md) | Reading what a model wrote: shortening it, and finding the structure in it. | 1 |
 | [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 7 |
 | [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 4 |
 | [`workflows/chain`](workflows/chain.md) | `chain`: 1 → 1 → 1. The output of step *n* is the input of step *n+1*. | 2 |
