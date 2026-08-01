@@ -110,10 +110,11 @@ its own collector. Measurement is reused, never reinvented.
 node examples/12-experiment.ts <modelA> <modelB>
 ```
 
-Two repetitions of the same loop per model, the table printed at the end. Note
-that several providers report no tokens at all - see
+Two repetitions of the same loop per model, the table printed at the end. Several
+providers report no cost, and some report no tokens either - see
 [Measurements](measurements.md) - so a `$0.0000` column means "not reported",
-not "free".
+never "free". Give the matrix a `timeoutMs` it can live with: a cell lost to a
+turn that would not end is a cell missing from the comparison.
 
 ## Reference
 

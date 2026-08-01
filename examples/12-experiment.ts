@@ -36,8 +36,9 @@ const report = await experiment({
 	models: positional,
 	repetitions: 2,
 	cwd: repoRoot,
-	// pi's agent loop has no step cap; an unattended matrix needs one.
-	timeoutMs: 120_000,
+	// pi's agent loop has no step cap; an unattended matrix needs one. Measured:
+	// at 120s these two models lost half the cells to a coder still reading.
+	timeoutMs: 300_000,
 	onEvent: consoleReporter(),
 	run: async (cell) => {
 		// Spreading `cell.options` is the whole contract: the model, the export
