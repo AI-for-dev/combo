@@ -72,7 +72,6 @@ export {
 	createTuiCollector,
 	detectHerdr,
 	formatToolCall,
-	herdrAllFromEnv,
 	HERDR_SOURCE,
 	progressLine,
 	recordReporter,

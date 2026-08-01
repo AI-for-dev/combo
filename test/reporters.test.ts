@@ -10,7 +10,7 @@ import {
 	recordReporter,
 	silentReporter,
 } from "../src/reporters/index.ts";
-import { createHerdrReporterWith, herdrAllFromEnv } from "../src/reporters/herdr.ts";
+import { createHerdrReporterWith } from "../src/reporters/herdr.ts";
 import { detectHerdr, type HerdrSend } from "../src/reporters/herdr-client.ts";
 import type { SubagentEvent } from "../src/events.ts";
 import { emptyUsage } from "../src/usage.ts";
@@ -300,20 +300,14 @@ describe("watching every subagent", () => {
 		assert.equal(calls.filter((call) => call.method === "agent.start").length, 1);
 	});
 
-	test("the environment can turn it on for a whole shell", () => {
-		assert.equal(herdrAllFromEnv({} as NodeJS.ProcessEnv), false);
-		for (const value of ["all", "1", "true", "ALL"]) {
-			assert.equal(herdrAllFromEnv({ COMBO_HERDR: value } as NodeJS.ProcessEnv), true, value);
-		}
-		for (const value of ["off", "0", "", "no"]) {
-			assert.equal(herdrAllFromEnv({ COMBO_HERDR: value } as NodeJS.ProcessEnv), false, value);
-		}
-	});
+	test("watching everything is off unless it is asked for", () => {
+		const off = recorder();
+		createHerdrReporterWith(off.send, { dir: tmpDir() })(spawnEvent("scout#1", false));
+		assert.equal(off.calls.length, 0, "no ambient switch turns this on");
 
-	test("an explicit option beats the environment, in both directions", () => {
 		const on = recorder();
-		createHerdrReporterWith(on.send, { dir: tmpDir(), all: false })(spawnEvent("scout#1", false));
-		assert.equal(on.calls.length, 0, "all: false means what it says");
+		createHerdrReporterWith(on.send, { dir: tmpDir(), all: true })(spawnEvent("scout#1", false));
+		assert.ok(on.calls.some((call) => call.method === "agent.start"));
 	});
 });
 

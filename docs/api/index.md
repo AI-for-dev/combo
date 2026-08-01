@@ -20,7 +20,7 @@ library, in [`README.md`](../../README.md); this is the exhaustive surface.
 | [`pipeline`](pipeline.md) | A pipeline is *data*: an ordered list of combinator calls, declared as YAML frontmatter + Markdown, following the same convention as an agent. | 5 |
 | [`reporters/console`](reporters/console.md) | A plain console reporter: one line per event that matters. | 2 |
 | [`reporters/herdr-client`](reporters/herdr-client.md) | Detection and transport for herdr's socket API. Nothing else lives here. | 5 |
-| [`reporters/herdr`](reporters/herdr.md) | The herdr reporter: one split per subagent, showing it work. | 4 |
+| [`reporters/herdr`](reporters/herdr.md) | The herdr reporter: one split per subagent, showing it work. | 3 |
 | [`reporters/index`](reporters/index.md) | Choosing a reporter, so the caller does not have to. | 3 |
 | [`reporters/record`](reporters/record.md) | The event stream, on disk: one JSON object per line, in the order it happened. | 1 |
 | [`reporters/silent`](reporters/silent.md) | The no-op reporter. | 1 |
