@@ -75,6 +75,7 @@ export {
 	herdrAllFromEnv,
 	HERDR_SOURCE,
 	progressLine,
+	recordReporter,
 	silentReporter,
 	currentActivity,
 	detailLine,

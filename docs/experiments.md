@@ -77,7 +77,9 @@ runs/2026-08-01_10-24-03/
 ├── experiment.json                machine-readable, every cell
 ├── experiment.md                  the table, plus the failures named under it
 ├── anthropic-claude-sonnet-5/
-│   ├── rep-1/                     pi's transcripts per subagent + usage.json
+│   ├── rep-1/                     pi's transcripts per subagent
+│   │   ├── usage.json             time and tokens, attributed
+│   │   └── events.jsonl           the cell's whole event stream, in order
 │   └── rep-2/
 └── local-qwen-qwen3-coder-next/
     └── …
@@ -85,6 +87,10 @@ runs/2026-08-01_10-24-03/
 
 Each cell writes the same [`usage.json`](export.md) a single run writes, from
 its own collector. Measurement is reused, never reinvented.
+
+`events.jsonl` is the [record reporter](display.md#keeping-the-stream), wired
+into every cell with no way to turn it off: a cell whose stream was not kept can
+only be re-run, and a matrix is expensive.
 
 ## The rules
 

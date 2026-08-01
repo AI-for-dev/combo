@@ -3,7 +3,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { after, describe, test } from "node:test";
-import { autoReporter, combineReporters, consoleReporter, silentReporter } from "../src/reporters/index.ts";
+import {
+	autoReporter,
+	combineReporters,
+	consoleReporter,
+	recordReporter,
+	silentReporter,
+} from "../src/reporters/index.ts";
 import { createHerdrReporterWith, herdrAllFromEnv } from "../src/reporters/herdr.ts";
 import { detectHerdr, type HerdrSend } from "../src/reporters/herdr-client.ts";
 import type { SubagentEvent } from "../src/events.ts";
@@ -382,5 +388,59 @@ describe("consoleReporter", () => {
 		const loud: string[] = [];
 		consoleReporter({ write: (line) => loud.push(line), text: true })({ type: "text", id: "scout#1", delta: "hello" });
 		assert.deepEqual(loud, ["hello"]);
+	});
+});
+
+describe("recordReporter", () => {
+	test("one JSON line per event, in the order they happened", () => {
+		const file = path.join(tmpDir(), "events.jsonl");
+		const report = recordReporter(file);
+
+		report(spawnEvent("scout#1", false));
+		report({ type: "tool", id: "scout#1", name: "grep", args: { pattern: "auth" } });
+		report({ type: "text", id: "scout#1", delta: "found it" });
+		report(closeEvent("scout#1"));
+
+		const lines = fs.readFileSync(file, "utf8").trimEnd().split("\n").map((line) => JSON.parse(line));
+		assert.deepEqual(
+			lines.map((one) => one.type),
+			["spawn", "tool", "text", "close"],
+		);
+		assert.equal(lines[1].name, "grep");
+		assert.deepEqual(lines[1].args, { pattern: "auth" }, "recorded verbatim, never summarised");
+		assert.match(lines[0].ts, /^\d{4}-\d{2}-\d{2}T/, "our timestamp: pi has no notion of one");
+	});
+
+	test("the interleaving is what it adds: two subagents in one file", () => {
+		const file = path.join(tmpDir(), "events.jsonl");
+		const report = recordReporter(file);
+
+		report(spawnEvent("scout#1", false));
+		report(spawnEvent("scout#2", false));
+		report({ type: "tool", id: "scout#2", name: "read", args: {} });
+		report({ type: "tool", id: "scout#1", name: "grep", args: {} });
+
+		const ids = fs
+			.readFileSync(file, "utf8")
+			.trimEnd()
+			.split("\n")
+			.map((line) => JSON.parse(line).id);
+		assert.deepEqual(ids, ["scout#1", "scout#2", "scout#2", "scout#1"]);
+	});
+
+	test("the directory is created on the first event", () => {
+		const file = path.join(tmpDir(), "deep", "nested", "events.jsonl");
+		recordReporter(file)(spawnEvent("scout#1", false));
+		assert.ok(fs.existsSync(file));
+	});
+
+	test("a write that cannot happen is swallowed: an observer never takes a run down", () => {
+		const dir = tmpDir();
+		fs.writeFileSync(path.join(dir, "blocked"), "");
+		// A file where a directory would have to be: mkdir fails with ENOTDIR.
+		const report = recordReporter(path.join(dir, "blocked", "events.jsonl"));
+
+		assert.doesNotThrow(() => report(spawnEvent("scout#1", false)));
+		assert.doesNotThrow(() => report(closeEvent("scout#1")));
 	});
 });

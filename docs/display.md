@@ -53,6 +53,29 @@ onEvent: autoReporter();   // herdr when it is running, silent otherwise
 `autoReporter()` never warns and never throws: not running under herdr is the
 normal case, not a degraded one.
 
+## Keeping the stream
+
+```typescript
+import { combineReporters, recordReporter } from "combo";
+
+onEvent: combineReporters(autoReporter(), recordReporter("runs/latest/events.jsonl"));
+```
+
+One JSON object per line, `{"ts": <ISO 8601>, …event}`, in the order things
+happened. pi's own JSONL already holds each subagent's transcript; what this adds
+is the two things that live *between* them - the **interleaving** (who was
+working while who else was reading) and **our timestamps**, since pi has no
+notion of the wall clock a workflow runs on.
+
+Events are recorded verbatim, with no filtering: a recorder that edits its own
+record is worse than a large file, and the analysis it exists for is the one
+nobody planned in advance. It writes with `appendFileSync` - one syscall per
+event, deliberately, because the run worth reading afterwards is the interrupted
+one and a buffered stream loses its tail exactly then.
+
+Every [experiment](experiments.md) cell gets one, at `events.jsonl` next to its
+`usage.json`. There is no option to turn that off.
+
 ## herdr
 
 Inside [herdr](https://herdr.dev), a subagent can get **its own split** and show
@@ -145,4 +168,5 @@ would feed a web view or an export without touching a component.
 - [`reporters/index`](api/reporters/index.md) - `autoReporter`, `combineReporters`.
 - [`reporters/herdr`](api/reporters/herdr.md), [`reporters/herdr-client`](api/reporters/herdr-client.md)
 - [`reporters/tui`](api/reporters/tui.md) - `createTuiCollector`, `TuiSnapshot`, `widgetRows`.
+- [`reporters/record`](api/reporters/record.md) - `recordReporter`, the event stream on disk.
 - [`reporters/console`](api/reporters/console.md), [`reporters/silent`](api/reporters/silent.md)
