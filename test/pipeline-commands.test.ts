@@ -154,6 +154,47 @@ describe("/run", () => {
 		assert.match(said(), /explore: 0 step\(s\)/);
 	});
 
+	test("--model is checked first, then reaches the pipeline run", async () => {
+		const { ctx } = fakeCtx();
+		const order: string[] = [];
+		let seen: string | undefined;
+
+		await runNamed(
+			"--model local/qwen explore what is here",
+			ctx,
+			deps({
+				checkModel: async (pattern) => void order.push(`check:${pattern}`),
+				runPipeline: (async (options: { input: string; model?: string }) => {
+					order.push("run");
+					seen = options.model;
+					return { pipeline: "explore", steps: [], output: "x", usage: { turns: 1 }, ok: true };
+				}) as never,
+			}),
+		);
+
+		assert.deepEqual(order, ["check:local/qwen", "run"], "a typo costs a second, not a run");
+		assert.equal(seen, "local/qwen");
+	});
+
+	test("a model that does not resolve stops before anything is spawned", async () => {
+		const { ctx, said } = fakeCtx();
+		let ran = false;
+		const done = await runNamed(
+			"--model local/nope explore x",
+			ctx,
+			deps({
+				checkModel: async () => {
+					throw new Error('No model found for "local/nope"');
+				},
+				runPipeline: (async () => ((ran = true), {})) as never,
+			}),
+		);
+
+		assert.equal(done, undefined);
+		assert.equal(ran, false);
+		assert.match(said(), /No model found/);
+	});
+
 	test("the answer lands in the conversation, not in the prompt editor", async () => {
 		const { ctx, editorText } = fakeCtx();
 		const sent: { customType: string; content: string; display: boolean }[] = [];

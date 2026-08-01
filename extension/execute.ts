@@ -77,6 +77,8 @@ export type Params = {
 	tasks?: string[];
 	steps?: string[];
 	lifetime?: string;
+	/** Model pattern for every subagent of this call. Beats agent frontmatter. */
+	model?: string;
 	concurrency?: number;
 	until?: string;
 	maxIterations?: number;
@@ -209,6 +211,7 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 		signal: deps.signal,
 		timeoutMs: params.timeoutMs,
 		openInHerdr: params.openInHerdr,
+		model: params.model,
 		cwd: deps.cwd,
 		spawn: deps.spawn,
 		onEvent,

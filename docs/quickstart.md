@@ -12,10 +12,10 @@ Node 23.6 or later is required: it runs TypeScript natively, and there is no
 build step. `tsc` is used only to typecheck.
 
 A model is needed for anything that actually talks to a provider. pi resolves it
-the usual way, and the examples honour `COMBO_MODEL`:
+the usual way, and the examples take `--model` on the command line:
 
 ```bash
-COMBO_MODEL=local/qwen/qwen3-coder-next node examples/01-run.ts
+node examples/01-run.ts --model local/qwen/qwen3-coder-next
 ```
 
 Not every provider reports tokens. When one does not, the usage lines read `0`,

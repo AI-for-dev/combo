@@ -26,6 +26,21 @@ export type AgentMessage = AgentSession["messages"][number];
 
 Alias to pi's message type, without depending on a transitive package.
 
+## `checkModel`
+
+*function*
+
+```typescript
+export async function checkModel(pattern: string): Promise<void> { … }
+```
+
+Checks that a model pattern resolves in this pi, without opening a session.
+
+For whoever takes a `--model` argument: `/build` interviews the user for
+minutes before the first spawn, and a typo must cost a second, not a
+conversation. It touches the real pi module, like {@link buildRegistry} -
+a fake cannot stand in for it, only a real pi run proves it end to end.
+
 ## `createDefaultSession`
 
 *const*
@@ -65,6 +80,12 @@ export type CreateSessionOptions = {
 	 * default, and it is intentional.
 	 */
 	sessionDir?: string;
+	/**
+	 * Model pattern for this session, already resolved against the precedence
+	 * ladder by `spawn()` - see `SpawnOptions.model`. Absent means pi's own
+	 * settings decide, which is the last resort, never a choice made here.
+	 */
+	model?: string;
 };
 ```
 

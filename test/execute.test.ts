@@ -163,6 +163,19 @@ describe("executeSubagent", () => {
 		assert.equal(fake.spawned[0]?.options.openInHerdr, true);
 	});
 
+	test("model reaches every spawn of the call", async () => {
+		const fake = fakeSpawn();
+		await executeSubagent(
+			{ steps: ["coder", "reviewer"], task: "x", model: "local/qwen" },
+			deps({ spawn: fake.spawn }),
+		);
+
+		assert.deepEqual(
+			fake.spawned.map((spawned) => spawned.options.model),
+			["local/qwen", "local/qwen"],
+		);
+	});
+
 	test("the scope is passed on, so project agents stay opt-in", async () => {
 		const seen: unknown[] = [];
 		const recordScope = (options: unknown) => (seen.push(options), agents);

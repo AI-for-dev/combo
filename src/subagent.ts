@@ -45,6 +45,19 @@ export type SpawnOptions = {
 	/** Session factory. Injection point for tests - defaults to a real pi session. */
 	createSession?: CreateSession;
 	/**
+	 * Model pattern for this subagent, e.g. `"anthropic/claude-sonnet-5"`.
+	 *
+	 * An override, not a default: the argument wins over the agent's
+	 * frontmatter, which wins over pi's own settings - the same rule as
+	 * {@link SpawnOptions.lifetime}. It exists so one workflow can run against
+	 * different models without editing a single agent file; a frontmatter model
+	 * surviving a sweep would make an experiment measure a mixture.
+	 *
+	 * A pattern that resolves to nothing throws at spawn: better than running
+	 * a whole workflow on the wrong model.
+	 */
+	model?: string;
+	/**
 	 * Give this subagent its own herdr split, when running inside herdr.
 	 *
 	 * Opt-in per subagent, like {@link SpawnOptions.lifetime}, and resolved the
@@ -122,7 +135,9 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 	// an in-memory one. `.sessions` keeps those working files out of the way of
 	// the exports themselves, which are what a human opens.
 	const sessionDir = options.sessionDir ?? (options.exportDir ? path.join(options.exportDir, ".sessions") : undefined);
-	const session = await createSession(agent, { cwd: options.cwd, sessionDir });
+	// The model is resolved here, once, like the lifetime: the fake session a
+	// test injects sees the *effective* pattern, not the ladder that chose it.
+	const session = await createSession(agent, { cwd: options.cwd, sessionDir, model: options.model ?? agent.model });
 
 	// Monotonic clock: `Date.now()` jumps when the system clock is adjusted,
 	// and a duration must never go backwards.

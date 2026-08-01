@@ -74,6 +74,16 @@ A failure does not crash a workflow: it becomes a `Result` with `ok: false`.
 `timeoutMs` is a per-turn deadline with no default, and you want one on anything
 unattended - pi's agent loop has no step cap.
 
+The **model is a knob at every level**: `model` on a spawn or a workflow puts
+every subagent on one model, whatever their frontmatter says - which is what
+lets the same workflow run against different LLMs with no agent file edited.
+The nearest override wins: argument, then the pipeline file, then the agent's
+frontmatter, then pi's own settings. No environment variable, anywhere.
+
+```typescript
+await loop({ steps: [coder, reviewer], input, model: "anthropic/claude-sonnet-5" });
+```
+
 See [Workflows](docs/workflows.md) and [Lifetime](docs/lifetime.md).
 
 ## The whole flow: question to commit

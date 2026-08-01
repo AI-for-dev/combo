@@ -89,6 +89,19 @@ export type SpawnOptions = {
 	/** Session factory. Injection point for tests - defaults to a real pi session. */
 	createSession?: CreateSession;
 	/**
+	 * Model pattern for this subagent, e.g. `"anthropic/claude-sonnet-5"`.
+	 *
+	 * An override, not a default: the argument wins over the agent's
+	 * frontmatter, which wins over pi's own settings - the same rule as
+	 * {@link SpawnOptions.lifetime}. It exists so one workflow can run against
+	 * different models without editing a single agent file; a frontmatter model
+	 * surviving a sweep would make an experiment measure a mixture.
+	 *
+	 * A pattern that resolves to nothing throws at spawn: better than running
+	 * a whole workflow on the wrong model.
+	 */
+	model?: string;
+	/**
 	 * Give this subagent its own herdr split, when running inside herdr.
 	 *
 	 * Opt-in per subagent, like {@link SpawnOptions.lifetime}, and resolved the

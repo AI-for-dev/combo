@@ -94,6 +94,16 @@ describe("chain", () => {
 		);
 	});
 
+	test("model reaches every spawn - one workflow, one model, no agent file edited", async () => {
+		const fake = fakeSpawn();
+		await chain({ steps: [coder, reviewer], input: "x", model: "local/sweep", spawn: fake.spawn });
+
+		assert.deepEqual(
+			fake.spawned.map((spawned) => spawned.options.model),
+			["local/sweep", "local/sweep"],
+		);
+	});
+
 	describe("cancellation", () => {
 		test("an already-aborted signal runs nothing", async () => {
 			const fake = fakeSpawn();

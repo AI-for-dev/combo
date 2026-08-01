@@ -27,7 +27,7 @@ The Markdown body is the system prompt, used verbatim.
 | `name` | yes | How every caller refers to the agent. |
 | `description` | yes | One line on what it is for. Also what `route` and `orchestrate` read to decide who does the work. |
 | `tools` | no | Allowed tools. Absent means read-only: `read`, `grep`, `find`, `ls`. |
-| `model` | no | A pattern such as `anthropic/claude-sonnet-5`. Absent means pi's default. |
+| `model` | no | A pattern such as `anthropic/claude-sonnet-5`. A caller's `model` argument beats it; absent everywhere means pi's default. |
 | `lifetime` | no | Default [lifetime](lifetime.md). An explicit argument always wins. |
 | `openInHerdr` | no | Default for "give this agent its own herdr split". See [Display](display.md). |
 

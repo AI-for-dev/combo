@@ -16,13 +16,13 @@
 
 import * as path from "node:path";
 import { branchName, commandVerifier, deliver, diff, formatUsage, isRepository, run, status, untracked } from "../src/index.ts";
-import { agent, consoleReporter, show } from "./shared.ts";
+import { agent, consoleReporter, positional, show } from "./shared.ts";
 
-const [target, ...words] = process.argv.slice(2);
+const [target, ...words] = positional;
 const brief = words.join(" ");
 
 if (!target || !brief) {
-	console.error('usage: node examples/11-build.ts <throwaway-repo> "what to build"');
+	console.error('usage: node examples/11-build.ts [--model <pattern>] <throwaway-repo> "what to build"');
 	process.exit(1);
 }
 

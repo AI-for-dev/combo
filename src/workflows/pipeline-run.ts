@@ -142,6 +142,10 @@ export async function runPipeline(options: PipelineRunOptions): Promise<Pipeline
 	// nothing, and it costs three steps of real work if it is discovered late.
 	const resolved = pipeline.steps.map((step) => ({ step, cast: resolveCast(step, agents) }));
 
+	// The caller's model beats the file's: a pipeline pinned to one model must
+	// not survive a sweep that was asked to run it on another.
+	shared.model ??= pipeline.model;
+
 	const startedAt = performance.now();
 	const done: PipelineStepResult[] = [];
 	let previous: Previous | undefined;

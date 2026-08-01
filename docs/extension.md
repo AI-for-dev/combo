@@ -30,6 +30,12 @@ repository live in `.pi/agents/`, so ask for them explicitly:
 That is deliberate: project agents are repository-controlled content, so they are
 never loaded by default. See [Agents](agents.md).
 
+The tool also takes `model`, which puts every subagent of the call on one model,
+whatever their frontmatter says. **The parent session's model is never
+inherited**: a subagent running on whatever the operator's TUI happens to be on
+is the same bug one level up. The model comes from an explicit artifact - an
+argument or a file - or pi's settings take over as the last resort.
+
 What the run looks like while it happens is covered in [Display](display.md).
 
 ## The commands
@@ -39,9 +45,10 @@ What the run looks like while it happens is covered in [Display](display.md).
 | `/interview <request>` | Turns a vague request into a brief, one question at a time. |
 | `/build <request>` | Interview, then the build pipeline, then the commit. |
 | `/build --pipeline <name> <request>` | The same, with a pipeline of your choosing. |
+| `/build --model <pattern> <request>` | The same, with every subagent on that model. Checked before the interview: a typo costs a second. |
 | `/build resume` | Carries on an interrupted build from `runs/<timestamp>/build.json`. |
 | `/pipelines` | Lists the pipelines that are loaded, and the files that do not parse. |
-| `/run <name> <input>` | Runs a pipeline with no interview and no commit stop; its answer lands in the conversation. |
+| `/run [--model <pattern>] <name> <input>` | Runs a pipeline with no interview and no commit stop; its answer lands in the conversation. |
 | `/herdr on\|off` | Give every subagent its own herdr split for this session. |
 
 `/interview` and `/build` are commands rather than tools because a question card

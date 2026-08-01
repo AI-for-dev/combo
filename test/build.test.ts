@@ -205,6 +205,44 @@ describe("/build", () => {
 		assert.deepEqual(calls, ["branch:combo/add-a-cache", "commit:Add x\n\nBecause."]);
 	});
 
+	test("--model reaches the pipeline run", async () => {
+		const { ctx } = fakeCtx();
+		const { git } = fakeGit();
+		let seen: string | undefined;
+		await runBuild(
+			"--model local/qwen add a cache",
+			ctx,
+			deps({
+				git,
+				checkModel: async () => {},
+				runPipeline: (async (options: { model?: string }) => ((seen = options.model), delivered())) as never,
+			}),
+		);
+
+		assert.equal(seen, "local/qwen");
+	});
+
+	test("a model that does not resolve costs a second, not an interview", async () => {
+		const { ctx, said } = fakeCtx();
+		const { git } = fakeGit();
+		let interviewed = false;
+		const outcome = await runBuild(
+			"--model local/nope x",
+			ctx,
+			deps({
+				git,
+				checkModel: async () => {
+					throw new Error('No model found for "local/nope"');
+				},
+				interview: (async () => ((interviewed = true), {})) as never,
+			}),
+		);
+
+		assert.equal(outcome, undefined);
+		assert.equal(interviewed, false, "the check runs before anyone is asked anything");
+		assert.match(said(), /No model found/);
+	});
+
 	test("refusing the brief stops before a single subagent is spawned", async () => {
 		const { ctx, said } = fakeCtx({ confirm: [false] });
 		let ran = false;
@@ -527,6 +565,27 @@ describe("parseBuildArgs", () => {
 
 	test("a flag in the middle is part of the request: it is free text", () => {
 		assert.deepEqual(parseBuildArgs("fix the --pipeline flag"), { request: "fix the --pipeline flag" });
+	});
+
+	test("--model takes a pattern, in either order with --pipeline", () => {
+		assert.deepEqual(parseBuildArgs("--model local/qwen add a cache"), {
+			model: "local/qwen",
+			request: "add a cache",
+		});
+		assert.deepEqual(parseBuildArgs("--model local/qwen --pipeline audit x"), {
+			model: "local/qwen",
+			pipeline: "audit",
+			request: "x",
+		});
+		assert.deepEqual(parseBuildArgs("--pipeline audit --model=local/qwen x"), {
+			model: "local/qwen",
+			pipeline: "audit",
+			request: "x",
+		});
+	});
+
+	test("an unknown leading flag is free text, not a swallowed argument", () => {
+		assert.deepEqual(parseBuildArgs("--force the issue"), { request: "--force the issue" });
 	});
 });
 

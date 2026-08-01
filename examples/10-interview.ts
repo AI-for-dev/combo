@@ -14,7 +14,7 @@
 
 import * as readline from "node:readline/promises";
 import { interview, type AskUser } from "../src/index.ts";
-import { agent, consoleReporter, repoRoot, show } from "./shared.ts";
+import { agent, consoleReporter, positional, repoRoot, show } from "./shared.ts";
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
@@ -41,7 +41,7 @@ const ask: AskUser = async (question) => {
 		: { question: question.question, answer: typed, custom: true };
 };
 
-const request = process.argv.slice(2).join(" ") || "Add a cache in front of the agent loader";
+const request = positional.join(" ") || "Add a cache in front of the agent loader";
 
 try {
 	const result = await interview({

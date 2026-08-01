@@ -129,7 +129,7 @@ branch or a condition stays TypeScript, deliberately.
 ## What they all accept
 
 ```typescript
-{ lifetime, signal, timeoutMs, openInHerdr, onEvent, bus, cwd, sessionDir, exportDir, spawn }
+{ lifetime, signal, timeoutMs, openInHerdr, model, onEvent, bus, cwd, sessionDir, exportDir, spawn }
 ```
 
 Same names, same defaults everywhere, plus whatever is specific to each one
@@ -138,6 +138,16 @@ Same names, same defaults everywhere, plus whatever is specific to each one
 
 `spawn` is an **injectable parameter**, never a hard import inside a combinator.
 That is what lets every workflow be tested without a network.
+
+`model` puts **every** subagent of the workflow on one model, whatever their
+frontmatter says. It is an override, not a default, and that is the point: it
+lets the same workflow run against different LLMs without editing an agent
+file, and a pinned agent slipping through a sweep would make the comparison
+measure a mixture.
+
+```typescript
+await loop({ steps: [coder, reviewer], input, model: "anthropic/claude-sonnet-5" });
+```
 
 ## Deadlines
 
