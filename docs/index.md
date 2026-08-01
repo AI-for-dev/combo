@@ -57,6 +57,7 @@ See [Quickstart](quickstart.md) for the full first run.
 - [Display](display.md) - reporters, herdr splits, the pi TUI widget.
 - [Measurements](measurements.md) - what `Usage` counts, and what it refuses to guess.
 - [Export](export.md) - `runs/<timestamp>/`, HTML, JSONL, `usage.json`.
+- [Experiments](experiments.md) - one workflow, M models, N repetitions, one table.
 
 ## Using it from pi
 

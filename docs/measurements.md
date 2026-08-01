@@ -65,6 +65,9 @@ formatUsage(result.usage);
 
 `sumUsage` folds several together, which is how a workflow reports its total.
 
+Comparing these numbers across models, over repeated runs, is what
+[Experiments](experiments.md) is for - same collection, one table.
+
 ## Reference
 
 - [`usage`](api/usage.md) - `Usage`, `deltaUsage`, `sumUsage`, `formatUsage`, `compact`.

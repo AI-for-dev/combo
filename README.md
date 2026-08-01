@@ -86,6 +86,26 @@ await loop({ steps: [coder, reviewer], input, model: "anthropic/claude-sonnet-5"
 
 See [Workflows](docs/workflows.md) and [Lifetime](docs/lifetime.md).
 
+## Comparing models
+
+`experiment` runs the same workflow over M models and N repetitions, each cell in
+its own directory with its own measurements, and gives back one table.
+
+```typescript
+const report = await experiment({
+	models: ["anthropic/claude-sonnet-5", "local/qwen/qwen3-coder-next"],
+	repetitions: 3,
+	run: async (cell) => {
+		const result = await loop({ ...cell.options, steps: [coder, reviewer], input, until: lgtm });
+		return { ok: result.ok, converged: result.converged };
+	},
+});
+```
+
+Cells run one at a time by default, failed ones stay in the report with their
+usage, and the flag columns are whatever the callback returned. See
+[Experiments](docs/experiments.md).
+
 ## The whole flow: question to commit
 
 ```
@@ -129,7 +149,7 @@ See [Extension](docs/extension.md) and [Display](docs/display.md).
 
 ## Documentation
 
-- [Manual](docs/index.md) - agents, lifetime, workflows, pipelines, display, export.
+- [Manual](docs/index.md) - agents, lifetime, workflows, pipelines, display, export, experiments.
 - [API reference](docs/api/index.md) - every public export, generated from the
   source and checked by the test suite.
 - [Examples](docs/examples.md) - one runnable script per shape.

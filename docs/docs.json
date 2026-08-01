@@ -17,7 +17,8 @@
 			"items": [
 				{ "title": "Display", "path": "display.md" },
 				{ "title": "Measurements", "path": "measurements.md" },
-				{ "title": "Export", "path": "export.md" }
+				{ "title": "Export", "path": "export.md" },
+				{ "title": "Experiments", "path": "experiments.md" }
 			]
 		},
 		{

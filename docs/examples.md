@@ -14,6 +14,7 @@ node examples/08-route.ts        # a classifier sends two tasks to two agents
 node examples/09-orchestrate.ts  # the planner decides the split, then it runs
 node examples/10-interview.ts    # the interview, in a plain terminal
 node examples/11-build.ts        # the pipeline on a throwaway repository
+node examples/12-experiment.ts   # the same loop on several models, twice each
 ```
 
 `11-build.ts` writes code. It runs on a throwaway repository it creates itself,
@@ -32,7 +33,8 @@ node examples/03-fan-out.ts --model local/qwen/qwen3-coder-next
 ```
 
 See [Measurements](measurements.md) for why a zero is printed rather than
-estimated.
+estimated. `12-experiment.ts` takes its models as plain arguments instead: it
+runs one per model, which is what an [experiment](experiments.md) is.
 
 ## Watching them work
 

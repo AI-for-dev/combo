@@ -828,3 +828,39 @@ costs more than a lost run). The commands validate `--model` with
 `buildRegistry`, `checkModel` touches the real pi module: only a run inside a
 real pi proves it end to end.
 
+
+## Experiments: comparing models on the same work
+
+The model knob only pays off when something uses it to compare. `experiment` is
+that something: M models × N repetitions of one workflow, each cell in its own
+directory with its own measurements, and one table at the end.
+
+It is **a function, not a combinator**. It returns no `Result` and composes with
+nothing, because it is a harness placed above a workflow - one that could be
+nested inside a workflow would be measuring itself. Everything else here is
+nestable on purpose; this one is deliberately not. It is also not a pipeline
+kind: a pipeline is data a model must not be able to author, and a matrix over
+models is code the operator writes.
+
+A cell is handed a ready-made `WorkflowOptions` and the contract is to **spread
+it**. That is what puts every subagent on the cell's model, in the cell's export
+directory, and under the cell's collector - a callback that rebuilds those by
+hand silently measures something else. It is also why pipelines need no support
+of their own: `PipelineRunOptions` extends `WorkflowOptions`, so `run: (cell) =>
+runPipeline({ ...cell.options, … })` is the whole integration.
+
+Three rules the arithmetic depends on:
+
+- **Sequential by default.** `concurrency` is 1 unless asked otherwise: two
+  cells racing for the same machine measure the contention, not the models.
+- **Sums are stored, means are displayed.** `experiment.json` carries totals
+  only; the mean wall and mean cost are derived when the table is rendered.
+  Averaging averages is how a study starts lying about itself.
+- **A failed cell stays in the report, with its usage** - a callback that threw
+  included. It spent tokens before it broke, and dropping it would turn "two
+  models out of three answered" into a clean comparison of the survivors. Same
+  reason `loop` reports `converged` apart from `ok`.
+
+Flag columns are the union of the outcome keys actually seen, so a study
+comparing `converged` gets a `converged` column with nothing configured. `error`
+never becomes one: a column of distinct sentences compares nothing.
