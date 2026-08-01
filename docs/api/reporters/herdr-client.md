@@ -11,20 +11,6 @@ Ported from the integration herdr installs into pi itself
 that file is the reference implementation, proven against this exact server,
 and there is no reason to invent a second dialect.
 
-## `createHerdrSend`
-
-*function*
-
-```typescript
-export function createHerdrSend(env: HerdrEnv): HerdrSend { … }
-```
-
-Builds a sender bound to a herdr socket.
-
-One connection per request, closed as soon as the first response arrives -
-that is what the reference implementation does, and the server expects it.
-A first attempt at 500 ms, then one retry at 1500 ms, then we give up quietly.
-
 ## `detectHerdr`
 
 *function*
@@ -38,16 +24,6 @@ Detects a live herdr pane.
 Returns `undefined` when any of the three markers is missing - which is the
 normal case outside herdr, not an error. Callers fall back silently: no
 warning is ever printed just because herdr is not there.
-
-## `HERDR_SOURCE`
-
-*const*
-
-```typescript
-export const HERDR_SOURCE = "combo";
-```
-
-Source id under which we report. Distinct from the pi integration's `herdr:pi`.
 
 ## `HerdrEnv`
 

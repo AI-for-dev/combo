@@ -10,8 +10,7 @@ library, in [`README.md`](../../README.md); this is the exhaustive surface.
 | --- | --- | --- |
 | [`agent`](agent.md) | An agent is *content*: a system prompt, a model, a set of tools. It is declared as Markdown + frontmatter, following the pi convention. | 8 |
 | [`ask`](ask.md) | Asking the *user* a question - the one place a workflow may block on a human. | 5 |
-| [`builtin`](builtin.md) | The agents and pipelines this package ships with. | 3 |
-| [`events`](events.md) | The event stream: one core, many reporters. | 7 |
+| [`events`](events.md) | The event stream: one core, many reporters. | 5 |
 | [`experiment-report`](experiment-report.md) | What an experiment leaves behind: one JSON document, one comparison table. | 6 |
 | [`experiment`](experiment.md) | Running the same work across several models, several times. | 4 |
 | [`export`](export.md) | Exporting a run: `runs/<timestamp>/` with one HTML and one JSONL per subagent, plus a `usage.json`. | 9 |
@@ -19,12 +18,12 @@ library, in [`README.md`](../../README.md); this is the exhaustive surface.
 | [`pipeline-load`](pipeline-load.md) | Finding the pipelines a user wrote, wherever they put them. | 6 |
 | [`pipeline`](pipeline.md) | A pipeline is *data*: an ordered list of combinator calls, declared as YAML frontmatter + Markdown, following the same convention as an agent. | 5 |
 | [`reporters/console`](reporters/console.md) | A plain console reporter: one line per event that matters. | 2 |
-| [`reporters/herdr-client`](reporters/herdr-client.md) | Detection and transport for herdr's socket API. Nothing else lives here. | 5 |
+| [`reporters/herdr-client`](reporters/herdr-client.md) | Detection and transport for herdr's socket API. Nothing else lives here. | 3 |
 | [`reporters/herdr`](reporters/herdr.md) | The herdr reporter: one split per subagent, showing it work. | 3 |
 | [`reporters/index`](reporters/index.md) | Choosing a reporter, so the caller does not have to. | 3 |
 | [`reporters/record`](reporters/record.md) | The event stream, on disk: one JSON object per line, in the order it happened. | 1 |
 | [`reporters/silent`](reporters/silent.md) | The no-op reporter. | 1 |
-| [`reporters/tui`](reporters/tui.md) | State and formatting for the pi TUI, with no pi-tui in sight. | 16 |
+| [`reporters/tui`](reporters/tui.md) | State and formatting for the pi TUI, with no pi-tui in sight. | 12 |
 | [`result`](result.md) | `Result`: the single contract shared by everything else. | 3 |
 | [`resume`](resume.md) | Saving a build so it can be picked up again. | 10 |
 | [`run`](run.md) | `run()`: the disposable form. Spawn, ask, close. | 2 |

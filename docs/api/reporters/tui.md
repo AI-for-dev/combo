@@ -35,42 +35,6 @@ Collects subagent events into a renderable snapshot.
 Insertion order is preserved: a fan-out reads top to bottom in the order the
 branches were launched, not in the order they happen to finish.
 
-## `currentActivity`
-
-*function*
-
-```typescript
-export function currentActivity(snapshot: SubagentSnapshot): string { … }
-```
-
-What a subagent is doing *right now*, in a few words.
-
-The last tool call while it works; its verdict once it is done. This is the
-"minimal information" of the widget - enough to know it is alive and on the
-right track, not enough to read instead of the transcript.
-
-## `detailLine`
-
-*function*
-
-```typescript
-export function detailLine(snapshot: SubagentSnapshot, now?: number): string { … }
-```
-
-`ilaas/qwen-3.6-35b-instruct · ↑12k ↓209 · 12.4s`
-
-## `elapsedMs`
-
-*function*
-
-```typescript
-export function elapsedMs(snapshot: SubagentSnapshot, now = performance.now()): number { … }
-```
-
-Time on the clock for a subagent: counting up while it works, final once done.
-
-`now` is injectable so the live branch is testable; nothing else needs it.
-
 ## `formatToolCall`
 
 *function*
@@ -221,16 +185,6 @@ export type TuiSnapshot = {
 ```
 
 The whole picture: every subagent, plus what it adds up to.
-
-## `widgetLines`
-
-*function*
-
-```typescript
-export function widgetLines(snapshot: TuiSnapshot): string[] { … }
-```
-
-Plain text rows, for a caller with no theme - and for tests.
 
 ## `WidgetRow`
 

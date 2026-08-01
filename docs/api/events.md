@@ -49,30 +49,6 @@ export type EventListener = (event: SubagentEvent) => void;
 
 A subscriber. Throwing from here must never break the workflow.
 
-## `nextSubagentId`
-
-*function*
-
-```typescript
-export function nextSubagentId(agentName: string): string { … }
-```
-
-A stable id for a subagent: `reviewer#2`.
-
-It is the key used by the TUI, herdr and the export to follow one subagent
-across its whole life. Counters are per-process and per-agent-name, which is
-enough to read a fan-out of the same agent side by side.
-
-## `resetSubagentIds`
-
-*function*
-
-```typescript
-export function resetSubagentIds(): void { … }
-```
-
-Resets the id counters. For tests that assert on exact ids.
-
 ## `SubagentEvent`
 
 *type*
