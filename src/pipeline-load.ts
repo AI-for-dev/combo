@@ -15,11 +15,11 @@
  * file is the one being asked for.
  */
 
-import * as fs from "node:fs";
 import * as path from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir } from "@earendil-works/pi-coding-agent";
 import type { AgentScope } from "./agent.ts";
 import { BUILTIN_PIPELINES_DIR } from "./builtin.ts";
+import { findProjectDir, readMarkdownDir } from "./markdown.ts";
 import { parsePipeline, type Pipeline } from "./pipeline.ts";
 
 /** Directory name under `~/.pi/agent/` and under `.pi/`. */
@@ -72,7 +72,7 @@ export function loadPipelines(options: { cwd?: string; scope?: AgentScope; built
 	if (options.builtin) take(loadPipelinesFromDir(BUILTIN_PIPELINES_DIR));
 	if (scope !== "project") take(loadPipelinesFromDir(path.join(getAgentDir(), PIPELINES_DIR)));
 	if (scope !== "user") {
-		const projectDir = findProjectPipelinesDir(cwd);
+		const projectDir = findProjectDir(cwd, PIPELINES_DIR);
 		if (projectDir) take(loadPipelinesFromDir(projectDir));
 	}
 
@@ -81,32 +81,16 @@ export function loadPipelines(options: { cwd?: string; scope?: AgentScope; built
 
 /** Reads every `.md` in a directory. A missing or unreadable directory yields nothing. */
 export function loadPipelinesFromDir(dir: string): PipelineCatalogue {
-	let entries: fs.Dirent[];
-	try {
-		entries = fs.readdirSync(dir, { withFileTypes: true });
-	} catch {
-		return { pipelines: [], broken: [] };
-	}
-
 	const pipelines: Pipeline[] = [];
 	const broken: BrokenPipeline[] = [];
 
-	for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-		if (!entry.name.endsWith(".md")) continue;
-		if (!entry.isFile() && !entry.isSymbolicLink()) continue;
-
-		const filePath = path.join(dir, entry.name);
-		let content: string;
+	for (const file of readMarkdownDir(dir)) {
 		try {
-			content = fs.readFileSync(filePath, "utf-8");
-		} catch {
-			continue;
-		}
-
-		try {
-			pipelines.push(parsePipeline(content, filePath));
+			pipelines.push(parsePipeline(file.content, file.filePath));
 		} catch (cause) {
-			broken.push({ filePath, name: entry.name.replace(/\.md$/, ""), error: (cause as Error).message });
+			// Collected, not dropped: a pipeline you are looking at and cannot
+			// run has to say why. This is where agents and pipelines differ.
+			broken.push({ filePath: file.filePath, name: file.name, error: (cause as Error).message });
 		}
 	}
 
@@ -136,20 +120,4 @@ export function findPipeline(catalogue: PipelineCatalogue, name: string): Pipeli
 	throw new Error(
 		`Unknown pipeline "${name}". Loaded: ${catalogue.pipelines.map((candidate) => candidate.name).join(", ")}`,
 	);
-}
-
-/** Walks up parent directories to the first `.pi/pipelines/`. */
-function findProjectPipelinesDir(cwd: string): string | undefined {
-	let dir = path.resolve(cwd);
-	for (;;) {
-		const candidate = path.join(dir, CONFIG_DIR_NAME, PIPELINES_DIR);
-		try {
-			if (fs.statSync(candidate).isDirectory()) return candidate;
-		} catch {
-			// not here, walk up
-		}
-		const parent = path.dirname(dir);
-		if (parent === dir) return undefined;
-		dir = parent;
-	}
 }

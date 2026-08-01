@@ -80,6 +80,7 @@ src/                the library
   session.ts        the whole pi API, and nowhere else
   agent.ts subagent.ts run.ts result.ts usage.ts events.ts export.ts
   text.ts           reading what a model wrote: truncate, saysWord, jsonObjects
+  markdown.ts       finding and reading a .md with frontmatter
   experiment.ts experiment-report.ts    one workflow, M models, N repetitions
   ask.ts verify.ts git.ts resume.ts     the ports that touch the world
   pipeline.ts pipeline-load.ts builtin.ts

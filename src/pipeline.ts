@@ -27,6 +27,7 @@
 
 import { parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import type { Lifetime } from "./agent.ts";
+import { asBoolean, asString } from "./markdown.ts";
 
 /** The combinators a pipeline may call, by their exported name. */
 export const STEP_KINDS = [
@@ -301,18 +302,6 @@ function checkShape(step: Omit<PipelineStep, "prompt">, where: string): void {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function asString(value: unknown): string | undefined {
-	return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
-}
-
-/** A YAML flag may arrive as a boolean or as the text "true". */
-function asBoolean(value: unknown): boolean | undefined {
-	if (typeof value === "boolean") return value;
-	if (value === "true") return true;
-	if (value === "false") return false;
-	return undefined;
 }
 
 function asCount(value: unknown, what: string): number | undefined {
