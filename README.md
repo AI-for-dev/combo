@@ -1,4 +1,4 @@
-# pi-subagent
+# combo
 
 Write [pi](https://pi.dev) subagents and compose workflows, without rewriting the
 plumbing every time.
@@ -26,7 +26,7 @@ npm run typecheck
 Node 23.6 or later runs TypeScript natively: there is no build step.
 
 ```typescript
-import { findAgent, loadAgents, run } from "pi-subagent";
+import { findAgent, loadAgents, run } from "combo";
 
 const agents = loadAgents();
 const result = await run(findAgent(agents, "scout"), "Find the authentication code");
@@ -35,7 +35,7 @@ const result = await run(findAgent(agents, "scout"), "Find the authentication co
 The low level form gives you a live subagent whose lifetime you control:
 
 ```typescript
-import { spawn } from "pi-subagent";
+import { spawn } from "combo";
 
 const coder = await spawn(coderAgent, { lifetime: "workflow" });
 try {

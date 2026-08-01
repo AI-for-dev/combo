@@ -1,4 +1,4 @@
-# pi-subagent
+# combo
 
 A TypeScript library for writing [pi](https://pi.dev) subagents and composing
 them into workflows. A subagent runs **in-process** through pi's SDK, so it is an
@@ -49,7 +49,7 @@ no enums, no namespaces, no parameter properties.
    inside a session started with `--provider test-ilaas`, and every subagent
    silently got `thinkingLevel: high` because the operator's settings said so.
    So the caller's `--provider`/`--model` do not reach the subagents, and the
-   operator's personal file does. Two knock-on facts: `PI_SUBAGENT_MODEL` is
+   operator's personal file does. Two knock-on facts: `COMBO_MODEL` is
    honoured by `examples/shared.ts` only, not by the extension, so frontmatter
    is the *only* way to pin a subagent's model today; and an experiment that
    pins its repository with a tag while leaving this floating is measuring the

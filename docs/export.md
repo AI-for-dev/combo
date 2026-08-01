@@ -5,7 +5,7 @@ closes. Two formats, both produced by pi itself: a readable HTML page and a
 replayable JSONL. We render neither.
 
 ```typescript
-import { createRunDir, createTuiCollector, fanOut, usageReport, writeUsageReport } from "pi-subagent";
+import { createRunDir, createTuiCollector, fanOut, usageReport, writeUsageReport } from "combo";
 
 const dir = createRunDir();               // runs/<timestamp>/
 const collector = createTuiCollector();

@@ -15,7 +15,7 @@ after(() => {
 });
 
 function tmpDir(): string {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-test-"));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-test-"));
 	tmpDirs.push(dir);
 	return dir;
 }
@@ -297,10 +297,10 @@ describe("watching every subagent", () => {
 	test("the environment can turn it on for a whole shell", () => {
 		assert.equal(herdrAllFromEnv({} as NodeJS.ProcessEnv), false);
 		for (const value of ["all", "1", "true", "ALL"]) {
-			assert.equal(herdrAllFromEnv({ PI_SUBAGENT_HERDR: value } as NodeJS.ProcessEnv), true, value);
+			assert.equal(herdrAllFromEnv({ COMBO_HERDR: value } as NodeJS.ProcessEnv), true, value);
 		}
 		for (const value of ["off", "0", "", "no"]) {
-			assert.equal(herdrAllFromEnv({ PI_SUBAGENT_HERDR: value } as NodeJS.ProcessEnv), false, value);
+			assert.equal(herdrAllFromEnv({ COMBO_HERDR: value } as NodeJS.ProcessEnv), false, value);
 		}
 	});
 

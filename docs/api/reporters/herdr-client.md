@@ -44,7 +44,7 @@ warning is ever printed just because herdr is not there.
 *const*
 
 ```typescript
-export const HERDR_SOURCE = "pi-subagent";
+export const HERDR_SOURCE = "combo";
 ```
 
 Source id under which we report. Distinct from the pi integration's `herdr:pi`.

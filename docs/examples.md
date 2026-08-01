@@ -21,12 +21,12 @@ and nothing else.
 
 ## Choosing a model
 
-The examples read `PI_SUBAGENT_MODEL`. Not every provider reports tokens, and
+The examples read `COMBO_MODEL`. Not every provider reports tokens, and
 several return zeros at the source, so pick one that does if the usage lines are
 meant to mean anything:
 
 ```bash
-PI_SUBAGENT_MODEL=local/qwen/qwen3-coder-next node examples/03-fan-out.ts
+COMBO_MODEL=local/qwen/qwen3-coder-next node examples/03-fan-out.ts
 ```
 
 See [Measurements](measurements.md) for why a zero is printed rather than
@@ -35,7 +35,7 @@ estimated.
 ## Watching them work
 
 ```bash
-PI_SUBAGENT_HERDR=all node examples/03-fan-out.ts
+COMBO_HERDR=all node examples/03-fan-out.ts
 ```
 
 Inside [herdr](https://herdr.dev), that gives every subagent its own split. See

@@ -229,7 +229,7 @@ export async function buildRegistry(pi: PiModule): Promise<Record<string, unknow
 		return { authStorage, modelRegistry: pi.ModelRegistry.create(authStorage) };
 	}
 	throw new Error(
-		"Unsupported pi version: neither ModelRuntime nor AuthStorage/ModelRegistry is exported. pi-subagent supports 0.80.x.",
+		"Unsupported pi version: neither ModelRuntime nor AuthStorage/ModelRegistry is exported. combo supports 0.80.x.",
 	);
 }
 

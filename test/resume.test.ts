@@ -35,7 +35,7 @@ afterEach(() => {
 });
 
 function tmpDir(): string {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-resume-"));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-resume-"));
 	scratch.push(dir);
 	return dir;
 }

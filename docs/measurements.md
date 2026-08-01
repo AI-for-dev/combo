@@ -57,7 +57,7 @@ On a `"task"` subagent the two times are nearly equal. On a `"workflow"` one, th
 ## Reading it
 
 ```typescript
-import { formatUsage, sumUsage } from "pi-subagent";
+import { formatUsage, sumUsage } from "combo";
 
 formatUsage(result.usage);
 // 3 turns 12.4s ↑12k ↓2.1k R8k $0.0412 ctx:34k

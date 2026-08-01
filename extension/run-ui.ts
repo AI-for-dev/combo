@@ -22,7 +22,7 @@ import {
 import { paintWidget, watchEverything } from "./execute.ts";
 
 /** Key for the footer status and the widget above the prompt. */
-export const STATUS = "pi-subagent";
+export const STATUS = "combo";
 
 /** What a command needs from pi to show a run. A narrow slice, so a test can stand in. */
 export type RunUi = {

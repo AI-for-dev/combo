@@ -11,7 +11,7 @@ after(() => {
 });
 
 function tmpAgentsDir(files: Record<string, string>): string {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-"));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-"));
 	tmpDirs.push(dir);
 	const agentsDir = path.join(dir, ".pi", "agents");
 	fs.mkdirSync(agentsDir, { recursive: true });

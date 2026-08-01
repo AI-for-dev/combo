@@ -201,8 +201,8 @@ describe("/build", () => {
 		const { git, calls } = fakeGit();
 		await runBuild("add a cache", ctx, deps({ git }));
 
-		assert.deepEqual(confirms, ["Build this?", "Commit on pi-subagent/add-a-cache?"], "two stops, and only two");
-		assert.deepEqual(calls, ["branch:pi-subagent/add-a-cache", "commit:Add x\n\nBecause."]);
+		assert.deepEqual(confirms, ["Build this?", "Commit on combo/add-a-cache?"], "two stops, and only two");
+		assert.deepEqual(calls, ["branch:combo/add-a-cache", "commit:Add x\n\nBecause."]);
 	});
 
 	test("refusing the brief stops before a single subagent is spawned", async () => {
@@ -239,7 +239,7 @@ describe("/build", () => {
 		const { git, calls } = fakeGit();
 		await runBuild("x", ctx, deps({ git }));
 
-		assert.deepEqual(calls, ["branch:pi-subagent/x", "commit:My own subject\n\nMy own body."]);
+		assert.deepEqual(calls, ["branch:combo/x", "commit:My own subject\n\nMy own body."]);
 	});
 
 	test("outside a git repository nothing starts: the work would have nowhere to land", async () => {

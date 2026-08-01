@@ -94,7 +94,7 @@ restates the signature.
 
 The hand-written pages under `docs/` are checked more modestly: every link
 resolves, every page is listed in `docs.json`, and every symbol a code fence
-imports from `pi-subagent` really exists. A renamed export therefore breaks the
+imports from `combo` really exists. A renamed export therefore breaks the
 documentation build, not a reader's afternoon.
 
 [Design decisions](decisions.md) records **decisions**, not the state of the

@@ -139,12 +139,12 @@ function commitFromStdin(cwd: string, message: string): Promise<GitResult<string
 }
 
 /**
- * A branch name from a request: `pi-subagent/add-a-cache`.
+ * A branch name from a request: `combo/add-a-cache`.
  *
  * Kept short and free of anything git dislikes. The prefix says who made it, so
  * a `git branch` listing shows at a glance what came from a pipeline.
  */
-export function branchName(request: string, prefix = "pi-subagent"): string {
+export function branchName(request: string, prefix = "combo"): string {
 	const slug = request
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, "-")

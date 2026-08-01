@@ -68,7 +68,7 @@ export function navigationPaths(root: string): string[] {
 }
 
 /**
- * Symbols imported from `pi-subagent` in a code fence that the library does not
+ * Symbols imported from `combo` in a code fence that the library does not
  * export.
  *
  * This is the check that earns its keep: an example calling a renamed function
@@ -81,7 +81,7 @@ export function unknownImports(root: string, pages: string[]): string[] {
 
 	for (const page of pages) {
 		const text = readFileSync(join(root, page), "utf8");
-		for (const [, names] of text.matchAll(/import\s*\{([^}]*)\}\s*from\s*"pi-subagent"/g)) {
+		for (const [, names] of text.matchAll(/import\s*\{([^}]*)\}\s*from\s*"combo"/g)) {
 			for (const raw of (names as string).split(",")) {
 				const name = raw.replace(/^\s*type\s+/, "").trim();
 				if (name && !known.has(name)) unknown.push(`${page}: ${name}`);

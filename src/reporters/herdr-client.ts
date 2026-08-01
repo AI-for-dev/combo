@@ -42,7 +42,7 @@ export function detectHerdr(env: NodeJS.ProcessEnv = process.env): HerdrEnv | un
 export type HerdrSend = (method: string, params: Record<string, unknown>) => Promise<unknown>;
 
 /** Source id under which we report. Distinct from the pi integration's `herdr:pi`. */
-export const HERDR_SOURCE = "pi-subagent";
+export const HERDR_SOURCE = "combo";
 
 /**
  * Builds a sender bound to a herdr socket.

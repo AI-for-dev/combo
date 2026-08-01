@@ -33,7 +33,7 @@ learn it, and until it did, every collapsed row in the TUI showed a blank task.
 composing:
 
 ```typescript
-import { combineReporters, createHerdrReporter, createTuiCollector } from "pi-subagent";
+import { combineReporters, createHerdrReporter, createTuiCollector } from "combo";
 
 const collector = createTuiCollector();
 onEvent: combineReporters(collector.reporter, createHerdrReporter());
@@ -45,7 +45,7 @@ drops it.
 ## Picking a reporter
 
 ```typescript
-import { autoReporter, consoleReporter, silentReporter } from "pi-subagent";
+import { autoReporter, consoleReporter, silentReporter } from "combo";
 
 onEvent: autoReporter();   // herdr when it is running, silent otherwise
 ```
@@ -97,7 +97,7 @@ identically either way:
 
 ```bash
 /herdr on                                            # for this pi session
-PI_SUBAGENT_HERDR=all node examples/03-fan-out.ts    # for a whole shell
+COMBO_HERDR=all node examples/03-fan-out.ts    # for a whole shell
 ```
 
 ```typescript

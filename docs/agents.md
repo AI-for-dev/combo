@@ -40,7 +40,7 @@ parser can repair that.
 ## Where they are loaded from
 
 ```typescript
-import { findAgent, loadAgents } from "pi-subagent";
+import { findAgent, loadAgents } from "combo";
 
 const agents = loadAgents();                       // ~/.pi/agent/agents/ only
 const both = loadAgents({ scope: "both" });        // plus .pi/agents/

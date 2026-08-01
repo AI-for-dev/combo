@@ -1,6 +1,6 @@
 # Design decisions
 
-Why pi-subagent is shaped the way it is, and what was reversed along the way.
+Why combo is shaped the way it is, and what was reversed along the way.
 This page records **decisions**, not the state of the code: read the relevant
 section before undoing a design choice, and add to it when you take one.
 
@@ -526,7 +526,7 @@ Points that cost time to discover:
 **`openInHerdr` is opt-in, per subagent**, exactly like `lifetime`: a fan-out of
 twenty branches must not carpet the screen unless someone asked. The other
 regime - **watch everything** - belongs to the reporter, not to the core:
-`createHerdrReporter({ all: true })`, seeded by `PI_SUBAGENT_HERDR=all` and
+`createHerdrReporter({ all: true })`, seeded by `COMBO_HERDR=all` and
 toggled for a session with `/herdr on`. Who gets a pane is a display decision,
 and the workflow runs identically either way; putting it on the spawn would have
 meant threading a flag through every call site to change what a terminal shows. It travels on

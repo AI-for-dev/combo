@@ -240,7 +240,7 @@ describe("executeSubagent", () => {
 	});
 
 	test("export: the run directory is created, the subagents export into it, usage.json lands", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-run-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-run-"));
 		try {
 			const fake = fakeSpawn();
 			const output = await executeSubagent(
@@ -264,7 +264,7 @@ describe("executeSubagent", () => {
 	});
 
 	test("export: nothing is written when nobody asked", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-run-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-run-"));
 		try {
 			const fake = fakeSpawn();
 			const output = await executeSubagent({ agent: "scout", task: "a" }, deps({ spawn: fake.spawn, runDir: () => dir }));
@@ -278,7 +278,7 @@ describe("executeSubagent", () => {
 	});
 
 	test("export: a run that throws still leaves its usage.json behind", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-run-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-run-"));
 		try {
 			await assert.rejects(() =>
 				executeSubagent({ agent: "ghost", task: "x", export: true }, deps({ spawn: fakeSpawn().spawn, runDir: () => dir })),
@@ -290,7 +290,7 @@ describe("executeSubagent", () => {
 	});
 
 	test("export: the parent session is copied in beside the subagents", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-run-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-run-"));
 		const main = path.join(dir, "parent.jsonl");
 		fs.writeFileSync(main, '{"type":"session"}\n');
 		try {

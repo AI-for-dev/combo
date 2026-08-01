@@ -17,13 +17,13 @@ export { consoleReporter };
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 /**
- * Model override for the examples: `PI_SUBAGENT_MODEL=local/qwen/qwen3-coder-next`.
+ * Model override for the examples: `COMBO_MODEL=local/qwen/qwen3-coder-next`.
  *
  * Worth setting. Not every provider reports token usage - several report zero,
  * and the library says zero rather than inventing a number. Pick a provider
  * that does report if you want the usage lines to mean anything.
  */
-const modelOverride = process.env.PI_SUBAGENT_MODEL;
+const modelOverride = process.env.COMBO_MODEL;
 
 /** The demo agents shipped with this repository. */
 export const agents: Agent[] = loadAgentsFromDir(path.join(here, "..", "agents"), "project").map((definition) =>
