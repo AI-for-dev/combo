@@ -848,6 +848,26 @@ It is an **override, not a default**: the knob exists to run one workflow
 against different LLMs, and a frontmatter model surviving a sweep would make
 the experiment measure a mixture. Precedence is resolved once, in `spawn()`,
 so an injected fake session observes the *effective* pattern.
+### What a shipped agent declares: nothing
+
+None of the nine agents in `agents/` carries a `model:`, and that is a decision
+rather than an omission. A definition that ships in a package must not choose its
+user's provider: pinning one would override the settings they already made and
+break outright for anyone holding no key for it. So a shipped agent falls through
+to step 4, which is what makes `pi -e extension` work on a machine we know
+nothing about.
+
+The cost is real and worth stating, because it is invisible: **a run with no
+`--model` measures the operator.** Verified on 2026-08-01 - `/run explore` with
+nothing specified put all four subagents on `ilaas/gemma-4-31b`, a model named
+nowhere in this repository, read from `~/.pi/agent/settings.json`. An earlier run
+picked up a `thinkingLevel: high` nobody asked for the same way.
+
+Which is why the fix is a habit, not a file: **anything whose numbers will be
+compared names its model.** `experiment()` takes `models` and refuses to guess,
+`--model` exists on `/run` and `/build`, the examples take it in argv, and a
+pipeline that belongs to one repository may pin its own. An agent *you* write for
+*your* machine is welcome to declare one - it is only what ships that must not.
 
 Three deliberate refusals, so nobody "fixes" them later:
 
