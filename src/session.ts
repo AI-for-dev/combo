@@ -99,6 +99,12 @@ export type CreateSessionOptions = {
 	 * default, and it is intentional.
 	 */
 	sessionDir?: string;
+	/**
+	 * Model pattern for this session, already resolved against the precedence
+	 * ladder by `spawn()` - see `SpawnOptions.model`. Absent means pi's own
+	 * settings decide, which is the last resort, never a choice made here.
+	 */
+	model?: string;
 };
 
 /** Session factory. The injection point for tests. */
@@ -117,7 +123,7 @@ export const createDefaultSession: CreateSession = async (agent, options) => {
 
 	const { session } = await createAgentSession({
 		cwd,
-		...(await buildModelOptions(agent)),
+		...(await buildModelOptions(agent, options.model)),
 		tools: agent.tools ?? [...READ_ONLY_TOOLS],
 		resourceLoader: new StaticResourceLoader(situate(agent.systemPrompt, cwd)),
 		sessionManager: options.sessionDir ? SessionManager.create(cwd, options.sessionDir) : SessionManager.inMemory(cwd),
@@ -197,10 +203,10 @@ type ModelOptions = Record<string, unknown>;
  * Detection is by presence, not by version string: a version number can be
  * patched, a missing export cannot be faked.
  */
-async function buildModelOptions(agent: Agent): Promise<ModelOptions> {
+async function buildModelOptions(agent: Agent, pattern?: string): Promise<ModelOptions> {
 	const pi = (await import("@earendil-works/pi-coding-agent")) as unknown as PiModule;
 	const registry = await buildRegistry(pi);
-	return { ...registry, model: resolveModel(agent, registry) };
+	return { ...registry, model: resolveModel(agent, registry, pattern) };
 }
 
 /** The two shapes of pi's model API we know how to build. */
@@ -234,26 +240,51 @@ export async function buildRegistry(pi: PiModule): Promise<Record<string, unknow
 }
 
 /**
- * Resolves `agent.model` into a pi model.
+ * Resolves a model pattern into a pi model, or `undefined` with no pattern.
+ *
+ * The pattern defaults to `agent.model`; a caller's override arrives already
+ * chosen by `spawn()`. A pattern that resolves to nothing throws: better to
+ * fail at spawn than to run a whole workflow on the wrong model.
+ */
+function resolveModel(agent: Agent, registry: Record<string, unknown>, pattern = agent.model) {
+	if (!pattern) return undefined;
+
+	const model = resolvePattern(pattern, registry);
+	if (!model) {
+		throw new Error(`No model found for agent "${agent.name}": "${pattern}"`);
+	}
+	return model;
+}
+
+/**
+ * Checks that a model pattern resolves in this pi, without opening a session.
+ *
+ * For whoever takes a `--model` argument: `/build` interviews the user for
+ * minutes before the first spawn, and a typo must cost a second, not a
+ * conversation. It touches the real pi module, like {@link buildRegistry} -
+ * a fake cannot stand in for it, only a real pi run proves it end to end.
+ */
+export async function checkModel(pattern: string): Promise<void> {
+	const pi = (await import("@earendil-works/pi-coding-agent")) as unknown as PiModule;
+	const registry = await buildRegistry(pi);
+	if (!resolvePattern(pattern, registry)) {
+		throw new Error(`No model found for "${pattern}"`);
+	}
+}
+
+/**
+ * One pattern against whichever registry this pi exposes.
  *
  * `resolveCliModel` accepts `"anthropic/claude-sonnet-5"` as well as partial
- * matches, and takes whichever of the two registries this pi understands. A
- * pattern that resolves to nothing throws: better to fail at spawn than to run
- * a whole workflow on the wrong model.
+ * matches, and takes whichever of the two registries this pi understands.
  */
-function resolveModel(agent: Agent, registry: Record<string, unknown>) {
-	if (!agent.model) return undefined;
-
-	const [provider, ...rest] = agent.model.split("/");
+function resolvePattern(pattern: string, registry: Record<string, unknown>): unknown {
+	const [provider, ...rest] = pattern.split("/");
 	const hasProvider = rest.length > 0;
 	const resolved = (resolveCliModel as unknown as (options: Record<string, unknown>) => { model?: unknown })({
 		cliProvider: hasProvider ? provider : undefined,
-		cliModel: hasProvider ? rest.join("/") : agent.model,
+		cliModel: hasProvider ? rest.join("/") : pattern,
 		...registry,
 	});
-
-	if (!resolved.model) {
-		throw new Error(`No model found for agent "${agent.name}": "${agent.model}"`);
-	}
 	return resolved.model;
 }

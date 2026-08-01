@@ -118,6 +118,7 @@ export {
 } from "./workflows/pipeline-run.ts";
 export { run, type RunOptions } from "./run.ts";
 export {
+	checkModel,
 	createDefaultSession,
 	READ_ONLY_TOOLS,
 	situate,

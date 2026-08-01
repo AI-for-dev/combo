@@ -46,6 +46,15 @@ export type WorkflowOptions = {
 	exportDir?: string;
 	/** Give every subagent of this workflow its own herdr split. Opt-in. */
 	openInHerdr?: boolean;
+	/**
+	 * Model pattern for **every** subagent of this workflow.
+	 *
+	 * An override, like {@link SpawnOptions.model}, and for the same reason: it
+	 * is what lets one workflow run against different models without touching an
+	 * agent file. It beats every agent's frontmatter - a sweep that let a pinned
+	 * agent through would measure a mixture.
+	 */
+	model?: string;
 	/** Defaults to the real {@link spawn}. */
 	spawn?: SpawnFn;
 };
@@ -81,6 +90,7 @@ export class SubagentPool {
 			sessionDir: options.sessionDir,
 			exportDir: options.exportDir,
 			openInHerdr: options.openInHerdr,
+			model: options.model,
 		};
 	}
 

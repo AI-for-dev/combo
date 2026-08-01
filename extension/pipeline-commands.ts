@@ -16,6 +16,7 @@
 
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import {
+	checkModel,
 	checkPipelineAgents,
 	createRunDir,
 	findPipeline,
@@ -26,7 +27,7 @@ import {
 	type PipelineCatalogue,
 	type PipelineRunResult,
 } from "../src/index.ts";
-import type { BuildDeps, CommandCtx } from "./build.ts";
+import { parseLeadingFlags, type BuildDeps, type CommandCtx } from "./build.ts";
 import { liveRun, pipelineVerifier, STATUS } from "./run-ui.ts";
 
 /**
@@ -69,7 +70,7 @@ export default function registerPipelineCommands(pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("run", {
-		description: "Run a pipeline by name, with no interview and no commit",
+		description: "Run a pipeline by name, with no interview and no commit (`--model <pattern>` to override)",
 		handler: async (args: string, ctx: ExtensionCommandContext) => {
 			await runNamed(args, ctx as unknown as CommandCtx, { sendMessage });
 		},
@@ -114,7 +115,7 @@ export function listPipelines(ctx: CommandCtx, deps: PipelineDeps = {}): string[
 }
 
 /**
- * `/run <pipeline> <what it should work on>`.
+ * `/run [--model <pattern>] <pipeline> <what it should work on>`.
  *
  * No interview and no commit stop: this runs a pipeline and hands back what it
  * said. Whatever a step writes to the working tree is still written - `/run` is
@@ -127,7 +128,9 @@ export function listPipelines(ctx: CommandCtx, deps: PipelineDeps = {}): string[
  * model before it knows anything about it.
  */
 export async function runNamed(args: string, ctx: CommandCtx, deps: PipelineDeps = {}): Promise<PipelineRunResult | undefined> {
-	const [name, ...rest] = args.trim().split(/\s+/).filter(Boolean);
+	const { flags, rest: text } = parseLeadingFlags(args, ["model"]);
+	const model = flags.model;
+	const [name, ...rest] = text.split(/\s+/).filter(Boolean);
 	if (!name) {
 		ctx.ui.notify("run: say which pipeline, for example /run explore how usage is measured. /pipelines lists them", "warning");
 		return undefined;
@@ -139,6 +142,7 @@ export async function runNamed(args: string, ctx: CommandCtx, deps: PipelineDeps
 		pipeline = findPipeline((deps.loadPipelines ?? loadPipelines)({ cwd: ctx.cwd, scope: "both", builtin: true }), name);
 		// Before anything is spawned, as everywhere: a typo costs a second.
 		checkPipelineAgents(pipeline, agents);
+		if (model) await (deps.checkModel ?? checkModel)(model);
 	} catch (cause) {
 		ctx.ui.notify(cause instanceof Error ? cause.message : String(cause), "error");
 		return undefined;
@@ -157,6 +161,7 @@ export async function runNamed(args: string, ctx: CommandCtx, deps: PipelineDeps
 			cwd: ctx.cwd,
 			exportDir,
 			verify: deps.verify ?? pipelineVerifier(pipeline, ctx.cwd),
+			model,
 			signal: ctx.signal,
 			onEvent: live.onEvent,
 		});

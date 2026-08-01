@@ -17,13 +17,20 @@ export { consoleReporter };
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 /**
- * Model override for the examples: `COMBO_MODEL=local/qwen/qwen3-coder-next`.
+ * Model override for the examples: `node examples/01-run.ts --model local/qwen/qwen3-coder-next`.
  *
- * Worth setting. Not every provider reports token usage - several report zero,
- * and the library says zero rather than inventing a number. Pick a provider
- * that does report if you want the usage lines to mean anything.
+ * An argument, never an environment variable: ambient state reaching a
+ * subagent is the exact hole this library plugs, and the examples must not
+ * demonstrate it. Worth passing, too - not every provider reports token
+ * usage, and the library says zero rather than inventing a number. Pick a
+ * provider that does report if you want the usage lines to mean anything.
  */
-const modelOverride = process.env.COMBO_MODEL;
+const args = process.argv.slice(2);
+const flag = args.indexOf("--model");
+const modelOverride = flag >= 0 ? args[flag + 1] : undefined;
+
+/** What is left of the command line once `--model` is consumed. */
+export const positional: string[] = flag >= 0 ? [...args.slice(0, flag), ...args.slice(flag + 2)] : args;
 
 /** The demo agents shipped with this repository. */
 export const agents: Agent[] = loadAgentsFromDir(path.join(here, "..", "agents"), "project").map((definition) =>

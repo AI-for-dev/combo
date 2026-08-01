@@ -189,6 +189,18 @@ describe("runPipeline", () => {
 		assert.equal(fake.spawned.length, 2, "the step asked for workflow: coder is reused");
 	});
 
+	test("the caller's model beats the file's, and the file's is used when the caller passes none", async () => {
+		const pinned = pipeline("name: p\nmodel: local/from-file\nsteps:\n  - id: one\n    chain: scout", "## one\nGo.");
+
+		const swept = fakeSpawn();
+		await runPipeline({ pipeline: pinned, agents, input: "x", model: "local/from-caller", spawn: swept.spawn });
+		assert.equal(swept.spawned[0]?.options.model, "local/from-caller", "a pinned file must not survive a sweep");
+
+		const alone = fakeSpawn();
+		await runPipeline({ pipeline: pinned, agents, input: "x", spawn: alone.spawn });
+		assert.equal(alone.spawned[0]?.options.model, "local/from-file");
+	});
+
 	test("cancellation stops it between steps", async () => {
 		const controller = new AbortController();
 		const fake = fakeSpawn(() => {

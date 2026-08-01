@@ -8,7 +8,8 @@
  */
 
 import type { SessionStats } from "@earendil-works/pi-coding-agent";
-import type { AgentMessage, SessionEvent, SessionPort } from "../../src/session.ts";
+import type { Agent } from "../../src/agent.ts";
+import type { AgentMessage, CreateSession, CreateSessionOptions, SessionEvent, SessionPort } from "../../src/session.ts";
 
 export type Turn = {
 	/** Assistant text for this turn. */
@@ -155,14 +156,17 @@ export function fakeSession(turns: Turn[] = []): FakeSession {
 /** A `createSession` that hands out fakes and records them, in spawn order. */
 export function fakeSessionFactory(turnsPerSpawn: Turn[][] | Turn[] = []) {
 	const created: FakeSession[] = [];
+	/** What each spawn asked for - this is how a test sees the *effective* model. */
+	const requested: { agent: Agent; options: CreateSessionOptions }[] = [];
 	const isNested = Array.isArray(turnsPerSpawn[0]);
 
-	const createSession = async () => {
+	const createSession: CreateSession = async (agent, options) => {
+		requested.push({ agent, options });
 		const turns = (isNested ? (turnsPerSpawn as Turn[][])[created.length] : (turnsPerSpawn as Turn[])) ?? [];
 		const session = fakeSession(turns);
 		created.push(session);
 		return session;
 	};
 
-	return { createSession, created };
+	return { createSession, created, requested };
 }

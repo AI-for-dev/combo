@@ -785,3 +785,46 @@ You review the code produced and return at most 5 remarks…
   the real cause.
 - Agents are rediscovered on every call (hot editing works).
 
+## The model: an explicit knob at every level
+
+For a long time the model was the one thing invariant 5 did not cover, and it
+was measured: agents with no `model:` ran on the operator's
+`~/.pi/agent/settings.json` defaults (`cerebras/gemma-4-31b`, 402s inside a
+session started with `--provider test-ilaas`, `thinkingLevel: high` nobody
+asked for), while the caller's `--provider`/`--model` never reached a
+subagent. An experiment that pinned its repository with a tag while leaving
+the model floating was measuring the operator.
+
+The fix is **one option, `model`, at every level, with the nearest override
+winning** - the same "an explicit call wins" rule as `lifetime`:
+
+1. the run-time argument: `SpawnOptions.model`, `WorkflowOptions.model`, the
+   tool's `model` param, `--model` on `/run` and `/build`;
+2. the pipeline file's top-level `model:`;
+3. the agent's frontmatter `model:`;
+4. pi's own settings, as the last resort - only when nothing was set anywhere.
+
+It is an **override, not a default**: the knob exists to run one workflow
+against different LLMs, and a frontmatter model surviving a sweep would make
+the experiment measure a mixture. Precedence is resolved once, in `spawn()`,
+so an injected fake session observes the *effective* pattern.
+
+Three deliberate refusals, so nobody "fixes" them later:
+
+- **No environment variable is read by the library, or anywhere else.** An
+  ambient variable is how this hole existed; the examples take `--model` in
+  argv instead, and the old `COMBO_MODEL` is gone.
+- **The parent session's model is never inherited** by a subagent, even though
+  the extension can see it. A subagent floating with whatever the operator's
+  TUI happens to be on is the same bug one level up. The model comes from an
+  explicit artifact - an argument or a file.
+- **No per-step pipeline `model:`** until a real pipeline needs one: agent
+  frontmatter already covers "this role runs on X".
+
+An unresolvable pattern still throws at spawn (a workflow on the wrong model
+costs more than a lost run). The commands validate `--model` with
+`checkModel()` **before** the interview, in the same early block as
+`checkPipelineAgents` - a typo costs a second, not a conversation. Like
+`buildRegistry`, `checkModel` touches the real pi module: only a run inside a
+real pi proves it end to end.
+

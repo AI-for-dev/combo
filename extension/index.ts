@@ -43,6 +43,11 @@ const Schema = Type.Object({
 			description: '"task" (default, fresh each time) or "workflow" (subagents remember previous turns).',
 		}),
 	),
+	model: Type.Optional(
+		Type.String({
+			description: 'Model for every subagent of this call, e.g. "anthropic/claude-sonnet-5". Beats agent frontmatter.',
+		}),
+	),
 	concurrency: Type.Optional(Type.Number({ description: "Parallel branches at once. Default 4." })),
 	until: Type.Optional(Type.String({ description: "Loop stops when the last output contains this text." })),
 	maxIterations: Type.Optional(Type.Number({ description: "Loop iteration cap. Default 5." })),
@@ -136,6 +141,7 @@ export default function (pi: ExtensionAPI) {
 			const who = args.agent ?? args.steps?.join(" → ") ?? args.candidates?.join(", ");
 			if (who) line += theme.fg("muted", ` ${who}`);
 			if (args.lifetime === "workflow") line += theme.fg("muted", " [workflow]");
+		if (args.model) line += theme.fg("muted", ` [${args.model}]`);
 			if (args.openInHerdr || args.herdrAll) line += theme.fg("muted", args.herdrAll ? " [herdr:all]" : " [herdr]");
 			if (args.export) line += theme.fg("muted", " [export]");
 

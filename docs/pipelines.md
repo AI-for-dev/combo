@@ -71,6 +71,15 @@ list rather than a command line, because splitting `"npm test"` on whitespace is
 writing a small shell, and the check runs with no shell precisely so that an
 argument stays an argument.
 
+Also at the top level, `model: local/qwen` puts every subagent of the pipeline
+on one model. The caller's own `model` (a script's option, `--model` on `/run`
+and `/build`) beats it: a file pinned to one model must not survive a sweep
+that was asked to run it on another. There is deliberately no per-step
+`model:` - agent frontmatter already covers "this role runs on X", and no real
+pipeline has needed "same agent, another model at this step". Precedence, from
+strongest: the caller's argument, this field, the agent's frontmatter, pi's
+own settings.
+
 ## What a pipeline is not
 
 A programming language. There is no `if`, no `when`, no `${{ steps.x.output }}`.

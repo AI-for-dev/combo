@@ -26,6 +26,7 @@
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import {
 	branchName,
+	checkModel,
 	commitAll,
 	createBranch,
 	createRunDir,
@@ -95,6 +96,8 @@ export type BuildDeps = {
 	findResumable?: typeof findResumableBuild;
 	/** Persists progress. Defaults to writing `build.json` into the run directory. */
 	saveState?: typeof saveBuildState;
+	/** Validates a `--model` pattern before anything runs. Touches the real pi. */
+	checkModel?: typeof checkModel;
 	/** Widget repaint period. `0` disables the timer - tests want that. */
 	tickMs?: number;
 };
@@ -139,7 +142,8 @@ export default function registerCommands(pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("build", {
-		description: "Interview, run the build pipeline, then commit (`--pipeline <name>`, or `resume` to carry on)",
+		description:
+			"Interview, run the build pipeline, then commit (`--pipeline <name>`, `--model <pattern>`, or `resume` to carry on)",
 		handler: async (args: string, ctx: ExtensionCommandContext) => {
 			await runBuild(args, ctx as unknown as CommandCtx);
 		},
@@ -187,16 +191,38 @@ const CAST = {
 } as const;
 
 /**
- * `/build [--pipeline <name>] <request>`.
+ * `/build [--pipeline <name>] [--model <pattern>] <request>`.
  *
- * A flag rather than a positional word, because a request is free text: any
+ * Flags rather than positional words, because a request is free text: any
  * convention that reads the first word as a pipeline name eventually swallows
- * someone's "build fix the parser".
+ * someone's "build fix the parser". Both flags, in either order.
  */
-export function parseBuildArgs(args: string): { pipeline?: string; request: string } {
-	const match = /^\s*--pipeline(?:=|\s+)(\S+)\s*/.exec(args);
-	if (!match) return { request: args.trim() };
-	return { pipeline: match[1] as string, request: args.slice(match[0].length).trim() };
+export function parseBuildArgs(args: string): { pipeline?: string; model?: string; request: string } {
+	const { flags, rest } = parseLeadingFlags(args, ["pipeline", "model"]);
+	const parsed: { pipeline?: string; model?: string; request: string } = { request: rest };
+	if (flags.pipeline) parsed.pipeline = flags.pipeline;
+	if (flags.model) parsed.model = flags.model;
+	return parsed;
+}
+
+/**
+ * Reads leading `--name value` flags off a command line, in any order.
+ *
+ * Only the given names are consumed: an unknown `--flag` stays in the text,
+ * because in free prose it may simply *be* the text. `=` and a space both
+ * separate a value, like everywhere in pi.
+ */
+export function parseLeadingFlags(args: string, names: readonly string[]): { flags: Record<string, string>; rest: string } {
+	const flags: Record<string, string> = {};
+	let rest = args;
+	for (;;) {
+		const match = /^\s*--([a-z]+)(?:=|\s+)(\S+)\s*/i.exec(rest);
+		const name = match?.[1]?.toLowerCase();
+		if (!match || !name || !names.includes(name)) break;
+		flags[name] = match[2] as string;
+		rest = rest.slice(match[0].length);
+	}
+	return { flags, rest: rest.trim() };
 }
 
 /**
@@ -212,7 +238,7 @@ export function parseBuildArgs(args: string): { pipeline?: string; request: stri
  */
 export async function runBuild(args: string, ctx: CommandCtx, deps: BuildDeps = {}): Promise<PipelineRunResult | undefined> {
 	const git = deps.git ?? REAL_GIT;
-	const { pipeline: wanted, request } = parseBuildArgs(args);
+	const { pipeline: wanted, model, request } = parseBuildArgs(args);
 
 	// `/build resume` carries on the last interrupted build in this directory:
 	// same brief, same plan, the approved subtasks kept. Everything the workers
@@ -250,6 +276,9 @@ export async function runBuild(args: string, ctx: CommandCtx, deps: BuildDeps = 
 		pipeline = choosePipeline(wanted, ctx, deps);
 		checkPipelineAgents(pipeline, agents);
 		committer = findAgent(agents, CAST.committer);
+		// Same reasoning as the two lines above: a mistyped model must cost a
+		// second, not the interview it would otherwise sit through first.
+		if (model) await (deps.checkModel ?? checkModel)(model);
 	} catch (cause) {
 		ctx.ui.notify(cause instanceof Error ? cause.message : String(cause), "error");
 		return undefined;
@@ -304,6 +333,7 @@ export async function runBuild(args: string, ctx: CommandCtx, deps: BuildDeps = 
 			cwd: ctx.cwd,
 			exportDir,
 			verify,
+			model,
 			delivery: {
 				// A saved step carries on only in the step it belongs to: a
 				// two-delivery pipeline must not hand the second one the first

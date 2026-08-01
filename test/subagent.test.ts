@@ -59,6 +59,20 @@ describe("spawn", () => {
 		assert.equal(await flag(testAgent("scout"), { openInHerdr: true }), true);
 	});
 
+	test("the model resolves like lifetime: argument, then frontmatter, then nothing", async () => {
+		const asked = async (agent: Parameters<typeof spawn>[0], options: Parameters<typeof spawn>[1] = {}) => {
+			const factory = fakeSessionFactory();
+			await spawn(agent, { ...options, createSession: factory.createSession });
+			return factory.requested[0]?.options.model;
+		};
+
+		const pinned = testAgent("scout", { model: "local/frontmatter" });
+		assert.equal(await asked(testAgent("scout")), undefined, "no model anywhere leaves the choice to pi");
+		assert.equal(await asked(pinned), "local/frontmatter", "frontmatter is honoured");
+		assert.equal(await asked(pinned, { model: "local/override" }), "local/override", "the explicit argument wins");
+		assert.equal(await asked(testAgent("scout"), { model: "local/override" }), "local/override");
+	});
+
 	test("ids are stable and per-agent", async () => {
 		const a = await spawn(scout, { createSession: async () => fakeSession([]) });
 		const b = await spawn(scout, { createSession: async () => fakeSession([]) });

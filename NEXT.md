@@ -4,7 +4,7 @@ Written to be picked up cold. `AGENTS.md` holds the decisions and the pi API
 notes; this file holds only what has not been done yet, and the traps already
 paid for.
 
-State: 434 offline tests, clean typecheck, working tree clean.
+State: offline tests green, clean typecheck, working tree clean.
 
 Shipped: the foundation (`Agent`, `Subagent`, `Result`, `Usage`, event bus),
 nine combinators (`chain`, `fanOut`, `loop`, `reduce`, `route`, `orchestrate`,
@@ -74,13 +74,13 @@ that a pipeline named `build` is shipped, which is the tripwire for exactly that
 ## How to verify anything here
 
 ```bash
-npm test                       # 434 offline tests, no network
+npm test                       # offline, no network
 npm run typecheck
 
-COMBO_MODEL=ilaas/qwen-3.6-35b-instruct node examples/03-fan-out.ts
-COMBO_MODEL=ilaas/qwen-3.6-35b-instruct node examples/06-export.ts
-COMBO_MODEL=ilaas/qwen-3.6-35b-instruct node examples/07-reduce.ts
-COMBO_MODEL=ilaas/qwen-3.6-35b-instruct node examples/09-orchestrate.ts
+node examples/03-fan-out.ts --model ilaas/qwen-3.6-35b-instruct
+node examples/06-export.ts --model ilaas/qwen-3.6-35b-instruct
+node examples/07-reduce.ts --model ilaas/qwen-3.6-35b-instruct
+node examples/09-orchestrate.ts --model ilaas/qwen-3.6-35b-instruct
 node examples/10-interview.ts "add a cache"          # the interview, in readline
 node examples/11-build.ts <throwaway-repo> "…"       # the pipeline, minus the commit
 pi -e extension                # interactive, to actually see the TUI

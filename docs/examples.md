@@ -21,12 +21,14 @@ and nothing else.
 
 ## Choosing a model
 
-The examples read `COMBO_MODEL`. Not every provider reports tokens, and
-several return zeros at the source, so pick one that does if the usage lines are
-meant to mean anything:
+The examples take `--model` on the command line - an argument, never an
+environment variable, because ambient state reaching a subagent is the exact
+hole this library plugs. Not every provider reports tokens, and several return
+zeros at the source, so pick one that does if the usage lines are meant to mean
+anything:
 
 ```bash
-COMBO_MODEL=local/qwen/qwen3-coder-next node examples/03-fan-out.ts
+node examples/03-fan-out.ts --model local/qwen/qwen3-coder-next
 ```
 
 See [Measurements](measurements.md) for why a zero is printed rather than

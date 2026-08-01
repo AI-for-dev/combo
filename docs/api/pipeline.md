@@ -61,6 +61,15 @@ export type Pipeline = {
 	 * `execFile` with no shell precisely so that an argument stays an argument.
 	 */
 	verify?: string[];
+	/**
+	 * Model pattern for every subagent of this pipeline.
+	 *
+	 * Top-level only, no per-step knob: agent frontmatter already covers "this
+	 * role runs on X", and no shipped pipeline has needed "same agent, another
+	 * model at this step". The caller's own `model` beats this one - a file must
+	 * not survive a multi-model sweep.
+	 */
+	model?: string;
 	/** Run in order, each one receiving the previous one's output. Never empty. */
 	steps: PipelineStep[];
 	/** File path, or a free label for a pipeline built in memory. */

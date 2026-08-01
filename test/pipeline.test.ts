@@ -68,6 +68,15 @@ describe("parsePipeline", () => {
 		assert.deepEqual(parsed.steps[0]?.agents, ["scout"]);
 	});
 
+	test("reads a top-level model, and leaves it undefined when absent", () => {
+		const pinned = parsePipeline(
+			pipeline("name: p\nmodel: local/qwen\nsteps:\n  - id: only\n    chain: scout", "## only\nLook around."),
+			"/x/p.md",
+		);
+		assert.equal(pinned.model, "local/qwen");
+		assert.equal(parsePipeline(BUILD, "/x/build.md").model, undefined);
+	});
+
 	test("keeps the steps in the declared order", () => {
 		const parsed = parsePipeline(
 			pipeline(
