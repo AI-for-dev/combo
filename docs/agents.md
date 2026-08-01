@@ -27,7 +27,7 @@ The Markdown body is the system prompt, used verbatim.
 | `name` | yes | How every caller refers to the agent. |
 | `description` | yes | One line on what it is for. Also what `route` and `orchestrate` read to decide who does the work. |
 | `tools` | no | Allowed tools. Absent means read-only: `read`, `grep`, `find`, `ls`. |
-| `model` | no | A pattern such as `anthropic/claude-sonnet-5`. A caller's `model` argument beats it; absent everywhere means pi's default. |
+| `model` | no | A pattern such as `anthropic/claude-sonnet-5`. A caller's `model` argument beats it; absent everywhere means pi's default - see below. |
 | `lifetime` | no | Default [lifetime](lifetime.md). An explicit argument always wins. |
 | `openInHerdr` | no | Default for "give this agent its own herdr split". See [Display](display.md). |
 
@@ -114,12 +114,27 @@ showed the cost - a scout called `ls /Users/loic/gouarin/…`, the user's name w
 a dot turned into a slash, got "no such path" and gave up without ever trying a
 relative one.
 
+## The model: yours to pin, not ours
+
+An agent that declares no `model:` runs on whatever the caller passed, and on
+pi's own settings when nobody passed anything. **None of the agents shipped here
+declares one**, on purpose: a package that pinned a model would override the
+settings you already made and fail outright if you hold no key for that provider.
+
+The cost of that is invisible unless it is said out loud: a run with no `--model`
+runs on your `~/.pi/agent/settings.json`, whatever is in it that day. Fine for
+using the thing; useless for measuring it. So **anything whose numbers will be
+compared names its model** - `experiment({ models })`, `--model` on `/run` and
+`/build`, `--model` in the examples' argv. An agent you write for your own
+machine is welcome to declare one; it is only what ships that must not.
+
 ## Agents shipped here
 
 `agents/` holds the demo definitions used by the examples and by `/build`:
 `scout`, `coder`, `reviewer`, `planner`, `router`, `synthesiser`, `interviewer`,
 `auditor`, `committer`. They are symlinked into `.pi/agents/` so the extension
-can find them - with an explicit scope, like anyone else's.
+can find them - with an explicit scope, like anyone else's. None of them pins a
+model, for the reason above.
 
 ## Reference
 

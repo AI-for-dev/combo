@@ -46,11 +46,23 @@ no enums, no namespaces, no parameter properties.
    `model` param and `--model` on `/run` and `/build`) > the pipeline file's
    top-level `model:` > the agent's frontmatter `model:` > pi's own settings.
    The last resort is still `~/.pi/agent/settings.json` - when *nothing* was
-   set at any level, pi decides, and an experiment that left every level empty
-   is measuring the operator (seen once: agents with no model ran on
-   `cerebras/gemma-4-31b` with `thinkingLevel: high` nobody asked for). No
-   environment variable is read anywhere: an ambient variable is how this hole
-   existed, and the examples take `--model` in argv instead.
+   set at any level, pi decides. Which side of that is right depends on what
+   the file is for:
+
+   - **A definition that ships leaves it open.** None of the agents in
+     `agents/` declares a `model:`, on purpose: a package that pinned one would
+     override its user's own settings and break outright for anyone holding no
+     key for that provider.
+   - **A measurement pins it.** An experiment that left every level empty is
+     measuring the operator, not the models. Measured: `/run explore` with no
+     `--model` put all four subagents on `ilaas/gemma-4-31b`, a model named
+     nowhere in this repository, and an earlier run got `thinkingLevel: high`
+     nobody asked for. `experiment()` takes `models` and every command takes
+     `--model` for exactly this: use them, and the run says on its face what it
+     ran on.
+
+   No environment variable is read anywhere: an ambient variable is how this
+   hole existed, and the examples take `--model` in argv instead.
 6. **`lifetime: "task"` is the default**; persistence is asked for, never
    obtained by accident. **Whoever opens, closes** - in a `finally`,
    cancellation included; a workflow that *receives* live subagents never closes

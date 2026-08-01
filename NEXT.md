@@ -100,6 +100,11 @@ Notes that save time:
   aggregation bug, it is what a runaway turn costs - and the reason `timeoutMs`
   has no default but belongs on anything unattended. Budget 300s per turn for
   these models; 120s fails roughly half the cells.
+- **A run with no `--model` runs on the operator's settings, silently.** No
+  shipped agent declares a `model:` (deliberately - see invariant 5), so
+  `/run explore` put its four subagents on `ilaas/gemma-4-31b`, read from
+  `~/.pi/agent/settings.json` and named nowhere in this repository. Pass
+  `--model` for anything whose numbers you intend to compare.
 - To test herdr from a plain shell, export the three variables herdr injects:
   `HERDR_ENV=1`, `HERDR_SOCKET_PATH=~/.config/herdr/herdr.sock`,
   `HERDR_PANE_ID=<a real pane>`. `herdr pane list` shows the splits appear and
