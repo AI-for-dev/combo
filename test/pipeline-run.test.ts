@@ -189,6 +189,28 @@ describe("runPipeline", () => {
 		assert.equal(fake.spawned.length, 2, "the step asked for workflow: coder is reused");
 	});
 
+	test("a combinator's own default survives a step and a run that set nothing", async () => {
+		// The runner merges step overrides onto the run's options. Writing the key
+		// unconditionally turns "nobody asked" into an explicit `undefined`, which
+		// then beats the default the combinator sets for itself - `pair` keeps its
+		// two agents talking to each other, and it must still do so from a file.
+		let round = 0;
+		const fake = fakeSpawn((_task, agent) => {
+			if (agent.name !== "reviewer") return { output: "work" };
+			round++;
+			return { output: round >= 3 ? "LGTM" : `remark ${round}` };
+		});
+
+		await runPipeline({
+			pipeline: pipeline("name: p\nsteps:\n  - id: one\n    pair: [coder, reviewer]\n    maxRounds: 3", "## one\nGo."),
+			agents,
+			input: "x",
+			spawn: fake.spawn,
+		});
+
+		assert.equal(fake.spawned.length, 2, "pair defaults to workflow, and a pipeline must not undo that");
+	});
+
 	test("the caller's model beats the file's, and the file's is used when the caller passes none", async () => {
 		const pinned = pipeline("name: p\nmodel: local/from-file\nsteps:\n  - id: one\n    chain: scout", "## one\nGo.");
 
