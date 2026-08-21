@@ -102,8 +102,9 @@ export async function interview(options: InterviewOptions): Promise<InterviewRes
 	}
 
 	// An interview is a conversation: the interviewer keeps its memory unless
-	// the caller insists otherwise.
-	const pool = new SubagentPool({ lifetime: "workflow", ...options });
+	// the caller insists otherwise. After the spread, not before - see `pair`:
+	// an explicit `undefined` from a merging caller must not read as a choice.
+	const pool = new SubagentPool({ ...options, lifetime: options.lifetime ?? "workflow" });
 	try {
 		const subagent = await pool.acquire(agent, agent.name);
 		let turn = questionPrompt(input, maxQuestions);

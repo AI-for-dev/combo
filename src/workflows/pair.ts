@@ -100,8 +100,11 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 	}
 
 	// A pair is a conversation between two agents: they keep their memory unless
-	// the caller says otherwise.
-	const pool = new SubagentPool({ lifetime: "workflow", ...options });
+	// the caller says otherwise. The default is written **after** the spread, not
+	// before: a caller that builds its options by merging hands us
+	// `lifetime: undefined` for an option nobody set, and an explicit `undefined`
+	// spread over a default silently wins.
+	const pool = new SubagentPool({ ...options, lifetime: options.lifetime ?? "workflow" });
 	let work: Result | undefined;
 	let review: Result | undefined;
 	let rounds = 0;

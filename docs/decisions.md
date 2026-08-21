@@ -951,3 +951,32 @@ Two rules decide whether a symbol belongs on that list at all:
 
 Both rules are stated at the top of the file, because the next person adding an
 export will read that before they read this.
+
+## A default is written after the spread, never before
+
+`pair` and `interview` default their lifetime to `"workflow"` - two agents in a
+conversation keep their memory unless the caller says otherwise. That default
+used to be written as `{ lifetime: "workflow", ...options }`, which is correct
+for a caller that types its options by hand and wrong for every caller that
+builds them by merging.
+
+`runPipeline` is such a caller. It laid a step's overrides on top of the run's
+options with `lifetime: step.lifetime ?? workflow.lifetime`, and when neither
+was set the key still existed, holding `undefined`. Spread over the default,
+that `undefined` won: the same `deliver`, run from code, gave its pair one
+worker and one reviewer for the whole conversation; run from a pipeline file, it
+gave them a fresh pair every round. A reviewer that never remembers its own
+remarks is not a detail, and nothing in the output said so - the run simply cost
+several times more turns.
+
+Two rules came out of it, and both are now tests. **A default belongs after the
+spread**, as `options.x ?? default`, so that an explicit `undefined` reads as
+"nobody set this" rather than as a choice. And **a merge must not invent keys**:
+`override()` in `pipeline-run.ts` copies an override only when it is defined,
+because `{ lifetime: undefined }` and `{}` are the same intent and must become
+the same object.
+
+The general form is worth stating, since the next merging caller will be a new
+extension command: in this codebase, absent and `undefined` mean the same thing,
+and any code that turns the first into the second is a bug even when the types
+allow it.

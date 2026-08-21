@@ -141,6 +141,17 @@ describe("pair", () => {
 		assert.equal(strangers.spawned.length, 6, "a fresh pair every round");
 	});
 
+	test("an option nobody set stays unset: `lifetime: undefined` must not defeat the default", async () => {
+		// A caller that builds its options object by spreading - a pipeline runner,
+		// an extension mapping tool arguments - produces `{ lifetime: undefined }`
+		// for an option nobody filled in. Spread over a default, an explicit
+		// `undefined` wins, and the pair silently loses its memory.
+		const fake = approvesAt(3);
+		await pair({ worker, reviewer, input: "x", lifetime: undefined, spawn: fake.spawn });
+
+		assert.equal(fake.spawned.length, 2, "unset is not `task`: the team survives an undefined");
+	});
+
 	test("maxRounds below one is a programming error", async () => {
 		await assert.rejects(() => pair({ worker, reviewer, input: "x", maxRounds: 0 }), /at least 1/);
 	});

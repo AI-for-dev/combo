@@ -242,6 +242,24 @@ export function stepInput(prompt: string, request: string, previous?: { id: stri
 	return parts.filter(Boolean).join("\n\n");
 }
 
+/**
+ * Lays a step's overrides on top of the run's options, **without inventing keys**.
+ *
+ * `{ lifetime: undefined }` is not the same object as `{}`. Spread into a
+ * combinator that defaults the option for itself - `pair` and `interview`
+ * default the lifetime to `"workflow"` - an explicit `undefined` wins and the
+ * default is lost. Writing `a ?? b` straight into an object literal turns
+ * "neither was set" into exactly that undefined, so a `pair` run from a file
+ * lost its memory while the same `pair` run from code kept it.
+ */
+function override<T extends WorkflowOptions>(base: T, overrides: Partial<T>): T {
+	const merged = { ...base };
+	for (const [key, value] of Object.entries(overrides)) {
+		if (value !== undefined) (merged as Record<string, unknown>)[key] = value;
+	}
+	return merged;
+}
+
 async function runStep(
 	step: PipelineStep,
 	cast: ResolvedCast,
@@ -250,12 +268,11 @@ async function runStep(
 	shared: WorkflowOptions & Pick<PipelineRunOptions, "verify" | "delivery">,
 ): Promise<PipelineStepResult> {
 	const { verify, delivery, ...workflow } = shared;
-	const common = {
-		...workflow,
-		lifetime: step.lifetime ?? workflow.lifetime,
-		openInHerdr: step.openInHerdr ?? workflow.openInHerdr,
-		timeoutMs: step.timeoutMs ?? workflow.timeoutMs,
-	};
+	const common = override(workflow, {
+		lifetime: step.lifetime,
+		openInHerdr: step.openInHerdr,
+		timeoutMs: step.timeoutMs,
+	});
 	const text = stepInput(step.prompt, request, previous);
 	const entry = (result: Result, results?: Result[], built?: DeliverResult): PipelineStepResult => ({
 		id: step.id,
