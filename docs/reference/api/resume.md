@@ -2,7 +2,7 @@
 
 # `resume`
 
-Source: [`src/resume.ts`](../../../src/resume.ts)
+Source: [`src/resume.ts`](https://github.com/AI-for-dev/combo/blob/main/src/resume.ts)
 
 Saving a build so it can be picked up again.
 
@@ -103,7 +103,7 @@ The build as it is written to `build.json`, and read back by `/build resume`.
 *function*
 
 ```typescript
-export function findResumableBuild(base = "runs", cwd?: string): { dir: string; state: BuildState } | undefined { … }
+export function findResumableBuild(base = "runs", cwd?: string): { dir: string; state: BuildState } | undefined { /* … */ }
 ```
 
 The most recent unfinished build for `cwd`, if there is one.
@@ -117,7 +117,7 @@ on" means carrying on something that stopped short.
 *function*
 
 ```typescript
-export function fromBuildState(state: BuildState, agents: readonly Agent[]): BuildProgress | undefined { … }
+export function fromBuildState(state: BuildState, agents: readonly Agent[]): BuildProgress | undefined { /* … */ }
 ```
 
 Rebuilds what `deliver` needs to carry on.
@@ -132,7 +132,7 @@ the whole plan is refused - a half-plan would silently drop work.
 *function*
 
 ```typescript
-export function loadBuildState(file: string): BuildState | undefined { … }
+export function loadBuildState(file: string): BuildState | undefined { /* … */ }
 ```
 
 Reads a state file. `undefined` when it is missing, unreadable or foreign.
@@ -142,7 +142,7 @@ Reads a state file. `undefined` when it is missing, unreadable or foreign.
 *function*
 
 ```typescript
-export function missingAgents(state: BuildState, agents: readonly Agent[]): string[] { … }
+export function missingAgents(state: BuildState, agents: readonly Agent[]): string[] { /* … */ }
 ```
 
 The plan's agents the roster no longer has, in the order they appear.
@@ -156,7 +156,7 @@ every agent is there.
 *function*
 
 ```typescript
-export function saveBuildState(dir: string, state: BuildState): string | undefined { … }
+export function saveBuildState(dir: string, state: BuildState): string | undefined { /* … */ }
 ```
 
 Writes the state into a run directory. Never throws: it is a safety net.
@@ -169,7 +169,7 @@ Writes the state into a run directory. Never throws: it is a safety net.
 export function toBuildState(
 	progress: BuildProgress,
 	about: { request: string; brief: string; cwd: string; startedAt?: string; step?: string },
-): BuildState { … }
+): BuildState { /* … */ }
 ```
 
 Turns live results into something that survives the process.

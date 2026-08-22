@@ -2,7 +2,7 @@
 
 # `text`
 
-Source: [`src/text.ts`](../../../src/text.ts)
+Source: [`src/text.ts`](https://github.com/AI-for-dev/combo/blob/main/src/text.ts)
 
 Reading what a model wrote: shortening it, and finding the structure in it.
 
@@ -21,7 +21,7 @@ is why these are lenient by design.
 *function*
 
 ```typescript
-export function truncate(text: string, max: number): string { … }
+export function truncate(text: string, max: number): string { /* … */ }
 ```
 
 One line, whitespace flattened, at most `max` characters with an ellipsis.

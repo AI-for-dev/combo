@@ -2,7 +2,7 @@
 
 # `workflows/pipeline-run`
 
-Source: [`src/workflows/pipeline-run.ts`](../../../../src/workflows/pipeline-run.ts)
+Source: [`src/workflows/pipeline-run.ts`](https://github.com/AI-for-dev/combo/blob/main/src/workflows/pipeline-run.ts)
 
 Running a pipeline: the piece `pipeline.ts` describes and deliberately leaves
 to someone else.
@@ -38,7 +38,7 @@ that belongs to whoever owns the working tree.
 *function*
 
 ```typescript
-export function checkPipelineAgents(pipeline: Pipeline, agents: Agent[]): void { … }
+export function checkPipelineAgents(pipeline: Pipeline, agents: Agent[]): void { /* … */ }
 ```
 
 Resolves every agent the pipeline names, or throws on the first unknown one.
@@ -150,7 +150,7 @@ What one step produced, kept whole so a report can show the shape of the run.
 *function*
 
 ```typescript
-export async function runPipeline(options: PipelineRunOptions): Promise<PipelineRunResult> { … }
+export async function runPipeline(options: PipelineRunOptions): Promise<PipelineRunResult> { /* … */ }
 ```
 
 Runs the steps in order, feeding each one the previous one's output.
@@ -166,7 +166,7 @@ and it throws *before* spawning anything.
 *function*
 
 ```typescript
-export function stepInput(prompt: string, request: string, previous?: { id: string; output: string }): string { … }
+export function stepInput(prompt: string, request: string, previous?: { id: string; output: string }): string { /* … */ }
 ```
 
 What a step is actually asked, in named sections.

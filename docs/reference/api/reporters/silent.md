@@ -2,7 +2,7 @@
 
 # `reporters/silent`
 
-Source: [`src/reporters/silent.ts`](../../../../src/reporters/silent.ts)
+Source: [`src/reporters/silent.ts`](https://github.com/AI-for-dev/combo/blob/main/src/reporters/silent.ts)
 
 The no-op reporter.
 

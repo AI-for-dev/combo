@@ -2,7 +2,7 @@
 
 # `pipeline-load`
 
-Source: [`src/pipeline-load.ts`](../../../src/pipeline-load.ts)
+Source: [`src/pipeline-load.ts`](https://github.com/AI-for-dev/combo/blob/main/src/pipeline-load.ts)
 
 Finding the pipelines a user wrote, wherever they put them.
 
@@ -41,7 +41,7 @@ A file that looks like a pipeline and does not parse. Kept, never swallowed.
 *function*
 
 ```typescript
-export function findPipeline(catalogue: PipelineCatalogue, name: string): Pipeline { … }
+export function findPipeline(catalogue: PipelineCatalogue, name: string): Pipeline { /* … */ }
 ```
 
 Looks up a pipeline by name, or throws.
@@ -55,7 +55,7 @@ claiming it does not exist. Getting "unknown pipeline: build" for a
 *function*
 
 ```typescript
-export function loadPipelines(options: { cwd?: string; scope?: AgentScope; builtin?: boolean } = {}): PipelineCatalogue { … }
+export function loadPipelines(options: { cwd?: string; scope?: AgentScope; builtin?: boolean } = {}): PipelineCatalogue { /* … */ }
 ```
 
 Discovers the available pipelines.
@@ -74,7 +74,7 @@ without having to remove anything.
 *function*
 
 ```typescript
-export function loadPipelinesFromDir(dir: string): PipelineCatalogue { … }
+export function loadPipelinesFromDir(dir: string): PipelineCatalogue { /* … */ }
 ```
 
 Reads every `.md` in a directory. A missing or unreadable directory yields nothing.

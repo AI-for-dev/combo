@@ -2,7 +2,7 @@
 
 # `workflows/route`
 
-Source: [`src/workflows/route.ts`](../../../../src/workflows/route.ts)
+Source: [`src/workflows/route.ts`](https://github.com/AI-for-dev/combo/blob/main/src/workflows/route.ts)
 
 `route`: 1 → 1. A classifier agent picks who should do the work.
 
@@ -11,7 +11,7 @@ Source: [`src/workflows/route.ts`](../../../../src/workflows/route.ts)
 *function*
 
 ```typescript
-export function pickDestination(output: string, destinations: readonly Agent[]): Agent | undefined { … }
+export function pickDestination(output: string, destinations: readonly Agent[]): Agent | undefined { /* … */ }
 ```
 
 Reads a destination out of whatever the classifier actually wrote.
@@ -29,7 +29,7 @@ on its last line resolves to nothing, and the caller sees what was said.
 *function*
 
 ```typescript
-export async function route(options: RouteOptions): Promise<RouteResult> { … }
+export async function route(options: RouteOptions): Promise<RouteResult> { /* … */ }
 ```
 
 Classifies a task, then hands it to the destination that was picked.
@@ -88,7 +88,7 @@ The destination's result, plus who was picked and how.
 *function*
 
 ```typescript
-export function routingPrompt(input: string, destinations: readonly Agent[]): string { … }
+export function routingPrompt(input: string, destinations: readonly Agent[]): string { /* … */ }
 ```
 
 The question put to the classifier: the destinations, then the task.

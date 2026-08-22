@@ -2,7 +2,7 @@
 
 # `experiment`
 
-Source: [`src/experiment.ts`](../../../src/experiment.ts)
+Source: [`src/experiment.ts`](https://github.com/AI-for-dev/combo/blob/main/src/experiment.ts)
 
 Running the same work across several models, several times.
 
@@ -26,7 +26,7 @@ stream is kept in `events.jsonl` next to it.
 *function*
 
 ```typescript
-export async function experiment(options: ExperimentOptions): Promise<ExperimentReport> { … }
+export async function experiment(options: ExperimentOptions): Promise<ExperimentReport> { /* … */ }
 ```
 
 Runs the matrix and writes the report.

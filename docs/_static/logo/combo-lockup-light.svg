@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 64" width="256" height="64" role="img" aria-label="combo">
+  <title>combo</title>
+  <!-- Horizontal lockup for a light ground: the mark, then the word drawn in the same
+       strokes it is. The wordmark is geometry, not type - circles of radius 10 on a 20-unit
+       x-height, one stroke width throughout - so it carries no font dependency, cannot fall
+       back silently on a reader who lacks a typeface, and needs no generator to rebuild.
+       See README.md in this directory before editing a coordinate. -->
+  <g fill="none" stroke-width="6" stroke-linecap="round">
+    <g stroke="#232B33">
+      <path d="M8 14 H16 C26 14 24 32 34 32" />
+      <path d="M8 32 H34" />
+      <path d="M8 50 H16 C26 50 24 32 34 32" />
+    </g>
+    <path stroke="#227D74" d="M34 32 H56" />
+  </g>
+  <g transform="translate(73 0)" fill="none" stroke="#232B33" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M18.4 24.3 A10 10 0 1 0 18.4 39.7" />
+    <circle cx="48" cy="32" r="10" />
+    <path d="M74 42 V29.5 A7.5 7.5 0 0 1 89 29.5 V42 M89 29.5 A7.5 7.5 0 0 1 104 29.5 V42" />
+    <path d="M120 10 V42" />
+    <circle cx="130" cy="32" r="10" />
+    <circle cx="166" cy="32" r="10" />
+  </g>
+</svg>

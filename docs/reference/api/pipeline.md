@@ -2,7 +2,7 @@
 
 # `pipeline`
 
-Source: [`src/pipeline.ts`](../../../src/pipeline.ts)
+Source: [`src/pipeline.ts`](https://github.com/AI-for-dev/combo/blob/main/src/pipeline.ts)
 
 A pipeline is *data*: an ordered list of combinator calls, declared as YAML
 frontmatter + Markdown, following the same convention as an agent.
@@ -34,7 +34,7 @@ spawned, which is what makes a typo cost nothing.
 *function*
 
 ```typescript
-export function parsePipeline(content: string, filePath: string): Pipeline { … }
+export function parsePipeline(content: string, filePath: string): Pipeline { /* … */ }
 ```
 
 Parses a pipeline definition, or throws.
@@ -143,7 +143,9 @@ One combinator call. `agents` are names; resolution happens later.
 *const*
 
 ```typescript
-export const STEP_KINDS = [ … ;
+export const STEP_KINDS = [
+	/* … */
+] as const;
 ```
 
 The combinators a pipeline may call, by their exported name.

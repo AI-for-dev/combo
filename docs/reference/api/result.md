@@ -2,7 +2,7 @@
 
 # `result`
 
-Source: [`src/result.ts`](../../../src/result.ts)
+Source: [`src/result.ts`](https://github.com/AI-for-dev/combo/blob/main/src/result.ts)
 
 `Result`: the single contract shared by everything else.
 
@@ -20,7 +20,7 @@ export function failed(
 	error: string,
 	usage: Usage = emptyUsage(),
 	messages: AgentMessage[] = [],
-): Result { … }
+): Result { /* … */ }
 ```
 
 Builds a failed `Result`.

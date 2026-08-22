@@ -2,7 +2,7 @@
 
 # `git`
 
-Source: [`src/git.ts`](../../../src/git.ts)
+Source: [`src/git.ts`](https://github.com/AI-for-dev/combo/blob/main/src/git.ts)
 
 The git a pipeline is allowed to do - and nothing else.
 
@@ -22,7 +22,7 @@ model can produce at runtime.
 *function*
 
 ```typescript
-export function branchName(request: string, prefix = "combo"): string { … }
+export function branchName(request: string, prefix = "combo"): string { /* … */ }
 ```
 
 A branch name from a request: `combo/add-a-cache`.
@@ -35,7 +35,7 @@ a `git branch` listing shows at a glance what came from a pipeline.
 *function*
 
 ```typescript
-export async function commitAll(cwd: string, message: string): Promise<GitResult<string>> { … }
+export async function commitAll(cwd: string, message: string): Promise<GitResult<string>> { /* … */ }
 ```
 
 Stages everything and commits it, with the message read from stdin.
@@ -51,7 +51,7 @@ Returns the short sha. A clean working tree is an error, not an empty commit.
 *function*
 
 ```typescript
-export async function createBranch(cwd: string, name: string): Promise<GitResult<string>> { … }
+export async function createBranch(cwd: string, name: string): Promise<GitResult<string>> { /* … */ }
 ```
 
 Creates a branch and switches to it.
@@ -65,7 +65,7 @@ prevent.
 *function*
 
 ```typescript
-export async function currentBranch(cwd: string): Promise<string | undefined> { … }
+export async function currentBranch(cwd: string): Promise<string | undefined> { /* … */ }
 ```
 
 The current branch, or `undefined` on a detached head.
@@ -75,7 +75,7 @@ The current branch, or `undefined` on a detached head.
 *function*
 
 ```typescript
-export async function diff(cwd: string, maxBytes = 60_000): Promise<GitResult<string>> { … }
+export async function diff(cwd: string, maxBytes = 60_000): Promise<GitResult<string>> { /* … */ }
 ```
 
 The diff itself, truncated to `maxBytes`.
@@ -89,7 +89,7 @@ pages and is told it was cut.
 *function*
 
 ```typescript
-export async function diffStat(cwd: string): Promise<GitResult<string>> { … }
+export async function diffStat(cwd: string): Promise<GitResult<string>> { /* … */ }
 ```
 
 `git diff --stat` over tracked changes, including what is staged.
@@ -113,7 +113,7 @@ outcome the caller must decide about, not a crash.
 *function*
 
 ```typescript
-export async function isRepository(cwd: string): Promise<boolean> { … }
+export async function isRepository(cwd: string): Promise<boolean> { /* … */ }
 ```
 
 Whether `cwd` is inside a git working tree.
@@ -123,7 +123,7 @@ Whether `cwd` is inside a git working tree.
 *function*
 
 ```typescript
-export async function status(cwd: string): Promise<GitResult<string>> { … }
+export async function status(cwd: string): Promise<GitResult<string>> { /* … */ }
 ```
 
 Porcelain status. Empty means a clean working tree - nothing to commit.
@@ -133,7 +133,7 @@ Porcelain status. Empty means a clean working tree - nothing to commit.
 *function*
 
 ```typescript
-export async function untracked(cwd: string): Promise<string[]> { … }
+export async function untracked(cwd: string): Promise<string[]> { /* … */ }
 ```
 
 Untracked files, which `git diff` does not show but `git add -A` will commit.

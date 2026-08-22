@@ -2,7 +2,7 @@
 
 # `workflows/plan`
 
-Source: [`src/workflows/plan.ts`](../../../../src/workflows/plan.ts)
+Source: [`src/workflows/plan.ts`](https://github.com/AI-for-dev/combo/blob/main/src/workflows/plan.ts)
 
 Reading a plan an agent wrote: the prompt, the parser, the validation.
 
@@ -34,7 +34,7 @@ error.
 *function*
 
 ```typescript
-export async function makePlan(options: PlanOptions): Promise<PlanOutcome> { … }
+export async function makePlan(options: PlanOptions): Promise<PlanOutcome> { /* … */ }
 ```
 
 Asks an agent how to split the work, and validates what comes back.
@@ -50,7 +50,7 @@ work.
 *function*
 
 ```typescript
-export function parsePlan(output: string, workers: readonly Agent[]): PlannedTask[] { … }
+export function parsePlan(output: string, workers: readonly Agent[]): PlannedTask[] { /* … */ }
 ```
 
 Reads a plan out of whatever the planner actually wrote.
@@ -89,7 +89,7 @@ One step of a plan: a *resolved* agent - an unknown name never gets this far - a
 *function*
 
 ```typescript
-export function planningPrompt(input: string, workers: readonly Agent[], maxTasks: number): string { … }
+export function planningPrompt(input: string, workers: readonly Agent[], maxTasks: number): string { /* … */ }
 ```
 
 The question put to the planner: who is available, and how to answer.

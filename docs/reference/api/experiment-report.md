@@ -2,7 +2,7 @@
 
 # `experiment-report`
 
-Source: [`src/experiment-report.ts`](../../../src/experiment-report.ts)
+Source: [`src/experiment-report.ts`](https://github.com/AI-for-dev/combo/blob/main/src/experiment-report.ts)
 
 What an experiment leaves behind: one JSON document, one comparison table.
 
@@ -47,7 +47,7 @@ Everything one model did, across its repetitions.
 *function*
 
 ```typescript
-export function experimentReport(input: Omit<ExperimentReport, "generatedAt" | "byModel">): ExperimentReport { … }
+export function experimentReport(input: Omit<ExperimentReport, "generatedAt" | "byModel">): ExperimentReport { /* … */ }
 ```
 
 Builds the report from the cells that ran, summarising per model.
@@ -113,7 +113,7 @@ One cell of the matrix: one model, one repetition, once it has run.
 *function*
 
 ```typescript
-export function experimentTable(report: ExperimentReport): string[] { … }
+export function experimentTable(report: ExperimentReport): string[] { /* … */ }
 ```
 
 The comparison table, as Markdown lines.
@@ -126,7 +126,7 @@ comparing `converged` gets a `converged` column without configuring one.
 *function*
 
 ```typescript
-export function writeExperimentReport(dir: string, report: ExperimentReport): { json: string; markdown: string } { … }
+export function writeExperimentReport(dir: string, report: ExperimentReport): { json: string; markdown: string } { /* … */ }
 ```
 
 Writes `experiment.json` and `experiment.md` into `dir`, and returns their paths.

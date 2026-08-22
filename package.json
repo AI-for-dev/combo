@@ -2,6 +2,11 @@
 	"name": "combo",
 	"version": "0.1.0",
 	"description": "Write pi subagents and compose workflows, simply",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/AI-for-dev/combo.git"
+	},
+	"homepage": "https://ai-for-dev.github.io/combo/",
 	"type": "module",
 	"main": "./src/index.ts",
 	"exports": {
@@ -13,7 +18,12 @@
 		"agents",
 		"pipelines",
 		"README.md",
-		"docs"
+		"docs",
+		"!docs/conf.py",
+		"!docs/Makefile",
+		"!docs/requirements.txt",
+		"!docs/_pygments.py",
+		"!docs/_static/custom.css"
 	],
 	"engines": {
 		"node": ">=23.6"

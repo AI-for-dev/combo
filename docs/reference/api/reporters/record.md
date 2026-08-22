@@ -2,7 +2,7 @@
 
 # `reporters/record`
 
-Source: [`src/reporters/record.ts`](../../../../src/reporters/record.ts)
+Source: [`src/reporters/record.ts`](https://github.com/AI-for-dev/combo/blob/main/src/reporters/record.ts)
 
 The event stream, on disk: one JSON object per line, in the order it happened.
 
@@ -21,7 +21,7 @@ tail exactly then. Durability over throughput, the same trade the export made.
 *function*
 
 ```typescript
-export function recordReporter(file: string): EventListener { … }
+export function recordReporter(file: string): EventListener { /* … */ }
 ```
 
 Appends every event to `file` as `{"ts": <ISO 8601>, …event}`.

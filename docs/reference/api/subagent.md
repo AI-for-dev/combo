@@ -2,7 +2,7 @@
 
 # `subagent`
 
-Source: [`src/subagent.ts`](../../../src/subagent.ts)
+Source: [`src/subagent.ts`](https://github.com/AI-for-dev/combo/blob/main/src/subagent.ts)
 
 A subagent: a live session, a memory, a state.
 
@@ -45,7 +45,7 @@ What governs one turn: how it can be stopped, and when it must be.
 *function*
 
 ```typescript
-export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<Subagent> { … }
+export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<Subagent> { /* … */ }
 ```
 
 Brings an agent to life.

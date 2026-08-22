@@ -2,7 +2,7 @@
 
 # `workflows/orchestrate`
 
-Source: [`src/workflows/orchestrate.ts`](../../../../src/workflows/orchestrate.ts)
+Source: [`src/workflows/orchestrate.ts`](https://github.com/AI-for-dev/combo/blob/main/src/workflows/orchestrate.ts)
 
 `orchestrate`: 1 → ?. An agent *decides* the split, then the split runs.
 
@@ -15,7 +15,7 @@ over it, optionally synthesise.
 *function*
 
 ```typescript
-export async function orchestrate(options: OrchestrateOptions): Promise<OrchestrateResult> { … }
+export async function orchestrate(options: OrchestrateOptions): Promise<OrchestrateResult> { /* … */ }
 ```
 
 Asks an agent to split the work, then runs the split it asked for.

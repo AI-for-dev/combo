@@ -4,7 +4,7 @@
 
 Generated from the TSDoc of everything `src/index.ts` exports. The intent
 behind the design lives in [Design decisions](../../decisions.md); how to use the
-library, in [`README.md`](../../../README.md); this is the exhaustive surface.
+library, in [the guide](../../index.md); this is the exhaustive surface.
 
 | Module | What it is for | Exports |
 | --- | --- | --- |
@@ -44,3 +44,44 @@ library, in [`README.md`](../../../README.md); this is the exhaustive surface.
 | [`workflows/plan`](workflows/plan.md) | Reading a plan an agent wrote: the prompt, the parser, the validation. | 6 |
 | [`workflows/reduce`](workflows/reduce.md) | `reduce`: N → 1. One agent synthesises the results of a fan-out. | 3 |
 | [`workflows/route`](workflows/route.md) | `route`: 1 → 1. A classifier agent picks who should do the work. | 5 |
+
+```{toctree}
+:hidden:
+
+agent
+ask
+events
+experiment-report
+experiment
+export
+git
+pipeline-load
+pipeline
+reporters/console
+reporters/herdr-client
+reporters/herdr
+reporters/index
+reporters/record
+reporters/silent
+reporters/tui
+result
+resume
+run
+session
+subagent
+text
+usage
+verify
+workflows/chain
+workflows/common
+workflows/deliver
+workflows/fan-out
+workflows/interview
+workflows/loop
+workflows/orchestrate
+workflows/pair
+workflows/pipeline-run
+workflows/plan
+workflows/reduce
+workflows/route
+```

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="combo">
+  <title>combo</title>
+  <!-- The mark: three strokes in, one out. The three are equal and in the ink, because a
+       fan-out has no favourite branch; the one that leaves is the accent, because a
+       workflow is judged on what it returns. Explicit colours for a light ground, because
+       currentColor does not cross an <img> boundary - the theme's text colour never
+       reaches an SVG referenced as an image. See -dark.svg. -->
+  <g fill="none" stroke-width="6" stroke-linecap="round">
+    <g stroke="#232B33">
+      <path d="M8 14 H16 C26 14 24 32 34 32" />
+      <path d="M8 32 H34" />
+      <path d="M8 50 H16 C26 50 24 32 34 32" />
+    </g>
+    <path stroke="#227D74" d="M34 32 H56" />
+  </g>
+</svg>

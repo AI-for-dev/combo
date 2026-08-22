@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 64" width="256" height="64" role="img" aria-label="combo">
+  <title>combo</title>
+  <!-- The lockup on a dark ground: the inverse ink for the branches and the word, the
+       verdigris lifted a step. Same geometry as -light.svg, colours apart - a two-tone
+       drawing needs a file per ground, and currentColor would not have helped: it does not
+       reach an SVG referenced as an image. -->
+  <g fill="none" stroke-width="6" stroke-linecap="round">
+    <g stroke="#C9D3DB">
+      <path d="M8 14 H16 C26 14 24 32 34 32" />
+      <path d="M8 32 H34" />
+      <path d="M8 50 H16 C26 50 24 32 34 32" />
+    </g>
+    <path stroke="#4FB8AC" d="M34 32 H56" />
+  </g>
+  <g transform="translate(73 0)" fill="none" stroke="#C9D3DB" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M18.4 24.3 A10 10 0 1 0 18.4 39.7" />
+    <circle cx="48" cy="32" r="10" />
+    <path d="M74 42 V29.5 A7.5 7.5 0 0 1 89 29.5 V42 M89 29.5 A7.5 7.5 0 0 1 104 29.5 V42" />
+    <path d="M120 10 V42" />
+    <circle cx="130" cy="32" r="10" />
+    <circle cx="166" cy="32" r="10" />
+  </g>
+</svg>

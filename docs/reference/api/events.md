@@ -2,7 +2,7 @@
 
 # `events`
 
-Source: [`src/events.ts`](../../../src/events.ts)
+Source: [`src/events.ts`](https://github.com/AI-for-dev/combo/blob/main/src/events.ts)
 
 The event stream: one core, many reporters.
 
@@ -15,7 +15,7 @@ nothing here ever writes to the terminal.
 *function*
 
 ```typescript
-export function createEventBus(): EventBus { … }
+export function createEventBus(): EventBus { /* … */ }
 ```
 
 A minimal bus, no dependencies.

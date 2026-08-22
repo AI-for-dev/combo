@@ -2,7 +2,7 @@
 
 # `reporters/herdr-client`
 
-Source: [`src/reporters/herdr-client.ts`](../../../../src/reporters/herdr-client.ts)
+Source: [`src/reporters/herdr-client.ts`](https://github.com/AI-for-dev/combo/blob/main/src/reporters/herdr-client.ts)
 
 Detection and transport for herdr's socket API. Nothing else lives here.
 
@@ -16,7 +16,7 @@ and there is no reason to invent a second dialect.
 *function*
 
 ```typescript
-export function detectHerdr(env: NodeJS.ProcessEnv = process.env): HerdrEnv | undefined { … }
+export function detectHerdr(env: NodeJS.ProcessEnv = process.env): HerdrEnv | undefined { /* … */ }
 ```
 
 Detects a live herdr pane.

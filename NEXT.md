@@ -2,7 +2,8 @@
 
 Written to be picked up cold. `AGENTS.md` holds the decisions and the pi API
 notes; this file holds only what has not been done yet, and the traps already
-paid for.
+paid for. Planned pull requests live in [plan/](plan/README.md), one file
+each, in landing order.
 
 State: offline tests green, clean typecheck, working tree clean.
 
@@ -63,8 +64,12 @@ anything being copied. `AGENTS.md` records why that reverses the rule it
 replaced.
 
 The tarball is now explicit: `files` lists `src`, `extension`, `agents`,
-`pipelines`, `README.md` and `docs` - 113 files, 191 kB, with `test/` and
-`examples/` left out. `npm pack --dry-run` is the check, and
+`pipelines`, `README.md` and `docs` - 120 files, 202 kB, with `test/` and
+`examples/` left out. What ships from `docs/` is the documentation and the marks
+the README draws itself with; the machinery that turns those pages into a site
+(`conf.py`, the Makefile, `requirements.txt`, `_pygments.py`, `custom.css`) is
+excluded by name, because an installed package has no site to build.
+`npm pack --dry-run` is the check, and
 `test/pipeline-load.test.ts` fails if `files` ever stops listing `agents` or
 `pipelines`, which would break `/build` for every installed user while every
 other test still passed.
@@ -75,6 +80,39 @@ install` will not place anything in `~/.pi/agent/agents/`. It does not have to
 any more, since the extension carries its own and asks for them at the lowest
 priority. Nobody has run `npm publish`, and the name `combo` is unclaimed on the
 registry as far as this repository knows.
+
+## 4. Build the site once, and look at it
+
+`docs/` is now a Sphinx site as well as a directory of Markdown: `conf.py`,
+`_static/custom.css`, `_pygments.py` and the marks under `_static/logo/`.
+
+```bash
+uv venv && uv pip install -r docs/requirements.txt
+.venv/bin/python -m sphinx -b html docs docs/_build/html -W
+```
+
+It **builds clean**, and `-W` earned its keep on the first run by naming two
+defects nothing else could see. Ninety-three code blocks failed to highlight,
+because `{ … }` is not TypeScript a lexer accepts - the generated signatures now
+elide with `{ /* … */ }`, which is. And every "Source:" line pointed at
+`../../../src/<module>.ts`, which resolves in a checkout and is dead on a site
+that publishes `docs/` alone - they are absolute GitHub URLs now, read from
+`package.json`.
+
+What **nobody has done is look at it**. There was no SVG renderer and no browser
+on the machine it was written on, so the mark has never been seen at its real
+size. Do that the way section 1 asks someone to look at the TUI: the lockup in
+the sidebar, the mark at favicon size in a tab, the h2 rule with its coloured
+head, and the code blocks in both themes.
+
+`.github/workflows/docs.yml` - the first workflow this repository has ever had -
+runs that same build on every pull request and publishes from `main` to GitHub
+Pages. Two things it cannot do from a commit: the repository's **Pages source has
+to be set to GitHub Actions** (Settings → Pages), without which the deploy job is
+the only thing that fails, and someone has to decide whether the suite belongs in
+CI too. `npm test` and `npm run typecheck` still run on laptops only; the docs
+workflow regenerates the reference and diffs it, so a stale API page cannot reach
+the site, and that is all it guards.
 
 ## How to verify anything here
 

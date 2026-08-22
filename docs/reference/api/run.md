@@ -2,7 +2,7 @@
 
 # `run`
 
-Source: [`src/run.ts`](../../../src/run.ts)
+Source: [`src/run.ts`](https://github.com/AI-for-dev/combo/blob/main/src/run.ts)
 
 `run()`: the disposable form. Spawn, ask, close.
 
@@ -14,7 +14,7 @@ is entirely contained within the call. Nothing survives the return.
 *function*
 
 ```typescript
-export async function run(agent: Agent, task: string, options: RunOptions = {}): Promise<Result> { … }
+export async function run(agent: Agent, task: string, options: RunOptions = {}): Promise<Result> { /* … */ }
 ```
 
 Runs one task with a throwaway subagent.

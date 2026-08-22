@@ -2,7 +2,7 @@
 
 # `workflows/reduce`
 
-Source: [`src/workflows/reduce.ts`](../../../../src/workflows/reduce.ts)
+Source: [`src/workflows/reduce.ts`](https://github.com/AI-for-dev/combo/blob/main/src/workflows/reduce.ts)
 
 `reduce`: N → 1. One agent synthesises the results of a fan-out.
 
@@ -11,7 +11,7 @@ Source: [`src/workflows/reduce.ts`](../../../../src/workflows/reduce.ts)
 *function*
 
 ```typescript
-export function formatBranches(results: readonly Result[], input: string): string { … }
+export function formatBranches(results: readonly Result[], input: string): string { /* … */ }
 ```
 
 The default rendering: the instruction, then one titled section per branch.
@@ -25,7 +25,7 @@ name, so the name alone identifies nothing.
 *function*
 
 ```typescript
-export async function reduce(options: ReduceOptions): Promise<WorkflowResult> { … }
+export async function reduce(options: ReduceOptions): Promise<WorkflowResult> { /* … */ }
 ```
 
 Hands every branch to one agent and asks it for a single answer.

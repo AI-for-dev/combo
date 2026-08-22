@@ -4,9 +4,9 @@ Why combo is shaped the way it is, and what was reversed along the way.
 This page records **decisions**, not the state of the code: read the relevant
 section before undoing a design choice, and add to it when you take one.
 
-[AGENTS.md](../AGENTS.md) holds the short version - the invariants an agent must
-not violate. The rest of [docs/](index.md) explains how to use what these
-decisions produced.
+`AGENTS.md`, at the root of the repository, holds the short version - the
+invariants an agent must not violate. The rest of [docs/](index.md) explains how
+to use what these decisions produced.
 
 ## Structural decisions (do not undo without discussion)
 
@@ -998,3 +998,75 @@ alphabetically, of which the second was `build.md` and the third `decisions.md`.
 them, so the two that leave the generated tree - the design decisions and the
 README - follow the next move on their own. That was the actual cost of this one:
 the pages moved with `git mv` in a second, and the links took the afternoon.
+
+## The documentation, as a site
+
+The pages were always Markdown in `docs/`, read on GitHub and in the published
+tarball. They are now also a Sphinx site - MyST Markdown, the furo theme, built
+by `make -C docs html` with `-W`, so a warning fails the build exactly as a
+failing test does.
+
+**Sphinx over the same files, not a second copy.** Nothing was written twice: the
+site renders the pages that were already there, and the only Sphinx-specific
+syntax in them is the toctrees and the cards on the landing page. A page that
+reads well in a repository and badly on a site is a page with two audiences and
+one author; this way there is one file per subject, whatever is reading it.
+
+**Python is a documentation dependency, and says so.** It lives in
+`docs/requirements.txt`, never in `package.json`. `npm test` and `npm run
+typecheck` do not reach the directory, and the library still depends on the pi
+SDK alone - which is the rule that made this worth stating rather than assuming.
+
+**`guide/` and `reference/`.** Task-oriented pages moved under `guide/`, and the
+generated API under `reference/api/` beside `reference/examples.md`. The split is
+the question a reader arrives with: *how do I do this* has a different shape from
+*what does this export do*, and eleven pages in a flat directory answered neither
+first. `scripts/api-docs.ts` computes the links out of `DOCS_DIR` rather than
+spelling them, so the next move is one constant.
+
+**The toctrees are the navigation, and the only one.** `docs.json` listed every
+page for `test/docs.test.ts` to check reachability; Sphinx needs the same list as
+`toctree` entries, and two lists of the same pages disagree the day someone edits
+one. The JSON went, and `scripts/doc-links.ts` reads the toctrees instead - so
+the offline suite still fails in seconds on a page nobody can reach, and it fails
+on the list the site actually uses.
+
+**What `-W` caught on the first build**, and neither the suite nor a reader
+would have: ninety-three code blocks that failed to highlight, because `{ … }`
+is not TypeScript a lexer accepts, and a dead link at the top of every generated
+page. The first is why a signature now elides with `{ /* … */ }` - a comment, so
+the block stays lexable - and why a long initialiser keeps its last line: the
+bracket it closes. The second is why "Source:" is an absolute URL into the
+repository rather than `../../../src/<module>.ts`: that path resolves in a
+checkout and in the tarball, and is dead on a site that publishes `docs/` alone.
+It is read from `package.json`, so the repository is named once.
+
+**The site is built in CI, and published from `main` alone.**
+`.github/workflows/docs.yml` is the first workflow this repository has had, and
+it exists because `-W` is only a standard if something enforces it: a build that
+runs on one laptop is a build that breaks quietly. Every pull request builds the
+site; only `main` deploys it to GitHub Pages. The workflow also regenerates
+`docs/reference/api/` and diffs the result, because the site publishes what is
+committed - and a reference that no longer matches the source is exactly the
+failure the generator was written to prevent, arriving by a different door.
+
+### The mark
+
+combo had no drawing of its own. It has one now: **three strokes in, one out** -
+the three identical and in the ink, because a fan-out has no favourite branch,
+and the one leaving in verdigris, because a workflow is judged on what it
+returns. `docs/_static/logo/README.md` holds the palette, the file table and the
+two rules that are easy to get wrong: a two-tone drawing needs a file per ground,
+and `currentColor` never reaches an SVG referenced as an image.
+
+**The wordmark is geometry, not type.** Circles on a 20-unit x-height at one
+stroke width, rather than glyphs outlined from a font. Outlining is the usual
+answer, and it costs a vendored typeface, a licence to check and a generator to
+run before the lockup can be rebuilt. Drawing it costs a paragraph of
+construction notes - and, like an outlined wordmark and unlike a `font-family`,
+it cannot fall back silently on a reader who lacks the face.
+
+The neutrals are [trysquare](https://github.com/AI-for-dev/trysquare)'s, and the
+site is shaped like its documentation, deliberately: two tools by the same hand,
+meant to be read together, cost a reader more when they look unrelated than they
+gain by being distinct. What differs is the accent - brass there, verdigris here.
