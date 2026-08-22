@@ -16,7 +16,7 @@ combinators        ──►  Workflow   "how"    : chain, fanOut, loop, orchest
 ```bash
 npm test        # node --test 'test/*.test.ts' - offline, no network, ever
 npm run typecheck
-npm run docs    # regenerate docs/api/ - required after any signature change
+npm run docs    # regenerate docs/reference/api/ - required after any signature change
 pi -e extension # load the extension in a real pi (the only check fakes cannot do)
 ```
 
@@ -102,7 +102,9 @@ src/                the library
                     silent, record (the event stream on disk)
 extension/          the pi extension: tool, commands, renderers, UI
 agents/ pipelines/  shipped definitions (symlinked into .pi/)
-examples/ scripts/ test/ docs/
+examples/ scripts/ test/
+docs/               guide/ (task by task), reference/ (api/, generated), the
+                    landing page and the two project pages
 ```
 
 **One file, one concept.** Past roughly 200 lines it is mixing two.
@@ -145,14 +147,14 @@ not a bibliography:
 | Before you… | Read |
 |---|---|
 | undo or contradict any design choice above | [docs/decisions.md](docs/decisions.md) - the full record, with the reversals and their reasons |
-| add or change a combinator | [docs/workflows.md](docs/workflows.md), then the neighbouring `src/workflows/*.ts` |
-| touch a lifetime, a `close()` or a pool | [docs/lifetime.md](docs/lifetime.md) |
+| add or change a combinator | [docs/guide/workflows.md](docs/guide/workflows.md), then the neighbouring `src/workflows/*.ts` |
+| touch a lifetime, a `close()` or a pool | [docs/guide/lifetime.md](docs/guide/lifetime.md) |
 | write a test, or a fake | [docs/development.md](docs/development.md#tests) - the fake session is cumulative, its `messages` grow, and its `abort()` really cuts the turn short |
-| touch a reporter, the TUI or herdr | [docs/display.md](docs/display.md) |
-| touch `Usage`, or an export | [docs/measurements.md](docs/measurements.md), [docs/export.md](docs/export.md) |
-| change the extension, a command or a card | [docs/extension.md](docs/extension.md) |
-| add or change a pipeline | [docs/pipelines.md](docs/pipelines.md), [docs/build.md](docs/build.md) |
-| define an agent | [docs/agents.md](docs/agents.md) |
+| touch a reporter, the TUI or herdr | [docs/guide/display.md](docs/guide/display.md) |
+| touch `Usage`, or an export | [docs/guide/measurements.md](docs/guide/measurements.md), [docs/guide/export.md](docs/guide/export.md) |
+| change the extension, a command or a card | [docs/guide/extension.md](docs/guide/extension.md) |
+| add or change a pipeline | [docs/guide/pipelines.md](docs/guide/pipelines.md), [docs/guide/build.md](docs/guide/build.md) |
+| define an agent | [docs/guide/agents.md](docs/guide/agents.md) |
 | pick up the project cold | [NEXT.md](NEXT.md) - what is left, and the traps already paid for |
 
 ## Conventions
@@ -165,7 +167,8 @@ configuration, ask whether a function call would do.
 
 Documentation ships with the code, not after it: `README.md` and the affected
 `docs/` page in the same batch, `npm run docs` for the generated reference, and
-the decision written into `docs/decisions.md` when you took one.
+the decision written into `docs/decisions.md` when you took one. A new page needs
+an entry in `docs/docs.json`, or the suite fails on a page nobody can reach.
 
 ## Other rules
 

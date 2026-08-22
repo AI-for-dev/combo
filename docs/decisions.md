@@ -980,3 +980,21 @@ The general form is worth stating, since the next merging caller will be a new
 extension command: in this codebase, absent and `undefined` mean the same thing,
 and any code that turns the first into the second is a bug even when the types
 allow it.
+
+## The pages, split into a guide and a reference
+
+Eleven hand-written pages sat in one flat directory next to the generated
+`docs/api/`. They are now `docs/guide/` - task by task, in the order the library
+is learnt - and `docs/reference/`, holding the generated API beside the list of
+examples. `index.md`, `development.md` and `decisions.md` stay at the root: they
+are the way in and the two pages about the repository rather than about using it.
+
+The split is the question a reader arrives with. *How do I make two agents argue
+until they agree* and *what does `fanOut` take* are different questions, and a
+flat directory answered neither first - it offered fourteen file names, sorted
+alphabetically, of which the second was `build.md` and the third `decisions.md`.
+
+`scripts/api-docs.ts` computes its links out of `DOCS_DIR` instead of spelling
+them, so the two that leave the generated tree - the design decisions and the
+README - follow the next move on their own. That was the actual cost of this one:
+the pages moved with `git mv` in a second, and the links took the afternoon.

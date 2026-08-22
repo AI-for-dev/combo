@@ -2,7 +2,7 @@
  * The documentation, checked the way the code is.
  *
  * Four failures this catches, every one of them invisible until now: an export
- * that ships with no TSDoc, a `docs/api/` page that no longer matches the source
+ * that ships with no TSDoc, a `docs/reference/api/` page that no longer matches the source
  * it was generated from, a link or a navigation entry pointing at nothing, and a
  * code example importing a symbol that has since been renamed. Neither a
  * typechecker nor any other test in this suite reads Markdown, so without this
@@ -36,7 +36,7 @@ describe("documentation coverage", () => {
 	});
 });
 
-describe("docs/api is generated, never edited", () => {
+describe("docs/reference/api is generated, never edited", () => {
 	const generated = generateDocs(root);
 
 	test("every page matches what the source says today", () => {
