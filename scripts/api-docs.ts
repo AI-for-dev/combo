@@ -3,10 +3,10 @@
  *
  * A reference page maintained by hand is a second copy of the code, and the
  * copy is wrong the moment someone edits a signature - silently, because
- * nothing in a test suite reads Markdown. So `docs/api/` is **generated** from
- * the TSDoc of what `src/index.ts` re-exports, and `test/docs.test.ts` fails
- * when the checked-in files no longer match what this module produces. Drift
- * stops being a matter of discipline.
+ * nothing in a test suite reads Markdown. So `docs/reference/api/` is
+ * **generated** from the TSDoc of what `src/index.ts` re-exports, and
+ * `test/docs.test.ts` fails when the checked-in files no longer match what this
+ * module produces. Drift stops being a matter of discipline.
  *
  * Why the TypeScript compiler API rather than a documentation generator: it is
  * already a devDependency (it is what `npm run typecheck` runs), and "no
@@ -45,7 +45,10 @@ export type DocModule = {
 };
 
 /** Where the generated pages live. Anything else under it is not ours to keep. */
-export const DOCS_DIR = "docs/api";
+export const DOCS_DIR = "docs/reference/api";
+
+/** A repository path, as a link from a generated page. */
+const fromApi = (target: string): string => relative(DOCS_DIR, target).split("\\").join("/");
 
 const parse = (file: string): { text: string; sf: ts.SourceFile } => {
 	const text = readFileSync(file, "utf8");
@@ -248,8 +251,8 @@ export function renderIndex(modules: DocModule[]): string {
 		"# API reference",
 		"",
 		"Generated from the TSDoc of everything `src/index.ts` exports. The intent",
-		"behind the design lives in [Design decisions](../decisions.md); how to use the",
-		"library, in [`README.md`](../../README.md); this is the exhaustive surface.",
+		`behind the design lives in [Design decisions](${fromApi("docs/decisions.md")}); how to use the`,
+		`library, in [\`README.md\`](${fromApi("README.md")}); this is the exhaustive surface.`,
 		"",
 		"| Module | What it is for | Exports |",
 		"| --- | --- | --- |",
@@ -269,7 +272,7 @@ const firstSentence = (intro: string): string => {
 };
 
 /**
- * The whole of `docs/api/`, as paths mapped to contents.
+ * The whole of `docs/reference/api/`, as paths mapped to contents.
  *
  * Returned rather than written so the test can compare it against the checked-in
  * files without a temporary directory - the comparison *is* the freshness check.

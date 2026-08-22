@@ -3,7 +3,7 @@
 ```bash
 npm test          # node --test, offline, no network calls
 npm run typecheck # tsc --noEmit
-npm run docs      # regenerate docs/api/ from the TSDoc
+npm run docs      # regenerate docs/reference/api/ from the TSDoc
 ```
 
 Node 23.6 or later runs TypeScript natively. There is no build step, and
@@ -23,7 +23,8 @@ agents/              example agent definitions (symlinked into .pi/agents/)
 examples/            one runnable script per shape
 scripts/             the documentation generator and its coverage checker
 test/                node --test, with fakes for pi
-docs/                this documentation
+docs/                this documentation: guide/ task by task, reference/ to
+                     look something up
 ```
 
 **One file, one concept.** Past roughly 200 lines, it is mixing two.
@@ -57,7 +58,7 @@ wired above a combinator sees an empty stream in tests and a full one in
 production, and every display assertion passes on nothing.
 
 What a fake still cannot prove is that pi's own module has not changed shape. A
-real pi run stays the only check for that - see [Extension](extension.md).
+real pi run stays the only check for that - see [Extension](guide/extension.md).
 
 ## Documentation
 
@@ -74,7 +75,7 @@ Documentation is part of the deliverable, not a follow-up task.
 
 ### How it stays honest
 
-`docs/api/` is **generated** from the TSDoc of everything `src/index.ts`
+`docs/reference/api/` is **generated** from the TSDoc of everything `src/index.ts`
 re-exports, by `scripts/gen-docs.ts`, using the TypeScript compiler API - already
 a devDependency, so nothing new was added for it.
 

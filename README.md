@@ -38,7 +38,7 @@ result.ok; // a model failure is a Result, never a throw
 Everything returns that same `Result` - `{ agent, output, messages, usage, ok,
 error? }` - which is the one contract that makes workflows composable.
 
-**[Quickstart](docs/quickstart.md)** is the guided version: a disposable
+**[Quickstart](docs/guide/quickstart.md)** is the guided version: a disposable
 subagent, one that remembers, a workflow, and the same thing from inside pi.
 
 ## Workflows
@@ -74,7 +74,7 @@ frontmatter, then pi's own settings. No environment variable, anywhere.
 await loop({ steps: [coder, reviewer], input, model: "anthropic/claude-sonnet-5" });
 ```
 
-See [Workflows](docs/workflows.md) and [Lifetime](docs/lifetime.md).
+See [Workflows](docs/guide/workflows.md) and [Lifetime](docs/guide/lifetime.md).
 
 ## Comparing models
 
@@ -94,7 +94,7 @@ const report = await experiment({
 
 Cells run one at a time by default, failed ones stay in the report with their
 usage, and the flag columns are whatever the callback returned. See
-[Experiments](docs/experiments.md).
+[Experiments](docs/guide/experiments.md).
 
 ## The whole flow: question to commit
 
@@ -118,7 +118,7 @@ agents, that says which combinators run in which order. The package ships one, s
 `/build` works as soon as the extension is loaded; drop a `build.md` in
 `.pi/pipelines/` and yours replaces it, with no code to change.
 
-See [Deliver a change](docs/build.md) and [Pipelines](docs/pipelines.md).
+See [Deliver a change](docs/guide/build.md) and [Pipelines](docs/guide/pipelines.md).
 
 ## Using it from pi
 
@@ -135,14 +135,14 @@ pi install ./extension   # permanently, via settings
 While the subagents work, a dot per subagent sits above the prompt with its
 model, tokens and a clock counting up live; the tool row below holds the record.
 
-See [Extension](docs/extension.md) and [Display](docs/display.md).
+See [Extension](docs/guide/extension.md) and [Display](docs/guide/display.md).
 
 ## Documentation
 
 - [Manual](docs/index.md) - agents, lifetime, workflows, pipelines, display, export, experiments.
-- [API reference](docs/api/index.md) - every public export, generated from the
+- [API reference](docs/reference/api/index.md) - every public export, generated from the
   source and checked by the test suite.
-- [Examples](docs/examples.md) - one runnable script per shape.
+- [Examples](docs/reference/examples.md) - one runnable script per shape.
 - [Design decisions](docs/decisions.md) - the decisions, and the ones that were
   reversed.
 - [`NEXT.md`](NEXT.md) - what is left, and the traps already paid for.

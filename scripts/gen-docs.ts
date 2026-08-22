@@ -1,5 +1,5 @@
 /**
- * Writes `docs/api/` from the source. `npm run docs`.
+ * Writes `docs/reference/api/` from the source. `npm run docs`.
  *
  * The generation is deliberately destructive over its own directory: a page for
  * a module that no longer exists is worse than no page, because it reads as
