@@ -15,3 +15,6 @@ docs/_build/
 # pi session exports dropped in the working directory
 pi-session-*.html
 pi-session-*.jsonl
+
+# Python bytecode from the Sphinx conf
+__pycache__/

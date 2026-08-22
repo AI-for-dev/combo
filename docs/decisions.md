@@ -1088,12 +1088,20 @@ tables ask for lining and tabular ones.
 
 ### The mark
 
-combo had no drawing of its own. It has one now: **three strokes in, one out** -
-the three identical and in the ink, because a fan-out has no favourite branch,
-and the one leaving in verdigris, because a workflow is judged on what it
-returns. `docs/_static/logo/README.md` holds the palette, the file table and the
-two rules that are easy to get wrong: a two-tone drawing needs a file per ground,
-and `currentColor` never reaches an SVG referenced as an image.
+combo had no drawing of its own. It has one now: **three bars, one bracket** -
+the bars identical and in the ink, because a fan-out has no favourite branch,
+and the bracket in verdigris, because holding the three as one is the claim of
+the library. `docs/_static/logo/README.md` holds the palette, the file table and
+the two rules that are easy to get wrong: a two-tone drawing needs a file per
+ground, and `currentColor` never reaches an SVG referenced as an image.
+
+**The bracket replaced the first mark, three strokes in, one out.** The strokes
+read as a generic merge glyph, and their curves closed into a blob below 24px.
+Of the directions compared against it, the bracket is the one that states the
+library plainest - three equal things made a group by one device - and the only
+one legible at 16px with a single geometry, in rectangles only, which is
+trysquare's vocabulary. The proposal drew that bracket in brass; here it takes
+verdigris, because the accent is the identity and brass is trysquare's.
 
 **The wordmark is geometry, not type.** Circles on a 20-unit x-height at one
 stroke width, rather than glyphs outlined from a font. Outlining is the usual

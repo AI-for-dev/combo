@@ -1,16 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="combo">
   <title>combo</title>
   <!-- The favicon, and anywhere the mark needs a ground of its own: an avatar, a social
-       image. Two branches rather than three, and thicker strokes - at 16px the third
-       branch and its curve close up into a blob, and what is left says the same thing.
+       image. Two bars rather than three, and thicker - at 16px three bars five units
+       apart close up into a smear, and two still say *several things held as one*.
        The ground is the slate, so the tile carries its own contrast and does not depend
        on the tab bar it lands in. -->
   <rect width="64" height="64" rx="12" fill="#232B33" />
-  <g fill="none" stroke-width="7" stroke-linecap="round">
-    <g stroke="#EEF1F3">
-      <path d="M15 19 H19 C29 19 27 32 37 32" />
-      <path d="M15 45 H19 C29 45 27 32 37 32" />
-    </g>
-    <path stroke="#4FB8AC" d="M37 32 H49" />
+  <g fill="#EEF1F3">
+    <rect x="29" y="21" width="24" height="6" />
+    <rect x="29" y="37" width="24" height="6" />
   </g>
+  <path fill="#4FB8AC" d="M11 15 H24 V21.5 H17.5 V42.5 H24 V49 H11 Z" />
 </svg>
