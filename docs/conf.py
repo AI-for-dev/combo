@@ -84,9 +84,10 @@ html_css_files = ["custom.css"]
 _palette = {
     "font-stack": "var(--co-serif)",
     "font-stack--monospace": "var(--co-mono)",
-    # The headings are mono, as the wordmark is: what the library says of itself is set in
-    # its own letters, and what is said about it is set in the serif.
-    "font-stack--headings": "var(--co-mono)",
+    # Three faces, one job each: the Garamond for what is read, Inter for what is
+    # navigated - headings, sidebar, tables, cards - and the reader's own monospace for
+    # what is typed. `_static/custom.css` serves the first two and says why.
+    "font-stack--headings": "var(--co-sans)",
     # Ink and ground. The content is paper and the chrome is the ground - which is already
     # how furo splits primary from secondary. Reversed, twenty pages of running prose
     # become a grey slab.
