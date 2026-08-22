@@ -2,7 +2,7 @@
 
 # `workflows/common`
 
-Source: [`src/workflows/common.ts`](../../../../src/workflows/common.ts)
+Source: [`src/workflows/common.ts`](https://github.com/AI-for-dev/combo/blob/main/src/workflows/common.ts)
 
 What every combinator shares: the same options, the same defaults, and the
 same way of honouring lifetime.
@@ -19,7 +19,7 @@ export async function mapConcurrent<T, R>(
 	items: readonly T[],
 	concurrency: number,
 	run: (item: T, index: number) => Promise<R>,
-): Promise<R[]> { … }
+): Promise<R[]> { /* … */ }
 ```
 
 Runs `run` over `items` with at most `concurrency` in flight, in index order.
@@ -49,9 +49,9 @@ The spawn function a combinator uses. Injection point for tests.
 
 ```typescript
 export class SubagentPool {
-	async acquire(agent: Agent, key: string): Promise<Subagent> { … }
-	async release(subagent: Subagent): Promise<void> { … }
-	async closeAll(): Promise<void> { … }
+	async acquire(agent: Agent, key: string): Promise<Subagent> { /* … */ }
+	async release(subagent: Subagent): Promise<void> { /* … */ }
+	async closeAll(): Promise<void> { /* … */ }
 }
 ```
 

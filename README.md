@@ -1,4 +1,13 @@
-# combo
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)"
+            srcset="docs/_static/logo/combo-lockup-dark.svg">
+    <img src="docs/_static/logo/combo-lockup-light.svg" alt="combo" height="46">
+  </picture>
+</h1>
+
+> A combo is several moves that land as one. So is a workflow here: subtasks run
+> apart, and come back as a single `Result`.
 
 [pi](https://pi.dev) is a coding agent that ships an SDK: a session can be started
 inside your own process rather than driven through a terminal. combo is the layer
@@ -146,3 +155,7 @@ See [Extension](docs/guide/extension.md) and [Display](docs/guide/display.md).
 - [Design decisions](docs/decisions.md) - the decisions, and the ones that were
   reversed.
 - [`NEXT.md`](NEXT.md) - what is left, and the traps already paid for.
+
+The same pages build into a site: `make -C docs html`, with
+[docs/README.md](docs/README.md) for the how and the why. Sphinx is a
+documentation dependency only - the library still depends on the pi SDK alone.

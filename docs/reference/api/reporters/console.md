@@ -2,7 +2,7 @@
 
 # `reporters/console`
 
-Source: [`src/reporters/console.ts`](../../../../src/reporters/console.ts)
+Source: [`src/reporters/console.ts`](https://github.com/AI-for-dev/combo/blob/main/src/reporters/console.ts)
 
 A plain console reporter: one line per event that matters.
 
@@ -14,7 +14,7 @@ its own, before any TUI or herdr integration gets involved.
 *function*
 
 ```typescript
-export function consoleReporter(options: ConsoleReporterOptions = {}): EventListener { … }
+export function consoleReporter(options: ConsoleReporterOptions = {}): EventListener { /* … */ }
 ```
 
 Builds a console reporter.

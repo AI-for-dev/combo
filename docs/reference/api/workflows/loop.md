@@ -2,7 +2,7 @@
 
 # `workflows/loop`
 
-Source: [`src/workflows/loop.ts`](../../../../src/workflows/loop.ts)
+Source: [`src/workflows/loop.ts`](https://github.com/AI-for-dev/combo/blob/main/src/workflows/loop.ts)
 
 `loop`: 1 → 1, repeated until a criterion is met.
 
@@ -15,7 +15,7 @@ behave like a team that remembers or like five independent pairs of eyes.
 *function*
 
 ```typescript
-export async function loop(options: LoopOptions): Promise<LoopResult> { … }
+export async function loop(options: LoopOptions): Promise<LoopResult> { /* … */ }
 ```
 
 Runs the steps in a cycle until `until` is satisfied, or `maxIterations` is

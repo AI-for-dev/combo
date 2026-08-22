@@ -2,7 +2,7 @@
 
 # `verify`
 
-Source: [`src/verify.ts`](../../../src/verify.ts)
+Source: [`src/verify.ts`](https://github.com/AI-for-dev/combo/blob/main/src/verify.ts)
 
 Running the code, rather than asking two agents whether they like it.
 
@@ -22,7 +22,7 @@ nobody can argue with.
 *function*
 
 ```typescript
-export function commandVerifier(options: CommandVerifierOptions): Verify { … }
+export function commandVerifier(options: CommandVerifierOptions): Verify { /* … */ }
 ```
 
 A {@link Verify} that runs one command.

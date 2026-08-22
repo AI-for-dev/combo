@@ -2,7 +2,7 @@
 
 # `session`
 
-Source: [`src/session.ts`](../../../src/session.ts)
+Source: [`src/session.ts`](https://github.com/AI-for-dev/combo/blob/main/src/session.ts)
 
 The whole pi API lives here, and nowhere else.
 
@@ -31,7 +31,7 @@ Alias to pi's message type, without depending on a transitive package.
 *function*
 
 ```typescript
-export async function checkModel(pattern: string): Promise<void> { … }
+export async function checkModel(pattern: string): Promise<void> { /* … */ }
 ```
 
 Checks that a model pattern resolves in this pi, without opening a session.
@@ -46,7 +46,9 @@ a fake cannot stand in for it, only a real pi run proves it end to end.
 *const*
 
 ```typescript
-export const createDefaultSession: CreateSession = async (agent, options) => { … ;
+export const createDefaultSession: CreateSession = async (agent, options) => {
+	/* … */
+};
 ```
 
 Creates a real, isolated pi session for an agent.
@@ -151,7 +153,7 @@ fake session fits in fifty lines.
 *function*
 
 ```typescript
-export function situate(systemPrompt: string, cwd: string): string { … }
+export function situate(systemPrompt: string, cwd: string): string { /* … */ }
 ```
 
 The agent's prompt, plus the one fact it cannot do its job without: where it is.
@@ -170,15 +172,15 @@ trying a relative one. One branch of three, wasted on a fabricated path.
 ```typescript
 export class StaticResourceLoader implements ResourceLoader {
 	readonly #systemPrompt: string;
-	getExtensions() { … }
-	getSkills() { … }
-	getPrompts() { … }
-	getThemes() { … }
-	getAgentsFiles() { … }
-	getSystemPrompt() { … }
-	getAppendSystemPrompt() { … }
-	extendResources() { … }
-	async reload() { … }
+	getExtensions() { /* … */ }
+	getSkills() { /* … */ }
+	getPrompts() { /* … */ }
+	getThemes() { /* … */ }
+	getAgentsFiles() { /* … */ }
+	getSystemPrompt() { /* … */ }
+	getAppendSystemPrompt() { /* … */ }
+	extendResources() { /* … */ }
+	async reload() { /* … */ }
 }
 ```
 

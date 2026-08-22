@@ -2,7 +2,7 @@
 
 # `workflows/pair`
 
-Source: [`src/workflows/pair.ts`](../../../../src/workflows/pair.ts)
+Source: [`src/workflows/pair.ts`](https://github.com/AI-for-dev/combo/blob/main/src/workflows/pair.ts)
 
 `pair`: one worker, one reviewer, talking until the work is accepted.
 
@@ -30,7 +30,7 @@ The word a reviewer says when it has nothing left to ask for.
 *function*
 
 ```typescript
-export async function pair(options: PairOptions): Promise<PairResult> { … }
+export async function pair(options: PairOptions): Promise<PairResult> { /* … */ }
 ```
 
 Runs the worker, has it reviewed, and sends the remarks back until the
@@ -102,7 +102,7 @@ The worker's last output, plus how the pair got there and whether it was accepte
 *function*
 
 ```typescript
-export function remarksPrompt(review: string, remaining: number): string { … }
+export function remarksPrompt(review: string, remaining: number): string { /* … */ }
 ```
 
 What the worker gets back: the remarks, and how much room is left.
@@ -112,7 +112,7 @@ What the worker gets back: the remarks, and how much room is left.
 *function*
 
 ```typescript
-export function reviewPrompt(goal: string, work: string, round: number): string { … }
+export function reviewPrompt(goal: string, work: string, round: number): string { /* … */ }
 ```
 
 What the reviewer is asked: the goal, then what was done about it.

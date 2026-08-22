@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="combo">
+  <title>combo</title>
+  <!-- Monochrome, following the surrounding text colour. For *inlining* only: currentColor
+       does not survive an <img> or a CSS url(), where it falls back to black on both
+       grounds. Anything referenced rather than inlined takes -light.svg or -dark.svg. -->
+  <g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round">
+    <path d="M8 14 H16 C26 14 24 32 34 32" />
+    <path d="M8 32 H56" />
+    <path d="M8 50 H16 C26 50 24 32 34 32" />
+  </g>
+</svg>

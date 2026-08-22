@@ -2,7 +2,7 @@
 
 # `usage`
 
-Source: [`src/usage.ts`](../../../src/usage.ts)
+Source: [`src/usage.ts`](https://github.com/AI-for-dev/combo/blob/main/src/usage.ts)
 
 Measurements: time and tokens, per subagent.
 
@@ -15,7 +15,7 @@ pi does not measure - and **attribution per subagent**.
 *function*
 
 ```typescript
-export function compact(n: number): string { … }
+export function compact(n: number): string { /* … */ }
 ```
 
 `12k`, `2.1k`, `1.4M` - a token count that fits in a narrow column.
@@ -25,7 +25,7 @@ export function compact(n: number): string { … }
 *function*
 
 ```typescript
-export function deltaUsage(before: Usage, after: Usage): Usage { … }
+export function deltaUsage(before: Usage, after: Usage): Usage { /* … */ }
 ```
 
 Usage of one turn: what `after` has more than `before`.
@@ -39,7 +39,7 @@ cumulative counter but a level, so we take the one from `after`.
 *function*
 
 ```typescript
-export function emptyUsage(): Usage { … }
+export function emptyUsage(): Usage { /* … */ }
 ```
 
 A zeroed `Usage`. The starting point of a freshly spawned subagent.
@@ -49,7 +49,7 @@ A zeroed `Usage`. The starting point of a freshly spawned subagent.
 *function*
 
 ```typescript
-export function formatUsage(usage: Usage): string { … }
+export function formatUsage(usage: Usage): string { /* … */ }
 ```
 
 Compact usage line: `3 turns 12.4s ↑12k ↓2.1k R8k $0.0412 ctx:34k`.
@@ -59,7 +59,7 @@ Compact usage line: `3 turns 12.4s ↑12k ↓2.1k R8k $0.0412 ctx:34k`.
 *function*
 
 ```typescript
-export function snapshotUsage(stats: SessionStats): Usage { … }
+export function snapshotUsage(stats: SessionStats): Usage { /* … */ }
 ```
 
 Snapshot of a session's token counters.
@@ -76,7 +76,7 @@ counting characters.
 *function*
 
 ```typescript
-export function sumUsage(parts: readonly Usage[], wallMs: number): Usage { … }
+export function sumUsage(parts: readonly Usage[], wallMs: number): Usage { /* … */ }
 ```
 
 Aggregates the usage of several subagents - typically a fan-out.

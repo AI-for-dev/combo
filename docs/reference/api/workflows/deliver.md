@@ -2,7 +2,7 @@
 
 # `workflows/deliver`
 
-Source: [`src/workflows/deliver.ts`](../../../../src/workflows/deliver.ts)
+Source: [`src/workflows/deliver.ts`](https://github.com/AI-for-dev/combo/blob/main/src/workflows/deliver.ts)
 
 `deliver`: a brief in, work done and audited out.
 
@@ -46,7 +46,7 @@ export function auditPrompt(
 	maxAuditRounds: number,
 	verification?: Verification,
 	workers: readonly Agent[] = [],
-): string { … }
+): string { /* … */ }
 ```
 
 What the auditor reads: the brief, then what each subtask claims it did.
@@ -77,7 +77,7 @@ One pass of the audit cycle: what was said, what it cost, what was fixed.
 *function*
 
 ```typescript
-export async function deliver(options: DeliverOptions): Promise<DeliverResult> { … }
+export async function deliver(options: DeliverOptions): Promise<DeliverResult> { /* … */ }
 ```
 
 Plans, builds, reviews and audits.

@@ -3,6 +3,9 @@ node_modules/
 # Session exports produced by workflow runs
 runs/
 
+# The documentation site, built by `make -C docs html`
+docs/_build/
+
 .DS_Store
 *.log
 

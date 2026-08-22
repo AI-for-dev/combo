@@ -2,7 +2,7 @@
 
 # `reporters/tui`
 
-Source: [`src/reporters/tui.ts`](../../../../src/reporters/tui.ts)
+Source: [`src/reporters/tui.ts`](https://github.com/AI-for-dev/combo/blob/main/src/reporters/tui.ts)
 
 State and formatting for the pi TUI, with no pi-tui in sight.
 
@@ -17,7 +17,7 @@ without touching a component.
 *function*
 
 ```typescript
-export function collapsedLine(snapshot: SubagentSnapshot, width = 60): string { … }
+export function collapsedLine(snapshot: SubagentSnapshot, width = 60): string { /* … */ }
 ```
 
 One compact line per subagent: `⏳ scout#1  find auth code  → grep`.
@@ -27,7 +27,7 @@ One compact line per subagent: `⏳ scout#1  find auth code  → grep`.
 *function*
 
 ```typescript
-export function createTuiCollector(): TuiCollector { … }
+export function createTuiCollector(): TuiCollector { /* … */ }
 ```
 
 Collects subagent events into a renderable snapshot.
@@ -40,7 +40,7 @@ branches were launched, not in the order they happen to finish.
 *function*
 
 ```typescript
-export function formatToolCall(name: string, args: unknown): string { … }
+export function formatToolCall(name: string, args: unknown): string { /* … */ }
 ```
 
 Formats a tool call the way the pi TUI shows built-in tools.
@@ -54,7 +54,7 @@ rather than dumping raw JSON at them.
 *function*
 
 ```typescript
-export function progressLine(snapshot: TuiSnapshot): string { … }
+export function progressLine(snapshot: TuiSnapshot): string { /* … */ }
 ```
 
 `2/3 done, 1 running` - what a parallel run looks like while it runs.
@@ -64,7 +64,7 @@ export function progressLine(snapshot: TuiSnapshot): string { … }
 *function*
 
 ```typescript
-export function statusIcon(snapshot: SubagentSnapshot): string { … }
+export function statusIcon(snapshot: SubagentSnapshot): string { /* … */ }
 ```
 
 `⏳` while it works, `✓` when it succeeded, `✗` when it did not.
@@ -114,7 +114,7 @@ Everything known about one subagent, at one instant.
 *function*
 
 ```typescript
-export function summaryTable(snapshot: TuiSnapshot, wallMs: number): string[] { … }
+export function summaryTable(snapshot: TuiSnapshot, wallMs: number): string[] { /* … */ }
 ```
 
 The end-of-workflow table: one line per subagent, total at the bottom.
@@ -208,7 +208,7 @@ gets {@link widgetRows} instead, which says *what* each line is.
 *function*
 
 ```typescript
-export function widgetRows(snapshot: TuiSnapshot): WidgetRow[] { … }
+export function widgetRows(snapshot: TuiSnapshot): WidgetRow[] { /* … */ }
 ```
 
 The widget, as rows that say what they are: one activity line per subagent,

@@ -2,7 +2,7 @@
 
 # `workflows/chain`
 
-Source: [`src/workflows/chain.ts`](../../../../src/workflows/chain.ts)
+Source: [`src/workflows/chain.ts`](https://github.com/AI-for-dev/combo/blob/main/src/workflows/chain.ts)
 
 `chain`: 1 → 1 → 1. The output of step *n* is the input of step *n+1*.
 
@@ -11,7 +11,7 @@ Source: [`src/workflows/chain.ts`](../../../../src/workflows/chain.ts)
 *function*
 
 ```typescript
-export async function chain(options: ChainOptions): Promise<WorkflowResult> { … }
+export async function chain(options: ChainOptions): Promise<WorkflowResult> { /* … */ }
 ```
 
 Runs the agents in sequence, feeding each one the previous output.

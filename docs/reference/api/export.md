@@ -2,7 +2,7 @@
 
 # `export`
 
-Source: [`src/export.ts`](../../../src/export.ts)
+Source: [`src/export.ts`](https://github.com/AI-for-dev/combo/blob/main/src/export.ts)
 
 Exporting a run: `runs/<timestamp>/` with one HTML and one JSONL per
 subagent, plus a `usage.json`.
@@ -25,7 +25,7 @@ rescue.
 *function*
 
 ```typescript
-export function copyMainSession(sessionFile: string | undefined, dir: string): SessionExport { … }
+export function copyMainSession(sessionFile: string | undefined, dir: string): SessionExport { /* … */ }
 ```
 
 Copies the parent session's JSONL next to the subagents' exports.
@@ -41,7 +41,7 @@ same HTML whenever it is wanted.
 *function*
 
 ```typescript
-export function createRunDir(base = "runs", now = new Date()): string { … }
+export function createRunDir(base = "runs", now = new Date()): string { /* … */ }
 ```
 
 Creates `<base>/<timestamp>/` and returns its path.
@@ -54,7 +54,7 @@ The timestamp is sortable and filesystem-safe, so two runs never collide and
 *function*
 
 ```typescript
-export function exportBaseName(id: string): string { … }
+export function exportBaseName(id: string): string { /* … */ }
 ```
 
 Turns a subagent id into a file name: `reviewer#2` → `reviewer-2`.
@@ -67,7 +67,7 @@ to be opened in a browser and shared.
 *function*
 
 ```typescript
-export async function exportSession(session: SessionPort, dir: string, id: string): Promise<SessionExport> { … }
+export async function exportSession(session: SessionPort, dir: string, id: string): Promise<SessionExport> { /* … */ }
 ```
 
 Exports one **live** session into `dir`.
@@ -100,7 +100,7 @@ What one subagent left on disk. Both paths are absent when nothing could be writ
 *function*
 
 ```typescript
-export function usageReport(snapshot: TuiSnapshot, wallMs: number, exports?: SessionExport[]): UsageReport { … }
+export function usageReport(snapshot: TuiSnapshot, wallMs: number, exports?: SessionExport[]): UsageReport { /* … */ }
 ```
 
 Builds the report from a collected snapshot.
@@ -168,7 +168,7 @@ One subagent's line in `usage.json`.
 *function*
 
 ```typescript
-export function writeUsageReport(dir: string, report: UsageReport): string { … }
+export function writeUsageReport(dir: string, report: UsageReport): string { /* … */ }
 ```
 
 Writes `usage.json` into `dir` and returns its path.

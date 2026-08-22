@@ -2,7 +2,7 @@
 
 # `ask`
 
-Source: [`src/ask.ts`](../../../src/ask.ts)
+Source: [`src/ask.ts`](https://github.com/AI-for-dev/combo/blob/main/src/ask.ts)
 
 Asking the *user* a question - the one place a workflow may block on a human.
 
@@ -84,7 +84,7 @@ One question, in the shape a card can draw and a script can answer.
 *function*
 
 ```typescript
-export function scriptedAsk(answers: readonly string[]): AskUser & { asked: Question[] } { … }
+export function scriptedAsk(answers: readonly string[]): AskUser & { asked: Question[] } { /* … */ }
 ```
 
 An `AskUser` that replays a script, for tests and non-interactive runs.

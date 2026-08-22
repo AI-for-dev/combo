@@ -65,7 +65,7 @@ describe("the hand-written pages", () => {
 		assert.deepEqual(brokenLinks(root, pages), []);
 	});
 
-	test("every page is reachable from docs.json, and every entry exists", () => {
+	test("every page is reachable from a toctree, and every entry exists", () => {
 		const navigation = navigationPaths(root);
 		const missing = prose.filter((page) => !navigation.includes(page));
 		assert.deepEqual(missing, [], "pages nobody can navigate to");
@@ -104,7 +104,7 @@ describe("reading TSDoc out of the source", () => {
 		const declaration = sf.statements.find((st) => st.getText(sf).includes("export async function run"));
 		assert.ok(declaration);
 		const signature = signatureOf(text, sf, declaration);
-		assert.ok(signature.endsWith("{ … }"), signature);
+		assert.ok(signature.endsWith("{ /* … */ }"), signature);
 		assert.ok(!signature.includes("await"), "the body is not part of the reference");
 	});
 

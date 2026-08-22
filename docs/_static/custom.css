@@ -1,0 +1,413 @@
+/* The documentation's own type and colour.
+ *
+ * Slate, verdigris and paper - the palette of the mark, written down in
+ * `_static/logo/README.md` and declared here as `--co-*` tokens. `conf.py` maps furo's own
+ * variables onto them.
+ *
+ * The split is not arbitrary: furo emits that map in an inline <style> after every linked
+ * stylesheet, on `body[data-theme="dark"]`, and a rule here on plain `body` could not
+ * outrank it. Declaring the tokens here and pointing furo's variables at them lets one map
+ * serve both themes, because it is the tokens that flip.
+ *
+ * `body` and not `:root`, for the same reason: furo declares its variables on `body`, and
+ * inheritance from <html> never beats a direct declaration on the element itself.
+ *
+ * The font stacks are system stacks - nothing is served, so the pages cost no bytes and
+ * look slightly different on every machine. That is the trade, taken deliberately.
+ */
+
+/* --- the palette --------------------------------------------------------------------
+ *
+ * Three declarations, mirroring furo's own: light on `body`, dark on the theme toggle and
+ * on the OS preference, both inside `@media not print`.
+ *
+ * That wrapper is load-bearing. Without it a reader who has dark selected prints light
+ * text on a dark slab, because furo's print rules only reset furo's own variables.
+ *
+ * On contrast, which decides where each verdigris goes: `--co-verdigris` is 4.35:1 on the
+ * ground and `--co-ink-3` is 3.17:1, both under AA for text. So verdigris *text* is always
+ * `--co-verdigris-ink` (6.03:1) and plain `--co-verdigris` is for rules, borders and
+ * markers; `--co-ink-3` is decoration, and anything carrying information takes
+ * `--co-ink-2`.
+ */
+body {
+  --co-ink: #232b33;
+  --co-ink-2: #5d6873;
+  --co-ink-3: #7e8894;
+  --co-ground: #eef1f3;
+  --co-panel: #ffffff;
+  --co-panel-2: #e4e9ed;
+  /* The same colour at zero alpha. `transparent` computes to transparent *black*, which
+   * greys the fade at the end of furo's hover gradients. */
+  --co-panel-2-clear: #e4e9ed00;
+  --co-rule: #c9d2d9;
+  --co-rule-soft: #dce3e8;
+  --co-rule-strong: #232b33;
+  --co-verdigris: #227d74;
+  --co-verdigris-ink: #1b655e;
+  --co-verdigris-wash: #dceae7;
+  --co-shadow: 0 1px 0 rgba(35, 43, 51, 0.04), 0 1px 3px rgba(35, 43, 51, 0.05);
+
+  --co-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+  --co-serif: Charter, "Iowan Old Style", "Source Serif 4", Georgia, serif;
+}
+
+@media not print {
+  body[data-theme="dark"] {
+    --co-ink: #c9d3db;
+    --co-ink-2: #93a0ac;
+    --co-ink-3: #74808c;
+    --co-ground: #14181b;
+    --co-panel: #1b2126;
+    --co-panel-2: #232a30;
+    --co-panel-2-clear: #232a3000;
+    --co-rule: #333c44;
+    --co-rule-soft: #262e34;
+    --co-rule-strong: #4c5761;
+    /* Verdigris lifts a step on a dark ground; the darker tone goes muddy, exactly as it
+     * does in the mark. */
+    --co-verdigris: #4fb8ac;
+    --co-verdigris-ink: #7fd0c2;
+    --co-verdigris-wash: #172624;
+    --co-shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.35);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    body:not([data-theme="light"]) {
+      --co-ink: #c9d3db;
+      --co-ink-2: #93a0ac;
+      --co-ink-3: #74808c;
+      --co-ground: #14181b;
+      --co-panel: #1b2126;
+      --co-panel-2: #232a30;
+      --co-panel-2-clear: #232a3000;
+      --co-rule: #333c44;
+      --co-rule-soft: #262e34;
+      --co-rule-strong: #4c5761;
+      --co-verdigris: #4fb8ac;
+      --co-verdigris-ink: #7fd0c2;
+      --co-verdigris-wash: #172624;
+      --co-shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.35);
+    }
+  }
+}
+
+/* --- the brand ----------------------------------------------------------------------
+ *
+ * The lockup is four times as wide as it is tall, so left to itself it fills the sidebar
+ * edge to edge and reads as cropped rather than placed. Hold it back to leave a margin on
+ * both sides.
+ *
+ * Furo sets `max-width: 100%` on .sidebar-logo; this is the same specificity, so it wins
+ * on source order - which is why this stylesheet is registered after the theme's own.
+ */
+.sidebar-logo {
+  max-width: 86%;
+}
+
+/* ======================================================================================
+ * The devices
+ *
+ * Everything below is scoped to `article`: it keeps these rules clear of the sidebar and
+ * the search page, and buys a specificity point over furo's own selectors for free.
+ * ==================================================================================== */
+
+/* --- the outgoing stroke --------------------------------------------------------------
+ *
+ * The mark's one coloured stroke, trailing the heading the way it leaves the junction.
+ * Sphinx gives a heading no sibling to make into a rule, so it has to be a pseudo-element
+ * on the heading itself.
+ *
+ * An inline-block 100% wide with a matching negative margin, clipped by `overflow: hidden`
+ * - and *not* a flex row, which is the obvious way and the wrong one. Half the headings in
+ * these pages mix words with inline code (`The `subagent` tool`, ``lifetime: "task"``); a
+ * flex container would make each of those an independent flex item, so the words would
+ * neither space nor wrap as words. This keeps the heading in normal inline flow, and lands
+ * the rule after the last line when a heading wraps.
+ */
+article h2 {
+  overflow: hidden;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--co-ink);
+}
+article h2::after {
+  content: "";
+  display: inline-block;
+  vertical-align: middle;
+  width: 100%;
+  margin-right: -100%;
+  margin-left: 0.75rem;
+  height: 7px;
+  border-bottom: 1px solid var(--co-rule);
+  /* The first 22px at the mark's weight and colour, the rest a hairline: the stroke
+   * leaving the junction, then the page. */
+  background-image: linear-gradient(var(--co-verdigris), var(--co-verdigris));
+  background-size: 22px 2px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+}
+
+/* One level down, the same rule without the coloured head. A second one would spend the
+ * accent on structure rather than on the section it opens. */
+article h3 {
+  overflow: hidden;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--co-ink-2);
+}
+article h3::after {
+  content: "";
+  display: inline-block;
+  vertical-align: middle;
+  width: 100%;
+  margin-right: -100%;
+  margin-left: 0.75rem;
+  border-bottom: 1px solid var(--co-rule-soft);
+}
+
+/* The page's own head takes two points of slate, edge to edge. The word is lower case and
+ * set at size in the mono, which is the lockup's own treatment - the connection between
+ * the brand in the sidebar and the title beside it. */
+article h1 {
+  font-size: 2.1em;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  padding-bottom: 0.4rem;
+  border-bottom: 2px solid var(--co-rule-strong);
+  /* Furo rounds every heading by 8px for the `:target` highlight; on a bottom-only rule
+   * that curls both ends up and the head reads as a box someone left open. */
+  border-radius: 0;
+}
+
+article h4,
+article h5,
+article h6 {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--co-ink);
+}
+article h5,
+article h6 {
+  font-size: 0.75rem;
+  color: var(--co-ink-2);
+}
+
+/* An identifier is not a word. `fanOut` is a heading on the workflows page and `spawn` one
+ * on the API pages; upper-casing them misstates what you would type.
+ *
+ * `code.literal` and not bare `code`: furo fills inline code from a selector carrying a
+ * class, so an element-only selector here loses to it however deeply it nests. */
+article h2 code.literal,
+article h3 code.literal,
+article h4 code.literal {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 1em;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+}
+
+/* --- the label ------------------------------------------------------------------------
+ *
+ * Mono, small, tracked, upper. One rule, five places, because it is one object wearing
+ * different sizes: the sizes stay on furo's variables so the chrome keeps its proportions.
+ */
+.sidebar-tree .caption,
+.toc-title,
+article .toctree-wrapper .caption,
+article .code-block-caption,
+article p.rubric {
+  font-family: var(--co-mono);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--co-ink-2);
+}
+
+/* Verdigris appears once in the sidebar: on the page you are reading. */
+.sidebar-tree .current-page > .reference {
+  box-shadow: inset 2px 0 0 var(--co-verdigris);
+}
+
+/* A serif field in a mono chrome reads as a text box someone forgot to style. */
+.sidebar-search {
+  font-family: var(--co-mono);
+  font-size: 0.8125rem;
+}
+
+/* --- cards ----------------------------------------------------------------------------
+ *
+ * Most of a card is already the palette, through the `sd-color-*` map in conf.py. What a
+ * variable cannot reach is sphinx-design's radius and the second, harder shadow layer
+ * furo-extensions adds on top of it.
+ */
+article .sd-card {
+  border-radius: 3px;
+  box-shadow: var(--co-shadow);
+}
+article .sd-card-body {
+  padding: 1rem 1.125rem 1.125rem;
+}
+/* A card title on the landing page is the name of a page, not a label: set like a title,
+ * in the mono the headings use, and neither tracked nor upper-cased. */
+article .sd-card-title {
+  font-family: var(--co-mono);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--co-ink);
+  margin-bottom: 0.75rem;
+}
+/* A title that is already code does not also need code's fill: that is a box inside a box. */
+article .sd-card-title code.literal {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 1em;
+  color: inherit;
+}
+
+/* --- tables ---------------------------------------------------------------------------
+ *
+ * A hairline per row and nothing else: no box, no shadow, no zebra. The header is a label.
+ * The API index is a table of thirty-odd modules, and a boxed grid of it reads as a form.
+ */
+article table.docutils {
+  box-shadow: none;
+  border-radius: 0;
+  border: 0;
+}
+article table.docutils td,
+article table.docutils th {
+  border: 0;
+  border-bottom: 1px solid var(--co-rule-soft);
+  padding: 0.35rem 0.75rem 0.35rem 0;
+  vertical-align: baseline;
+}
+article table.docutils thead th {
+  border-bottom: 1px solid var(--co-rule);
+  font-family: var(--co-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--co-ink-2);
+}
+article table.docutils tbody tr:last-child td {
+  border-bottom: 0;
+}
+/* The exports column of the API index counts things, and counts line up. */
+article table.docutils td:last-child {
+  font-variant-numeric: tabular-nums;
+}
+article table.docutils p {
+  margin: 0;
+}
+
+/* --- bullets --------------------------------------------------------------------------
+ *
+ * The dash from the wordmark's own measure, in verdigris. Colouring the marker is safe
+ * everywhere; *replacing* it is done only where the list is prose, because
+ * `list-style-type` would also strip the toctrees rendered in the body - the landing
+ * page's are visible - and the task lists.
+ */
+article ul > li::marker {
+  color: var(--co-verdigris);
+}
+@supports (list-style-type: "\2013") {
+  article ul.simple:not(.contains-task-list) > li,
+  article .sd-card-body ul > li {
+    list-style-type: "\2013\00a0";
+  }
+}
+
+/* --- code ------------------------------------------------------------------------------
+ *
+ * This library is read in TypeScript, so the code blocks are half the documentation. Furo
+ * outlines inline code only inside a `p`, which leaves the same word boxed in a paragraph
+ * and bare in a list: fill it and never outline it.
+ */
+article code.literal {
+  border: 0;
+  font-size: 0.86em;
+  padding: 0.06em 0.16em;
+  border-radius: 2px;
+}
+article .highlight {
+  border-radius: 2px;
+}
+/* A reader with a ligature font installed would be shown `=>` as a single arrow in code
+ * they are about to retype. */
+article .highlight pre,
+article code {
+  font-variant-ligatures: none;
+}
+/* A GitHub green in a page with two hues. */
+article .highlight button.copybtn.success {
+  color: var(--co-verdigris);
+}
+
+/* --- notes -----------------------------------------------------------------------------
+ *
+ * A rule at the left, a title in the label's letters, no fill and no shadow. The *colours*
+ * are furo's own and stay semantic - a verdigris "danger" would be decoration pretending
+ * to be meaning.
+ */
+article .admonition,
+article .topic {
+  box-shadow: none;
+  border-radius: 0;
+  border-left-width: 2px;
+}
+article .admonition > .admonition-title {
+  font-family: var(--co-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+article .admonition > .admonition-title::before {
+  top: 0.45rem;
+}
+
+/* The line under the title on the landing page is an epigraph, not a quotation: a rule and
+ * an italic, and no fill. Furo fills a blockquote; a fill on top of a rule says the same
+ * thing twice. */
+article blockquote {
+  margin-left: 0;
+  border-left: 2px solid var(--co-verdigris);
+  border-radius: 0;
+  padding-left: 0.875rem;
+  color: var(--co-ink-2);
+  font-style: italic;
+  background: none;
+}
+
+/* --- the measure -----------------------------------------------------------------------
+ *
+ * Furo's column is 40em, which in a serif runs past ninety characters. The leading opens to
+ * carry it rather than the root size shrinking, because furo derives the sidebar, the TOC,
+ * the code and the admonitions from that size and the whole chrome would shrink with it.
+ */
+article {
+  line-height: 1.62;
+}
+
+/* --- print ------------------------------------------------------------------------------
+ *
+ * Browsers drop background images when printing, so the coloured head of the h2 rule would
+ * disappear by accident. Make it deliberate: on paper the rule is a hairline throughout.
+ */
+@media print {
+  article h2::after {
+    background-image: none;
+  }
+}

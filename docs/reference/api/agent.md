@@ -2,7 +2,7 @@
 
 # `agent`
 
-Source: [`src/agent.ts`](../../../src/agent.ts)
+Source: [`src/agent.ts`](https://github.com/AI-for-dev/combo/blob/main/src/agent.ts)
 
 An agent is *content*: a system prompt, a model, a set of tools.
 It is declared as Markdown + frontmatter, following the pi convention.
@@ -79,7 +79,7 @@ one replaces both.
 *function*
 
 ```typescript
-export function findAgent(agents: Agent[], name: string): Agent { … }
+export function findAgent(agents: Agent[], name: string): Agent { /* … */ }
 ```
 
 Looks up an agent by name, or throws.
@@ -107,7 +107,7 @@ Lifetime of a subagent - the central choice of this library.
 *function*
 
 ```typescript
-export function loadAgents(options: { cwd?: string; scope?: AgentScope; builtin?: boolean } = {}): Agent[] { … }
+export function loadAgents(options: { cwd?: string; scope?: AgentScope; builtin?: boolean } = {}): Agent[] { /* … */ }
 ```
 
 Discovers the available agents.
@@ -127,7 +127,7 @@ Discovery happens on every call: editing a `.md` is enough to reload it.
 *function*
 
 ```typescript
-export function loadAgentsFromDir(dir: string, source: AgentSource): Agent[] { … }
+export function loadAgentsFromDir(dir: string, source: AgentSource): Agent[] { /* … */ }
 ```
 
 Reads every `.md` in a directory.
@@ -141,7 +141,7 @@ yields `[]`.
 *function*
 
 ```typescript
-export function parseAgent(content: string, filePath: string, source: AgentSource): Agent | undefined { … }
+export function parseAgent(content: string, filePath: string, source: AgentSource): Agent | undefined { /* … */ }
 ```
 
 Parses an agent definition.

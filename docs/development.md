@@ -4,6 +4,7 @@
 npm test          # node --test, offline, no network calls
 npm run typecheck # tsc --noEmit
 npm run docs      # regenerate docs/reference/api/ from the TSDoc
+make -C docs html # build the site; needs docs/requirements.txt, warnings are errors
 ```
 
 Node 23.6 or later runs TypeScript natively. There is no build step, and
@@ -23,8 +24,8 @@ agents/              example agent definitions (symlinked into .pi/agents/)
 examples/            one runnable script per shape
 scripts/             the documentation generator and its coverage checker
 test/                node --test, with fakes for pi
-docs/                this documentation: guide/ task by task, reference/ to
-                     look something up
+docs/                this documentation: guide/ task by task, reference/ to look
+                     something up, and conf.py + _static/ to build it as a site
 ```
 
 **One file, one concept.** Past roughly 200 lines, it is mixing two.
@@ -94,9 +95,22 @@ next to its one use, and demanding prose there produces exactly the comment that
 restates the signature.
 
 The hand-written pages under `docs/` are checked more modestly: every link
-resolves, every page is listed in `docs.json`, and every symbol a code fence
+resolves, every page is reached by a `toctree`, and every symbol a code fence
 imports from `combo` really exists. A renamed export therefore breaks the
 documentation build, not a reader's afternoon.
+
+The toctrees are read straight out of the Markdown, because they are the site's
+navigation: Sphinx builds the sidebar from them and warns about any page no tree
+names. Asking the same question offline, in `npm test`, means a page added
+without a place to reach it fails in seconds rather than at the next site build.
+
+That site is Sphinx over these same files - `make -C docs html`, warnings as
+errors, and `.github/workflows/docs.yml` running the same command on every pull
+request before `main` publishes it to GitHub Pages. `docs/README.md` has the commands, the layout, and what may be written in
+Sphinx syntax rather than plain Markdown: these pages are read in the repository
+and in the published tarball as well as on the site, so the answer is very
+little. It documents the build rather than the library, which is why neither the
+site nor the check above counts it as a page.
 
 [Design decisions](decisions.md) records **decisions**, not the state of the
 code. When a decision is reversed, the reversal is written there with its reason.

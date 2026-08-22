@@ -2,7 +2,7 @@
 
 # `reporters/herdr`
 
-Source: [`src/reporters/herdr.ts`](../../../../src/reporters/herdr.ts)
+Source: [`src/reporters/herdr.ts`](https://github.com/AI-for-dev/combo/blob/main/src/reporters/herdr.ts)
 
 The herdr reporter: one split per subagent, showing it work.
 
@@ -18,7 +18,7 @@ integration, and two sources cannot own one pane.
 *function*
 
 ```typescript
-export function createHerdrReporter(options: HerdrOptions = {}): EventListener | undefined { … }
+export function createHerdrReporter(options: HerdrOptions = {}): EventListener | undefined { /* … */ }
 ```
 
 Builds the herdr reporter, or `undefined` when herdr is not there.
@@ -32,7 +32,7 @@ telling them herdr is not running when they never asked for herdr.
 *function*
 
 ```typescript
-export function createHerdrReporterWith(send: HerdrSend, options: HerdrOptions = {}): EventListener { … }
+export function createHerdrReporterWith(send: HerdrSend, options: HerdrOptions = {}): EventListener { /* … */ }
 ```
 
 The reporter proper, with the transport already chosen. Exported for tests.

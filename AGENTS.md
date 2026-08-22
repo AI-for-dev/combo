@@ -104,7 +104,8 @@ extension/          the pi extension: tool, commands, renderers, UI
 agents/ pipelines/  shipped definitions (symlinked into .pi/)
 examples/ scripts/ test/
 docs/               guide/ (task by task), reference/ (api/, generated), the
-                    landing page and the two project pages
+                    landing page and the two project pages; conf.py and _static/
+                    build the same files into a site - docs/README.md says how
 ```
 
 **One file, one concept.** Past roughly 200 lines it is mixing two.
@@ -168,7 +169,9 @@ configuration, ask whether a function call would do.
 Documentation ships with the code, not after it: `README.md` and the affected
 `docs/` page in the same batch, `npm run docs` for the generated reference, and
 the decision written into `docs/decisions.md` when you took one. A new page needs
-an entry in `docs/docs.json`, or the suite fails on a page nobody can reach.
+an entry in a `toctree` on `docs/index.md` - that is the navigation, for the site
+and for `npm test` alike - and `make -C docs html` builds with `-W`, where a
+warning is a defect like any other.
 
 ## Other rules
 

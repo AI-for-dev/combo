@@ -2,7 +2,7 @@
 
 # `reporters/index`
 
-Source: [`src/reporters/index.ts`](../../../../src/reporters/index.ts)
+Source: [`src/reporters/index.ts`](https://github.com/AI-for-dev/combo/blob/main/src/reporters/index.ts)
 
 Choosing a reporter, so the caller does not have to.
 
@@ -15,7 +15,7 @@ That promise is this one function.
 *function*
 
 ```typescript
-export function autoReporter(options: AutoReporterOptions = {}): EventListener { … }
+export function autoReporter(options: AutoReporterOptions = {}): EventListener { /* … */ }
 ```
 
 The herdr reporter when we are inside herdr, the fallback otherwise.
@@ -41,7 +41,7 @@ export type AutoReporterOptions = HerdrOptions & {
 *function*
 
 ```typescript
-export function combineReporters(...reporters: (EventListener | undefined)[]): EventListener { … }
+export function combineReporters(...reporters: (EventListener | undefined)[]): EventListener { /* … */ }
 ```
 
 Feeds one event stream to several reporters.

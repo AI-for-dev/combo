@@ -2,7 +2,7 @@
 
 # `workflows/interview`
 
-Source: [`src/workflows/interview.ts`](../../../../src/workflows/interview.ts)
+Source: [`src/workflows/interview.ts`](https://github.com/AI-for-dev/combo/blob/main/src/workflows/interview.ts)
 
 `interview`: a conversation with the *user*, ending in a brief.
 
@@ -20,7 +20,7 @@ wrong the moment the first answer surprises it.
 *function*
 
 ```typescript
-export function answerPrompt(answer: Answer, remaining: number): string { … }
+export function answerPrompt(answer: Answer, remaining: number): string { /* … */ }
 ```
 
 What the user answered, and how much room is left.
@@ -30,7 +30,7 @@ What the user answered, and how much room is left.
 *function*
 
 ```typescript
-export function briefPrompt(input: string, answers: readonly Answer[]): string { … }
+export function briefPrompt(input: string, answers: readonly Answer[]): string { /* … */ }
 ```
 
 The closing turn: turn the conversation into a specification.
@@ -40,7 +40,7 @@ The closing turn: turn the conversation into a specification.
 *function*
 
 ```typescript
-export async function interview(options: InterviewOptions): Promise<InterviewResult> { … }
+export async function interview(options: InterviewOptions): Promise<InterviewResult> { /* … */ }
 ```
 
 Interviews the user, then asks the agent to write the brief.
@@ -113,7 +113,7 @@ The brief, and everything that led to it.
 *function*
 
 ```typescript
-export function parseQuestion(output: string): Question | undefined { … }
+export function parseQuestion(output: string): Question | undefined { /* … */ }
 ```
 
 Reads one question out of whatever the agent actually wrote.
@@ -129,7 +129,7 @@ than putting a malformed card in front of the user.
 *function*
 
 ```typescript
-export function questionPrompt(input: string, maxQuestions: number): string { … }
+export function questionPrompt(input: string, maxQuestions: number): string { /* … */ }
 ```
 
 The opening turn: what the user wants, and how to ask about it.

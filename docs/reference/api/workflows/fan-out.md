@@ -2,7 +2,7 @@
 
 # `workflows/fan-out`
 
-Source: [`src/workflows/fan-out.ts`](../../../../src/workflows/fan-out.ts)
+Source: [`src/workflows/fan-out.ts`](https://github.com/AI-for-dev/combo/blob/main/src/workflows/fan-out.ts)
 
 `fanOut`: 1 → N. N subtasks in parallel, with bounded concurrency.
 
@@ -11,7 +11,7 @@ Source: [`src/workflows/fan-out.ts`](../../../../src/workflows/fan-out.ts)
 *function*
 
 ```typescript
-export function aggregate(results: readonly Result[], wallMs: number): Usage { … }
+export function aggregate(results: readonly Result[], wallMs: number): Usage { /* … */ }
 ```
 
 Sums the usage of several results over a real elapsed duration.
@@ -24,7 +24,7 @@ and because the ratio it produces is the number worth reading.
 *function*
 
 ```typescript
-export async function fanOut(options: FanOutOptions): Promise<FanOutResult> { … }
+export async function fanOut(options: FanOutOptions): Promise<FanOutResult> { /* … */ }
 ```
 
 Runs N tasks in parallel.
