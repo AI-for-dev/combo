@@ -44,10 +44,25 @@ docs/
     examples.md         one runnable script per shape
   development.md        tests, typechecking, conventions, how the docs stay honest
   decisions.md          why the library is shaped this way, and what was reversed
-  _static/custom.css    the palette and the devices, per selector
+  _static/custom.css    the palette, the type and the devices, per selector
   _pygments.py          the code blocks, in the same two hues
   _static/logo/         the marks, and README.md for what each one is for
+  _static/fonts/        EB Garamond and Inter, subset, with their licence
 ```
+
+The two faces are **served by this site and by nobody else**: a font CDN would tell a
+third party who reads this documentation, and would leave every page waiting on a host we
+do not control. `scripts/subset-fonts.py` fetches them from a pinned commit of
+`google/fonts`, cuts them down to the characters these pages use, and writes both the
+`woff2` files and `coverage.json` beside them. Regenerating is one command:
+
+```bash
+uv run --with fonttools --with brotli python scripts/subset-fonts.py
+```
+
+`test/fonts.test.ts` compares the prose of every page against that coverage, because a
+character no shipped face carries does not fail - it is quietly drawn from whatever the
+reader has installed, and only they ever see it.
 
 `reference/api/` is **generated** - `npm run docs` writes it from the TSDoc of everything
 `src/index.ts` exports, and `test/docs.test.ts` fails when the checked-in pages no longer

@@ -1,3 +1,53 @@
+/* --- the faces ------------------------------------------------------------------------
+ *
+ * Served by this site and by nobody else. A font CDN would tell a third party who reads
+ * this documentation and would leave every page waiting on a host we do not control; the
+ * files are in the repository instead, subset to what the pages contain by
+ * `scripts/subset-fonts.py`, which says where they come from and under which licence.
+ *
+ * `swap`, so the prose is readable while a face is still arriving. The alternative hides
+ * the text for up to three seconds to avoid one reflow, which is the wrong trade for a
+ * page someone came to read.
+ *
+ * Weights are declared, never synthesised: 400 and 700 for the serif, 400 and 600 for the
+ * sans. A weight a browser invents is a smear at the size these headings are set.
+ */
+@font-face {
+  font-family: "EB Garamond";
+  src: url("fonts/ebgaramond-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "EB Garamond";
+  src: url("fonts/ebgaramond-400-italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "EB Garamond";
+  src: url("fonts/ebgaramond-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("fonts/inter-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("fonts/inter-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* The documentation's own type and colour.
  *
  * Slate, verdigris and paper - the palette of the mark, written down in
@@ -12,8 +62,10 @@
  * `body` and not `:root`, for the same reason: furo declares its variables on `body`, and
  * inheritance from <html> never beats a direct declaration on the element itself.
  *
- * The font stacks are system stacks - nothing is served, so the pages cost no bytes and
- * look slightly different on every machine. That is the trade, taken deliberately.
+ * Three roles and three faces: a Garamond for what is read, Inter for what is navigated,
+ * and the reader's own monospace for what is typed. The first two are served by this site
+ * - see the faces above - so a page looks the same on every machine, at the cost of about
+ * 150 kB the first time and nothing after.
  */
 
 /* --- the palette --------------------------------------------------------------------
@@ -48,8 +100,14 @@ body {
   --co-verdigris-wash: #dceae7;
   --co-shadow: 0 1px 0 rgba(35, 43, 51, 0.04), 0 1px 3px rgba(35, 43, 51, 0.05);
 
+  /* Three roles, and the order inside each stack is load-bearing. Both vendored faces
+   * appear in the serif stack, the sans second: a character the Garamond does not carry
+   * then lands in a face this site also ships, rather than in whatever the reader
+   * happens to have. `docs/_static/fonts/coverage.json` records what that guarantees,
+   * and `test/fonts.test.ts` fails on a page that needs more. */
+  --co-serif: "EB Garamond", "Inter", Georgia, serif;
+  --co-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --co-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
-  --co-serif: Charter, "Iowan Old Style", "Source Serif 4", Georgia, serif;
 }
 
 @media not print {
@@ -127,8 +185,9 @@ body {
  */
 article h2 {
   overflow: hidden;
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-family: var(--co-sans);
+  font-size: 0.8125rem;
+  font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--co-ink);
@@ -154,8 +213,9 @@ article h2::after {
  * accent on structure rather than on the section it opens. */
 article h3 {
   overflow: hidden;
-  font-size: 0.8125rem;
-  font-weight: 700;
+  font-family: var(--co-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--co-ink-2);
@@ -174,9 +234,13 @@ article h3::after {
  * set at size in the mono, which is the lockup's own treatment - the connection between
  * the brand in the sidebar and the title beside it. */
 article h1 {
-  font-size: 2.1em;
+  /* The one heading set in the reading face. A page title is a sentence, not a label, and
+   * the Garamond at this size is the most the palette has to say. */
+  font-family: var(--co-serif);
+  font-size: 2.6rem;
   font-weight: 400;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
   padding-bottom: 0.4rem;
   border-bottom: 2px solid var(--co-rule-strong);
   /* Furo rounds every heading by 8px for the `:target` highlight; on a bottom-only rule
@@ -187,8 +251,9 @@ article h1 {
 article h4,
 article h5,
 article h6 {
-  font-size: 0.8125rem;
-  font-weight: 700;
+  font-family: var(--co-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
   letter-spacing: 0;
   color: var(--co-ink);
 }
@@ -225,7 +290,7 @@ article h4 code.literal {
 article .toctree-wrapper .caption,
 article .code-block-caption,
 article p.rubric {
-  font-family: var(--co-mono);
+  font-family: var(--co-sans);
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -239,7 +304,7 @@ article p.rubric {
 
 /* A serif field in a mono chrome reads as a text box someone forgot to style. */
 .sidebar-search {
-  font-family: var(--co-mono);
+  font-family: var(--co-sans);
   font-size: 0.8125rem;
 }
 
@@ -259,7 +324,7 @@ article .sd-card-body {
 /* A card title on the landing page is the name of a page, not a label: set like a title,
  * in the mono the headings use, and neither tracked nor upper-cased. */
 article .sd-card-title {
-  font-family: var(--co-mono);
+  font-family: var(--co-sans);
   font-size: 1.0625rem;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -294,7 +359,7 @@ article table.docutils th {
 }
 article table.docutils thead th {
   border-bottom: 1px solid var(--co-rule);
-  font-family: var(--co-mono);
+  font-family: var(--co-sans);
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -304,9 +369,11 @@ article table.docutils thead th {
 article table.docutils tbody tr:last-child td {
   border-bottom: 0;
 }
-/* The exports column of the API index counts things, and counts line up. */
-article table.docutils td:last-child {
-  font-variant-numeric: tabular-nums;
+/* A table is where the Garamond's old-style figures stop helping: they are drawn to sit in
+ * a line of prose, and in a column they hop. Lining and tabular throughout a table, and
+ * the exports column of the API index lines up as a column of counts should. */
+article table.docutils {
+  font-variant-numeric: lining-nums tabular-nums;
 }
 article table.docutils p {
   margin: 0;
@@ -368,7 +435,7 @@ article .topic {
   border-left-width: 2px;
 }
 article .admonition > .admonition-title {
-  font-family: var(--co-mono);
+  font-family: var(--co-sans);
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -396,9 +463,14 @@ article blockquote {
  * Furo's column is 40em, which in a serif runs past ninety characters. The leading opens to
  * carry it rather than the root size shrinking, because furo derives the sidebar, the TOC,
  * the code and the admonitions from that size and the whole chrome would shrink with it.
+ *
+ * The size goes up instead. EB Garamond has a small x-height - it is a sixteenth-century
+ * face, and 16px of it reads a size smaller than 16px of anything drawn for a screen - so
+ * the article sets its own size and the chrome keeps furo's.
  */
 article {
-  line-height: 1.62;
+  font-size: 1.125rem;
+  line-height: 1.6;
 }
 
 /* --- print ------------------------------------------------------------------------------

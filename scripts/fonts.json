@@ -1,0 +1,84 @@
+{
+	"source": {
+		"repo": "google/fonts",
+		"commit": "ec626514f79f831f1ab848a82114a0ce7e2d6372",
+		"licence": "SIL Open Font License 1.1"
+	},
+	"unicodes": [
+		"U+0000-00FF",
+		"U+0152-0153",
+		"U+0160-0161",
+		"U+0178",
+		"U+017D-017E",
+		"U+2000-206F",
+		"U+2190-21FF"
+	],
+	"features": [
+		"kern",
+		"liga",
+		"clig",
+		"lnum",
+		"onum",
+		"tnum",
+		"frac"
+	],
+	"faces": [
+		{
+			"family": "EB Garamond",
+			"path": "ofl/ebgaramond/EBGaramond[wght].ttf",
+			"file": "ebgaramond-400.woff2",
+			"style": "normal",
+			"weight": "400",
+			"pin": {
+				"wght": 400
+			},
+			"licence": "ofl/ebgaramond/OFL.txt"
+		},
+		{
+			"family": "EB Garamond",
+			"path": "ofl/ebgaramond/EBGaramond-Italic[wght].ttf",
+			"file": "ebgaramond-400-italic.woff2",
+			"style": "italic",
+			"weight": "400",
+			"pin": {
+				"wght": 400
+			},
+			"licence": "ofl/ebgaramond/OFL.txt"
+		},
+		{
+			"family": "EB Garamond",
+			"path": "ofl/ebgaramond/EBGaramond[wght].ttf",
+			"file": "ebgaramond-700.woff2",
+			"style": "normal",
+			"weight": "700",
+			"pin": {
+				"wght": 700
+			},
+			"licence": "ofl/ebgaramond/OFL.txt"
+		},
+		{
+			"family": "Inter",
+			"path": "ofl/inter/Inter[opsz,wght].ttf",
+			"file": "inter-400.woff2",
+			"style": "normal",
+			"weight": "400",
+			"pin": {
+				"opsz": 16,
+				"wght": 400
+			},
+			"licence": "ofl/inter/OFL.txt"
+		},
+		{
+			"family": "Inter",
+			"path": "ofl/inter/Inter[opsz,wght].ttf",
+			"file": "inter-600.woff2",
+			"style": "normal",
+			"weight": "600",
+			"pin": {
+				"opsz": 16,
+				"wght": 600
+			},
+			"licence": "ofl/inter/OFL.txt"
+		}
+	]
+}

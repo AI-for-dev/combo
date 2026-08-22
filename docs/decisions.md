@@ -1050,6 +1050,42 @@ site; only `main` deploys it to GitHub Pages. The workflow also regenerates
 committed - and a reference that no longer matches the source is exactly the
 failure the generator was written to prevent, arriving by a different door.
 
+### The type
+
+Three faces, one job each: **EB Garamond** for what is read, **Inter** for what is
+navigated - headings, sidebar, tables, cards - and the reader's own monospace for
+what is typed. The third is not shipped on purpose: code is read in the face
+someone has already chosen for code, and a page that overrides it is arguing
+about the wrong thing.
+
+The other two **are** shipped, and that is the decision. A font CDN would tell a
+third party who reads this documentation and would leave every page waiting on a
+host nobody here controls; system stacks cost nothing and give a different page on
+every machine. So the files live in the repository, cut down to the characters
+these pages use by `scripts/subset-fonts.py`, from a pinned commit of
+`google/fonts` - never `main`, which moves - with the OFL text beside them, as
+that licence requires.
+
+**Static instances, not variable.** Measured, subset the same way: variable was
+480 kB for three files, static 272 kB for five. A variable font pays for every
+weight between 400 and 800 whether or not a stylesheet asks for one, and this one
+asks for four weights in total.
+
+**A subset is a silent failure waiting to happen.** A character no shipped face
+carries is drawn from whatever the reader has installed - different weight,
+different baseline, and visible to them alone. So the script writes
+`coverage.json` from the cmap of the files it actually produced, and
+`test/fonts.test.ts` fails on a page whose prose needs more. The serif stack also
+names Inter before any system face, so a character only one of the two carries
+still lands in a face this site ships.
+
+Two details the faces themselves forced. EB Garamond is a sixteenth-century
+design with a small x-height, so `article` sets its own size rather than furo's -
+16px of it reads a size smaller than 16px of anything drawn for a screen, and
+raising the root size would have shrunk nothing but grown the entire chrome. And
+its figures are old-style, which is right in a sentence and wrong in a column, so
+tables ask for lining and tabular ones.
+
 ### The mark
 
 combo had no drawing of its own. It has one now: **three strokes in, one out** -

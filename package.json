@@ -23,7 +23,8 @@
 		"!docs/Makefile",
 		"!docs/requirements.txt",
 		"!docs/_pygments.py",
-		"!docs/_static/custom.css"
+		"!docs/_static/custom.css",
+		"!docs/_static/fonts"
 	],
 	"engines": {
 		"node": ">=23.6"

@@ -64,12 +64,12 @@ anything being copied. `AGENTS.md` records why that reverses the rule it
 replaced.
 
 The tarball is now explicit: `files` lists `src`, `extension`, `agents`,
-`pipelines`, `README.md` and `docs` - 120 files, 202 kB, with `test/` and
+`pipelines`, `README.md` and `docs` - 120 files, 204 kB, with `test/` and
 `examples/` left out. What ships from `docs/` is the documentation and the marks
-the README draws itself with; the machinery that turns those pages into a site
-(`conf.py`, the Makefile, `requirements.txt`, `_pygments.py`, `custom.css`) is
-excluded by name, because an installed package has no site to build.
-`npm pack --dry-run` is the check, and
+the README draws itself with; the machinery that turns those pages into a site -
+`conf.py`, the Makefile, `requirements.txt`, `_pygments.py`, `custom.css` and the
+vendored faces, 272 kB of them - is excluded by name, because an installed
+package has no site to build. `npm pack --dry-run` is the check, and
 `test/pipeline-load.test.ts` fails if `files` ever stops listing `agents` or
 `pipelines`, which would break `/build` for every installed user while every
 other test still passed.
@@ -100,10 +100,23 @@ that publishes `docs/` alone - they are absolute GitHub URLs now, read from
 `package.json`.
 
 What **nobody has done is look at it**. There was no SVG renderer and no browser
-on the machine it was written on, so the mark has never been seen at its real
-size. Do that the way section 1 asks someone to look at the TUI: the lockup in
-the sidebar, the mark at favicon size in a tab, the h2 rule with its coloured
-head, and the code blocks in both themes.
+on the machine it was written on, so neither the mark nor the type has been seen
+at its real size. Do that the way section 1 asks someone to look at the TUI: the
+lockup in the sidebar, the mark at favicon size in a tab, the h2 rule with its
+coloured head, and the code blocks in both themes.
+
+The type in particular is set from numbers nobody has checked by eye. The pages
+are in **EB Garamond** with **Inter** for the chrome, both served by the site
+itself from `_static/fonts/` (`scripts/subset-fonts.py` regenerates them). Two
+things to judge there: whether `article`'s 1.125rem carries the Garamond's small
+x-height without looking oversized next to furo's chrome, and whether the section
+heads - Inter 600, upper case, tracked - hold their own at 13px now that they are
+no longer monospaced.
+
+**The mark is not final.** The verdigris in `custom.css`, `conf.py` and
+`_pygments.py` belongs to a drawing that was made here rather than chosen; the
+one that was chosen lives in an artifact and has not been recovered yet. Expect
+the palette to follow the mark, not the other way round.
 
 `.github/workflows/docs.yml` - the first workflow this repository has ever had -
 runs that same build on every pull request and publishes from `main` to GitHub
