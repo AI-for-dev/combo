@@ -2,12 +2,13 @@
 
 A combo is several moves that land as one. So is a workflow here: subtasks run apart and
 come back as a single `Result`, and the whole library is the arithmetic of that. The mark
-draws it - **three strokes in, one out**.
+draws it - **three bars, one bracket**.
 
-Two things keep it from being a generic merge glyph. The three branches are identical, in
-the ink and at the same weight, because a fan-out has no favourite branch. The one that
-leaves is the only coloured stroke, because a workflow is judged on what it returns, not
-on how busy it looked.
+The three bars are identical, in the ink and at the same weight, because a fan-out has no
+favourite branch. The bracket is the only coloured shape, because holding the three as one
+is the claim of the library - and it is the accent doing the holding, not decorating it.
+Rectangles only, at every size: one geometry down to 24px, and a two-bar variant below
+(the tile), with no curve to close up.
 
 The mark is `combo-mark-light.svg` on a light ground, `combo-mark-dark.svg` on a dark one.
 Everything else here serves a constraint those two cannot.
@@ -27,7 +28,7 @@ mark on its own is for anywhere the word is already present.
 | `combo-lockup-dark.svg` | paper + verdigris | **the brand**: sidebar, README, dark ground |
 
 **Two tones need two grounds.** Slate `#232B33` disappears on `#14181B`, so the dark
-variants take the inverse ink for the branches and lift the verdigris to `#4FB8AC`, which
+variants take the inverse ink for the bars and lift the verdigris to `#4FB8AC`, which
 would otherwise go muddy.
 
 **`currentColor` does not cross an `<img>` boundary.** A monochrome file inlined in a page
@@ -35,9 +36,9 @@ inherits the surrounding text colour; the same file referenced as an image does 
 falls back to black on both grounds. That is why `combo-mark.svg` is for inlining only, and
 why anything referenced by `src` or `href` picks the light or dark file explicitly.
 
-**Below 24px, use the tile rather than the mark.** Three branches 18 units apart, two of
-them curving, close into a blob at favicon size. The tile drops one branch and thickens the
-strokes: fewer branches still say *several in, one out*, and a smear says nothing.
+**Below 24px, use the tile rather than the mark.** Three bars five units apart close into
+a smear at favicon size. The tile drops one bar and thickens the rest: two bars in a
+bracket still say *several things held as one*, and a smear says nothing.
 
 **The wordmark is geometry, not type.** Circles of radius 10 on a 20-unit x-height, one
 stroke width of 3.6 throughout, letters spaced 16 units apart edge to edge - `c` is an arc
@@ -50,8 +51,8 @@ matching the mark it stands beside.
 ## The palette
 
 Slate `#232B33`, verdigris `#227D74` (`#4FB8AC` on dark), paper `#EEF1F3`, dark ground
-`#14181B`, inverse ink `#C9D3DB`. Steel for the branches, and the green of aged bronze for
-what comes out of them.
+`#14181B`, inverse ink `#C9D3DB`. Steel for the bars, and the green of aged bronze for the
+bracket that holds them.
 
 The neutrals are [trysquare](https://github.com/AI-for-dev/trysquare)'s, deliberately: two
 tools by the same hand, meant to be read together, cost a reader more when they look
