@@ -18,6 +18,13 @@ describe("verdictTool", () => {
 		assert.deepEqual(verdicts.take(), [{ approved: true, remarks: undefined }]);
 	});
 
+	test("an approval that sends an empty string has no remarks", async () => {
+		const verdicts = verdictTool();
+		await call(verdicts.tool, { approved: true, remarks: "" });
+
+		assert.deepEqual(verdicts.take(), [{ approved: true, remarks: undefined }]);
+	});
+
 	test("a refusal keeps its remarks", async () => {
 		const verdicts = verdictTool();
 		await call(verdicts.tool, { approved: false, remarks: "  the parser drops the last token  " });

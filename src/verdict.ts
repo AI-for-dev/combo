@@ -70,7 +70,9 @@ export function verdictTool(): VerdictTool {
 			),
 		}),
 		async execute(_toolCallId, params) {
-			const remarks = params.remarks?.trim();
+			// Absent and empty are the same thing: a model asked for an optional
+			// string often sends `""` rather than leaving it out.
+			const remarks = params.remarks?.trim() || undefined;
 			// A refusal that says nothing cannot be acted on, and the agent is the
 			// only one who can repair it - so it is told, and gets to call again.
 			if (!params.approved && !remarks) {
