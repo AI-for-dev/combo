@@ -113,6 +113,14 @@ export type WorkflowOptions = {
 	model?: string;
 	/** Defaults to the real {@link spawn}. */
 	spawn?: SpawnFn;
+	/**
+	 * Tools combo defines, chosen per agent.
+	 *
+	 * A function rather than a list, because the answer differs by agent: a
+	 * reviewer is offered the verdict tool and the worker beside it is not, and
+	 * a collector shared between two agents could not say which of them spoke.
+	 */
+	customTools?: (agent: Agent) => ToolDefinition[] | undefined;
 };
 ```
 

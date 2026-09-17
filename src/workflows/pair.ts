@@ -15,9 +15,10 @@ import type { Agent } from "./../agent.ts";
 import { failed, type Result } from "./../result.ts";
 import { saysWord } from "./../text.ts";
 import { sumUsage, type Usage } from "./../usage.ts";
+import { declaresVerdict, lastVerdict, verdictTool, type Verdict } from "./../verdict.ts";
 import { SubagentPool, type WorkflowOptions } from "./common.ts";
 
-/** The word a reviewer says when it has nothing left to ask for. */
+/** The word a reviewer that holds no verdict tool says when it is satisfied. */
 export const APPROVAL = "LGTM";
 
 /** The two agents, the work, and what counts as an approval. */
@@ -29,9 +30,10 @@ export type PairOptions = WorkflowOptions & {
 	/** The work to do. It is also what a resumed build re-issues verbatim. */
 	input: string;
 	/**
-	 * Decides whether the review is an approval. Defaults to {@link APPROVAL}
-	 * alone on a line, which is the convention `agents/reviewer.md` already
-	 * writes.
+	 * Decides whether the review is an approval, overriding both defaults below.
+	 *
+	 * Without it, a reviewer whose `tools:` names `verdict` is read from its tool
+	 * call, and any other reviewer from {@link APPROVAL} alone on a line.
 	 */
 	approved?: (review: Result, round: number) => boolean | Promise<boolean>;
 	/**
@@ -56,6 +58,15 @@ export type PairResult = Result & {
 	rounds: number;
 	/** Whether the reviewer accepted the work. Distinct from `ok`. */
 	approved: boolean;
+	/**
+	 * The last decision the reviewer declared through the verdict tool.
+	 *
+	 * Absent when the reviewer holds no such tool, and **also** when it holds one
+	 * and called nothing. The second case is a turn that failed to answer rather
+	 * than a refusal, and a reader has to be able to tell the two apart: with
+	 * `approved: false` and no verdict, the reviewer never decided.
+	 */
+	verdict?: Verdict;
 };
 
 /**
@@ -76,9 +87,15 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 	const maxRounds = options.maxRounds ?? 3;
 	if (maxRounds < 1) throw new Error(`pair: \`maxRounds\` must be at least 1, got ${maxRounds}`);
 
+	// The reviewer decides through a tool when its definition asks for one. Built
+	// here rather than per round, so a reviewer kept across rounds keeps its own.
+	const speaksByTool = !options.approved && declaresVerdict(reviewer.tools);
+	const verdicts = speaksByTool ? verdictTool() : undefined;
+
 	const isApproved = options.approved ?? approvedByDefault;
 	const steps: Result[] = [];
 	const startedAt = performance.now();
+	let verdict: Verdict | undefined;
 
 	const outcome = (work: Result, review: Result | undefined, rounds: number, approved: boolean): PairResult => ({
 		...work,
@@ -91,6 +108,7 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 		review,
 		rounds,
 		approved,
+		verdict,
 	});
 
 	if (signal?.aborted) {
@@ -104,7 +122,14 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 	// before: a caller that builds its options by merging hands us
 	// `lifetime: undefined` for an option nobody set, and an explicit `undefined`
 	// spread over a default silently wins.
-	const pool = new SubagentPool({ ...options, lifetime: options.lifetime ?? "workflow" });
+	// Only the reviewer is offered the tool. The worker writing into the same
+	// collector would make the two agents' answers indistinguishable, and pi's
+	// allowlist would refuse it anyway.
+	const pool = new SubagentPool({
+		...options,
+		lifetime: options.lifetime ?? "workflow",
+		customTools: verdicts ? (agent) => (agent.name === reviewer.name ? [verdicts.tool] : undefined) : options.customTools,
+	});
 	let work: Result | undefined;
 	let review: Result | undefined;
 	let rounds = 0;
@@ -131,19 +156,26 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 
 			const judging = await pool.acquire(reviewer, reviewer.name);
 			try {
-				review = await judging.ask(reviewPrompt(input, work.output, round), { signal, timeoutMs });
+				review = await judging.ask(reviewPrompt(input, work.output, round, speaksByTool), { signal, timeoutMs });
 			} finally {
 				await pool.release(judging);
 			}
 			steps.push(review);
 			if (!review.ok) break;
 
-			if (await isApproved(review, round)) return outcome(work, review, round, true);
+			if (verdicts) {
+				verdict = lastVerdict(verdicts.take());
+				// A reviewer holding the tool and calling nothing has not approved.
+				// Guessing from its prose is the reading this tool exists to retire.
+				if (verdict?.approved) return outcome(work, review, round, true);
+			} else if (await isApproved(review, round)) {
+				return outcome(work, review, round, true);
+			}
 
 			// The worker is about to run in round+1, so what is left after that is
 			// what it needs to know - being told "last round" one round late is
 			// how a pair ends with the important fix still unmade.
-			task = remarksPrompt(review.output, maxRounds - round - 1);
+			task = remarksPrompt(verdict?.remarks ?? review.output, maxRounds - round - 1);
 		}
 	} finally {
 		await pool.closeAll();
@@ -159,7 +191,7 @@ function approvedByDefault(review: Result): boolean {
 }
 
 /** What the reviewer is asked: the goal, then what was done about it. */
-export function reviewPrompt(goal: string, work: string, round: number): string {
+export function reviewPrompt(goal: string, work: string, round: number, byTool = false): string {
 	return [
 		round === 1 ? "Review this work." : `Review this work again - this is round ${round}.`,
 		"",
@@ -170,7 +202,9 @@ export function reviewPrompt(goal: string, work: string, round: number): string 
 		work.trim(),
 		"",
 		"Read the code itself rather than trusting the summary.",
-		`Answer ${APPROVAL} alone when you have nothing left to ask for.`,
+		byTool
+			? "End by calling the `verdict` tool: that call is what is read as your decision."
+			: `Answer ${APPROVAL} alone when you have nothing left to ask for.`,
 	].join("\n");
 }
 

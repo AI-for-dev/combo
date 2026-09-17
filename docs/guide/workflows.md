@@ -105,7 +105,21 @@ done.answer;   // present only when reduceWith was given
 ```typescript
 const built = await pair({ worker: coder, reviewer, input: task, maxRounds: 3 });
 built.approved;   // distinct from ok
+built.verdict;    // what the reviewer declared, when it declared it through a tool
 ```
+
+**How the reviewer decides** depends on what its definition asks for. A reviewer
+whose `tools:` names `verdict` is given that tool, and its call is the decision;
+any other reviewer is read from `LGTM` alone on a line.
+
+Prefer the tool. A word has to be recovered from prose written for a human, and
+the match is only ever as good as the agreement about how to write it. A tool
+call is a discrete event with a schema, so "did it decide" and "what did it
+decide" are closed questions.
+
+A reviewer that holds the tool and calls nothing has **not** approved, and
+`verdict` is then absent rather than `false`: it never answered, which is a
+different thing from a refusal and the caller gets to tell them apart.
 
 ### `interview` - the agent questions the user
 

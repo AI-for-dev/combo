@@ -89,6 +89,14 @@ export type SpawnOptions = {
 	/** Session factory. Injection point for tests - defaults to a real pi session. */
 	createSession?: CreateSession;
 	/**
+	 * Tools combo defines, offered to this subagent.
+	 *
+	 * Offered, not granted: the agent's `tools:` is an allowlist and covers these
+	 * too, so one it does not name is not enabled. See
+	 * {@link CreateSessionOptions.customTools}.
+	 */
+	customTools?: ToolDefinition[];
+	/**
 	 * Model pattern for this subagent, e.g. `"anthropic/claude-sonnet-5"`.
 	 *
 	 * An override, not a default: the argument wins over the agent's

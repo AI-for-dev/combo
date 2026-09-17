@@ -102,6 +102,16 @@ not have; those fail, and the model may retry them in a loop, which is an
 argument for `loop`'s `maxIterations` and for `timeoutMs`, not for widening the
 allowlist.
 
+## Tools combo brings
+
+Some names in `tools:` are not pi's. `verdict` is combo's, and a reviewer that
+names it is handed it by [`pair`](workflows.md) so it can declare its decision as
+a call rather than as a word in its prose.
+
+The allowlist covers these exactly as it covers pi's own, which is what keeps
+the rule readable: what an agent can do is in its file. Naming `verdict` in an
+agent nobody offers it to costs nothing, and the tool is simply absent.
+
 ## What a subagent inherits
 
 Nothing from your environment. The system prompt goes through the library's own

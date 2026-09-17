@@ -8,6 +8,7 @@
 
 import type { Agent, Lifetime } from "./../agent.ts";
 import { createEventBus, type EventBus, type EventListener } from "./../events.ts";
+import type { ToolDefinition } from "./../session.ts";
 import { spawn as defaultSpawn, type SpawnOptions, type Subagent } from "./../subagent.ts";
 
 /** The spawn function a combinator uses. Injection point for tests. */
@@ -57,6 +58,14 @@ export type WorkflowOptions = {
 	model?: string;
 	/** Defaults to the real {@link spawn}. */
 	spawn?: SpawnFn;
+	/**
+	 * Tools combo defines, chosen per agent.
+	 *
+	 * A function rather than a list, because the answer differs by agent: a
+	 * reviewer is offered the verdict tool and the worker beside it is not, and
+	 * a collector shared between two agents could not say which of them spoke.
+	 */
+	customTools?: (agent: Agent) => ToolDefinition[] | undefined;
 };
 
 /**
@@ -76,10 +85,12 @@ export class SubagentPool {
 	private readonly lifetime: Lifetime;
 	private readonly spawnFn: SpawnFn;
 	private readonly spawnOptions: SpawnOptions;
+	private readonly customTools: WorkflowOptions["customTools"];
 
 	constructor(options: WorkflowOptions) {
 		this.lifetime = options.lifetime ?? "task";
 		this.spawnFn = options.spawn ?? defaultSpawn;
+		this.customTools = options.customTools;
 
 		const bus = options.bus ?? createEventBus();
 		if (options.onEvent) bus.subscribe(options.onEvent);
@@ -99,7 +110,7 @@ export class SubagentPool {
 		const existing = this.lifetime === "task" ? undefined : this.live.get(key);
 		if (existing) return existing;
 
-		const subagent = await this.spawnFn(agent, this.spawnOptions);
+		const subagent = await this.spawnFn(agent, { ...this.spawnOptions, customTools: this.customTools?.(agent) });
 		this.owned.push(subagent);
 		if (this.lifetime !== "task") this.live.set(key, subagent);
 		return subagent;

@@ -268,6 +268,43 @@ The rule that survives is the one that made the original call defensible: **a
 shared helper takes the part that is identical, never the part that is
 interpretation.**
 
+### A verdict is a tool call, and prose is the argument for it
+
+A reviewer's answer carries two things: an argument, which is prose and belongs
+in the transcript, and a decision, which is a boolean and does not. `saysWord`
+recovers the second from the first, and how well it does that depends entirely
+on the agreement about how to write the word. `includes` accepted "I cannot say
+LGTM yet" as an approval; the whole-line rule that replaced it rejects that one
+and still rests on a convention a model is free to miss.
+
+So a reviewer whose `tools:` names `verdict` is handed that tool, and its call is
+the decision. `pair` reads the collector behind the tool, never the text beside
+it.
+
+Three options were weighed.
+
+**Keep parsing prose, more carefully.** No new machinery, and the ceiling is the
+convention: every refinement buys one more phrasing and leaves the next one.
+
+**Ask for structured output**, a JSON object read by `jsonObjects`. Cheaper than
+a tool, and it still arrives inside the prose channel, so "the model wrote
+something that parses" and "the model decided" stay the same event.
+
+**A tool call**, which is what was taken. It is a discrete event with a schema,
+on its own channel, so *did it decide* and *what did it decide* are separate
+closed questions. It costs the `customTools` seam in `src/session.ts` and one
+file, `src/verdict.ts`.
+
+Two consequences worth stating plainly. A reviewer that holds the tool and calls
+nothing has **not** approved, and `PairResult.verdict` is absent rather than
+`false`: a turn that failed to answer is not a refusal, and guessing which one it
+was from the prose is the reading this tool exists to retire. And the word
+survives for every reviewer that holds no tool, because an agent nobody offered
+one to still has to be able to say yes.
+
+None of this makes a model's judgement deterministic. It makes reading that
+judgement deterministic, which is the only part of it that was ever ours.
+
 ## Pipelines: a workflow written down
 
 `src/pipeline.ts` parses one, `src/pipeline-load.ts` finds it, and

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { APPROVAL, pair } from "../src/workflows/pair.ts";
+import { VERDICT_TOOL } from "../src/verdict.ts";
+import { callTool } from "./fixtures/call-tool.ts";
 import { fakeSpawn, testAgent } from "./fixtures/fake-subagent.ts";
 
 const worker = testAgent("coder", { description: "Writes code" });
@@ -154,5 +156,71 @@ describe("pair", () => {
 
 	test("maxRounds below one is a programming error", async () => {
 		await assert.rejects(() => pair({ worker, reviewer, input: "x", maxRounds: 0 }), /at least 1/);
+	});
+});
+
+describe("pair, when the reviewer decides through the verdict tool", () => {
+	const judge = testAgent("reviewer", { description: "Reviews code", tools: ["read", VERDICT_TOOL] });
+
+	/** A reviewer that calls the tool at round `n`, and refuses before that. */
+	const decidesAt = (n: number) => {
+		let round = 0;
+		return fakeSpawn(async (_task, agent, options) => {
+			if (agent.name !== "reviewer") return { output: "work done" };
+			round++;
+			const tool = options.customTools?.[0];
+			assert.ok(tool, "the reviewer is offered the tool it declared");
+			await callTool(tool, round >= n ? { approved: true } : { approved: false, remarks: `round ${round}: fix the parser` });
+			return { output: "prose the decision does not live in" };
+		});
+	};
+
+	test("the tool call decides, and the prose beside it is not read", async () => {
+		const fake = decidesAt(1);
+		const result = await pair({ worker, reviewer: judge, input: "implement the parser", spawn: fake.spawn });
+
+		assert.equal(result.approved, true);
+		assert.deepEqual(result.verdict, { approved: true, remarks: undefined });
+		assert.equal(result.rounds, 1);
+	});
+
+	test("the remarks the tool carries are what the worker gets back", async () => {
+		const fake = decidesAt(2);
+		const result = await pair({ worker, reviewer: judge, input: "implement the parser", spawn: fake.spawn });
+
+		assert.equal(result.approved, true);
+		const toWorker = fake.asks.filter((ask) => ask.id.startsWith("coder"));
+		assert.match(toWorker[1]?.task ?? "", /round 1: fix the parser/);
+	});
+
+	test("only the reviewer is offered the tool", async () => {
+		const fake = decidesAt(1);
+		await pair({ worker, reviewer: judge, input: "x", spawn: fake.spawn });
+
+		const offered = fake.spawned.map((one) => [one.agent, one.options.customTools?.length ?? 0]);
+		assert.deepEqual(offered, [
+			["coder", 0],
+			["reviewer", 1],
+		]);
+	});
+
+	test("a reviewer that calls nothing has not approved, and the result says it never decided", async () => {
+		const fake = fakeSpawn((_task, agent) =>
+			agent.name === "reviewer" ? { output: `Looks fine to me. ${APPROVAL}` } : { output: "work done" },
+		);
+		const result = await pair({ worker, reviewer: judge, input: "x", maxRounds: 2, spawn: fake.spawn });
+
+		assert.equal(result.approved, false, "prose is not a decision once the tool is the channel");
+		assert.equal(result.verdict, undefined, "absent, not `approved: false`: it never answered");
+		assert.equal(result.rounds, 2);
+	});
+
+	test("a reviewer that declares nothing keeps the word", async () => {
+		const fake = approvesAt(1);
+		const result = await pair({ worker, reviewer, input: "x", spawn: fake.spawn });
+
+		assert.equal(result.approved, true);
+		assert.equal(result.verdict, undefined);
+		assert.equal(fake.spawned[1]?.options.customTools, undefined);
 	});
 });

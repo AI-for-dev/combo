@@ -14,7 +14,14 @@ import type { Agent, Lifetime } from "./agent.ts";
 import { createEventBus, nextSubagentId, type EventBus, type EventListener, type SubagentEvent } from "./events.ts";
 import { exportSession, type SessionExport } from "./export.ts";
 import { failed, type Result } from "./result.ts";
-import { createDefaultSession, modelLabel, type AgentMessage, type CreateSession, type SessionPort } from "./session.ts";
+import {
+	createDefaultSession,
+	modelLabel,
+	type AgentMessage,
+	type CreateSession,
+	type SessionPort,
+	type ToolDefinition,
+} from "./session.ts";
 import { deltaUsage, emptyUsage, snapshotUsage, type Usage } from "./usage.ts";
 
 /** Everything that can be decided about a subagent before it exists. */
@@ -44,6 +51,14 @@ export type SpawnOptions = {
 	bus?: EventBus;
 	/** Session factory. Injection point for tests - defaults to a real pi session. */
 	createSession?: CreateSession;
+	/**
+	 * Tools combo defines, offered to this subagent.
+	 *
+	 * Offered, not granted: the agent's `tools:` is an allowlist and covers these
+	 * too, so one it does not name is not enabled. See
+	 * {@link CreateSessionOptions.customTools}.
+	 */
+	customTools?: ToolDefinition[];
 	/**
 	 * Model pattern for this subagent, e.g. `"anthropic/claude-sonnet-5"`.
 	 *
@@ -137,7 +152,12 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 	const sessionDir = options.sessionDir ?? (options.exportDir ? path.join(options.exportDir, ".sessions") : undefined);
 	// The model is resolved here, once, like the lifetime: the fake session a
 	// test injects sees the *effective* pattern, not the ladder that chose it.
-	const session = await createSession(agent, { cwd: options.cwd, sessionDir, model: options.model ?? agent.model });
+	const session = await createSession(agent, {
+		cwd: options.cwd,
+		sessionDir,
+		model: options.model ?? agent.model,
+		customTools: options.customTools,
+	});
 
 	// Monotonic clock: `Date.now()` jumps when the system clock is adjusted,
 	// and a duration must never go backwards.

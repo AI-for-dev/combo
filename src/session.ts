@@ -15,17 +15,31 @@
 import {
 	createAgentSession,
 	createExtensionRuntime,
+	defineTool as piDefineTool,
 	resolveCliModel,
 	SessionManager,
 	type AgentSession,
 	type ContextUsage,
 	type ResourceLoader,
 	type SessionStats,
+	type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import type { Agent } from "./agent.ts";
 
 /** Alias to pi's message type, without depending on a transitive package. */
 export type AgentMessage = AgentSession["messages"][number];
+
+/** Alias to pi's tool type, so a tool combo writes is described here alone. */
+export type { ToolDefinition };
+
+/**
+ * pi's own `defineTool`, so a tool is built here and nowhere else.
+ *
+ * Bound to a constant rather than re-exported, which keeps the generic
+ * signature that infers a tool's parameter type from its schema. Passing a tool
+ * through an array loses that inference without it.
+ */
+export const defineTool = piDefineTool;
 
 /**
  * What the library consumes from a pi session - nothing more.
@@ -105,6 +119,16 @@ export type CreateSessionOptions = {
 	 * settings decide, which is the last resort, never a choice made here.
 	 */
 	model?: string;
+	/**
+	 * Tools combo itself defines, offered to this session.
+	 *
+	 * Offering is not granting: `tools` is an allowlist and it covers these too,
+	 * so a tool the agent's `tools:` does not name is not enabled. That leaves
+	 * the guarantee of {@link StaticResourceLoader} intact - a subagent still
+	 * inherits nothing from the user's environment, and what it can do is
+	 * readable in its own definition.
+	 */
+	customTools?: ToolDefinition[];
 };
 
 /** Session factory. The injection point for tests. */
@@ -125,6 +149,7 @@ export const createDefaultSession: CreateSession = async (agent, options) => {
 		cwd,
 		...(await buildModelOptions(agent, options.model)),
 		tools: agent.tools ?? [...READ_ONLY_TOOLS],
+		customTools: options.customTools,
 		resourceLoader: new StaticResourceLoader(situate(agent.systemPrompt, cwd)),
 		sessionManager: options.sessionDir ? SessionManager.create(cwd, options.sessionDir) : SessionManager.inMemory(cwd),
 	});

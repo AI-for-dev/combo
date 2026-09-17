@@ -40,9 +40,13 @@ export type FakeSpawn = {
  * Builds an injectable `spawn`.
  *
  * `reply` is called per turn so a test can vary the answer - a loop's judge,
- * a branch that fails.
+ * a branch that fails. It receives the options the subagent was spawned with,
+ * so a turn can act through a tool the workflow offered, and it may be async
+ * because acting through one is.
  */
-export function fakeSpawn(reply: (task: string, agent: Agent) => FakeReply = () => ({})): FakeSpawn {
+export function fakeSpawn(
+	reply: (task: string, agent: Agent, options: SpawnOptions) => FakeReply | Promise<FakeReply> = () => ({}),
+): FakeSpawn {
 	const spawned: { agent: string; id: string; options: SpawnOptions }[] = [];
 	const asks: { id: string; task: string }[] = [];
 	const askOptions: AskOptions[] = [];
@@ -54,6 +58,8 @@ export function fakeSpawn(reply: (task: string, agent: Agent) => FakeReply = () 
 
 	const spawn: SpawnFn = async (agent, options) => {
 		const id = `${agent.name}#${++counter}`;
+		// Named apart from `ask`'s own `options`, which shadows it.
+		const spawnOptions = options;
 		spawned.push({ agent: agent.name, id, options });
 
 		// The fake emits the same events as the real `spawn`. Without that, a
@@ -80,7 +86,7 @@ export function fakeSpawn(reply: (task: string, agent: Agent) => FakeReply = () 
 				maxConcurrent = Math.max(maxConcurrent, inFlight);
 				bus?.emit({ type: "status", id, status: "working", task });
 				try {
-					const answer = reply(task, agent);
+					const answer = await reply(task, agent, spawnOptions);
 					if (answer.delayMs) await new Promise((resolve) => setTimeout(resolve, answer.delayMs));
 
 					const usage: Usage = { ...emptyUsage(), turns: 1, ...answer.usage };
