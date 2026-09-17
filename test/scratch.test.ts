@@ -81,7 +81,7 @@ describe("scratchWorktree", () => {
 		assert.equal(fs.readFileSync(path.join(dir, "kept.txt"), "utf8"), "one\n", "and the repository is untouched");
 	});
 
-	test("a copy nobody wrote in releases an empty patch", async () => {
+	test("a copy nobody wrote in releases an empty patch, and leaves no branch", async () => {
 		const dir = repo();
 		const made = await scratchWorktree(dir, "work");
 		assert.ok(made.ok);
@@ -89,6 +89,26 @@ describe("scratchWorktree", () => {
 
 		const released = await made.value.release();
 		assert.equal(released.ok ? released.value : "x", "");
+
+		const branches = execFileSync("git", ["branch", "--format=%(refname:short)"], { cwd: dir, encoding: "utf-8" });
+		assert.equal(branches.trim(), "main", "a branch naming no work would only pile up");
+	});
+
+	test("the work is committed on the branch, so the patch is not its only copy", async () => {
+		const dir = repo();
+		const made = await scratchWorktree(dir, "the work");
+		assert.ok(made.ok);
+		if (!made.ok) return;
+
+		fs.writeFileSync(path.join(made.value.path, "made.txt"), "written\n");
+		await made.value.release();
+
+		const shown = execFileSync("git", ["show", "--stat", "--format=%s", made.value.branch], {
+			cwd: dir,
+			encoding: "utf-8",
+		});
+		assert.match(shown, /^combo: the work$/m);
+		assert.match(shown, /made\.txt/);
 	});
 
 	test("releasing twice is not an error, and does not try to remove what is gone", async () => {

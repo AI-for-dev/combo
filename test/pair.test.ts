@@ -388,7 +388,12 @@ describe("pair, given a working copy of its own", () => {
 		assert.equal(seen.length, 2);
 		assert.equal(seen[0], seen[1], "a reviewer elsewhere would read the code the worker did not touch");
 		assert.notEqual(seen[0], dir);
-		assert.match(result.worktree ?? "", /^combo\//);
+		assert.equal(result.worktree, undefined, "nothing was written, so no branch names anything");
+		assert.equal(
+			execFileSync("git", ["branch", "--format=%(refname:short)"], { cwd: dir, encoding: "utf-8" }).trim(),
+			"main",
+			"and the copy's own branch was cleared away",
+		);
 	});
 
 	test("what the worker wrote comes back as a patch, and the caller's tree is untouched", async () => {
@@ -403,6 +408,16 @@ describe("pair, given a working copy of its own", () => {
 		assert.equal(result.approved, true);
 		assert.match(result.patch ?? "", /made\.txt/);
 		assert.equal(fs.existsSync(path.join(dir, "made.txt")), false);
+
+		// The patch is not the only copy of the work: it is committed on the
+		// branch, so a caller that drops the string has still lost nothing.
+		assert.match(result.worktree ?? "", /^combo\//);
+		const onBranch = execFileSync("git", ["show", "--stat", "--format=%s", result.worktree as string], {
+			cwd: dir,
+			encoding: "utf-8",
+		});
+		assert.match(onBranch, /^combo: x/m);
+		assert.match(onBranch, /made\.txt/);
 	});
 
 	test("the copy is released even when the pair failed", async () => {

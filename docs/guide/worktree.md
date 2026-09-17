@@ -58,9 +58,13 @@ where it was cut.
 
 ```typescript
 const built = await pair({ worker: coder, reviewer, input: task, cwd: repo, worktree: true });
-built.worktree;   // combo/add-a-slugify-helper-a1b2c3
-built.patch;      // the diff against what the work started from
+built.worktree;   // combo/add-a-slugify-helper-a1b2c3, with the work committed on it
+built.patch;      // the same work as a diff against what it started from
 ```
+
+The work is committed on that branch before the copy goes, so a caller that
+drops the patch has still lost nothing. A pair that wrote nothing gets no branch
+and no patch: a name for no work would only pile up, one per run.
 
 Both agents share it deliberately. A reviewer with a copy of its own would be
 reading the code the worker did not touch, which is a review of nothing.

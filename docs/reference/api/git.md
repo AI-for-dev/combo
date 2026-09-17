@@ -17,6 +17,10 @@ of an existing branch, anything `--force`, anything that rewrites history.
 Adding one is a decision someone has to take in a diff, not an argument a
 model can produce at runtime.
 
+`deleteBranch` is the one that looks like an exception and is not: `-d` makes
+git refuse any branch holding commits nothing else reaches, so it can clear
+away a name and never work.
+
 ## `branchName`
 
 *function*

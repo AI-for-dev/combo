@@ -11,7 +11,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { branchName, headSha, type GitResult } from "./git.ts";
+import { branchName, commitAll, deleteBranch, headSha, type GitResult } from "./git.ts";
 import { createWorktree, removeWorktree, worktreePatch } from "./worktree.ts";
 /** A copy made for one piece of work, and the way to get the work back out. */
 export type Scratch = {
@@ -69,8 +69,21 @@ export async function scratchWorktree(repo: string, label: string): Promise<GitR
 				const patch = await worktreePatch(at, base);
 				if (!patch.ok) return patch;
 
+				// Committed on the branch before the copy goes, so the work is
+				// recoverable from the repository and not only from the string this
+				// returns. A caller that drops the patch has still lost nothing.
+				if (patch.value) {
+					const committed = await commitAll(at, `combo: ${label.trim()}`);
+					if (!committed.ok) return committed;
+				}
+
 				const gone = await removeWorktree(repo, at, { patched: true });
 				if (!gone.ok) return gone;
+
+				// A branch nobody wrote on names nothing, and one per piece of work
+				// would pile up in the caller's repository. `-d` refuses to take any
+				// that turned out to hold something.
+				if (!patch.value) await deleteBranch(repo, branch);
 
 				released = true;
 				fs.rmSync(holder, { recursive: true, force: true });

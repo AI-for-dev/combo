@@ -393,6 +393,12 @@ carries no patch.
 A copy that cannot be made stops the pair. Carrying on would write into the tree
 the caller asked to spare, which is the failure the option exists to prevent.
 
+The work is **committed** on the copy's branch before the copy goes. A first run
+left the branches pointing at the base commit, holding nothing, one pair of them
+per run: the patch was the only copy of the work and `PairResult.worktree` named
+something empty. A branch that turns out to hold nothing is cleared with
+`git branch -d`, which refuses any that holds something.
+
 Landing the patches is not here. Two patches that each apply cleanly on their own
 can still contradict each other, and deciding what to do about that is a policy
 with more than one defensible answer.

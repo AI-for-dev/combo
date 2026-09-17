@@ -79,10 +79,12 @@ export type PairResult = Result & {
 	 */
 	obligations: readonly Obligation[];
 	/**
-	 * Where the work was done, when `worktree` asked for a copy of its own.
+	 * The branch the work was committed to, when `worktree` asked for a copy.
 	 *
-	 * The copy is gone by the time a caller reads this: it is the branch the work
-	 * landed on, which is how the patch below can be identified again.
+	 * The copy itself is gone by the time a caller reads this, and the commit on
+	 * this branch is what is left of it. A caller that drops the patch below has
+	 * still lost nothing. Absent when the pair wrote nothing: a branch naming no
+	 * work would only pile up.
 	 */
 	worktree?: string;
 	/**
@@ -143,7 +145,7 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 		approved,
 		verdict,
 		obligations: ledger.all,
-		worktree: scratch?.branch,
+		worktree: patch ? scratch?.branch : undefined,
 		patch,
 	});
 

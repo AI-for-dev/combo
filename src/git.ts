@@ -11,6 +11,10 @@
  * of an existing branch, anything `--force`, anything that rewrites history.
  * Adding one is a decision someone has to take in a diff, not an argument a
  * model can produce at runtime.
+ *
+ * `deleteBranch` is the one that looks like an exception and is not: `-d` makes
+ * git refuse any branch holding commits nothing else reaches, so it can clear
+ * away a name and never work.
  */
 
 import { execFile } from "node:child_process";
@@ -164,4 +168,16 @@ export function branchName(request: string, prefix = "combo"): string {
 		.slice(0, 40)
 		.replace(/-+$/g, "");
 	return `${prefix}/${slug || "work"}`;
+}
+
+/**
+ * Deletes a branch, if nothing would be lost with it.
+ *
+ * `-d`, never `-D`: git refuses a branch holding commits nothing else reaches,
+ * and that refusal is the whole safety of this function. It exists to clear away
+ * a branch that was made and never written on, not to discard work.
+ */
+export async function deleteBranch(cwd: string, name: string): Promise<GitResult<string>> {
+	const result = await git(cwd, ["branch", "-d", name]);
+	return result.ok ? { ok: true, value: name } : result;
 }
