@@ -111,6 +111,20 @@ export type PairResult = Result & {
 	 * which ones are still open rather than only that it stopped.
 	 */
 	obligations: readonly Obligation[];
+	/**
+	 * Where the work was done, when `worktree` asked for a copy of its own.
+	 *
+	 * The copy is gone by the time a caller reads this: it is the branch the work
+	 * landed on, which is how the patch below can be identified again.
+	 */
+	worktree?: string;
+	/**
+	 * What the work changed, as a patch against what it started from.
+	 *
+	 * Present with `worktree`, and empty when nothing was written. Applying it is
+	 * nobody's job here: this workflow produces the change, it does not land it.
+	 */
+	patch?: string;
 };
 ```
 

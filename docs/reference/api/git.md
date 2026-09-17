@@ -108,6 +108,20 @@ A typed result rather than an exception, for the same reason a workflow turns
 a model failure into `ok: false`: a commit that could not be made is an
 outcome the caller must decide about, not a crash.
 
+## `headSha`
+
+*function*
+
+```typescript
+export async function headSha(cwd: string): Promise<GitResult<string>> { /* … */ }
+```
+
+The commit `HEAD` is on, as a sha.
+
+A sha rather than a branch name, for whoever needs to come back to where
+something started: a branch moves, and a diff against one that has moved is a
+diff against work somebody else did.
+
 ## `isRepository`
 
 *function*

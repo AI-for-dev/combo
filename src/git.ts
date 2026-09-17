@@ -54,6 +54,18 @@ export async function currentBranch(cwd: string): Promise<string | undefined> {
 	return name && name !== "HEAD" ? name : undefined;
 }
 
+/**
+ * The commit `HEAD` is on, as a sha.
+ *
+ * A sha rather than a branch name, for whoever needs to come back to where
+ * something started: a branch moves, and a diff against one that has moved is a
+ * diff against work somebody else did.
+ */
+export async function headSha(cwd: string): Promise<GitResult<string>> {
+	const result = await git(cwd, ["rev-parse", "HEAD"]);
+	return result.ok ? { ok: true, value: result.value.trim() } : result;
+}
+
 /** Porcelain status. Empty means a clean working tree - nothing to commit. */
 export async function status(cwd: string): Promise<GitResult<string>> {
 	return git(cwd, ["status", "--porcelain"]);

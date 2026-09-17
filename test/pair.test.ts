@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { describe, test } from "node:test";
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, describe, test } from "node:test";
 import { APPROVAL, pair } from "../src/workflows/pair.ts";
 import { VERDICT_TOOL } from "../src/verdict.ts";
 import { callTool } from "./fixtures/call-tool.ts";
@@ -348,5 +352,88 @@ describe("pair, when the reviewer names an id nothing is open for", () => {
 		assert.match(seen[0] ?? "", /No open obligation for 1/);
 		assert.equal(result.approved, false, "the second call is the one that counted");
 		assert.equal(result.obligations.length, 1);
+	});
+});
+
+describe("pair, given a working copy of its own", () => {
+	const scratchRepos: string[] = [];
+	afterEach(() => {
+		for (const dir of scratchRepos.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+	});
+
+	/** A repository with one commit in it, so `HEAD` exists. */
+	function repo(): string {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-pair-repo-"));
+		scratchRepos.push(dir);
+		const run = (...args: string[]) => execFileSync("git", args, { cwd: dir, stdio: "pipe" });
+		run("init", "--initial-branch=main");
+		run("config", "user.email", "test@example.com");
+		run("config", "user.name", "Test");
+		fs.writeFileSync(path.join(dir, "kept.txt"), "one\n");
+		run("add", "-A");
+		run("commit", "-m", "first");
+		return dir;
+	}
+
+	test("both agents work in the same copy, and it is not the caller's tree", async () => {
+		const dir = repo();
+		const seen: string[] = [];
+		const fake = fakeSpawn((_task, agent, options) => {
+			seen.push(options.cwd ?? "(none)");
+			return { output: agent.name === "reviewer" ? APPROVAL : "work" };
+		});
+
+		const result = await pair({ worker, reviewer, input: "x", cwd: dir, worktree: true, spawn: fake.spawn });
+
+		assert.equal(seen.length, 2);
+		assert.equal(seen[0], seen[1], "a reviewer elsewhere would read the code the worker did not touch");
+		assert.notEqual(seen[0], dir);
+		assert.match(result.worktree ?? "", /^combo\//);
+	});
+
+	test("what the worker wrote comes back as a patch, and the caller's tree is untouched", async () => {
+		const dir = repo();
+		const fake = fakeSpawn((_task, agent, options) => {
+			if (agent.name === "coder") fs.writeFileSync(path.join(options.cwd ?? ".", "made.txt"), "written\n");
+			return { output: agent.name === "reviewer" ? APPROVAL : "work" };
+		});
+
+		const result = await pair({ worker, reviewer, input: "x", cwd: dir, worktree: true, spawn: fake.spawn });
+
+		assert.equal(result.approved, true);
+		assert.match(result.patch ?? "", /made\.txt/);
+		assert.equal(fs.existsSync(path.join(dir, "made.txt")), false);
+	});
+
+	test("the copy is released even when the pair failed", async () => {
+		const dir = repo();
+		const fake = fakeSpawn((_task, agent) => (agent.name === "coder" ? { ok: false, error: "boom" } : {}));
+
+		const result = await pair({ worker, reviewer, input: "x", cwd: dir, worktree: true, spawn: fake.spawn });
+
+		assert.equal(result.ok, false);
+		const left = execFileSync("git", ["worktree", "list"], { cwd: dir, encoding: "utf-8" });
+		assert.equal(left.trim().split("\n").length, 1, "whoever opens closes, failure included");
+	});
+
+	test("a copy that cannot be made stops the pair rather than writing into the caller's tree", async () => {
+		const notARepo = fs.mkdtempSync(path.join(os.tmpdir(), "combo-pair-plain-"));
+		scratchRepos.push(notARepo);
+		const fake = fakeSpawn();
+
+		const result = await pair({ worker, reviewer, input: "x", cwd: notARepo, worktree: true, spawn: fake.spawn });
+
+		assert.equal(result.ok, false);
+		assert.match(result.error ?? "", /no working copy/);
+		assert.equal(fake.spawned.length, 0, "nothing ran anywhere");
+	});
+
+	test("without the option nothing touches git at all", async () => {
+		const fake = approvesAt(1);
+		const result = await pair({ worker, reviewer, input: "x", cwd: "/nowhere-at-all", spawn: fake.spawn });
+
+		assert.equal(result.approved, true);
+		assert.equal(result.worktree, undefined);
+		assert.equal(result.patch, undefined);
 	});
 });

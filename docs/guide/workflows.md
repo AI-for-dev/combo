@@ -147,6 +147,10 @@ Only the agent that raised an obligation can close it, and one that a round does
 not name stays open. [Design decisions](../decisions.md) has the reasoning for
 both.
 
+`worktree: true` gives the pair a copy of the repository to itself, so two of
+them can run at once without writing over each other. See
+[Worktrees](worktree.md).
+
 ### `interview` - the agent questions the user
 
 ```typescript

@@ -182,11 +182,13 @@ export {
 	currentBranch,
 	diff,
 	diffStat,
+	headSha,
 	isRepository,
 	status,
 	untracked,
 	type GitResult,
 } from "./git.ts";
+export { scratchWorktree, type Scratch } from "./scratch.ts";
 export {
 	createWorktree,
 	listWorktrees,

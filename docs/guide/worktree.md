@@ -51,6 +51,31 @@ worse than a touched index.
 The patch is capped, like every other text that ends up in a prompt, and says so
 where it was cut.
 
+## A copy per piece of work, not per subagent
+
+`pair` takes `worktree: true` and gives both its agents one copy, made from
+`cwd`. The result carries the branch it landed on and the patch of what changed.
+
+```typescript
+const built = await pair({ worker: coder, reviewer, input: task, cwd: repo, worktree: true });
+built.worktree;   // combo/add-a-slugify-helper-a1b2c3
+built.patch;      // the diff against what the work started from
+```
+
+Both agents share it deliberately. A reviewer with a copy of its own would be
+reading the code the worker did not touch, which is a review of nothing.
+
+The copy is released in a `finally`, cancellation and failure included: whoever
+opens closes. A copy that could not be made **stops the pair** rather than
+quietly writing into the tree the caller asked to spare.
+
+Applying the patches is nobody's job here. This produces the change; landing it
+is a policy, and two patches that each apply cleanly on their own can still
+contradict each other.
+
+`examples/13-concurrent-writers.ts` runs two pairs at once on two subtasks and
+prints the two patches, leaving the repository it was pointed at untouched.
+
 ## What has no function here
 
 No `push`, no `merge`, no `rebase`, nothing that rewrites history. The rule is

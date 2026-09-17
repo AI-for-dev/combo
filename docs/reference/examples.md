@@ -15,10 +15,13 @@ node examples/09-orchestrate.ts  # the planner decides the split, then it runs
 node examples/10-interview.ts    # the interview, in a plain terminal
 node examples/11-build.ts        # the pipeline on a throwaway repository
 node examples/12-experiment.ts   # the same loop on several models, twice each
+node examples/13-concurrent-writers.ts  # two pairs writing at once, a copy each
 ```
 
-`11-build.ts` writes code. It runs on a throwaway repository it creates itself,
-and nothing else.
+`11-build.ts` and `13-concurrent-writers.ts` write code, and both refuse to run
+anywhere but a throwaway repository you name. `13` leaves that repository
+untouched all the same: each pair works in a copy of it, and what comes back is
+a patch.
 
 ## Choosing a model
 
