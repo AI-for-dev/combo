@@ -53,12 +53,27 @@ const built = await deliver({
 	brief,
 	verify: commandVerifier({ cwd, command: "npm", args: ["test"] }),
 });
-built.approved;   // the auditor signed off AND the check passed
+built.approved;      // the auditor signed off, nothing it raised is open, the check passed
+built.obligations;   // what it raised, and what became of each
 ```
 
 Defaults worth knowing: `concurrency` is **2**, not 4, because these workers
 write to the same working tree; `maxRounds` inside a pair is 3; audit cycles
 default to 2; `maxTasks` defaults to 8.
+
+## What the auditor still owes
+
+An auditor whose `tools:` names `verdict` decides through that tool, and each
+fix line it puts in `raised` becomes an obligation with an id. Later rounds list
+the open ones and ask it what became of each. An auditor that holds no such tool
+still signs with `APPROVED` on a line of its own.
+
+So `approved` needs three things now: the auditor signed off, nothing it raised
+is still open, and the check passed. A run that stops short names the ids that
+are left rather than only saying it stopped.
+
+[Workflows](workflows.md) covers the same mechanism inside a pair, and
+[Design decisions](../decisions.md) has the reasoning.
 
 ## Reading code is not running it
 
@@ -106,6 +121,10 @@ What survives, and why:
 - **Only approved subtasks.** One still being argued over left the tree in a
   state nobody signed off on, so it runs again. Approval is the only claim from
   a previous life worth trusting.
+- **Every obligation, open and closed.** An obligation that was open when the
+  run stopped is still open, and the resumed run keeps its id rather than
+  raising a duplicate. A build that forgot them would sign off on work nobody
+  finished.
 - **The plan is reused, never re-made.** Re-planning would re-split work that is
   already half done on disk, and the plan was paid for.
 - **Nothing of the conversation.** Agents are stored by name and resolved again;

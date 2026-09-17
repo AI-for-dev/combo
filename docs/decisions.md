@@ -353,6 +353,18 @@ It buys nothing against a reviewer that closes an obligation it should not have.
 That is still a judgement, about a single sentence the reviewer wrote itself
 rather than about the whole of the work, and attributable to it.
 
+The auditor in `deliver` signs the same way, and its fix lines are what go on the
+ledger. `DeliverResult.approved` then needs three things: the auditor signed off,
+nothing it raised is still open, and the check passed. The check keeps the last
+word it already had.
+
+Obligations are the one thing besides the plan that survives a resume. A subtask
+that was still being argued over runs again, because nobody signed off on the
+tree it left; an obligation that was open is still open, and the resumed run
+keeps its id rather than raising a duplicate of it. `BuildState.obligations` is
+optional for a state written before the ledger existed, and an empty ledger is
+the honest reading of that rather than a reason to refuse the file.
+
 ## Pipelines: a workflow written down
 
 `src/pipeline.ts` parses one, `src/pipeline-load.ts` finds it, and

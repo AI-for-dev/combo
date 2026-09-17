@@ -62,10 +62,13 @@ How an obligation stopped being open.
 *function*
 
 ```typescript
-export function createLedger(): Ledger { /* … */ }
+export function createLedger(restored: readonly Obligation[] = []): Ledger { /* … */ }
 ```
 
-A fresh, empty ledger. Its ids start at `o1`.
+A ledger, empty or carrying on from obligations a previous run recorded.
+
+Ids start at `o1` and continue past the highest one restored, so a resumed
+run never hands out an id an agent has already been answering about.
 
 ## `Ledger`
 

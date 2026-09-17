@@ -3,6 +3,8 @@ import { describe, test } from "node:test";
 import { AUDIT_APPROVAL, auditPrompt, deliver } from "../src/workflows/deliver.ts";
 import { APPROVAL } from "../src/workflows/pair.ts";
 import { emptyUsage } from "../src/usage.ts";
+import { VERDICT_TOOL } from "../src/verdict.ts";
+import { callTool } from "./fixtures/call-tool.ts";
 import { fakeSpawn, testAgent } from "./fixtures/fake-subagent.ts";
 
 const planner = testAgent("planner", { description: "Splits the work" });
@@ -280,6 +282,7 @@ describe("resuming", () => {
 			},
 		],
 		audits: [],
+		obligations: [],
 		done: false,
 		...over,
 	});
@@ -471,5 +474,107 @@ describe("auditPrompt", () => {
 	test("the last audit says so, so it does not open a debate it cannot finish", () => {
 		assert.match(auditPrompt("x", [], 2, 2), /last audit/);
 		assert.ok(!auditPrompt("x", [], 1, 2).includes("last audit"));
+	});
+});
+
+describe("an auditor that signs through the verdict tool", () => {
+	const judge = testAgent("auditor", { description: "Audits the whole", tools: ["read", VERDICT_TOOL] });
+
+	/** The same cast, with the auditor driven round by round through its tool. */
+	function withVerdicts(rounds: Record<string, unknown>[]) {
+		let audit = 0;
+		return fakeSpawn(async (task, agent, options) => {
+			switch (agent.name) {
+				case "planner":
+					return { output: plan };
+				case "reviewer":
+					return { output: APPROVAL };
+				case "auditor": {
+					const tool = options.customTools?.[0];
+					assert.ok(tool, "the auditor is offered the tool it declared");
+					await callTool(tool, rounds[audit++] ?? { approved: true });
+					return { output: "prose the decision does not live in" };
+				}
+				default:
+					return { output: `${agent.name} did: ${task.slice(0, 30)}` };
+			}
+		});
+	}
+
+	test("what the tool raises becomes the fixes, and the prose is not read", async () => {
+		const fake = withVerdicts([
+			{ approved: false, raised: ["coder: name the parser after what it parses"] },
+			{ approved: true, resolved: [{ id: "o1", how: "addressed" }] },
+		]);
+		const result = await deliver({ planner, workers, reviewer, auditor: judge, brief: "x", spawn: fake.spawn });
+
+		assert.equal(result.approved, true);
+		assert.deepEqual(
+			result.obligations.map((one) => [one.id, one.text, one.closed?.at]),
+			[["o1", "coder: name the parser after what it parses", 2]],
+		);
+		assert.deepEqual(result.audits[0]?.fixes.map((fix) => fix.agent.name), ["coder"]);
+	});
+
+	test("an auditor that signs over an open obligation does not deliver", async () => {
+		const fake = withVerdicts([
+			{ approved: false, raised: ["coder: one", "scribe: two"] },
+			{ approved: true, resolved: [{ id: "o1", how: "addressed" }] },
+		]);
+		const result = await deliver({ planner, workers, reviewer, auditor: judge, brief: "x", spawn: fake.spawn });
+
+		assert.equal(result.audits.at(-1)?.verdict?.approved, true, "the auditor said yes");
+		assert.equal(result.approved, false, "and `o2` was still open");
+		assert.deepEqual(
+			result.obligations.filter((one) => !one.closed).map((one) => one.id),
+			["o2"],
+		);
+	});
+
+	test("an obligation survives a resume, unlike the subtasks", async () => {
+		const first = withVerdicts([{ approved: false, raised: ["coder: one"] }]);
+		const stopped = await deliver({
+			planner,
+			workers,
+			reviewer,
+			auditor: judge,
+			brief: "x",
+			maxAuditRounds: 1,
+			spawn: first.spawn,
+		});
+		assert.equal(stopped.approved, false);
+		assert.equal(stopped.obligations.length, 1);
+
+		const second = withVerdicts([{ approved: true, resolved: [{ id: "o1", how: "addressed" }] }]);
+		const carried = await deliver({
+			planner,
+			workers,
+			reviewer,
+			auditor: judge,
+			brief: "x",
+			spawn: second.spawn,
+			resume: {
+				plan: [
+					{ agent: coder, task: "write the parser" },
+					{ agent: scribe, task: "document the parser" },
+				],
+				tasks: [],
+				audits: [],
+				obligations: stopped.obligations,
+				done: false,
+			},
+		});
+
+		assert.equal(carried.approved, true, "the resumed run closed the line it inherited");
+		assert.equal(carried.obligations.length, 1, "and raised no duplicate of it");
+		assert.equal(carried.obligations[0]?.id, "o1");
+	});
+
+	test("the auditor is shown what is still open, by id", async () => {
+		const fake = withVerdicts([{ approved: false, raised: ["coder: one"] }, { approved: false, remarks: "still no" }]);
+		await deliver({ planner, workers, reviewer, auditor: judge, brief: "x", spawn: fake.spawn });
+
+		const second = fake.asks.filter((ask) => ask.id.startsWith("auditor"))[1]?.task ?? "";
+		assert.match(second, /Still open, from your earlier rounds:\no1: coder: one/);
 	});
 });

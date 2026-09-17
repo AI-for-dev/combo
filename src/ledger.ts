@@ -73,14 +73,20 @@ export type Ledger = {
 	readonly settled: boolean;
 };
 
-/** A fresh, empty ledger. Its ids start at `o1`. */
-export function createLedger(): Ledger {
-	const obligations: Obligation[] = [];
+/**
+ * A ledger, empty or carrying on from obligations a previous run recorded.
+ *
+ * Ids start at `o1` and continue past the highest one restored, so a resumed
+ * run never hands out an id an agent has already been answering about.
+ */
+export function createLedger(restored: readonly Obligation[] = []): Ledger {
+	const obligations: Obligation[] = restored.map((one) => ({ ...one }));
+	let next = obligations.reduce((highest, one) => Math.max(highest, Number(one.id.slice(1)) || 0), 0) + 1;
 
 	return {
 		raise(openedBy, text, round) {
 			const obligation: Obligation = {
-				id: `o${obligations.length + 1}`,
+				id: `o${next++}`,
 				openedBy,
 				text: text.trim(),
 				openedAt: round,

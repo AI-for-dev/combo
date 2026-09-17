@@ -46,10 +46,11 @@ export function auditPrompt(
 	maxAuditRounds: number,
 	verification?: Verification,
 	workers: readonly Agent[] = [],
+	options: AuditPromptOptions = {},
 ): string { /* … */ }
 ```
 
-What the auditor reads: the brief, then what each subtask claims it did.
+What the auditor reads: the brief, what each subtask claims, and what is owed.
 
 ## `AuditRound`
 
@@ -59,6 +60,8 @@ What the auditor reads: the brief, then what each subtask claims it did.
 export type AuditRound = {
 	/** The auditor's turn, in full. It is the evidence behind `approved`. */
 	review: Result;
+	/** What the auditor declared through the verdict tool, when it holds one. */
+	verdict?: Verdict;
 	/** The check as it stood when this audit ran, when there is one. */
 	verification?: Verification;
 	/** Whether this round signed off. A failing check makes it `false` whatever the prose. */
@@ -171,8 +174,17 @@ export type DeliverResult = {
 	/** The last verification, when one was configured. */
 	verification?: Verification;
 	/**
-	 * Whether the work passed the bar: the auditor signed off **and** the check
-	 * passed. `true` with neither an auditor nor a check - there was no bar.
+	 * What the auditor raised across the rounds, and what became of each.
+	 *
+	 * Empty when the auditor holds no verdict tool. A run that stopped short says
+	 * here which lines are open and since which round, which is what
+	 * `approved: false` on its own has never been able to say.
+	 */
+	obligations: readonly Obligation[];
+	/**
+	 * Whether the work passed the bar: the auditor signed off, **nothing it
+	 * raised is still open**, and the check passed. `true` with neither an
+	 * auditor nor a check - there was no bar.
 	 */
 	approved: boolean;
 	/** Aggregate over planning, every pair, the audits and the fixes. */
