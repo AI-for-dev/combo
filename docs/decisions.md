@@ -314,6 +314,45 @@ nobody offered one to still has to be able to say yes.
 None of this makes a model's judgement deterministic. It makes reading that
 judgement deterministic, which is the only part of it that was ever ours.
 
+### Finished is a ledger, not an opinion
+
+Measured on the run that shipped the verdict tool: against
+`ilaas/qwen-3.6-35b-instruct` the reviewer called `verdict` correctly and
+approved a function that computes `a - b` while claiming to add. A clean channel
+does nothing about a wrong judgement, so `approved` stops being what the
+reviewer said.
+
+Everything a reviewer raises becomes an **obligation** in `src/ledger.ts`, with
+an id combo assigns and that never changes. Finished means the reviewer has
+nothing further to ask *and* nothing it raised is still open.
+
+The ledger belongs to this code rather than to the agent. Asking a reviewer to
+re-emit its remarks each round puts us back to matching one round's prose against
+another's, where "is this the same remark as last time" is a guess. A round is
+handed the open ids and answers a closed question per id.
+
+Three rules, in code rather than in a prompt:
+
+- **Only whoever raised an obligation may close it.** A worker cannot declare its
+  own work accepted, and `close` refuses with `ok: false` rather than throwing -
+  an agent naming the wrong id is a runtime outcome, not a programming error.
+- **An obligation a round does not name stays open.** A model that forgets has
+  not approved, and failing closed is the only default that cannot be talked
+  round.
+- **Nothing is rewritten.** An obligation keeps the text it was raised with, so a
+  reworded one is a new one.
+
+Closures are applied before anything new is raised, so a round cannot raise and
+close the same obligation in one call.
+
+A boolean could only ever say that the work stopped. A ledger says which lines
+are open and since which round, which is the difference between a pair making
+progress and a pair that is stuck.
+
+It buys nothing against a reviewer that closes an obligation it should not have.
+That is still a judgement, about a single sentence the reviewer wrote itself
+rather than about the whole of the work, and attributable to it.
+
 ## Pipelines: a workflow written down
 
 `src/pipeline.ts` parses one, `src/pipeline-load.ts` finds it, and

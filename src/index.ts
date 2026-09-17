@@ -47,7 +47,15 @@ export {
 	type PlanOptions,
 	type PlanOutcome,
 } from "./workflows/plan.ts";
-export { APPROVAL, pair, remarksPrompt, reviewPrompt, type PairOptions, type PairResult } from "./workflows/pair.ts";
+export {
+	APPROVAL,
+	pair,
+	remarksPrompt,
+	reviewPrompt,
+	type PairOptions,
+	type PairResult,
+	type ReviewPromptOptions,
+} from "./workflows/pair.ts";
 export {
 	answerPrompt,
 	briefPrompt,
@@ -185,9 +193,18 @@ export {
 	lastVerdict,
 	VERDICT_TOOL,
 	verdictTool,
+	type Resolution,
 	type Verdict,
 	type VerdictTool,
 } from "./verdict.ts";
+export {
+	createLedger,
+	openList,
+	type Closure,
+	type CloseOutcome,
+	type Ledger,
+	type Obligation,
+} from "./ledger.ts";
 export { scriptedAsk, type Answer, type AskUser, type Choice, type Question } from "./ask.ts";
 export {
 	BUILD_STATE_FILE,

@@ -50,6 +50,7 @@ const task = (agent: string, input: string, approved: boolean): PairResult => ({
 	steps: [{ agent, output: "turn", messages: [], usage: emptyUsage(), ok: true }],
 	rounds: 2,
 	approved,
+	obligations: [],
 });
 
 const progress = (over: Partial<BuildProgress> = {}): BuildProgress => ({

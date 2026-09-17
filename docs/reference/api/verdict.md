@@ -47,13 +47,30 @@ say so rather than pick one.
 The **last** call wins when there are several, because an agent that calls
 again has changed its mind, and the alternative is to make it unable to.
 
+## `Resolution`
+
+*type*
+
+```typescript
+export type Resolution = {
+	/** The obligation, by the id the ledger gave it. */
+	id: string;
+	/** `"addressed"` when the work was done, `"withdrawn"` when it is dropped. */
+	how: "addressed" | "withdrawn";
+	/** Why. A withdrawal without one is a silent drop. */
+	reason?: string;
+};
+```
+
+What an agent said about one obligation it had raised.
+
 ## `Verdict`
 
 *type*
 
 ```typescript
 export type Verdict = {
-	/** Whether the work was accepted. */
+	/** Whether the agent has nothing further to ask. Never the last word on its own. */
 	approved: boolean;
 	/**
 	 * Why, in the reviewer's own words. Required when `approved` is false.
@@ -63,6 +80,10 @@ export type Verdict = {
 	 * it chose to attach to the decision, kept for whoever reads the outcome.
 	 */
 	remarks?: string;
+	/** Obligations it says are done with, by id. Ones it does not name stay open. */
+	resolved: Resolution[];
+	/** New obligations it raises, as it wrote them. */
+	raised: string[];
 };
 ```
 

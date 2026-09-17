@@ -12,6 +12,7 @@
  */
 
 import type { Agent } from "./../agent.ts";
+import { createLedger, openList, type Ledger, type Obligation } from "./../ledger.ts";
 import { failed, type Result } from "./../result.ts";
 import { saysWord } from "./../text.ts";
 import { sumUsage, type Usage } from "./../usage.ts";
@@ -67,6 +68,15 @@ export type PairResult = Result & {
 	 * `approved: false` and no verdict, the reviewer never decided.
 	 */
 	verdict?: Verdict;
+	/**
+	 * What the reviewer raised, and what became of each of them.
+	 *
+	 * Empty when the reviewer holds no verdict tool. When it does, this is what
+	 * `approved` is computed from: the reviewer saying yes over an obligation it
+	 * never closed does not finish the work, and a run that stopped short says
+	 * which ones are still open rather than only that it stopped.
+	 */
+	obligations: readonly Obligation[];
 };
 
 /**
@@ -91,6 +101,7 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 	// here rather than per round, so a reviewer kept across rounds keeps its own.
 	const speaksByTool = !options.approved && declaresVerdict(reviewer.tools);
 	const verdicts = speaksByTool ? verdictTool() : undefined;
+	const ledger = createLedger();
 
 	const isApproved = options.approved ?? approvedByDefault;
 	const steps: Result[] = [];
@@ -109,6 +120,7 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 		rounds,
 		approved,
 		verdict,
+		obligations: ledger.all,
 	});
 
 	if (signal?.aborted) {
@@ -156,7 +168,8 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 
 			const judging = await pool.acquire(reviewer, reviewer.name);
 			try {
-				review = await judging.ask(reviewPrompt(input, work.output, round, speaksByTool), { signal, timeoutMs });
+				const prompt = reviewPrompt(input, work.output, round, { byTool: speaksByTool, open: ledger.open });
+				review = await judging.ask(prompt, { signal, timeoutMs });
 			} finally {
 				await pool.release(judging);
 			}
@@ -165,9 +178,12 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 
 			if (verdicts) {
 				verdict = lastVerdict(verdicts.take());
-				// A reviewer holding the tool and calling nothing has not approved.
-				// Guessing from its prose is the reading this tool exists to retire.
-				if (verdict?.approved) return outcome(work, review, round, true);
+				if (verdict) record(ledger, verdict, reviewer.name, round);
+				// Two things have to hold: the reviewer has nothing further to ask,
+				// and nothing it raised earlier is still open. A reviewer holding the
+				// tool and calling nothing has not approved either - guessing from its
+				// prose is the reading this tool exists to retire.
+				if (verdict?.approved && ledger.settled) return outcome(work, review, round, true);
 			} else if (await isApproved(review, round)) {
 				return outcome(work, review, round, true);
 			}
@@ -195,9 +211,30 @@ function approvedByDefault(review: Result): boolean {
 	return saysWord(review.output, APPROVAL);
 }
 
-/** What the reviewer is asked: the goal, then what was done about it. */
-export function reviewPrompt(goal: string, work: string, round: number, byTool = false): string {
-	return [
+/**
+ * Writes a round's verdict into the ledger: what it closed, then what it raised.
+ *
+ * Closures first, so an obligation raised this round cannot be closed by the
+ * same call. A closure the ledger refuses - an unknown id, one the reviewer did
+ * not raise - leaves it open, which is the outcome the caller reads anyway.
+ */
+function record(ledger: Ledger, verdict: Verdict, by: string, round: number): void {
+	for (const one of verdict.resolved) ledger.close(one.id, by, { how: one.how, reason: one.reason, at: round });
+	for (const text of verdict.raised) ledger.raise(by, text, round);
+}
+
+/** How the reviewer is asked to answer, and what it still owes. */
+export type ReviewPromptOptions = {
+	/** Whether the reviewer decides through the `verdict` tool. */
+	byTool?: boolean;
+	/** Obligations still open, which it is asked to answer for by id. */
+	open?: readonly Obligation[];
+};
+
+/** What the reviewer is asked: the goal, what was done, and what is still owed. */
+export function reviewPrompt(goal: string, work: string, round: number, options: ReviewPromptOptions = {}): string {
+	const owed = options.open ?? [];
+	const parts = [
 		round === 1 ? "Review this work." : `Review this work again - this is round ${round}.`,
 		"",
 		"It was asked to:",
@@ -206,11 +243,23 @@ export function reviewPrompt(goal: string, work: string, round: number, byTool =
 		"What was done:",
 		work.trim(),
 		"",
-		"Read the code itself rather than trusting the summary.",
-		byTool
-			? "End by calling the `verdict` tool: that call is what is read as your decision."
-			: `Answer ${APPROVAL} alone when you have nothing left to ask for.`,
-	].join("\n");
+	];
+
+	if (owed.length) parts.push("Still open, from your earlier rounds:", openList(owed), "");
+	parts.push("Read the code itself rather than trusting the summary.");
+
+	if (!options.byTool) {
+		parts.push(`Answer ${APPROVAL} alone when you have nothing left to ask for.`);
+		return parts.join("\n");
+	}
+
+	parts.push("End by calling the `verdict` tool: that call is what is read as your decision.");
+	if (owed.length) {
+		parts.push(
+			"Name in `resolved` every id above you are done with. One you leave out stays open, and the work is not finished while anything is.",
+		);
+	}
+	return parts.join("\n");
 }
 
 /** What the worker gets back: the remarks, and how much room is left. */

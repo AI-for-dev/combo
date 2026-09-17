@@ -22,9 +22,19 @@ import { defineTool, type ToolDefinition } from "./session.ts";
 /** The name an agent writes in its `tools:` to be given the tool. */
 export const VERDICT_TOOL = "verdict";
 
+/** What an agent said about one obligation it had raised. */
+export type Resolution = {
+	/** The obligation, by the id the ledger gave it. */
+	id: string;
+	/** `"addressed"` when the work was done, `"withdrawn"` when it is dropped. */
+	how: "addressed" | "withdrawn";
+	/** Why. A withdrawal without one is a silent drop. */
+	reason?: string;
+};
+
 /** One decision, as the agent that made it declared it. */
 export type Verdict = {
-	/** Whether the work was accepted. */
+	/** Whether the agent has nothing further to ask. Never the last word on its own. */
 	approved: boolean;
 	/**
 	 * Why, in the reviewer's own words. Required when `approved` is false.
@@ -34,6 +44,10 @@ export type Verdict = {
 	 * it chose to attach to the decision, kept for whoever reads the outcome.
 	 */
 	remarks?: string;
+	/** Obligations it says are done with, by id. Ones it does not name stay open. */
+	resolved: Resolution[];
+	/** New obligations it raises, as it wrote them. */
+	raised: string[];
 };
 
 /** The tool, and the decisions it has collected so far. */
@@ -67,12 +81,26 @@ export function verdictTool(): VerdictTool {
 		label: "Verdict",
 		description:
 			"Give your decision on the work you were asked to review. Call this exactly once, " +
-			"after you have read the code. Prose in your answer is not a decision: this call is.",
+			"after you have read the code. Prose in your answer is not a decision: this call is. " +
+			"Name in `resolved` every open obligation you are done with: one you do not name stays open.",
 		promptSnippet: "Give your decision on the work under review",
 		parameters: Type.Object({
 			approved: Type.Boolean({ description: "true when you have nothing left to ask for." }),
 			remarks: Type.Optional(
 				Type.String({ description: "What is still missing. Required when approved is false." }),
+			),
+			resolved: Type.Optional(
+				Type.Array(
+					Type.Object({
+						id: Type.String({ description: "The obligation id, exactly as it was listed." }),
+						how: Type.String({ description: '"addressed" when the work was done, "withdrawn" when you drop it.' }),
+						reason: Type.Optional(Type.String({ description: "Why. Required for a withdrawal." })),
+					}),
+					{ description: "Open obligations you are done with. One you leave out stays open." },
+				),
+			),
+			raised: Type.Optional(
+				Type.Array(Type.String(), { description: "New things that must happen, one per entry." }),
 			),
 		}),
 		async execute(_toolCallId, params) {
@@ -81,15 +109,27 @@ export function verdictTool(): VerdictTool {
 			const remarks = params.remarks?.trim() || undefined;
 			// A refusal that says nothing cannot be acted on, and the agent is the
 			// only one who can repair it - so it is told, and gets to call again.
-			if (!params.approved && !remarks) {
+			if (!params.approved && !remarks && !(params.raised ?? []).length) {
 				return {
-					content: [{ type: "text" as const, text: "A verdict of `approved: false` needs remarks. Call again with them." }],
+					content: [
+						{ type: "text" as const, text: "A verdict of `approved: false` needs remarks, or something raised. Call again with them." },
+					],
 					details: undefined,
 					isError: true,
 				};
 			}
 
-			given.push({ approved: params.approved, remarks });
+			// A `how` the schema allows but the type does not is dropped rather than
+			// guessed: closing an obligation the wrong way is worse than not closing
+			// it, and an unclosed one is visible while a mis-closed one is not.
+			const resolved: Resolution[] = [];
+			for (const one of params.resolved ?? []) {
+				if (one.how !== "addressed" && one.how !== "withdrawn") continue;
+				resolved.push({ id: one.id.trim(), how: one.how, reason: one.reason?.trim() || undefined });
+			}
+			const raised = (params.raised ?? []).map((one) => one.trim()).filter(Boolean);
+
+			given.push({ approved: params.approved, remarks, resolved, raised });
 			return {
 				content: [{ type: "text" as const, text: params.approved ? "Recorded: approved." : "Recorded: not approved." }],
 				details: undefined,

@@ -15,6 +15,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`experiment`](experiment.md) | Running the same work across several models, several times. | 4 |
 | [`export`](export.md) | Exporting a run: `runs/<timestamp>/` with one HTML and one JSONL per subagent, plus a `usage.json`. | 9 |
 | [`git`](git.md) | The git a pipeline is allowed to do - and nothing else. | 10 |
+| [`ledger`](ledger.md) | What is left to do, as a list nobody can lose track of. | 6 |
 | [`pipeline-load`](pipeline-load.md) | Finding the pipelines a user wrote, wherever they put them. | 6 |
 | [`pipeline`](pipeline.md) | A pipeline is *data*: an ordered list of combinator calls, declared as YAML frontmatter + Markdown, following the same convention as an agent. | 5 |
 | [`reporters/console`](reporters/console.md) | A plain console reporter: one line per event that matters. | 2 |
@@ -31,7 +32,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`subagent`](subagent.md) | A subagent: a live session, a memory, a state. | 4 |
 | [`text`](text.md) | Reading what a model wrote: shortening it, and finding the structure in it. | 2 |
 | [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 7 |
-| [`verdict`](verdict.md) | A verdict given as a tool call, rather than recovered from prose. | 6 |
+| [`verdict`](verdict.md) | A verdict given as a tool call, rather than recovered from prose. | 7 |
 | [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 4 |
 | [`workflows/chain`](workflows/chain.md) | `chain`: 1 → 1 → 1. The output of step *n* is the input of step *n+1*. | 2 |
 | [`workflows/common`](workflows/common.md) | What every combinator shares: the same options, the same defaults, and the same way of honouring lifetime. | 4 |
@@ -40,7 +41,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`workflows/interview`](workflows/interview.md) | `interview`: a conversation with the *user*, ending in a brief. | 8 |
 | [`workflows/loop`](workflows/loop.md) | `loop`: 1 → 1, repeated until a criterion is met. | 4 |
 | [`workflows/orchestrate`](workflows/orchestrate.md) | `orchestrate`: 1 → ?. An agent *decides* the split, then the split runs. | 3 |
-| [`workflows/pair`](workflows/pair.md) | `pair`: one worker, one reviewer, talking until the work is accepted. | 6 |
+| [`workflows/pair`](workflows/pair.md) | `pair`: one worker, one reviewer, talking until the work is accepted. | 7 |
 | [`workflows/pipeline-run`](workflows/pipeline-run.md) | Running a pipeline: the piece `pipeline.ts` describes and deliberately leaves to someone else. | 6 |
 | [`workflows/plan`](workflows/plan.md) | Reading a plan an agent wrote: the prompt, the parser, the validation. | 6 |
 | [`workflows/reduce`](workflows/reduce.md) | `reduce`: N → 1. One agent synthesises the results of a fan-out. | 3 |
@@ -56,6 +57,7 @@ experiment-report
 experiment
 export
 git
+ledger
 pipeline-load
 pipeline
 reporters/console

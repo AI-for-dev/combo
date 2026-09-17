@@ -128,6 +128,25 @@ naming a defect, a file, a line and a concrete failure. `verdict.remarks` is the
 short form the reviewer attached to its decision, kept on the result for whoever
 reads the outcome.
 
+#### What is still owed
+
+Everything the reviewer raises becomes an **obligation** with an id that combo
+assigns and that never changes. Later rounds list the open ones and ask the
+reviewer what became of each, by id.
+
+```typescript
+built.obligations;                                // every one, open and closed, in order
+built.obligations.filter((one) => !one.closed);   // what stopped the run
+```
+
+So `approved` means two things at once: the reviewer had nothing further to ask,
+and nothing it raised is still open. A reviewer that says yes over an obligation
+it never closed does not finish the work, and the result names the ones left.
+
+Only the agent that raised an obligation can close it, and one that a round does
+not name stays open. [Design decisions](../decisions.md) has the reasoning for
+both.
+
 ### `interview` - the agent questions the user
 
 ```typescript
