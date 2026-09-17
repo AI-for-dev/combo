@@ -161,6 +161,9 @@ export function fromBuildState(state: BuildState, agents: readonly Agent[]): Bui
 		steps: [],
 		rounds: task.rounds,
 		approved: task.approved,
+		// Not persisted: only **approved** subtasks survive a resume, and an
+		// approved one had nothing open. What is lost is the trail, not the state.
+		obligations: [],
 	}));
 
 	const audits: AuditRound[] = state.audits.map((round) => ({

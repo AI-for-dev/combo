@@ -180,7 +180,7 @@ describe("pair, when the reviewer decides through the verdict tool", () => {
 		const result = await pair({ worker, reviewer: judge, input: "implement the parser", spawn: fake.spawn });
 
 		assert.equal(result.approved, true);
-		assert.deepEqual(result.verdict, { approved: true, remarks: undefined });
+		assert.deepEqual(result.verdict, { approved: true, remarks: undefined, resolved: [], raised: [] });
 		assert.equal(result.rounds, 1);
 	});
 
@@ -200,7 +200,7 @@ describe("pair, when the reviewer decides through the verdict tool", () => {
 		const result = await pair({ worker, reviewer: judge, input: "x", maxRounds: 1, spawn: fake.spawn });
 
 		assert.equal(result.approved, false);
-		assert.deepEqual(result.verdict, { approved: false, remarks: "round 1: short form" });
+		assert.deepEqual(result.verdict, { approved: false, remarks: "round 1: short form", resolved: [], raised: [] });
 	});
 
 	test("only the reviewer is offered the tool", async () => {
@@ -231,6 +231,95 @@ describe("pair, when the reviewer decides through the verdict tool", () => {
 
 		assert.equal(result.approved, true);
 		assert.equal(result.verdict, undefined);
+		assert.deepEqual(result.obligations, []);
 		assert.equal(fake.spawned[1]?.options.customTools, undefined);
+	});
+});
+
+describe("pair, with a ledger of obligations", () => {
+	const judge = testAgent("reviewer", { description: "Reviews code", tools: ["read", VERDICT_TOOL] });
+
+	/** A reviewer driven round by round: what it raises, resolves, and decides. */
+	const scripted = (rounds: Record<string, unknown>[]) => {
+		let round = 0;
+		return fakeSpawn(async (task, agent, options) => {
+			if (agent.name !== "reviewer") return { output: "work done" };
+			const tool = options.customTools?.[0];
+			assert.ok(tool);
+			await callTool(tool, rounds[round++] ?? { approved: true });
+			return { output: `saw: ${task.slice(-120)}` };
+		});
+	};
+
+	test("an obligation keeps its id across rounds, and is listed until it closes", async () => {
+		const fake = scripted([
+			{ approved: false, raised: ["the parser drops the last token"] },
+			{ approved: true, resolved: [{ id: "o1", how: "addressed" }] },
+		]);
+		const result = await pair({ worker, reviewer: judge, input: "x", maxRounds: 3, spawn: fake.spawn });
+
+		assert.equal(result.approved, true);
+		assert.equal(result.rounds, 2);
+		assert.deepEqual(
+			result.obligations.map((one) => [one.id, one.openedAt, one.closed?.at]),
+			[["o1", 1, 2]],
+		);
+
+		const second = fake.asks.filter((ask) => ask.id.startsWith("reviewer"))[1]?.task ?? "";
+		assert.match(second, /Still open, from your earlier rounds:\no1: the parser drops the last token/);
+	});
+
+	test("approving over an open obligation does not finish the work", async () => {
+		const fake = scripted([
+			{ approved: false, raised: ["one", "two"] },
+			{ approved: true, resolved: [{ id: "o1", how: "addressed" }] },
+		]);
+		const result = await pair({ worker, reviewer: judge, input: "x", maxRounds: 2, spawn: fake.spawn });
+
+		assert.equal(result.verdict?.approved, true, "the reviewer said yes");
+		assert.equal(result.approved, false, "and `o2` was still open, so the work is not finished");
+		assert.deepEqual(
+			result.obligations.filter((one) => !one.closed).map((one) => one.id),
+			["o2"],
+		);
+	});
+
+	test("a withdrawal closes it, and keeps the reason it was dropped for", async () => {
+		const fake = scripted([
+			{ approved: false, raised: ["the parser drops the last token"] },
+			{ approved: true, resolved: [{ id: "o1", how: "withdrawn", reason: "the code already did it" }] },
+		]);
+		const result = await pair({ worker, reviewer: judge, input: "x", maxRounds: 2, spawn: fake.spawn });
+
+		assert.equal(result.approved, true);
+		assert.deepEqual(result.obligations[0]?.closed, { how: "withdrawn", reason: "the code already did it", at: 2 });
+	});
+
+	test("an obligation a round does not name stays open, whatever else it says", async () => {
+		const fake = scripted([{ approved: false, raised: ["one"] }, { approved: true }, { approved: true }]);
+		const result = await pair({ worker, reviewer: judge, input: "x", maxRounds: 3, spawn: fake.spawn });
+
+		assert.equal(result.approved, false);
+		assert.equal(result.rounds, 3, "three rounds spent on one line nobody answered for");
+		assert.equal(result.obligations[0]?.closed, undefined);
+	});
+
+	test("an id the reviewer never raised closes nothing", async () => {
+		const fake = scripted([
+			{ approved: false, raised: ["one"] },
+			{ approved: true, resolved: [{ id: "o7", how: "addressed" }] },
+		]);
+		const result = await pair({ worker, reviewer: judge, input: "x", maxRounds: 2, spawn: fake.spawn });
+
+		assert.equal(result.approved, false);
+		assert.equal(result.obligations.length, 1, "a resolution naming nothing raises nothing either");
+	});
+
+	test("a round cannot raise and close the same obligation", async () => {
+		const fake = scripted([{ approved: true, raised: ["one"], resolved: [{ id: "o1", how: "addressed" }] }]);
+		const result = await pair({ worker, reviewer: judge, input: "x", maxRounds: 1, spawn: fake.spawn });
+
+		assert.equal(result.approved, false);
+		assert.equal(result.obligations[0]?.closed, undefined, "closures are applied before anything new is raised");
 	});
 });

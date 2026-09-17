@@ -102,6 +102,15 @@ export type PairResult = Result & {
 	 * `approved: false` and no verdict, the reviewer never decided.
 	 */
 	verdict?: Verdict;
+	/**
+	 * What the reviewer raised, and what became of each of them.
+	 *
+	 * Empty when the reviewer holds no verdict tool. When it does, this is what
+	 * `approved` is computed from: the reviewer saying yes over an obligation it
+	 * never closed does not finish the work, and a run that stopped short says
+	 * which ones are still open rather than only that it stopped.
+	 */
+	obligations: readonly Obligation[];
 };
 ```
 
@@ -122,7 +131,22 @@ What the worker gets back: the remarks, and how much room is left.
 *function*
 
 ```typescript
-export function reviewPrompt(goal: string, work: string, round: number, byTool = false): string { /* … */ }
+export function reviewPrompt(goal: string, work: string, round: number, options: ReviewPromptOptions = {}): string { /* … */ }
 ```
 
-What the reviewer is asked: the goal, then what was done about it.
+What the reviewer is asked: the goal, what was done, and what is still owed.
+
+## `ReviewPromptOptions`
+
+*type*
+
+```typescript
+export type ReviewPromptOptions = {
+	/** Whether the reviewer decides through the `verdict` tool. */
+	byTool?: boolean;
+	/** Obligations still open, which it is asked to answer for by id. */
+	open?: readonly Obligation[];
+};
+```
+
+How the reviewer is asked to answer, and what it still owes.

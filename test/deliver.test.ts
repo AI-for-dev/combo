@@ -276,6 +276,7 @@ describe("resuming", () => {
 				steps: [],
 				rounds: 1,
 				approved: true,
+				obligations: [],
 			},
 		],
 		audits: [],
@@ -311,6 +312,7 @@ describe("resuming", () => {
 					steps: [],
 					rounds: 3,
 					approved: false,
+					obligations: [],
 				},
 			],
 		});
@@ -443,7 +445,7 @@ describe("auditPrompt", () => {
 		const prompt = auditPrompt(
 			"the brief",
 			[
-				{ agent: "coder", input: "write it", output: "done", ok: true, approved: true, rounds: 1, steps: [], usage: {} as never, messages: [] },
+				{ agent: "coder", input: "write it", output: "done", ok: true, approved: true, rounds: 1, steps: [], usage: {} as never, messages: [], obligations: [] },
 				{
 					agent: "scribe",
 					input: "document it",
@@ -455,6 +457,7 @@ describe("auditPrompt", () => {
 					steps: [],
 					usage: {} as never,
 					messages: [],
+					obligations: [],
 				},
 			],
 			1,

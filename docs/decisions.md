@@ -314,6 +314,45 @@ nobody offered one to still has to be able to say yes.
 None of this makes a model's judgement deterministic. It makes reading that
 judgement deterministic, which is the only part of it that was ever ours.
 
+### Finished is a ledger, not an opinion
+
+A clean channel carries a bad judgement as faithfully as a good one. Measured on
+the run that shipped the tool: against `ilaas/qwen-3.6-35b-instruct` the reviewer
+called `verdict` correctly and approved a function that computes `a - b` while
+claiming to add. The decision arrived perfectly and was wrong.
+
+So `approved` stops being what the reviewer said. Everything a reviewer raises
+becomes an **obligation** in `src/ledger.ts`, with an id combo assigns and that
+never changes, and finished means the reviewer has nothing further to ask *and*
+nothing it raised is still open.
+
+**The ledger is ours, not the agent's.** Asking a reviewer to re-emit its remarks
+each round puts us back to matching one round's prose against another's, and "is
+this the same remark as last time" becomes a guess. Instead a round is handed the
+open ids and answers a closed question per id.
+
+Three rules, in code rather than in a prompt:
+
+- **Only whoever raised an obligation may close it.** A worker cannot declare its
+  own work accepted, and `close` refuses with `ok: false` rather than throwing -
+  an agent naming the wrong id is a runtime outcome, not a programming error.
+- **An obligation a round does not name stays open.** A model that forgets is not
+  a model that approved, and failing closed is the only default that cannot be
+  talked round.
+- **Nothing is rewritten.** An obligation keeps the text it was raised with, so a
+  reworded one is a new one.
+
+Closures are applied before anything new is raised, so a round cannot raise and
+close the same obligation in one call.
+
+What this buys over a boolean: a run that stopped short says **which** lines are
+open and since which round, which separates a pair that is making progress from
+one that is stuck. `approved: false` has never been able to say that.
+
+What it does not buy: an obligation closed by the reviewer's assent is still a
+judgement. It is a smaller and attributable one, about a single sentence it wrote
+itself, rather than about the whole of the work.
+
 ## Pipelines: a workflow written down
 
 `src/pipeline.ts` parses one, `src/pipeline-load.ts` finds it, and
