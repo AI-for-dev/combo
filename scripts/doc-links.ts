@@ -24,14 +24,11 @@ export const GENERATED_PREFIX = "docs/reference/api/";
 /**
  * Markdown under `docs/` that is not a page of the documentation: it explains
  * how to build the site, says what the marks in `_static/logo/` are for, or is
- * the built site itself. Sphinx is told the same thing by `exclude_patterns` in
- * `conf.py`, and for the same reason - a file nobody can reach from the
- * navigation is a defect only when it was meant to be reachable.
+ * the built site under `_build/`. A file nobody can reach from the navigation
+ * is a defect only when it was meant to be reachable.
  *
- * The two lists have to agree. `_build/` is what happens when they do not:
- * `make -C docs html` writes the site, every page of it then reads as a source
- * page nobody linked, and the documented build command leaves the documented
- * test command red.
+ * This list mirrors `exclude_patterns` in `conf.py`, and has to keep mirroring
+ * it: what Sphinx refuses to collect is not a source page here either.
  */
 const NOT_A_PAGE = ["docs/README.md", "docs/_static/", "docs/_build/"];
 

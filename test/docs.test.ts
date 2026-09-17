@@ -82,8 +82,8 @@ describe("the hand-written pages", () => {
 	});
 
 	test("the built site is not collected as source", () => {
-		// On a temporary root rather than the real one: `make -C docs html` is
-		// how this happens, and a test may not depend on whether someone ran it.
+		// A temporary root, not the real `docs/`: the suite must not depend on
+		// whether someone has built the site.
 		const scratch = mkdtempSync(join(tmpdir(), "combo-docs-"));
 		try {
 			mkdirSync(join(scratch, "docs", "_build", "html"), { recursive: true });
