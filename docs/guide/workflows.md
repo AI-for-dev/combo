@@ -132,26 +132,20 @@ reads the outcome.
 
 Everything the reviewer raises becomes an **obligation** with an id that combo
 assigns and that never changes. Later rounds list the open ones and ask the
-reviewer to say what became of each, rather than asking it to write its remarks
-again: matching one round's prose against another's is the guess this replaces.
+reviewer what became of each, by id.
 
 ```typescript
-built.obligations;          // every one raised, open and closed, in order
+built.obligations;                                // every one, open and closed, in order
 built.obligations.filter((one) => !one.closed);   // what stopped the run
 ```
 
-Three rules hold, and they are in the code rather than in a prompt.
+So `approved` means two things at once: the reviewer had nothing further to ask,
+and nothing it raised is still open. A reviewer that says yes over an obligation
+it never closed does not finish the work, and the result names the ones left.
 
-**Only the agent that raised an obligation may close it**, so a worker cannot
-declare its own work accepted. **An obligation a round does not name stays
-open**, because a model that forgets is not a model that approved. And
-**nothing is rewritten**: an obligation keeps the text it was raised with, so a
-reworded one is a new one.
-
-`approved` then means two things at once: the reviewer had nothing further to
-ask, **and** nothing it raised is still open. A reviewer that says yes over an
-obligation it never closed does not finish the work, and the result says which
-ones are open rather than only that it stopped.
+Only the agent that raised an obligation can close it, and one that a round does
+not name stays open. [Design decisions](../decisions.md) has the reasoning for
+both.
 
 ### `interview` - the agent questions the user
 

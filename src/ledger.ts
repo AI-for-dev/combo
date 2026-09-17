@@ -1,11 +1,11 @@
 /**
  * What is left to do, as a list nobody can lose track of.
  *
- * A review produces two kinds of thing: a decision, which
- * {@link ../verdict.ts} carries, and a set of things that must happen before the
- * work is finished. Asking the reviewer to restate the second set every round
- * puts us back to matching one round's prose against another's, and "is this the
- * same remark as last time" becomes a guess.
+ * A review produces two kinds of thing: a decision, which `src/verdict.ts`
+ * carries, and a set of things that must happen before the work is finished.
+ * Asking the reviewer to restate the second set every round puts us back to
+ * matching one round's prose against another's, where "is this the same remark
+ * as last time" is a guess.
  *
  * So this code holds the list. An obligation gets an id when it first appears
  * and keeps it, and the agent answers a closed question per id instead of
@@ -15,14 +15,15 @@
  *
  * - **Only whoever opened an obligation may close it.** A worker cannot declare
  *   its own work accepted.
- * - **An obligation nobody mentions stays open.** A model that forgets is not a
- *   model that approved, and failing closed is the only default that cannot be
- *   talked round.
+ * - **An obligation nobody mentions stays open.** A model that forgets has not
+ *   approved, and failing closed is the only default that cannot be talked
+ *   round.
  * - **Nothing is rewritten.** An obligation opens, it closes, and it keeps the
  *   text it was opened with.
  *
- * None of this makes a judgement deterministic. It makes the unfinished set
- * explicit and every judgement in it small and attributable.
+ * A judgement stays a judgement through all of this. What changes is that the
+ * unfinished set is explicit, and each judgement in it covers one sentence
+ * rather than the whole of the work.
  */
 
 /** How an obligation stopped being open. */
