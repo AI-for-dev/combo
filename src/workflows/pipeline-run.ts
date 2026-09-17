@@ -34,6 +34,7 @@ import { findAgent } from "../agent.ts";
 import type { Pipeline, PipelineStep } from "../pipeline.ts";
 import type { BuildProgress } from "../resume.ts";
 import { failed, type Result } from "../result.ts";
+import { saysWord } from "../text.ts";
 import { sumUsage, type Usage } from "../usage.ts";
 import type { Verify } from "../verify.ts";
 import { chain } from "./chain.ts";
@@ -311,7 +312,7 @@ async function runStep(
 				steps: cast.agents,
 				input: text,
 				maxIterations: step.maxIterations,
-				until: until === undefined ? undefined : (result) => result.output.includes(until),
+				until: until === undefined ? undefined : (result) => saysWord(result.output, until),
 			});
 			// Not converging is not a model error, but it is not a success either:
 			// letting the next step build on work that never reached its bar is

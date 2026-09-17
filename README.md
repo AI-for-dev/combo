@@ -63,7 +63,7 @@ usage.busyMs / usage.wallMs;   // the parallelism actually achieved
 const review = await loop({
 	steps: [coder, reviewer],
 	input: "Implement the parser",
-	until: (step) => step.output.includes("LGTM"),
+	until: (step) => saysWord(step.output, "LGTM"),
 	lifetime: "workflow",       // the reviewer remembers what it already said
 });
 review.converged;               // did it reach the bar, or just run out of iterations?

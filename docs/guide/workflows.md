@@ -50,7 +50,7 @@ unless `failFast` is set.
 const review = await loop({
 	steps: [coder, reviewer],
 	input: "Implement the parser",
-	until: (step) => step.output.includes("LGTM"),
+	until: (step) => saysWord(step.output, "LGTM"),
 	maxIterations: 5,       // defaults to 5
 	lifetime: "workflow",
 });

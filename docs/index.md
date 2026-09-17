@@ -123,7 +123,7 @@ npm test          # offline, no network calls
 ```{code-block} typescript
 :caption: One subagent, then two of them arguing until they agree
 
-import { findAgent, loadAgents, loop, run } from "combo";
+import { findAgent, loadAgents, loop, run, saysWord } from "combo";
 
 const agents = loadAgents();
 const scout = findAgent(agents, "scout");
@@ -134,7 +134,7 @@ result.ok;                      // a model failure is a Result, never a throw
 const review = await loop({
 	steps: [findAgent(agents, "coder"), findAgent(agents, "reviewer")],
 	input: "Implement the parser",
-	until: (step) => step.output.includes("LGTM"),
+	until: (step) => saysWord(step.output, "LGTM"),
 	lifetime: "workflow",       // the reviewer remembers what it already said
 	timeoutMs: 300_000,         // no default: pi's agent loop has no step cap
 });

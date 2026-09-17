@@ -14,7 +14,7 @@
  *    converges immediately would show the same count for both.
  */
 
-import { aggregate, formatUsage, loop, READ_ONLY_TOOLS, type Lifetime, type SubagentEvent } from "../src/index.ts";
+import { aggregate, formatUsage, loop, READ_ONLY_TOOLS, saysWord, type Lifetime, type SubagentEvent } from "../src/index.ts";
 import { agent, consoleReporter, repoRoot, show } from "./shared.ts";
 
 /**
@@ -54,7 +54,7 @@ const converge = await loop({
 	steps,
 	input,
 	lifetime: "workflow",
-	until: (step) => step.output.includes("LGTM"),
+	until: (step) => saysWord(step.output, "LGTM"),
 	maxIterations: 3,
 	// pi's agent loop has no step cap; never run this unattended without one.
 	timeoutMs: 120_000,

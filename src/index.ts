@@ -109,7 +109,9 @@ export {
 	widgetRows,
 	type WidgetRow,
 } from "./reporters/index.ts";
-export { truncate } from "./text.ts";
+// `saysWord` is the convention every verdict here is read with: the extension
+// builds its `until` from it, so it cannot stay internal.
+export { saysWord, truncate } from "./text.ts";
 
 // ── Measuring a run: transcripts on disk, and the matrix above them ──────────
 

@@ -100,7 +100,7 @@ describe("executeSubagent", () => {
 	});
 
 	test("loop: `until` becomes a predicate on the last output, and convergence is reported", async () => {
-		const fake = fakeSpawn(() => ({ output: "all good: LGTM" }));
+		const fake = fakeSpawn(() => ({ output: "all good\n**LGTM**" }));
 		const output = await executeSubagent(
 			{ steps: ["coder", "reviewer"], task: "parse it", until: "LGTM", maxIterations: 3 },
 			deps({ spawn: fake.spawn }),
@@ -109,6 +109,17 @@ describe("executeSubagent", () => {
 		assert.equal(output.details.converged, true);
 		assert.equal(output.details.iterations, 1);
 		assert.match(say(output), /converged after 1 iteration/);
+	});
+
+	test("a review that names the word while refusing it does not converge", async () => {
+		const fake = fakeSpawn(() => ({ output: "I cannot say LGTM yet: the parser still drops the last token." }));
+		const output = await executeSubagent(
+			{ steps: ["coder", "reviewer"], task: "parse it", until: "LGTM", maxIterations: 2 },
+			deps({ spawn: fake.spawn }),
+		);
+
+		assert.equal(output.details.converged, false);
+		assert.equal(output.details.iterations, 2);
 	});
 
 	test("a loop that never converges says so, rather than reading as a success", async () => {

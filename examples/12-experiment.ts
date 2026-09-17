@@ -15,7 +15,7 @@
  * measure the contention, not the models.
  */
 
-import { experiment, experimentTable, loop, READ_ONLY_TOOLS } from "../src/index.ts";
+import { experiment, experimentTable, loop, READ_ONLY_TOOLS, saysWord } from "../src/index.ts";
 import { agent, consoleReporter, positional, repoRoot } from "./shared.ts";
 
 if (positional.length === 0) {
@@ -48,7 +48,7 @@ const report = await experiment({
 			steps,
 			input,
 			lifetime: "workflow",
-			until: (step) => step.output.includes("LGTM"),
+			until: (step) => saysWord(step.output, "LGTM"),
 			maxIterations: 3,
 		});
 		return { ok: result.ok, error: result.error, converged: result.converged, iterations: result.iterations };

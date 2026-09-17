@@ -49,7 +49,12 @@ const Schema = Type.Object({
 		}),
 	),
 	concurrency: Type.Optional(Type.Number({ description: "Parallel branches at once. Default 4." })),
-	until: Type.Optional(Type.String({ description: "Loop stops when the last output contains this text." })),
+	until: Type.Optional(
+		Type.String({
+			description:
+				'Loop stops when the last output says this word alone on a line, e.g. "LGTM". A line with anything else on it does not count.',
+		}),
+	),
 	maxIterations: Type.Optional(Type.Number({ description: "Loop iteration cap. Default 5." })),
 	maxTasks: Type.Optional(Type.Number({ description: "Most subtasks an orchestrate plan may contain. Default 8." })),
 	candidates: Type.Optional(
@@ -101,7 +106,7 @@ export default function (pi: ExtensionAPI) {
 		description: [
 			"Delegate work to isolated subagents and compose them.",
 			"Modes: single (agent + task), parallel (agent + tasks), chain (steps + task),",
-			"loop (steps + task + until, iterates until the last output contains `until`),",
+			"loop (steps + task + until, iterates until the last output says `until` alone on a line),",
 			"reduce (agent + tasks + reduceWith + task, fans out then synthesises into one answer),",
 			"route (agent + candidates + task, the agent classifies and one candidate does the work),",
 			"orchestrate (agent + candidates + task, the agent plans the split and the workers run it).",

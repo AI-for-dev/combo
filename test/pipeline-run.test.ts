@@ -173,6 +173,29 @@ describe("runPipeline", () => {
 		assert.equal(done.steps.length, 1, "the next step is not handed unconverged work");
 	});
 
+	test("a step's `until` reads a verdict, not a substring", async () => {
+		const refusing = fakeSpawn(() => ({ output: "I cannot say LGTM yet: the parser drops the last token." }));
+		const source = 'name: p\nsteps:\n  - id: refine\n    loop: [coder, reviewer]\n    until: "LGTM"\n    maxIterations: 2';
+		const body = "## refine\nRefine.";
+
+		const refused = await runPipeline({
+			pipeline: pipeline(source, body),
+			agents,
+			input: "x",
+			spawn: refusing.spawn,
+		});
+		assert.equal(refused.ok, false, "naming the word while refusing it is a refusal");
+
+		const approving = fakeSpawn(() => ({ output: "the parser is correct now\n**LGTM**" }));
+		const approved = await runPipeline({
+			pipeline: pipeline(source, body),
+			agents,
+			input: "x",
+			spawn: approving.spawn,
+		});
+		assert.equal(approved.ok, true, "decoration around the word on its own line still counts");
+	});
+
 	test("a step's own lifetime wins over the run's", async () => {
 		const fake = fakeSpawn();
 		await runPipeline({
