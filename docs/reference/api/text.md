@@ -16,6 +16,22 @@ A model does not answer in a format. It answers in prose with the format
 somewhere inside, decorated with whatever markdown it felt like adding, which
 is why these are lenient by design.
 
+## `saysWord`
+
+*function*
+
+```typescript
+export function saysWord(output: string, word: string): boolean { /* … */ }
+```
+
+Whether `word` stands alone on one of the lines.
+
+The convention three workflows depend on - `LGTM`, `APPROVED`, `READY` - and
+the reason it is lenient: a model that has been told to answer with one word
+still writes `**LGTM**`, `## APPROVED` or `READY.`, and a strict match would
+loop forever waiting for a verdict already given. Decoration is stripped, case
+is ignored; a line with anything else on it still does not count.
+
 ## `truncate`
 
 *function*

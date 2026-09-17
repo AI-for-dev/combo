@@ -24,7 +24,7 @@ await loop({
 	steps: [coder, reviewer],
 	input: task,
 	lifetime: "workflow",
-	until: (step) => step.output.includes("LGTM"),
+	until: (step) => saysWord(step.output, "LGTM"),
 	maxIterations: 5,
 });
 

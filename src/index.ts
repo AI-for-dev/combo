@@ -109,7 +109,7 @@ export {
 	widgetRows,
 	type WidgetRow,
 } from "./reporters/index.ts";
-export { truncate } from "./text.ts";
+export { saysWord, truncate } from "./text.ts";
 
 // ── Measuring a run: transcripts on disk, and the matrix above them ──────────
 

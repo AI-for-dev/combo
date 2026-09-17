@@ -68,7 +68,7 @@ Combinators take agents and give back results. They compose because they all
 speak the same `Result`.
 
 ```typescript
-import { chain, fanOut, loop } from "combo";
+import { chain, fanOut, loop, saysWord } from "combo";
 
 await chain({ steps: [scout, reviewer], input: "Explain how usage is measured" });
 
@@ -77,7 +77,7 @@ await fanOut({ agent: scout, tasks: ["find A", "find B", "find C"], concurrency:
 await loop({
 	steps: [coder, reviewer],
 	input: "Implement the parser",
-	until: (step) => step.output.includes("LGTM"),
+	until: (step) => saysWord(step.output, "LGTM"),
 	lifetime: "workflow",
 });
 ```
