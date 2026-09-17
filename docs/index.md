@@ -90,6 +90,13 @@ A workflow written in Markdown, next to your agents.
 
 Interview, plan, pair, check, audit, commit.
 :::
+
+:::{grid-item-card} {octicon}`repo-forked` Worktrees
+:link: guide/worktree
+:link-type: doc
+
+A working copy each, so two subagents can write at once.
+:::
 ::::
 
 ## Watching and measuring
@@ -152,6 +159,7 @@ guide/lifetime
 guide/workflows
 guide/pipelines
 guide/build
+guide/worktree
 guide/display
 guide/measurements
 guide/export
