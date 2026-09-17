@@ -100,8 +100,13 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 	// The reviewer decides through a tool when its definition asks for one. Built
 	// here rather than per round, so a reviewer kept across rounds keeps its own.
 	const speaksByTool = !options.approved && declaresVerdict(reviewer.tools);
-	const verdicts = speaksByTool ? verdictTool() : undefined;
 	const ledger = createLedger();
+	const verdicts = speaksByTool
+		? verdictTool({
+				knows: (id) => ledger.open.some((one) => one.id === id),
+				open: () => ledger.open.map((one) => one.id),
+			})
+		: undefined;
 
 	const isApproved = options.approved ?? approvedByDefault;
 	const steps: Result[] = [];

@@ -67,6 +67,29 @@ describe("verdictTool", () => {
 		]);
 	});
 
+	test("an id nothing is open for is refused, and the agent is told which ones are", async () => {
+		const verdicts = verdictTool({ knows: (id) => id === "o2", open: () => ["o2"] });
+		const answer = await call(verdicts.tool, { approved: true, resolved: [{ id: "1", how: "addressed" }] });
+
+		assert.equal(answer.isError, true);
+		assert.match(answer.content[0]?.text ?? "", /No open obligation for 1\. The ids you may close: o2\./);
+		assert.deepEqual(verdicts.take(), [], "and nothing of the call is kept");
+	});
+
+	test("with nothing open at all, the refusal says so rather than listing nothing", async () => {
+		const verdicts = verdictTool({ knows: () => false, open: () => [] });
+		const answer = await call(verdicts.tool, { approved: true, resolved: [{ id: "1", how: "addressed" }] });
+
+		assert.match(answer.content[0]?.text ?? "", /Nothing is open\./);
+	});
+
+	test("without a validator every id is taken on trust", async () => {
+		const verdicts = verdictTool();
+		await call(verdicts.tool, { approved: true, resolved: [{ id: "o9", how: "addressed" }] });
+
+		assert.deepEqual(verdicts.take()[0]?.resolved, [{ id: "o9", how: "addressed", reason: undefined }]);
+	});
+
 	test("taking drains, so a round reads its own decisions and not the previous ones", async () => {
 		const verdicts = verdictTool();
 		await call(verdicts.tool, { approved: false, remarks: "round one" });

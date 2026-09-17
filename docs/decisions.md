@@ -345,6 +345,14 @@ Three rules, in code rather than in a prompt:
 Closures are applied before anything new is raised, so a round cannot raise and
 close the same obligation in one call.
 
+An id the ledger has nothing open for is refused by the **tool**, not silently
+by the ledger afterwards. Measured against `ilaas/gemma-4-31b`: an auditor with
+an empty ledger sent `resolved: [{ id: "1" }]`, inventing both the line and the
+id format. The ledger refused it and the outcome was right, but nothing said so
+anywhere a reader would look. Refusing in the tool tells the agent which ids it
+may close and lets it call again inside the same turn, which is the only moment
+it can still repair the mistake.
+
 A boolean could only ever say that the work stopped. A ledger says which lines
 are open and since which round, which is the difference between a pair making
 progress and a pair that is stuck.
