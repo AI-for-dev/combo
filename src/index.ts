@@ -187,6 +187,14 @@ export {
 	untracked,
 	type GitResult,
 } from "./git.ts";
+export {
+	createWorktree,
+	listWorktrees,
+	removeWorktree,
+	worktreePatch,
+	type CreateWorktreeOptions,
+	type Worktree,
+} from "./worktree.ts";
 export { commandVerifier, type CommandVerifierOptions, type Verification, type Verify } from "./verify.ts";
 export {
 	declaresVerdict,
