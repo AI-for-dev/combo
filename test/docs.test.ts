@@ -13,7 +13,8 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, test } from "node:test";
@@ -78,6 +79,21 @@ describe("the hand-written pages", () => {
 
 	test("every symbol an example imports is really exported", () => {
 		assert.deepEqual(unknownImports(root, pages), []);
+	});
+
+	test("the built site is not collected as source", () => {
+		// On a temporary root rather than the real one: `make -C docs html` is
+		// how this happens, and a test may not depend on whether someone ran it.
+		const scratch = mkdtempSync(join(tmpdir(), "combo-docs-"));
+		try {
+			mkdirSync(join(scratch, "docs", "_build", "html"), { recursive: true });
+			writeFileSync(join(scratch, "docs", "index.md"), "# page\n");
+			writeFileSync(join(scratch, "docs", "_build", "html", "index.md"), "# built\n");
+
+			assert.deepEqual(docPages(scratch), [join("docs", "index.md")]);
+		} finally {
+			rmSync(scratch, { recursive: true, force: true });
+		}
 	});
 });
 
