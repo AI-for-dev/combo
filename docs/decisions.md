@@ -295,12 +295,21 @@ on its own channel, so *did it decide* and *what did it decide* are separate
 closed questions. It costs the `customTools` seam in `src/session.ts` and one
 file, `src/verdict.ts`.
 
-Two consequences worth stating plainly. A reviewer that holds the tool and calls
-nothing has **not** approved, and `PairResult.verdict` is absent rather than
-`false`: a turn that failed to answer is not a refusal, and guessing which one it
-was from the prose is the reading this tool exists to retire. And the word
-survives for every reviewer that holds no tool, because an agent nobody offered
-one to still has to be able to say yes.
+Three consequences worth stating plainly.
+
+A reviewer that holds the tool and calls nothing has **not** approved, and
+`PairResult.verdict` is absent rather than `false`: a turn that failed to answer
+is not a refusal, and guessing which one it was from the prose is the reading
+this tool exists to retire.
+
+**The tool takes the decision and leaves the argument where it was.** What the
+worker receives between rounds is the reviewer's prose, not `verdict.remarks`:
+an agent's definition disciplines its prose, and a field the model fills a second
+time says the same thing worse. `remarks` is the short form attached to the
+decision, and it is what an obligation will be opened from.
+
+And the word survives for every reviewer that holds no tool, because an agent
+nobody offered one to still has to be able to say yes.
 
 None of this makes a model's judgement deterministic. It makes reading that
 judgement deterministic, which is the only part of it that was ever ours.

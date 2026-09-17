@@ -121,6 +121,13 @@ A reviewer that holds the tool and calls nothing has **not** approved, and
 `verdict` is then absent rather than `false`: it never answered, which is a
 different thing from a refusal and the caller gets to tell them apart.
 
+**The tool carries the decision, not the argument for it.** What goes back to the
+worker between rounds is the reviewer's own prose, because that is what its
+definition disciplines: `agents/reviewer.md` asks for at most five remarks, each
+naming a defect, a file, a line and a concrete failure. `verdict.remarks` is the
+short form the reviewer attached to its decision, kept on the result for whoever
+reads the outcome.
+
 ### `interview` - the agent questions the user
 
 ```typescript

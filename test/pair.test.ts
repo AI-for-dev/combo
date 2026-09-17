@@ -170,8 +170,8 @@ describe("pair, when the reviewer decides through the verdict tool", () => {
 			round++;
 			const tool = options.customTools?.[0];
 			assert.ok(tool, "the reviewer is offered the tool it declared");
-			await callTool(tool, round >= n ? { approved: true } : { approved: false, remarks: `round ${round}: fix the parser` });
-			return { output: "prose the decision does not live in" };
+			await callTool(tool, round >= n ? { approved: true } : { approved: false, remarks: `round ${round}: short form` });
+			return { output: `round ${round}: the parser drops the last token, src/parse.ts:12` };
 		});
 	};
 
@@ -184,13 +184,23 @@ describe("pair, when the reviewer decides through the verdict tool", () => {
 		assert.equal(result.rounds, 1);
 	});
 
-	test("the remarks the tool carries are what the worker gets back", async () => {
+	test("the worker gets the review itself, not the verdict's summary of it", async () => {
 		const fake = decidesAt(2);
 		const result = await pair({ worker, reviewer: judge, input: "implement the parser", spawn: fake.spawn });
 
 		assert.equal(result.approved, true);
 		const toWorker = fake.asks.filter((ask) => ask.id.startsWith("coder"));
-		assert.match(toWorker[1]?.task ?? "", /round 1: fix the parser/);
+		const second = toWorker[1]?.task ?? "";
+		assert.match(second, /src\/parse\.ts:12/, "the prose the reviewer's definition disciplines");
+		assert.doesNotMatch(second, /short form/, "the tool carries the decision, not the argument for it");
+	});
+
+	test("the short form stays on the result, for whoever reads the outcome", async () => {
+		const fake = decidesAt(99);
+		const result = await pair({ worker, reviewer: judge, input: "x", maxRounds: 1, spawn: fake.spawn });
+
+		assert.equal(result.approved, false);
+		assert.deepEqual(result.verdict, { approved: false, remarks: "round 1: short form" });
 	});
 
 	test("only the reviewer is offered the tool", async () => {

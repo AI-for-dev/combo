@@ -26,7 +26,13 @@ export const VERDICT_TOOL = "verdict";
 export type Verdict = {
 	/** Whether the work was accepted. */
 	approved: boolean;
-	/** What is still missing. Required when `approved` is false. */
+	/**
+	 * Why, in the reviewer's own words. Required when `approved` is false.
+	 *
+	 * The reviewer's **argument** stays in its prose, which is what its
+	 * definition disciplines and what the worker is sent. This is the short form
+	 * it chose to attach to the decision, kept for whoever reads the outcome.
+	 */
 	remarks?: string;
 };
 

@@ -172,10 +172,15 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 				return outcome(work, review, round, true);
 			}
 
+			// The review itself, never the verdict's summary of it: the reviewer's
+			// definition is what disciplines this text - five remarks at most, each
+			// naming a file, a line and a failure - and a field the model fills a
+			// second time says the same thing worse.
+			//
 			// The worker is about to run in round+1, so what is left after that is
 			// what it needs to know - being told "last round" one round late is
 			// how a pair ends with the important fix still unmade.
-			task = remarksPrompt(verdict?.remarks ?? review.output, maxRounds - round - 1);
+			task = remarksPrompt(review.output, maxRounds - round - 1);
 		}
 	} finally {
 		await pool.closeAll();
