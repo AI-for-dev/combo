@@ -14,6 +14,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Agent } from "./agent.ts";
+import type { Obligation } from "./ledger.ts";
 import type { Result } from "./result.ts";
 import { emptyUsage, type Usage } from "./usage.ts";
 import type { AuditRound } from "./workflows/deliver.ts";
@@ -74,6 +75,13 @@ export type BuildState = {
 	tasks: SavedTask[];
 	/** The audit rounds already spent. Resuming continues the cycle, it does not restart it. */
 	audits: SavedAudit[];
+	/**
+	 * The obligations the auditor raised, open and closed, with their ids.
+	 *
+	 * Optional: a state written before the ledger existed has none, and an empty
+	 * ledger is the honest reading of that.
+	 */
+	obligations?: Obligation[];
 	/** The last verdict of the project's own check, when one was run. */
 	verification?: Verification;
 	/** True once the build reached its own end - approved or not. */
@@ -89,6 +97,14 @@ export type BuildProgress = {
 	tasks: PairResult[];
 	/** One entry per audit round, in order. */
 	audits: AuditRound[];
+	/**
+	 * What the auditor has raised so far, open and closed.
+	 *
+	 * Carried across a resume, unlike the subtasks: an obligation that was open
+	 * when the run stopped is still open, and a build that forgot it would sign
+	 * off on work nobody finished.
+	 */
+	obligations: readonly Obligation[];
 	/** The check's verdict, when a `verify` port was given. It is final. */
 	verification?: Verification;
 	/** True once the build reached its own end - approved or not. */
@@ -126,6 +142,7 @@ export function toBuildState(
 			approved: round.approved,
 			fixes: round.fixes.map((fix) => ({ agent: fix.agent.name, task: fix.task })),
 		})),
+		obligations: [...progress.obligations],
 		verification: progress.verification,
 		done: progress.done,
 	};
@@ -176,7 +193,14 @@ export function fromBuildState(state: BuildState, agents: readonly Agent[]): Bui
 		results: [],
 	}));
 
-	return { plan, tasks, audits, verification: state.verification, done: state.done };
+	return {
+		plan,
+		tasks,
+		audits,
+		obligations: state.obligations ?? [],
+		verification: state.verification,
+		done: state.done,
+	};
 }
 
 /** Writes the state into a run directory. Never throws: it is a safety net. */

@@ -624,7 +624,7 @@ describe("/build resume", () => {
 			runDir: () => "runs/a-brand-new-one",
 			saveState: (dir) => (saved.push(dir), undefined),
 			runPipeline: (async (options: { delivery?: { onProgress?: (id: string, p: unknown) => void } }) => {
-				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], done: false });
+				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [], done: false });
 				return delivered();
 			}) as never,
 		}));
@@ -641,8 +641,8 @@ describe("/build resume", () => {
 			git,
 			saveState: (_dir, state) => (states.push(state as BuildState), undefined),
 			runPipeline: (async (options: { delivery?: { onProgress?: (id: string, p: unknown) => void } }) => {
-				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], done: false });
-				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], done: true });
+				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [], done: false });
+				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [], done: true });
 				return delivered();
 			}) as never,
 		}));

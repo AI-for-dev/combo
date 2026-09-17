@@ -60,6 +60,7 @@ const progress = (over: Partial<BuildProgress> = {}): BuildProgress => ({
 	],
 	tasks: [task("coder", "write it", true)],
 	audits: [],
+	obligations: [],
 	done: false,
 	...over,
 });

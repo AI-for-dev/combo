@@ -21,11 +21,14 @@
  */
 
 import type { Agent } from "./../agent.ts";
+import { createLedger, openList, type Ledger, type Obligation } from "./../ledger.ts";
 import { failed, type Result } from "./../result.ts";
 import { saysWord } from "./../text.ts";
 import { emptyUsage, sumUsage, type Usage } from "./../usage.ts";
 import type { BuildProgress } from "./../resume.ts";
+import { declaresVerdict, lastVerdict, verdictTool, type Verdict } from "./../verdict.ts";
 import type { Verification, Verify } from "./../verify.ts";
+import type { ToolDefinition } from "./../session.ts";
 import { mapConcurrent, SubagentPool, type WorkflowOptions } from "./common.ts";
 import { pair, type PairResult } from "./pair.ts";
 import { makePlan, parsePlan, type PlannedTask } from "./plan.ts";
@@ -92,6 +95,8 @@ export type DeliverOptions = WorkflowOptions & {
 export type AuditRound = {
 	/** The auditor's turn, in full. It is the evidence behind `approved`. */
 	review: Result;
+	/** What the auditor declared through the verdict tool, when it holds one. */
+	verdict?: Verdict;
 	/** The check as it stood when this audit ran, when there is one. */
 	verification?: Verification;
 	/** Whether this round signed off. A failing check makes it `false` whatever the prose. */
@@ -117,8 +122,17 @@ export type DeliverResult = {
 	/** The last verification, when one was configured. */
 	verification?: Verification;
 	/**
-	 * Whether the work passed the bar: the auditor signed off **and** the check
-	 * passed. `true` with neither an auditor nor a check - there was no bar.
+	 * What the auditor raised across the rounds, and what became of each.
+	 *
+	 * Empty when the auditor holds no verdict tool. A run that stopped short says
+	 * here which lines are open and since which round, which is what
+	 * `approved: false` on its own has never been able to say.
+	 */
+	obligations: readonly Obligation[];
+	/**
+	 * Whether the work passed the bar: the auditor signed off, **nothing it
+	 * raised is still open**, and the check passed. `true` with neither an
+	 * auditor nor a check - there was no bar.
 	 */
 	approved: boolean;
 	/** Aggregate over planning, every pair, the audits and the fixes. */
@@ -163,11 +177,18 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 	let tasks: PairResult[] = [];
 	let verification: Verification | undefined = resume?.verification;
 
+	// The auditor decides through a tool when its definition asks for one. Built
+	// once for the whole delivery, although `auditOnce` spawns a fresh auditor
+	// every round: the ledger outlives the agent that writes into it.
+	const auditByTool = !!auditor && declaresVerdict(auditor.tools);
+	const verdicts = auditByTool ? verdictTool() : undefined;
+	const ledger = createLedger(resume?.obligations);
+
 	// A reporting hook is an observer: a listener that throws must not take the
 	// build down, exactly like a reporter on the event bus.
 	const report = (plan: PlannedTask[], done = false) => {
 		try {
-			onProgress?.({ plan, tasks, audits, verification, done });
+			onProgress?.({ plan, tasks, audits, obligations: ledger.all, verification, done });
 		} catch {
 			// a caller's bookkeeping problem is not the workflow's problem
 		}
@@ -186,8 +207,10 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 			tasks,
 			audits,
 			verification,
-			// A failing check outranks every opinion above it.
-			approved: signedOff && verification?.ok !== false,
+			obligations: ledger.all,
+			// A failing check outranks every opinion above it, and an obligation
+			// nobody closed outranks the auditor's own yes.
+			approved: signedOff && ledger.settled && verification?.ok !== false,
 			usage: sumUsage(usages, performance.now() - startedAt),
 			ok: !error && planning.ok && !broken,
 			error: error ?? broken?.error ?? planning.error,
@@ -227,14 +250,39 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 	for (let round = audits.length + 1; round <= maxAuditRounds; round++) {
 		if (shared.signal?.aborted) break;
 
-		const review = await auditOnce({ ...shared, auditor, workers, brief, tasks, verification, round, maxAuditRounds });
-		const approved = !review.ok ? false : isApproved(review.output);
+		const open = ledger.open;
+		const review = await auditOnce({
+			...shared,
+			auditor,
+			workers,
+			brief,
+			tasks,
+			verification,
+			round,
+			maxAuditRounds,
+			open,
+			verdictTool: verdicts?.tool,
+		});
+
+		let verdict: Verdict | undefined;
+		let raised: string[] = [];
+		if (verdicts && review.ok) {
+			verdict = lastVerdict(verdicts.take());
+			for (const one of verdict?.resolved ?? []) {
+				ledger.close(one.id, auditor.name, { how: one.how, reason: one.reason, at: round });
+			}
+			raised = verdict?.raised ?? [];
+			for (const text of raised) ledger.raise(auditor.name, text, round);
+		}
+
+		const said = !review.ok ? false : verdicts ? (verdict?.approved ?? false) : isApproved(review.output);
+		const approved = said && ledger.settled;
 		// The auditor names who fixes what, in the plan convention: one parser,
 		// one vocabulary. A name it invented is dropped, like anywhere else.
-		const fixes = approved || !review.ok ? [] : fixesFrom(review, workers);
+		const fixes = approved || !review.ok ? [] : fixesFrom(review, workers, raised);
 
 		const results = fixes.length > 0 ? await mapConcurrent(fixes, concurrency, run) : [];
-		audits.push({ review, verification, approved, fixes, results });
+		audits.push({ review, verdict, verification, approved, fixes, results });
 		tasks = [...tasks, ...results];
 		if (results.length > 0) verification = await verify?.();
 		report(planned.plan);
@@ -246,9 +294,9 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 			report(planned.plan, true);
 			return outcome(planned.plan, planned.planning, true);
 		}
-		// Nothing actionable came back: another identical audit would only cost
-		// tokens.
-		if (results.length === 0) break;
+		// Nothing actionable came back and nothing moved in the ledger: another
+		// identical audit would only cost tokens.
+		if (results.length === 0 && !(verdict?.resolved.length ?? 0)) break;
 	}
 
 	report(planned.plan, true);
@@ -280,21 +328,29 @@ type AuditOptions = WorkflowOptions & {
 	verification?: Verification;
 	round: number;
 	maxAuditRounds: number;
+	/** Obligations still open, which this round is asked to answer for by id. */
+	open: readonly Obligation[];
+	/** Offered when the auditor declares it. The collector outlives this turn. */
+	verdictTool?: ToolDefinition;
 };
 
 /** One audit turn, on its own throwaway subagent. */
 async function auditOnce(options: AuditOptions): Promise<Result> {
-	const { auditor, workers, brief, tasks, verification, round, maxAuditRounds, signal, timeoutMs, ...shared } = options;
+	const { auditor, workers, brief, tasks, verification, round, maxAuditRounds, open, signal, timeoutMs, ...rest } =
+		options;
+	const { verdictTool: tool, ...shared } = rest;
 
 	if (signal?.aborted) return failed(auditor.name, "aborted");
 
 	// A fresh auditor every round on purpose: the second audit must read the
-	// code as it is now, not remember how it was talked into approving.
-	const pool = new SubagentPool({ ...shared, lifetime: "task" });
+	// code as it is now, not remember how it was talked into approving. The
+	// ledger is what carries between rounds instead.
+	const pool = new SubagentPool({ ...shared, lifetime: "task", customTools: tool ? () => [tool] : undefined });
 	try {
 		const subagent = await pool.acquire(auditor, auditor.name);
 		try {
-			return await subagent.ask(auditPrompt(brief, tasks, round, maxAuditRounds, verification, workers), { signal, timeoutMs });
+			const prompt = auditPrompt(brief, tasks, round, maxAuditRounds, verification, workers, { open, byTool: !!tool });
+			return await subagent.ask(prompt, { signal, timeoutMs });
 		} finally {
 			await pool.release(subagent);
 		}
@@ -313,12 +369,16 @@ async function auditOnce(options: AuditOptions): Promise<Result> {
  * there is no ambiguity to resolve. With several workers there is, and dropping
  * it stays right - guessing who owns a fix is how the wrong file gets rewritten.
  */
-function fixesFrom(review: Result, workers: readonly Agent[]): PlannedTask[] {
-	const named = parsePlan(review.output, workers);
+function fixesFrom(review: Result, workers: readonly Agent[], raised: readonly string[] = []): PlannedTask[] {
+	// What the tool carries wins when it carries anything: those lines are what
+	// the auditor put on the ledger, so acting on the prose instead would work
+	// from something nobody is going to be asked about again.
+	const source = raised.length ? raised.join("\n") : review.output;
+	const named = parsePlan(source, workers);
 	if (named.length > 0 || workers.length !== 1) return named;
 
 	const only = workers[0] as Agent;
-	const remarks = review.output.trim();
+	const remarks = source.trim();
 	return remarks ? [{ agent: only, task: `The audit asked for this. Address it:\n\n${remarks}` }] : [];
 }
 
@@ -327,7 +387,15 @@ function isApproved(output: string): boolean {
 	return saysWord(output, AUDIT_APPROVAL);
 }
 
-/** What the auditor reads: the brief, then what each subtask claims it did. */
+/** How the auditor is asked to answer, and what it still owes. */
+export type AuditPromptOptions = {
+	/** Obligations still open, which it is asked to answer for by id. */
+	open?: readonly Obligation[];
+	/** Whether the auditor decides through the `verdict` tool. */
+	byTool?: boolean;
+};
+
+/** What the auditor reads: the brief, what each subtask claims, and what is owed. */
 export function auditPrompt(
 	brief: string,
 	tasks: readonly PairResult[],
@@ -335,7 +403,9 @@ export function auditPrompt(
 	maxAuditRounds: number,
 	verification?: Verification,
 	workers: readonly Agent[] = [],
+	options: AuditPromptOptions = {},
 ): string {
+	const owed = options.open ?? [];
 	const reports = tasks
 		.map((task, index) => {
 			const state = task.ok ? (task.approved ? "reviewed and approved" : "reviewed, NOT approved") : `failed: ${task.error}`;
@@ -369,9 +439,16 @@ export function auditPrompt(
 					.filter(Boolean)
 					.join("\n")
 			: "",
-		`Answer ${AUDIT_APPROVAL} alone if the whole thing holds together.`,
+		owed.length ? "Still open, from your earlier rounds:" : "",
+		owed.length ? openList(owed) : "",
+		owed.length ? "" : "",
+		options.byTool
+			? "Call the `verdict` tool. Put your fix lines in `raised`, and name in `resolved` every id above you are done with: one you leave out stays open, and the work is not finished while anything is."
+			: `Answer ${AUDIT_APPROVAL} alone if the whole thing holds together.`,
 		"",
-		"Otherwise answer with nothing but fix lines, one per line, in this exact form:",
+		options.byTool
+			? "Each fix line takes this exact form:"
+			: "Otherwise answer with nothing but fix lines, one per line, in this exact form:",
 		`    ${workers[0]?.name ?? "coder"}: what to do`,
 		workers.length ? `The only names you may use: ${workers.map((agent) => agent.name).join(", ")}.` : "",
 		"Write the name literally - `agent:` is not a name and the line will be thrown away.",
