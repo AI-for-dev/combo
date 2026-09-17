@@ -180,8 +180,6 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 					...shared,
 					steps: stepsOf(agents, params.steps),
 					input: params.task ?? "",
-					// A verdict, not a substring: a review that writes "I cannot say
-					// APPROVED yet" names the word while refusing it.
 					until: needle ? (step) => saysWord(step.output, needle) : undefined,
 					maxIterations: params.maxIterations,
 				});

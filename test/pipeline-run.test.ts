@@ -173,7 +173,7 @@ describe("runPipeline", () => {
 		assert.equal(done.steps.length, 1, "the next step is not handed unconverged work");
 	});
 
-	test("a step's `until` reads a verdict, not a substring", async () => {
+	test("a step's `until` matches a whole line", async () => {
 		const refusing = fakeSpawn(() => ({ output: "I cannot say LGTM yet: the parser drops the last token." }));
 		const source = 'name: p\nsteps:\n  - id: refine\n    loop: [coder, reviewer]\n    until: "LGTM"\n    maxIterations: 2';
 		const body = "## refine\nRefine.";

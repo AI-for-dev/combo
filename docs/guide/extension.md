@@ -30,12 +30,11 @@ repository live in `.pi/agents/`, so ask for them explicitly:
 That is deliberate: project agents are repository-controlled content, so they are
 never loaded by default. See [Agents](agents.md).
 
-`until` is a **verdict, not a substring**: the loop stops when the word stands
-alone on one of the lines, whatever decoration the model put around it. A review
-that writes "I cannot say LGTM yet" is refusing, and reading that as an approval
-is how a loop converges on its opposite. The same rule applies to a pipeline
-step's `until:` and to `pair`'s approval, because there is one way of reading a
-verdict here and it is [`saysWord`](../reference/api/text.md).
+`until` is a **whole-line match**: the loop stops when the word stands alone on
+one of the lines, whatever decoration the model put around it. A line with
+anything else on it does not count, so a review that writes "I cannot say LGTM
+yet" keeps the loop going. A pipeline step's `until:` and `pair`'s approval read
+the same way, through [`saysWord`](../reference/api/text.md).
 
 The tool also takes `model`, which puts every subagent of the call on one model,
 whatever their frontmatter says. **The parent session's model is never
