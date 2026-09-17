@@ -323,3 +323,30 @@ describe("pair, with a ledger of obligations", () => {
 		assert.equal(result.obligations[0]?.closed, undefined, "closures are applied before anything new is raised");
 	});
 });
+
+describe("pair, when the reviewer names an id nothing is open for", () => {
+	const judge = testAgent("reviewer", { description: "Reviews code", tools: ["read", VERDICT_TOOL] });
+
+	test("the call is refused, so the reviewer can correct itself before the round ends", async () => {
+		const seen: string[] = [];
+		const fake = fakeSpawn(async (_task, agent, options) => {
+			if (agent.name !== "reviewer") return { output: "work done" };
+			const tool = options.customTools?.[0];
+			assert.ok(tool);
+
+			// What `ilaas/gemma-4-31b` did in a real run: an id in a format it
+			// invented, for a line nothing had raised.
+			const refused = await callTool(tool, { approved: true, resolved: [{ id: "1", how: "addressed" }] });
+			seen.push(refused.content[0]?.text ?? "");
+
+			await callTool(tool, { approved: false, raised: ["the parser drops the last token"] });
+			return { output: "prose" };
+		});
+
+		const result = await pair({ worker, reviewer: judge, input: "x", maxRounds: 1, spawn: fake.spawn });
+
+		assert.match(seen[0] ?? "", /No open obligation for 1/);
+		assert.equal(result.approved, false, "the second call is the one that counted");
+		assert.equal(result.obligations.length, 1);
+	});
+});

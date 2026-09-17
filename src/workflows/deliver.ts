@@ -181,8 +181,13 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 	// once for the whole delivery, although `auditOnce` spawns a fresh auditor
 	// every round: the ledger outlives the agent that writes into it.
 	const auditByTool = !!auditor && declaresVerdict(auditor.tools);
-	const verdicts = auditByTool ? verdictTool() : undefined;
 	const ledger = createLedger(resume?.obligations);
+	const verdicts = auditByTool
+		? verdictTool({
+				knows: (id) => ledger.open.some((one) => one.id === id),
+				open: () => ledger.open.map((one) => one.id),
+			})
+		: undefined;
 
 	// A reporting hook is an observer: a listener that throws must not take the
 	// build down, exactly like a reporter on the event bus.

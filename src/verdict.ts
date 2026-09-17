@@ -50,6 +50,22 @@ export type Verdict = {
 	raised: string[];
 };
 
+/** What a verdict tool needs to know beyond what the agent tells it. */
+export type VerdictToolOptions = {
+	/**
+	 * Whether an id is one the agent may close right now.
+	 *
+	 * Without it every id is taken on trust. Measured against
+	 * `ilaas/gemma-4-31b`: an auditor with nothing open sent
+	 * `resolved: [{ id: "1" }]`, inventing both the line and the id format. A
+	 * closure the ledger would refuse is better refused here, where the agent is
+	 * told and can call again.
+	 */
+	knows?: (id: string) => boolean;
+	/** The ids it may close, named in the refusal so it can correct itself. */
+	open?: () => readonly string[];
+};
+
 /** The tool, and the decisions it has collected so far. */
 export type VerdictTool = {
 	/** Pass this to `SpawnOptions.customTools`. */
@@ -73,7 +89,7 @@ export type VerdictTool = {
  * is what lets the caller treat what comes out of `take()` as exactly what the
  * agent said.
  */
-export function verdictTool(): VerdictTool {
+export function verdictTool(options: VerdictToolOptions = {}): VerdictTool {
 	const given: Verdict[] = [];
 
 	const tool = defineTool({
@@ -126,6 +142,23 @@ export function verdictTool(): VerdictTool {
 			for (const one of params.resolved ?? []) {
 				if (one.how !== "addressed" && one.how !== "withdrawn") continue;
 				resolved.push({ id: one.id.trim(), how: one.how, reason: one.reason?.trim() || undefined });
+			}
+
+			const unknown = options.knows ? resolved.filter((one) => !options.knows?.(one.id)).map((one) => one.id) : [];
+			if (unknown.length > 0) {
+				const open = options.open?.() ?? [];
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: `No open obligation for ${unknown.join(", ")}. ${
+								open.length ? `The ids you may close: ${open.join(", ")}.` : "Nothing is open."
+							} Call again.`,
+						},
+					],
+					details: undefined,
+					isError: true,
+				};
 			}
 			const raised = (params.raised ?? []).map((one) => one.trim()).filter(Boolean);
 

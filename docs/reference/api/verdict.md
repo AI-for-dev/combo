@@ -104,7 +104,7 @@ The name an agent writes in its `tools:` to be given the tool.
 *function*
 
 ```typescript
-export function verdictTool(): VerdictTool { /* … */ }
+export function verdictTool(options: VerdictToolOptions = {}): VerdictTool { /* … */ }
 ```
 
 Builds a `verdict` tool and the collector behind it.
