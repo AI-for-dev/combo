@@ -1,0 +1,123 @@
+/**
+ * A verdict given as a tool call, rather than recovered from prose.
+ *
+ * A reviewer's answer is two things at once: an argument, which is prose and
+ * belongs in the transcript, and a decision, which is a boolean and does not.
+ * Reading the second out of the first means matching text written for a human
+ * against a word chosen by a caller, and a match is only ever as good as the
+ * agreement about how to write it.
+ *
+ * A tool call carries the decision on its own channel. It is a discrete event
+ * with a schema, so "did it decide" and "what did it decide" are closed
+ * questions, and the prose beside it stays prose.
+ *
+ * The tool is granted the way every tool is granted: an agent whose `tools:`
+ * does not name it does not have it, which keeps what an agent can do readable
+ * in its own file.
+ */
+
+import { Type } from "typebox";
+import { defineTool, type ToolDefinition } from "./session.ts";
+
+/** The name an agent writes in its `tools:` to be given the tool. */
+export const VERDICT_TOOL = "verdict";
+
+/** One decision, as the agent that made it declared it. */
+export type Verdict = {
+	/** Whether the work was accepted. */
+	approved: boolean;
+	/**
+	 * Why, in the reviewer's own words. Required when `approved` is false.
+	 *
+	 * The reviewer's **argument** stays in its prose, which is what its
+	 * definition disciplines and what the worker is sent. This is the short form
+	 * it chose to attach to the decision, kept for whoever reads the outcome.
+	 */
+	remarks?: string;
+};
+
+/** The tool, and the decisions it has collected so far. */
+export type VerdictTool = {
+	/** Pass this to `SpawnOptions.customTools`. */
+	tool: ToolDefinition;
+	/**
+	 * The verdicts given since the previous call, oldest first, and forgets them.
+	 *
+	 * Draining rather than accumulating: a caller asks "what did *this* turn
+	 * decide", and a persistent reviewer answers several times over its life.
+	 */
+	take(): Verdict[];
+};
+
+/**
+ * Builds a `verdict` tool and the collector behind it.
+ *
+ * One per reviewer, never shared: the collector is how the decision gets back,
+ * so two agents writing into one would make the answers indistinguishable.
+ *
+ * The tool body only records. It runs no check and reverses no decision, which
+ * is what lets the caller treat what comes out of `take()` as exactly what the
+ * agent said.
+ */
+export function verdictTool(): VerdictTool {
+	const given: Verdict[] = [];
+
+	const tool = defineTool({
+		name: VERDICT_TOOL,
+		label: "Verdict",
+		description:
+			"Give your decision on the work you were asked to review. Call this exactly once, " +
+			"after you have read the code. Prose in your answer is not a decision: this call is.",
+		promptSnippet: "Give your decision on the work under review",
+		parameters: Type.Object({
+			approved: Type.Boolean({ description: "true when you have nothing left to ask for." }),
+			remarks: Type.Optional(
+				Type.String({ description: "What is still missing. Required when approved is false." }),
+			),
+		}),
+		async execute(_toolCallId, params) {
+			// Absent and empty are the same thing: a model asked for an optional
+			// string often sends `""` rather than leaving it out.
+			const remarks = params.remarks?.trim() || undefined;
+			// A refusal that says nothing cannot be acted on, and the agent is the
+			// only one who can repair it - so it is told, and gets to call again.
+			if (!params.approved && !remarks) {
+				return {
+					content: [{ type: "text" as const, text: "A verdict of `approved: false` needs remarks. Call again with them." }],
+					details: undefined,
+					isError: true,
+				};
+			}
+
+			given.push({ approved: params.approved, remarks });
+			return {
+				content: [{ type: "text" as const, text: params.approved ? "Recorded: approved." : "Recorded: not approved." }],
+				details: undefined,
+			};
+		},
+	});
+
+	return {
+		tool,
+		take: () => given.splice(0),
+	};
+}
+
+/** Whether an agent's definition asks for the tool. */
+export function declaresVerdict(tools: readonly string[] | undefined): boolean {
+	return tools?.includes(VERDICT_TOOL) ?? false;
+}
+
+/**
+ * What a round decided, from the verdicts it produced.
+ *
+ * `undefined` when the agent called nothing. That is not a refusal and not an
+ * approval: it is a turn that failed to answer, and the caller has to be able to
+ * say so rather than pick one.
+ *
+ * The **last** call wins when there are several, because an agent that calls
+ * again has changed its mind, and the alternative is to make it unable to.
+ */
+export function lastVerdict(verdicts: readonly Verdict[]): Verdict | undefined {
+	return verdicts.at(-1);
+}

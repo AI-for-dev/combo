@@ -180,6 +180,14 @@ export {
 	type GitResult,
 } from "./git.ts";
 export { commandVerifier, type CommandVerifierOptions, type Verification, type Verify } from "./verify.ts";
+export {
+	declaresVerdict,
+	lastVerdict,
+	VERDICT_TOOL,
+	verdictTool,
+	type Verdict,
+	type VerdictTool,
+} from "./verdict.ts";
 export { scriptedAsk, type Answer, type AskUser, type Choice, type Question } from "./ask.ts";
 export {
 	BUILD_STATE_FILE,
@@ -208,4 +216,5 @@ export {
 	type CreateSession,
 	type CreateSessionOptions,
 	type SessionPort,
+	type ToolDefinition,
 } from "./session.ts";

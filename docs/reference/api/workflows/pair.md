@@ -23,7 +23,7 @@ This is `loop` over two agents with two differences that earn it its own name:
 export const APPROVAL = "LGTM";
 ```
 
-The word a reviewer says when it has nothing left to ask for.
+The word a reviewer that holds no verdict tool says when it is satisfied.
 
 ## `pair`
 
@@ -58,9 +58,10 @@ export type PairOptions = WorkflowOptions & {
 	/** The work to do. It is also what a resumed build re-issues verbatim. */
 	input: string;
 	/**
-	 * Decides whether the review is an approval. Defaults to {@link APPROVAL}
-	 * alone on a line, which is the convention `agents/reviewer.md` already
-	 * writes.
+	 * Decides whether the review is an approval, overriding both defaults below.
+	 *
+	 * Without it, a reviewer whose `tools:` names `verdict` is read from its tool
+	 * call, and any other reviewer from {@link APPROVAL} alone on a line.
 	 */
 	approved?: (review: Result, round: number) => boolean | Promise<boolean>;
 	/**
@@ -92,6 +93,15 @@ export type PairResult = Result & {
 	rounds: number;
 	/** Whether the reviewer accepted the work. Distinct from `ok`. */
 	approved: boolean;
+	/**
+	 * The last decision the reviewer declared through the verdict tool.
+	 *
+	 * Absent when the reviewer holds no such tool, and **also** when it holds one
+	 * and called nothing. The second case is a turn that failed to answer rather
+	 * than a refusal, and a reader has to be able to tell the two apart: with
+	 * `approved: false` and no verdict, the reviewer never decided.
+	 */
+	verdict?: Verdict;
 };
 ```
 
@@ -112,7 +122,7 @@ What the worker gets back: the remarks, and how much room is left.
 *function*
 
 ```typescript
-export function reviewPrompt(goal: string, work: string, round: number): string { /* … */ }
+export function reviewPrompt(goal: string, work: string, round: number, byTool = false): string { /* … */ }
 ```
 
 What the reviewer is asked: the goal, then what was done about it.

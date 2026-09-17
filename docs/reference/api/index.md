@@ -31,6 +31,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`subagent`](subagent.md) | A subagent: a live session, a memory, a state. | 4 |
 | [`text`](text.md) | Reading what a model wrote: shortening it, and finding the structure in it. | 2 |
 | [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 7 |
+| [`verdict`](verdict.md) | A verdict given as a tool call, rather than recovered from prose. | 6 |
 | [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 4 |
 | [`workflows/chain`](workflows/chain.md) | `chain`: 1 → 1 → 1. The output of step *n* is the input of step *n+1*. | 2 |
 | [`workflows/common`](workflows/common.md) | What every combinator shares: the same options, the same defaults, and the same way of honouring lifetime. | 4 |
@@ -71,6 +72,7 @@ session
 subagent
 text
 usage
+verdict
 verify
 workflows/chain
 workflows/common
