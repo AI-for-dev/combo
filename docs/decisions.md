@@ -362,7 +362,11 @@ That is still a judgement, about a single sentence the reviewer wrote itself
 rather than about the whole of the work, and attributable to it.
 
 The auditor in `deliver` signs the same way, and its fix lines are what go on the
-ledger. `DeliverResult.approved` then needs three things: the auditor signed off,
+ledger. Its prose is then not read at all: `deliver` has a concession for an
+auditor that refuses in English without naming anyone, and that concession is
+for prose-only auditors. Applied to one holding the tool it turned the word
+`APPROVED`, written beside a call that said otherwise, into a fix a coder was
+sent away to make. `DeliverResult.approved` then needs three things: the auditor signed off,
 nothing it raised is still open, and the check passed. The check keeps the last
 word it already had.
 

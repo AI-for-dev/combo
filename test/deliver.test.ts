@@ -574,6 +574,25 @@ describe("an auditor that signs through the verdict tool", () => {
 		assert.equal(carried.obligations[0]?.id, "o1");
 	});
 
+	test("a refusal that raises nothing sends nobody anywhere", async () => {
+		// The shape a real run produced: the auditor writes `APPROVED` in its prose
+		// while its call says otherwise, and the prose became a fix task.
+		const fake = withVerdicts([{ approved: false, remarks: "not yet" }]);
+		const result = await deliver({
+			planner,
+			workers,
+			reviewer,
+			auditor: judge,
+			brief: "x",
+			maxAuditRounds: 1,
+			spawn: fake.spawn,
+		});
+
+		assert.equal(result.approved, false);
+		assert.deepEqual(result.audits[0]?.fixes, [], "what it wants done goes in `raised`, and it raised nothing");
+		assert.equal(fake.spawned.filter((one) => one.agent === "coder").length, 1, "the planned subtask, and no fix");
+	});
+
 	test("the auditor is shown what is still open, by id", async () => {
 		const fake = withVerdicts([{ approved: false, raised: ["coder: one"] }, { approved: false, remarks: "still no" }]);
 		await deliver({ planner, workers, reviewer, auditor: judge, brief: "x", spawn: fake.spawn });
