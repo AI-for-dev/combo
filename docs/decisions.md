@@ -407,9 +407,38 @@ per run: the patch was the only copy of the work and `PairResult.worktree` named
 something empty. A branch that turns out to hold nothing is cleared with
 `git branch -d`, which refuses any that holds something.
 
-Landing the patches is not here. Two patches that each apply cleanly on their own
-can still contradict each other, and deciding what to do about that is a policy
-with more than one defensible answer.
+### Patches go in one at a time, and nothing is undone
+
+Two patches that each apply cleanly on their own can still be wrong together:
+one renames what the other calls, both add the same helper under two names, or
+the second simply overlaps the first. Three ways of dealing with that were
+weighed.
+
+**Hand them back and merge nothing.** Honest, and it leaves `deliver` stopping
+one step short of where it stops today. It also makes the common case, subtasks
+that really were disjoint, cost a human a manual step every time.
+
+**Apply them all, then check once.** Cheapest, and it answers the wrong
+question: a red tree after three patches says only that one of them broke it.
+
+**One at a time, with the check between them**, which is what `land` does. Which
+patch broke the tree is then a fact rather than a bisection, and the cost is one
+run of the suite per patch, paid only by callers who gave a `verify`.
+
+A patch is checked before it is applied, so one that does not fit touches
+nothing. `--3way` is deliberately not used: it writes conflict markers into the
+files and calls that success, and a caller left to find markers in a tree it
+believed clean is worse off than one told the patch was refused.
+
+**Nothing is rolled back.** A failure stops the rest where it is and what landed
+stays landed. Undoing would mean discarding work that was expensive to produce,
+and every patch is also on a branch, so nothing is lost by leaving the tree
+readable. The tree must be clean to start with, for the same reason: landing
+onto somebody else's changes makes "which patch broke this" unanswerable, which
+is the one question the whole arrangement exists to answer.
+
+Landing adds no commit and moves no ref. What goes in stays in the working tree,
+the way `deliver` already leaves its work for a human to read.
 
 ## Pipelines: a workflow written down
 

@@ -9,14 +9,17 @@
  * never be able to rewrite the repository it ships in, which is why there is no
  * default and no fallback to the current directory.
  *
- * It stops at the patches. Each pair works in a copy of the repository, the copy
- * goes when the pair is done, and what comes back is a diff and the branch it
- * was made on. Deciding what to do with two patches is a policy, not a
- * mechanism, and it is not this example's business.
+ * Each pair works in a copy of the repository and hands back a patch. The copies
+ * go when the pairs are done, and `land` puts the patches into the tree one at a
+ * time, so a conflict names the patch that caused it rather than leaving you to
+ * bisect two.
+ *
+ * It stops before committing: what lands stays in the working tree for you to
+ * read, exactly as `11-build.ts` leaves it.
  */
 
 import * as path from "node:path";
-import { isRepository, pair, formatUsage } from "../src/index.ts";
+import { formatUsage, isRepository, land, pair } from "../src/index.ts";
 import { agent, consoleReporter, positional } from "./shared.ts";
 
 const [target] = positional;
@@ -65,8 +68,24 @@ for (const [index, result] of results.entries()) {
 	console.log(`usage:    ${formatUsage(result.usage)}`);
 
 	const patch = result.patch ?? "";
-	console.log(patch ? `\n${patch.slice(0, 1200)}` : "(it wrote nothing)");
+	console.log(patch ? `\n${patch.slice(0, 800)}` : "(it wrote nothing)");
 }
 
 console.log(`\nwall ${Math.round(wall)}ms for two pairs, each in its own copy`);
-console.log("The repository you pointed at was not written to. The patches above are the work.");
+
+// One at a time, so a conflict names the patch that caused it. There is no
+// check here: point the example at a repository that has one and pass `verify`
+// to see the tree judged between the two.
+const landed = await land(
+	cwd,
+	results.map((result, index) => ({ label: `subtask ${index + 1}`, patch: result.patch ?? "" })),
+);
+
+console.log(`\n──── landing ────`);
+console.log(`applied:  ${landed.applied.join(", ") || "(nothing)"}`);
+if (!landed.ok) console.log(`stopped:  ${landed.rejected ?? "(before anything)"} - ${landed.error}`);
+console.log(
+	landed.ok
+		? "Both patches are in the working tree. Nothing was committed: read it, then decide."
+		: "What landed is still in the tree, and the branches hold every patch. Nothing was undone.",
+);
