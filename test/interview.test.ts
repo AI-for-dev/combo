@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { scriptedAsk } from "../src/ask.ts";
-import { interview, parseQuestion, READY } from "../src/workflows/interview.ts";
+import { answerPrompt, briefPrompt, interview, parseQuestion, questionPrompt, READY } from "../src/workflows/interview.ts";
 import { fakeSpawn, testAgent } from "./fixtures/fake-subagent.ts";
 
 const interviewer = testAgent("interviewer", { description: "Asks one question at a time" });
@@ -181,5 +181,25 @@ describe("parseQuestion", () => {
 	test("a brace inside a label does not end the object", () => {
 		const tricky = '{"question":"Which template?","options":[{"label":"{name}.ts"}]}';
 		assert.equal(parseQuestion(tricky)?.options[0]?.label, "{name}.ts");
+	});
+});
+
+describe("the language the user wrote in", () => {
+	test("every prompt asks for it, and names the two things that must not follow", () => {
+		for (const [name, prompt] of [
+			["question", questionPrompt("ajoute un cache", 6)],
+			["answer", answerPrompt({ question: "q", answer: "a", custom: false }, 3)],
+			["brief", briefPrompt("ajoute un cache", [])],
+		] as const) {
+			assert.match(prompt, /in the language the request above is written in/, `${name} asks for it`);
+			assert.match(prompt, /"header", "question", "options", "label", "description"/, `${name} keeps the keys`);
+			assert.match(prompt, /READY stays READY/, `${name} keeps the stop word`);
+		}
+	});
+
+	test("the stop word is still the one the loop looks for", () => {
+		// A model told to write French writes `PRÊT`, and an interview that never
+		// says READY never ends. The instruction has to exempt it by name.
+		assert.match(questionPrompt("ajoute un cache", 6), /answer with READY alone/);
 	});
 });
