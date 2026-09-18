@@ -89,18 +89,6 @@ export type WorkflowOptions = {
 	bus?: EventBus;
 	/** Working directory of every subagent. Defaults to the process's own. */
 	cwd?: string;
-	/**
-	 * Give this piece of work a copy of the repository to itself.
-	 *
-	 * Off by default. When it is on, the subagents of this workflow run in a git
-	 * worktree made from `cwd`, and the patch of what they did comes back on the
-	 * result. Two workflows running at once then write to two trees, which is
-	 * what turns "independent subtasks" from a promise into a fact.
-	 *
-	 * The copy belongs to the **workflow**, not to each subagent: a reviewer that
-	 * had its own would be reading the code the worker did not touch.
-	 */
-	worktree?: boolean;
 	/** Where the session files live. Implied by `exportDir`; set it to move them. */
 	sessionDir?: string;
 	/**

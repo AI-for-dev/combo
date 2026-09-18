@@ -62,9 +62,18 @@ built.worktree;   // combo/add-a-slugify-helper-a1b2c3, with the work committed 
 built.patch;      // the same work as a diff against what it started from
 ```
 
+The copy is made from the **commit** `cwd` is on, not from its working tree:
+changes you have not committed are not there, and the patch is a diff against
+that commit. Commit before pointing a pair at a tree you are in the middle of.
+
 The work is committed on that branch before the copy goes, so a caller that
 drops the patch has still lost nothing. A pair that wrote nothing gets no branch
 and no patch: a name for no work would only pile up, one per run.
+
+A copy that cannot be released keeps the work. A commit a hook refuses, or a
+removal git will not do, leaves the copy on disk and the pair comes back
+`ok: false` with that path in its `error`. Otherwise an approved pair that lost
+its patch would read exactly like one that wrote nothing.
 
 Both agents share it deliberately. A reviewer with a copy of its own would be
 reading the code the worker did not touch, which is a review of nothing.

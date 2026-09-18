@@ -20,6 +20,13 @@ afterEach(() => {
 	for (const dir of scratch.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
 });
 
+/** Makes every commit in `dir` fail, the way a repository's own hooks can. */
+function refusesCommits(dir: string): void {
+	const hooks = path.join(dir, ".git", "hooks");
+	fs.mkdirSync(hooks, { recursive: true });
+	fs.writeFileSync(path.join(hooks, "pre-commit"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+}
+
 /** A repository with one commit in it, so `HEAD` exists. */
 function repo(): string {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-scratch-repo-"));
@@ -111,14 +118,58 @@ describe("scratchWorktree", () => {
 		assert.match(shown, /made\.txt/);
 	});
 
-	test("releasing twice is not an error, and does not try to remove what is gone", async () => {
+	test("releasing twice is not an error, and gives back the same patch", async () => {
 		const dir = repo();
 		const made = await scratchWorktree(dir, "work");
 		assert.ok(made.ok);
 		if (!made.ok) return;
+		fs.writeFileSync(path.join(made.value.path, "made.txt"), "written\n");
 
-		assert.equal((await made.value.release()).ok, true);
-		assert.equal((await made.value.release()).ok, true, "safe to call in a `finally`");
+		const first = await made.value.release();
+		const again = await made.value.release();
+
+		assert.ok(first.ok && again.ok, "safe to call in a `finally`");
+		assert.equal(again.ok ? again.value : "", first.ok ? first.value : "x", "a second call must not empty it");
+	});
+
+	test("a subject too long for a log is cut, not carried whole", async () => {
+		const dir = repo();
+		const made = await scratchWorktree(dir, "Add src/slugify.js exporting slugify(text),\nand a second line of it.");
+		assert.ok(made.ok);
+		if (!made.ok) return;
+
+		fs.writeFileSync(path.join(made.value.path, "made.txt"), "written\n");
+		await made.value.release();
+
+		const line = execFileSync("git", ["log", "-1", "--format=%s", made.value.branch], {
+			cwd: dir,
+			encoding: "utf-8",
+		}).trim();
+		assert.ok(line.length <= 72, `git folds a multi-line subject into one: ${line.length} characters`);
+	});
+
+	test("work that cannot be committed leaves the copy, and says why", async () => {
+		const dir = repo();
+		refusesCommits(dir);
+		const made = await scratchWorktree(dir, "work");
+		assert.ok(made.ok);
+		if (!made.ok) return;
+		scratch.push(path.dirname(made.value.path));
+		fs.writeFileSync(path.join(made.value.path, "made.txt"), "written\n");
+
+		const released = await made.value.release();
+
+		assert.equal(released.ok, false, "a copy whose work is not somewhere else must not be removed");
+		assert.equal(fs.existsSync(path.join(made.value.path, "made.txt")), true, "the work is still there to recover");
+	});
+
+	test("a repository with no commit yet fails before anything is made", async () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-scratch-bare-"));
+		scratch.push(dir);
+		execFileSync("git", ["init", "--initial-branch=main"], { cwd: dir, stdio: "pipe" });
+
+		const made = await scratchWorktree(dir, "work");
+		assert.equal(made.ok, false, "there is no `HEAD` to branch a copy from");
 	});
 
 	test("a directory that is no repository fails before anything is made", async () => {

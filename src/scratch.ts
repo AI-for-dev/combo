@@ -12,7 +12,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { branchName, commitAll, deleteBranch, headSha, type GitResult } from "./git.ts";
+import { truncate } from "./text.ts";
 import { createWorktree, removeWorktree, worktreePatch } from "./worktree.ts";
+
 /** A copy made for one piece of work, and the way to get the work back out. */
 export type Scratch = {
 	/** Where it is. This is what a subagent gets as its working directory. */
@@ -22,9 +24,11 @@ export type Scratch = {
 	/**
 	 * Takes the patch, then removes the copy and the directory holding it.
 	 *
-	 * Idempotent, and safe to call in a `finally`. A patch that could not be
-	 * taken leaves everything where it is: the caller gets the error and the work
-	 * stays on disk, which is the only order these two can go in.
+	 * Idempotent, and safe to call in a `finally`: a second call gives back the
+	 * patch the first one took, not an empty one, so a caller that releases
+	 * explicitly and again in a `finally` cannot lose it. A patch that could not
+	 * be taken leaves everything where it is - the caller gets the error and the
+	 * work stays on disk, which is the only order these two can go in.
 	 */
 	release(): Promise<GitResult<string>>;
 };
@@ -57,14 +61,15 @@ export async function scratchWorktree(repo: string, label: string): Promise<GitR
 		return made;
 	}
 
-	let released = false;
+	// The patch once taken: what makes a second `release()` answer as the first.
+	let taken: string | undefined;
 	return {
 		ok: true,
 		value: {
 			path: at,
 			branch,
 			async release() {
-				if (released) return { ok: true, value: "" };
+				if (taken !== undefined) return { ok: true, value: taken };
 
 				const patch = await worktreePatch(at, base);
 				if (!patch.ok) return patch;
@@ -73,7 +78,7 @@ export async function scratchWorktree(repo: string, label: string): Promise<GitR
 				// recoverable from the repository and not only from the string this
 				// returns. A caller that drops the patch has still lost nothing.
 				if (patch.value) {
-					const committed = await commitAll(at, `combo: ${label.trim()}`);
+					const committed = await commitAll(at, subject(label));
 					if (!committed.ok) return committed;
 				}
 
@@ -85,7 +90,7 @@ export async function scratchWorktree(repo: string, label: string): Promise<GitR
 				// that turned out to hold something.
 				if (!patch.value) await deleteBranch(repo, branch);
 
-				released = true;
+				taken = patch.value;
 				fs.rmSync(holder, { recursive: true, force: true });
 				return patch;
 			},
@@ -93,3 +98,12 @@ export async function scratchWorktree(repo: string, label: string): Promise<GitR
 	};
 }
 
+/**
+ * The commit subject for one piece of work: a single short line.
+ *
+ * git folds a subject spread over several lines into one, so a task stated in a
+ * paragraph becomes a heading no log can show. It is cut here instead.
+ */
+function subject(label: string): string {
+	return `combo: ${truncate(label, 64)}`;
+}

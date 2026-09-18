@@ -46,6 +46,22 @@ export type PairOptions = WorkflowOptions & {
 	 * turns of a model.
 	 */
 	maxRounds?: number;
+	/**
+	 * Give this pair a copy of the repository to itself.
+	 *
+	 * Off by default. When it is on, both agents run in a git worktree made from
+	 * `cwd`, and {@link PairResult.patch} carries what they did. Two pairs
+	 * running at once then write to two trees, which is what turns "independent
+	 * subtasks" from a promise into a fact.
+	 *
+	 * The copy belongs to the **pair**, not to each agent: a reviewer that had
+	 * one of its own would be reading the code the worker did not touch.
+	 *
+	 * It lives here rather than on `WorkflowOptions` because `pair` is the only
+	 * workflow that acts on it, and an option every workflow accepts while one
+	 * honours it is a silent no-op for the rest.
+	 */
+	worktree?: boolean;
 };
 
 /** The worker's last output, plus how the pair got there and whether it was accepted. */
@@ -131,6 +147,7 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 	let verdict: Verdict | undefined;
 	let scratch: Scratch | undefined;
 	let patch: string | undefined;
+	let stranded: string | undefined;
 
 	const outcome = (work: Result, review: Result | undefined, rounds: number, approved: boolean): PairResult => ({
 		...work,
@@ -246,15 +263,21 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 	} finally {
 		await pool.closeAll();
 		// Whoever opens closes, cancellation included. A patch that could not be
-		// taken leaves the copy on disk rather than losing what is in it.
+		// taken leaves the copy on disk rather than losing what is in it, and the
+		// caller is told which copy: nothing else knows where the work went.
 		if (scratch) {
 			const released = await scratch.release();
-			patch = released.ok ? released.value : undefined;
+			if (released.ok) patch = released.value;
+			else stranded = `the working copy was not released: ${released.error}\nthe work is still in ${scratch.path}`;
 		}
 	}
 
 	// `work` is always set: maxRounds is at least 1 and every path assigns it.
-	return outcome(work as Result, review, rounds, approved);
+	const result = outcome(work as Result, review, rounds, approved);
+	if (!stranded) return result;
+	// Both failures, never one in place of the other: a model's and a
+	// filesystem's are answered by different people.
+	return { ...result, ok: false, error: result.error ? `${result.error}\n${stranded}` : stranded };
 }
 
 /** `LGTM` on a line of its own, whatever decoration the model put around it. */

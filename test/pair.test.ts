@@ -443,6 +443,33 @@ describe("pair, given a working copy of its own", () => {
 		assert.equal(fake.spawned.length, 0, "nothing ran anywhere");
 	});
 
+	test("a copy that cannot be released fails the pair, and names where the work is", async () => {
+		const dir = repo();
+		// A hook that refuses every commit: the copy's work cannot be put
+		// anywhere the caller can reach, so the copy has to stay.
+		const hooks = path.join(dir, ".git", "hooks");
+		fs.mkdirSync(hooks, { recursive: true });
+		fs.writeFileSync(path.join(hooks, "pre-commit"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+
+		const fake = fakeSpawn((_task, agent, options) => {
+			if (agent.name === "coder") fs.writeFileSync(path.join(options.cwd ?? ".", "made.txt"), "written\n");
+			return { output: agent.name === "reviewer" ? APPROVAL : "work" };
+		});
+
+		const result = await pair({ worker, reviewer, input: "x", cwd: dir, worktree: true, spawn: fake.spawn });
+
+		assert.equal(result.approved, true, "the pair itself did its job");
+		assert.equal(result.ok, false, "and a pair whose work never came back is not a success");
+		assert.match(result.error ?? "", /not released/);
+
+		// The path is the whole point of the message: without it the work is
+		// somewhere under the system's temporary directory and nothing says where.
+		const stranded = (result.error ?? "").match(/\S*combo-scratch-\S+/)?.[0];
+		assert.ok(stranded, "the error names the copy the work is in");
+		assert.equal(fs.existsSync(path.join(stranded as string, "made.txt")), true);
+		fs.rmSync(path.dirname(stranded as string), { recursive: true, force: true });
+	});
+
 	test("without the option nothing touches git at all", async () => {
 		const fake = approvesAt(1);
 		const result = await pair({ worker, reviewer, input: "x", cwd: "/nowhere-at-all", spawn: fake.spawn });

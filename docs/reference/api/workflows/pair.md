@@ -72,6 +72,22 @@ export type PairOptions = WorkflowOptions & {
 	 * turns of a model.
 	 */
 	maxRounds?: number;
+	/**
+	 * Give this pair a copy of the repository to itself.
+	 *
+	 * Off by default. When it is on, both agents run in a git worktree made from
+	 * `cwd`, and {@link PairResult.patch} carries what they did. Two pairs
+	 * running at once then write to two trees, which is what turns "independent
+	 * subtasks" from a promise into a fact.
+	 *
+	 * The copy belongs to the **pair**, not to each agent: a reviewer that had
+	 * one of its own would be reading the code the worker did not touch.
+	 *
+	 * It lives here rather than on `WorkflowOptions` because `pair` is the only
+	 * workflow that acts on it, and an option every workflow accepts while one
+	 * honours it is a silent no-op for the rest.
+	 */
+	worktree?: boolean;
 };
 ```
 
