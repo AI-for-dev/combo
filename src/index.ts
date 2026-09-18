@@ -176,6 +176,7 @@ export {
 // ── The ports that touch the world: git, a check, a question, a saved build ──
 
 export {
+	applyPatch,
 	branchName,
 	commitAll,
 	createBranch,
@@ -189,6 +190,7 @@ export {
 	type GitResult,
 } from "./git.ts";
 export { scratchWorktree, type Scratch } from "./scratch.ts";
+export { land, type Landed, type Landing } from "./land.ts";
 export {
 	createWorktree,
 	listWorktrees,

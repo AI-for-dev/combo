@@ -82,9 +82,32 @@ The copy is released in a `finally`, cancellation and failure included: whoever
 opens closes. A copy that could not be made **stops the pair** rather than
 quietly writing into the tree the caller asked to spare.
 
-Applying the patches is nobody's job here. This produces the change; landing it
-is a policy, and two patches that each apply cleanly on their own can still
-contradict each other.
+## Putting them back together
+
+`land` applies the patches to one tree, one at a time, and runs the project's
+own check between them when it is given one.
+
+```typescript
+const landed = await land(repo, [
+	{ label: "subtask 1", patch: first.patch ?? "" },
+	{ label: "subtask 2", patch: second.patch ?? "" },
+], { verify });
+
+landed.applied;   // what went in, in the order it did
+landed.rejected;  // the one that stopped it, when one did
+```
+
+One at a time because a red tree after three patches says only that one of them
+broke it. A patch is checked before it is applied, so one that does not fit
+touches nothing.
+
+**Nothing is rolled back.** A failure stops the rest where it is, and what
+landed stays landed: undoing would discard work, and every patch is also on its
+branch. The tree has to be clean to start with, or "which patch broke this"
+stops having an answer.
+
+Landing adds no commit and moves no ref. What goes in stays in the working tree
+for a human to read.
 
 `examples/13-concurrent-writers.ts` runs two pairs at once on two subtasks and
 prints the two patches, leaving the repository it was pointed at untouched.

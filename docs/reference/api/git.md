@@ -21,6 +21,25 @@ model can produce at runtime.
 git refuse any branch holding commits nothing else reaches, so it can clear
 away a name and never work.
 
+## `applyPatch`
+
+*function*
+
+```typescript
+export async function applyPatch(cwd: string, patch: string): Promise<GitResult<void>> { /* … */ }
+```
+
+Applies a patch to the working tree, or says why it would not.
+
+Checked before it is applied, so a patch that does not fit leaves the tree
+exactly as it was. `--3way` is not used: it writes conflict markers into the
+files and calls that a success, and a caller left to discover markers in a
+tree it thought was clean is worse off than one told the patch was refused.
+
+This writes where the agents were going to write anyway, so it is not the
+kind of act the rest of this file keeps out. It adds no commit and moves no
+ref: what lands stays in the working tree for a human to look at.
+
 ## `branchName`
 
 *function*

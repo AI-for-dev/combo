@@ -181,3 +181,36 @@ export async function deleteBranch(cwd: string, name: string): Promise<GitResult
 	const result = await git(cwd, ["branch", "-d", name]);
 	return result.ok ? { ok: true, value: name } : result;
 }
+
+/**
+ * Applies a patch to the working tree, or says why it would not.
+ *
+ * Checked before it is applied, so a patch that does not fit leaves the tree
+ * exactly as it was. `--3way` is not used: it writes conflict markers into the
+ * files and calls that a success, and a caller left to discover markers in a
+ * tree it thought was clean is worse off than one told the patch was refused.
+ *
+ * This writes where the agents were going to write anyway, so it is not the
+ * kind of act the rest of this file keeps out. It adds no commit and moves no
+ * ref: what lands stays in the working tree for a human to look at.
+ */
+export async function applyPatch(cwd: string, patch: string): Promise<GitResult<void>> {
+	if (!patch.trim()) return { ok: false, error: "refusing to apply an empty patch" };
+
+	const fits = await applyFromStdin(cwd, ["apply", "--check"], patch);
+	if (!fits.ok) return fits;
+
+	const applied = await applyFromStdin(cwd, ["apply"], patch);
+	return applied.ok ? { ok: true, value: undefined } : applied;
+}
+
+/** `git apply`, with the patch piped in rather than written to a file. */
+function applyFromStdin(cwd: string, args: string[], patch: string): Promise<GitResult<void>> {
+	return new Promise((resolve) => {
+		const child = execFile("git", args, { cwd, maxBuffer: MAX_BUFFER }, (cause, _stdout, stderr) => {
+			if (cause) resolve({ ok: false, error: (stderr || cause.message).trim() });
+			else resolve({ ok: true, value: undefined });
+		});
+		child.stdin?.end(patch.endsWith("\n") ? patch : `${patch}\n`);
+	});
+}
