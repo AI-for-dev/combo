@@ -464,6 +464,20 @@ It still does not combine with `resume`. A resumed delivery finds a tree holding
 what a previous process landed, which it has no record of, so it cannot tell
 that work from somebody else's. That refusal is right rather than missing.
 
+### A command picks the deadline the library refuses to
+
+`timeoutMs` has no default in the library, deliberately: it cannot know how long
+a task should take. A command can, and `/interview` has to. The interviewer
+reads the repository between questions, pi's agent loop has no step cap, and the
+person waiting for the next question cannot tell a slow turn from a stuck one.
+Five minutes is what `NEXT.md` measures these models at; 120s fails roughly half
+the turns, so a shorter one would cut work that was going to finish.
+
+The same place had `--model` checked before the interview and then not used by
+it, so the interviewer ran on whatever `~/.pi/agent/settings.json` named. That is
+the hole invariant 5 exists to close, one command away from where it was closed
+everywhere else.
+
 ## Pipelines: a workflow written down
 
 `src/pipeline.ts` parses one, `src/pipeline-load.ts` finds it, and
