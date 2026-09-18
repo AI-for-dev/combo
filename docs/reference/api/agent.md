@@ -35,6 +35,15 @@ export type Agent = {
 	/** Default lifetime. An explicit call always wins. */
 	lifetime?: Lifetime;
 	/**
+	 * How many subagents this agent runs at once when it delegates.
+	 *
+	 * Only meaningful for an agent whose `tools:` names `subagent`. It is the
+	 * agent's own business rather than the caller's: how wide a split is worth
+	 * making depends on how the agent was told to think about its task, which is
+	 * what its definition says.
+	 */
+	concurrency?: number;
+	/**
 	 * Default for "give this agent its own herdr split". An explicit call wins.
 	 *
 	 * Declaring it here is often what you want: a scout is worth watching every

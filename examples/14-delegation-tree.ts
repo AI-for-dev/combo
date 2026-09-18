@@ -25,10 +25,11 @@ const result = await run(explorer, question, {
 	onEvent,
 	// pi's agent loop has no step cap; never run this unattended without one.
 	timeoutMs: 300_000,
-	// The roster the explorer may name, and the depth it may not pass. Both are
-	// decided here rather than by the agent: what it can reach is the caller's
-	// to say, and a tree that can grow forever is a bill found afterwards.
-	customTools: [delegateTool({ agents, cwd: repoRoot, onEvent, timeoutMs: 300_000 })],
+	// The roster the explorer may name and the depth it may not pass are decided
+	// here: what an agent can reach is the caller's to say, and a tree that can
+	// grow forever is a bill found afterwards. How **wide** it goes is the
+	// agent's own, read from `concurrency:` in its file - hence `holder`.
+	customTools: [delegateTool({ agents, holder: explorer, cwd: repoRoot, onEvent, timeoutMs: 300_000 })],
 });
 
 console.log(`\n──── the answer ────\n${result.output}`);

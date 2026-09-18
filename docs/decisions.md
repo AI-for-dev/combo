@@ -531,6 +531,16 @@ The tool is built outside `spawn` and handed over through
 learns what a roster is, and the recursion stays in one file: a child that
 declares the tool is handed one built at `depth + 1`.
 
+**How wide, and how deep, are decided by different people.** The roster and the
+bound are the caller's: what an agent may reach, and how far a tree may grow,
+are facts about the run. `concurrency:` is the agent's own, read from its
+frontmatter, because how many pieces a task is worth splitting into follows from
+how the agent was told to think about it. An explorer asked for two to four
+tasks wants three in flight, and that belongs beside the instruction that asked
+for them rather than at every call site.
+
+A child that delegates in turn is read the same way, from its own file.
+
 **The depth guard ships with the feature.** Delegation that can go on forever is
 a bill discovered afterwards. Two levels by default - the session, a child, a
 grandchild - which is where a split stops paying, because a grandchild rarely

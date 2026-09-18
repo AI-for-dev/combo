@@ -163,3 +163,17 @@ describe("findAgent", () => {
 		assert.throws(() => findAgent([], "scout"), /scope "project" or "both"/);
 	});
 });
+
+describe("concurrency in the frontmatter", () => {
+	test("a count is read, and one that is not a count is dropped", () => {
+		const of = (line: string) =>
+			parseAgent(`---\nname: a\ndescription: d\n${line}\n---\nbody`, "<memory>", "user")?.concurrency;
+
+		assert.equal(of("concurrency: 3"), 3);
+		assert.equal(of("concurrency: 0"), undefined, "an agent that delegates to nobody is not a thing to say by typo");
+		assert.equal(of("concurrency: -1"), undefined);
+		assert.equal(of("concurrency: two"), undefined);
+		assert.equal(of("concurrency: 2.5"), undefined);
+		assert.equal(of("lifetime: task"), undefined, "absent means the caller decides");
+	});
+});

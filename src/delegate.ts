@@ -31,16 +31,26 @@ export const SUBAGENT_TOOL = "subagent";
 /**
  * How deep delegation goes by default: the session, a child, a grandchild.
  *
- * Two is what pi-subagents settled on, and the reasoning carries: the second
- * level is where a split stops paying, because a grandchild rarely knows enough
- * about the whole to split anything usefully.
+ * Two is where a split stops paying. A grandchild has been handed one slice of
+ * one slice, and rarely knows enough about the whole to divide it usefully - it
+ * spends a turn deciding that instead of reading.
  */
 export const MAX_DEPTH = 2;
 
 /** Who a child may delegate to, how deep, and what its own children inherit. */
 export type DelegateOptions = Omit<WorkflowOptions, "customTools" | "lifetime"> & {
+	/** Branches at once, when the holder's definition does not say. */
+	concurrency?: number;
 	/** The roster a child may name. A name not on it is refused, never guessed. */
 	agents: readonly Agent[];
+	/**
+	 * The agent being handed this tool.
+	 *
+	 * Its `concurrency:` decides how many children it runs at once. Passing it is
+	 * what lets that number live in the agent's own file rather than in every
+	 * call site, and a child that delegates in turn is read the same way.
+	 */
+	holder?: Agent;
 	/** How many levels of delegation are allowed. Defaults to {@link MAX_DEPTH}. */
 	maxDepth?: number;
 	/** The depth of whoever is being handed this tool. The first call is 1. */
@@ -65,7 +75,7 @@ export function declaresDelegate(tools: readonly string[] | undefined): boolean 
  * than a thing to cause on purpose.
  */
 export function delegateTool(options: DelegateOptions): ToolDefinition {
-	const { agents, maxDepth = MAX_DEPTH, depth = 1, ...shared } = options;
+	const { agents, holder, maxDepth = MAX_DEPTH, depth = 1, ...shared } = options;
 	const roster = agents.map((one) => one.name).join(", ");
 
 	return defineTool({
@@ -98,10 +108,16 @@ export function delegateTool(options: DelegateOptions): ToolDefinition {
 				...shared,
 				agent,
 				tasks,
+				// The delegator's own number, not the one it is delegating to: how
+				// wide a split is worth making is a fact about the agent doing the
+				// splitting. Absent, `fanOut` decides.
+				concurrency: holder?.concurrency ?? shared.concurrency,
 				// A child of a child gets the tool too, one level deeper, and only
 				// when its own definition asks for it.
 				customTools: (child) =>
-					declaresDelegate(child.tools) ? [delegateTool({ ...options, depth: depth + 1 })] : undefined,
+					declaresDelegate(child.tools)
+						? [delegateTool({ ...options, holder: child, depth: depth + 1 })]
+						: undefined,
 			});
 
 			return {

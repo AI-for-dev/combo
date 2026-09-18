@@ -83,6 +83,18 @@ export function asString(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
 }
 
+/**
+ * A YAML-ish count: a positive whole number, however the parser handed it over.
+ *
+ * Anything else is `undefined` rather than coerced. `concurrency: 0` and
+ * `concurrency: two` are typos, and a field that turned the first into "no
+ * branches at all" would be a setting nobody meant to write.
+ */
+export function asCount(value: unknown): number | undefined {
+	const count = typeof value === "number" ? value : Number(asString(value));
+	return Number.isInteger(count) && count > 0 ? count : undefined;
+}
+
 /** A YAML-ish flag: a boolean, or the text `"true"` / `"false"`. */
 export function asBoolean(value: unknown): boolean | undefined {
 	if (typeof value === "boolean") return value;

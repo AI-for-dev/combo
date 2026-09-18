@@ -123,3 +123,38 @@ describe("how deep it goes", () => {
 		);
 	});
 });
+
+describe("how wide it goes", () => {
+	test("the delegator's own number decides, not the caller's", async () => {
+		const wide = testAgent("wide", { tools: ["read", SUBAGENT_TOOL], concurrency: 2 });
+		const fake = fakeSpawn(async () => ({ delayMs: 5 }));
+		const tool = delegateTool({ agents: [scout, wide], holder: wide, spawn: fake.spawn, concurrency: 4 });
+
+		await callTool(tool, { agent: "scout", tasks: ["a", "b", "c", "d"] });
+
+		assert.equal(fake.maxConcurrent, 2, "its file says two at a time, and the call site said four");
+	});
+
+	test("without one on the agent, the caller's stands", async () => {
+		const plain = testAgent("plain", { tools: ["read", SUBAGENT_TOOL] });
+		const fake = fakeSpawn(async () => ({ delayMs: 5 }));
+		const tool = delegateTool({ agents: [scout, plain], holder: plain, spawn: fake.spawn, concurrency: 2 });
+
+		await callTool(tool, { agent: "scout", tasks: ["a", "b", "c", "d"] });
+
+		assert.equal(fake.maxConcurrent, 2);
+	});
+
+	test("a child that delegates in turn is read from its own file", async () => {
+		const narrow = testAgent("narrow", { tools: ["read", SUBAGENT_TOOL], concurrency: 1 });
+		const wide = testAgent("wide", { tools: ["read", SUBAGENT_TOOL], concurrency: 3 });
+		const fake = fakeSpawn(async () => ({ delayMs: 5 }));
+		const tool = delegateTool({ agents: [scout, narrow, wide], holder: wide, spawn: fake.spawn, maxDepth: 3 });
+
+		await callTool(tool, { agent: "narrow", tasks: ["split this"] });
+		const childTool = fake.spawned[0]?.options.customTools?.[0];
+		await callTool(childTool as never, { agent: "scout", tasks: ["a", "b", "c"] });
+
+		assert.equal(fake.maxConcurrent, 1, "the child's own file says one at a time, not its parent's three");
+	});
+});
