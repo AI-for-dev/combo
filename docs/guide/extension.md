@@ -30,6 +30,12 @@ repository live in `.pi/agents/`, so ask for them explicitly:
 That is deliberate: project agents are repository-controlled content, so they are
 never loaded by default. See [Agents](agents.md).
 
+The interview writes its transcript into the run's folder, the same
+`runs/<timestamp>/` the pipeline uses: one run, one folder. That folder is made
+**before** the interview rather than after it, because a failed interview is the
+one moment "what was actually sent" is the only question worth asking, and it
+used to leave nothing to read. The failure names the folder.
+
 The interview is watched the way the pipeline is: a row per subagent, with what
 it is reading. Measured on this repository against `ilaas/gemma-4-31b`, its first
 turn is 35 seconds and seven file reads, and the whole interview 57 seconds over

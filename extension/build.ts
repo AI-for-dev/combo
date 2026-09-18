@@ -303,14 +303,19 @@ export async function runBuild(args: string, ctx: CommandCtx, deps: BuildDeps = 
 	const plan = await validateBuild(args, ctx, deps);
 	if (!plan) return undefined;
 
-	const started = await loadOrResume(plan, ctx, deps);
+	// One run, one folder - and it is made before the interview rather than
+	// after it. An interview that fails used to leave nothing to read, which is
+	// the one moment "what was actually sent" is the only question worth asking.
+	const exportDir = plan.previous ? plan.previous.dir : (deps.runDir ?? createRunDir)();
+
+	const started = await loadOrResume(plan, ctx, deps, exportDir);
 	if (!started) return undefined;
 
 	if (!(await confirmBrief(started, ctx))) {
 		return refuse(ctx, "build: stopped before any work started - the brief is in the editor", "info");
 	}
 
-	const ran = await runTheWork(plan, started, ctx, deps);
+	const ran = await runTheWork(plan, started, exportDir, ctx, deps);
 
 	// The last delivery is what a human acts on. A pipeline with no `deliver`
 	// step has no `approved` to report, and saying "NOT approved" about a run
@@ -398,11 +403,20 @@ type StartingPoint = { brief: string; resume?: BuildProgress };
  * A resumed build is never re-interviewed - that would ask the user to decide
  * again what they decided an hour ago.
  */
-async function loadOrResume(plan: BuildPlan, ctx: CommandCtx, deps: BuildDeps): Promise<StartingPoint | undefined> {
+async function loadOrResume(
+	plan: BuildPlan,
+	ctx: CommandCtx,
+	deps: BuildDeps,
+	exportDir: string,
+): Promise<StartingPoint | undefined> {
 	const previous = plan.previous;
 	if (!previous) {
-		const brief = (await runInterview(plan.request, ctx, deps, { model: plan.model, maxQuestions: plan.questions }))?.brief;
-		return brief ? { brief } : undefined;
+		const outcome = await runInterview(plan.request, ctx, deps, {
+			model: plan.model,
+			maxQuestions: plan.questions,
+			exportDir,
+		});
+		return outcome?.brief ? { brief: outcome.brief } : undefined;
 	}
 
 	const resume = fromBuildState(previous.state, plan.agents);
@@ -435,6 +449,7 @@ async function confirmBrief(started: StartingPoint, ctx: CommandCtx): Promise<bo
 async function runTheWork(
 	plan: BuildPlan,
 	started: StartingPoint,
+	exportDir: string,
 	ctx: CommandCtx,
 	deps: BuildDeps,
 ): Promise<{ done: PipelineRunResult; exportDir: string; label: string }> {
@@ -448,11 +463,6 @@ async function runTheWork(
 	// an empty answer is a legitimate "there is nothing to run".
 	const verify = deps.verify ?? pipelineVerifier(pipeline, ctx.cwd) ?? (await askForCheck(ctx));
 
-	// A pipeline that writes code leaves its transcripts behind: when something
-	// went wrong, "what did the coder actually see" is the first question.
-	// A resumed build writes into the directory it started in: one run, one
-	// folder, whatever it took to finish it.
-	const exportDir = previous ? previous.dir : (deps.runDir ?? createRunDir)();
 	// The same dots the tool draws, and the same ones `/run` draws.
 	const live = liveRun(ctx.ui, { tickMs: deps.tickMs });
 
@@ -692,7 +702,7 @@ export async function runInterview(
 	request: string,
 	ctx: CommandCtx,
 	deps: BuildDeps = {},
-	options: { model?: string; maxQuestions?: number } = {},
+	options: { model?: string; maxQuestions?: number; exportDir?: string } = {},
 ): Promise<InterviewResult | undefined> {
 	if (!request.trim()) {
 		return refuse(ctx, "interview: say what you want built, for example /interview add a cache to the loader", "warning");
@@ -714,6 +724,7 @@ export async function runInterview(
 	// and a user cannot tell that from a turn that has hung.
 	const live = liveRun(ctx.ui, { tickMs: deps.tickMs });
 	const startedAt = performance.now();
+	const where = options.exportDir ?? (deps.runDir ?? createRunDir)();
 
 	ctx.ui.setStatus(STATUS, "interviewing…");
 	let result: InterviewResult;
@@ -728,6 +739,9 @@ export async function runInterview(
 			maxQuestions: options.maxQuestions,
 			timeoutMs: INTERVIEW_TURN_MS,
 			onEvent: live.onEvent,
+			// The transcript outlives the command, and a failed interview needs it
+			// most: it is the only record of what was actually sent.
+			exportDir: where,
 		});
 	} finally {
 		// In a `finally`: a thrown interview must not leave "interviewing…" and a
@@ -737,7 +751,10 @@ export async function runInterview(
 	}
 
 	if (!result.ok) {
-		ctx.ui.notify(`interview failed: ${result.error ?? "unknown error"}`, "error");
+		ctx.ui.notify(
+			`interview failed: ${result.error ?? "unknown error"} - the transcript is in ${where}`,
+			"error",
+		);
 		return result;
 	}
 
