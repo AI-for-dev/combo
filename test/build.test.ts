@@ -780,6 +780,27 @@ describe("the interview gets what it was promised", () => {
 		assert.equal(parseBuildArgs("add a cache").questions, undefined);
 	});
 
+	test("the interviewer is watched while it works, not left behind a frozen line", async () => {
+		const { ctx, widgets } = fakeCtx();
+		await runInterview(
+			"add a cache",
+			ctx,
+			deps({
+				interview: (async (options: { onEvent?: (event: unknown) => void }) => {
+					options.onEvent?.({ type: "spawn", id: "interviewer#1", agent: "interviewer", lifetime: "workflow", openInHerdr: false });
+					options.onEvent?.({ type: "status", id: "interviewer#1", status: "working", task: "…" });
+					options.onEvent?.({ type: "tool", id: "interviewer#1", name: "read", args: { path: "src/agent.ts" } });
+					return result({ brief: "THE BRIEF", answers: [], steps: [], submitted: false }) as never;
+				}) as never,
+			}),
+		);
+
+		const drawn = widgets.flatMap((lines) => lines ?? []).join("\n");
+		assert.match(drawn, /interviewer/, "the reader is on screen");
+		assert.match(drawn, /read/, "and so is what it is reading");
+		assert.equal(widgets.at(-1), undefined, "and the row goes when the interview does");
+	});
+
 	test("the model, the cap and a deadline all reach it", async () => {
 		const { ctx } = fakeCtx();
 		let seen: Record<string, unknown> | undefined;

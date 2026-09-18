@@ -709,6 +709,12 @@ export async function runInterview(
 		return refuse(ctx, cause instanceof Error ? cause.message : String(cause), "error");
 	}
 
+	// The same live view the pipeline gets. Without it the first turn is half a
+	// minute of a frozen status line while the interviewer reads the repository,
+	// and a user cannot tell that from a turn that has hung.
+	const live = liveRun(ctx.ui, { tickMs: deps.tickMs });
+	const startedAt = performance.now();
+
 	ctx.ui.setStatus(STATUS, "interviewing…");
 	let result: InterviewResult;
 	try {
@@ -721,10 +727,12 @@ export async function runInterview(
 			model: options.model,
 			maxQuestions: options.maxQuestions,
 			timeoutMs: INTERVIEW_TURN_MS,
+			onEvent: live.onEvent,
 		});
 	} finally {
-		// In a `finally`: a thrown interview must not leave "interviewing…" in
-		// the footer for the rest of the session.
+		// In a `finally`: a thrown interview must not leave "interviewing…" and a
+		// dead row of dots in the footer for the rest of the session.
+		live.stop(undefined, performance.now() - startedAt);
 		ctx.ui.setStatus(STATUS, undefined);
 	}
 

@@ -473,6 +473,13 @@ person waiting for the next question cannot tell a slow turn from a stuck one.
 Five minutes is what `NEXT.md` measures these models at; 120s fails roughly half
 the turns, so a shorter one would cut work that was going to finish.
 
+The interview is also watched like everything else. It had a fixed
+`interviewing…` and no reporter, so its first turn - 35 seconds and seven file
+reads, measured on this repository - looked exactly like a turn that had hung.
+Display is an observer and unplugging it changes no result, which is why adding
+it here costs nothing and why leaving it out cost the only thing it could: the
+user's confidence that anything was happening.
+
 The same place had `--model` checked before the interview and then not used by
 it, so the interviewer ran on whatever `~/.pi/agent/settings.json` named. That is
 the hole invariant 5 exists to close, one command away from where it was closed
