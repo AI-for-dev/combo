@@ -646,6 +646,11 @@ describe("delivering in copies", () => {
 		assert.equal(result.landings.length, 1, "one batch of subtasks, one landing");
 		assert.equal(result.landings[0]?.ok, true);
 		assert.equal(result.landings[0]?.applied.length, 2);
+		// A report naming its patches by the whole subtask is one nobody reads.
+		for (const label of result.landings[0]?.applied ?? []) {
+			assert.ok(label.length <= 60, `a landing label stays short: ${label}`);
+			assert.ok(!label.includes("\n"), "and on one line");
+		}
 
 		assert.equal(fs.readFileSync(path.join(dir, "code.txt"), "utf8"), "coder was here\n");
 		assert.equal(fs.readFileSync(path.join(dir, "doc.txt"), "utf8"), "scribe was here\n");

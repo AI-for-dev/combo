@@ -24,7 +24,7 @@ import type { Agent } from "./../agent.ts";
 import { land, type Landed } from "./../land.ts";
 import { createLedger, openList, type Ledger, type Obligation } from "./../ledger.ts";
 import { failed, type Result } from "./../result.ts";
-import { saysWord } from "./../text.ts";
+import { saysWord, truncate } from "./../text.ts";
 import { emptyUsage, sumUsage, type Usage } from "./../usage.ts";
 import type { BuildProgress } from "./../resume.ts";
 import { declaresVerdict, lastVerdict, verdictTool, type Verdict } from "./../verdict.ts";
@@ -271,7 +271,9 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 
 		const landed = await land(
 			shared.cwd ?? process.cwd(),
-			batch.map((one) => ({ label: one.input, patch: one.patch ?? "" })),
+			// A short label, not the subtask: a report naming three patches by their
+			// full text is one nobody reads.
+			batch.map((one) => ({ label: truncate(one.input, 60), patch: one.patch ?? "" })),
 			{ verify },
 		);
 		landings.push(landed);
