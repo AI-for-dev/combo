@@ -449,10 +449,16 @@ back, so the policy had to exist before the delivery could use the mechanism.
 raised is open, the check passed, **and** every patch reached the tree. Work
 nobody could land is not delivered, whatever was said about the reports.
 
-It does not combine with `resume` yet, and the refusal is the right one rather
-than a missing feature: a resumed delivery starts on a tree already holding what
-landed last time, and landing a patch onto somebody else's changes is what makes
-"which patch broke this" unanswerable.
+A delivery lands more than once: the planned subtasks, then each round of audit
+fixes. Only the first of those meets a tree it did not write, so the clean-tree
+precondition is the **first** caller's and not every call's. Measured: with it
+on every call, a real delivery whose audit asked for one fix had that fix
+refused with "refusing to land onto a tree that already has changes in it" -
+changes the delivery had put there itself one step earlier.
+
+It still does not combine with `resume`. A resumed delivery finds a tree holding
+what a previous process landed, which it has no record of, so it cannot tell
+that work from somebody else's. That refusal is right rather than missing.
 
 ## Pipelines: a workflow written down
 

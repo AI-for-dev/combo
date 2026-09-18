@@ -29,7 +29,7 @@ list of what went in, and the name of what did not.
 export async function land(
 	repo: string,
 	landings: readonly Landing[],
-	options: { verify?: Verify } = {},
+	options: { verify?: Verify; requireCleanTree?: boolean } = {},
 ): Promise<Landed> { /* … */ }
 ```
 
@@ -38,6 +38,13 @@ Applies each patch in turn, checking the tree between them.
 The tree must be clean to start with. Landing onto work somebody else is in
 the middle of would make "which patch broke this" unanswerable, which is the
 one question this function exists to answer.
+
+`requireCleanTree: false` is for the caller that put those changes there
+itself, which is the only one that can tell them from somebody else's. A
+delivery lands its subtasks, then lands the fixes its audit asked for onto a
+tree holding the first lot: the second call knows exactly what it is adding
+to, and refusing it would make the option useless the moment an audit asks
+for anything.
 
 Order matters and is the caller's: these are applied as given.
 

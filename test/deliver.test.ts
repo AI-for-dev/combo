@@ -715,6 +715,44 @@ describe("delivering in copies", () => {
 		assert.ok(result.landings[0]?.rejected, "and it says which one");
 	});
 
+	test("an audit that asks for a fix lands it onto the tree the subtasks filled", async () => {
+		const dir = repo();
+		// The auditor refuses once, names a fix, then signs off.
+		let audit = 0;
+		const fake = fakeSpawn((task, agent, options) => {
+			switch (agent.name) {
+				case "planner":
+					return { output: plan };
+				case "reviewer":
+					return { output: APPROVAL };
+				case "auditor":
+					return { output: audit++ === 0 ? "coder: add the missing note" : AUDIT_APPROVAL };
+				default: {
+					const name = task.includes("missing note") ? "note.txt" : task.includes("document") ? "doc.txt" : "code.txt";
+					fs.writeFileSync(path.join(options.cwd ?? ".", name), `${agent.name} wrote ${name}\n`);
+					return { output: `${agent.name} wrote ${name}` };
+				}
+			}
+		});
+
+		const result = await deliver({
+			planner,
+			workers,
+			reviewer,
+			auditor,
+			brief: "x",
+			cwd: dir,
+			worktree: true,
+			maxAuditRounds: 2,
+			spawn: fake.spawn,
+		});
+
+		assert.equal(result.landings.length, 2, "the subtasks, then the audit's fix");
+		assert.equal(result.landings[1]?.ok, true, "the second lands onto what the first put there");
+		assert.equal(result.approved, true);
+		assert.equal(fs.readFileSync(path.join(dir, "note.txt"), "utf8"), "coder wrote note.txt\n");
+	});
+
 	test("without the option nothing touches git, and no landing is reported", async () => {
 		const fake = cast();
 		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn });

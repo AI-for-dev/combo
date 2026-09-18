@@ -274,7 +274,10 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 			// A short label, not the subtask: a report naming three patches by their
 			// full text is one nobody reads.
 			batch.map((one) => ({ label: truncate(one.input, 60), patch: one.patch ?? "" })),
-			{ verify },
+			// Only the first landing of a delivery meets a tree it did not write.
+			// Refusing the later ones would break the option on any audit that
+			// asks for a fix.
+			{ verify, requireCleanTree: landings.length === 0 },
 		);
 		landings.push(landed);
 		// The last check `land` ran is the tree as it stands. With nothing to land
