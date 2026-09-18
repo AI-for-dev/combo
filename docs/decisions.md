@@ -373,6 +373,36 @@ keeps its id rather than raising a duplicate of it. `BuildState.obligations` is
 optional for a state written before the ledger existed, and an empty ledger is
 the honest reading of that rather than a reason to refuse the file.
 
+### A working copy belongs to the work, not to the subagent
+
+`deliver` pins `concurrency` to 2 because its workers write to the same tree.
+A git worktree each turns that into a question about the tasks rather than about
+the filesystem, and `pair` takes `worktree: true` to ask for one.
+
+The copy is the **pair's**, not each agent's. A reviewer given its own would be
+reading the code the worker did not touch, which is the one arrangement that
+looks right and reviews nothing.
+
+Two consequences that were found by writing it rather than by reasoning about
+it. `git worktree remove` refuses a copy holding changes and knows nothing about
+the patch a caller is holding, so `patched: true` is both our guard and the only
+thing that lifts git's. And `pair` cannot return from inside its round loop any
+more: the copy is released in the `finally`, and a result built before that
+carries no patch.
+
+A copy that cannot be made stops the pair. Carrying on would write into the tree
+the caller asked to spare, which is the failure the option exists to prevent.
+
+The work is **committed** on the copy's branch before the copy goes. A first run
+left the branches pointing at the base commit, holding nothing, one pair of them
+per run: the patch was the only copy of the work and `PairResult.worktree` named
+something empty. A branch that turns out to hold nothing is cleared with
+`git branch -d`, which refuses any that holds something.
+
+Landing the patches is not here. Two patches that each apply cleanly on their own
+can still contradict each other, and deciding what to do about that is a policy
+with more than one defensible answer.
+
 ## Pipelines: a workflow written down
 
 `src/pipeline.ts` parses one, `src/pipeline-load.ts` finds it, and

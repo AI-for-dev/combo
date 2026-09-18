@@ -14,7 +14,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`experiment-report`](experiment-report.md) | What an experiment leaves behind: one JSON document, one comparison table. | 6 |
 | [`experiment`](experiment.md) | Running the same work across several models, several times. | 4 |
 | [`export`](export.md) | Exporting a run: `runs/<timestamp>/` with one HTML and one JSONL per subagent, plus a `usage.json`. | 9 |
-| [`git`](git.md) | The git a pipeline is allowed to do - and nothing else. | 10 |
+| [`git`](git.md) | The git a pipeline is allowed to do - and nothing else. | 11 |
 | [`ledger`](ledger.md) | What is left to do, as a list nobody can lose track of. | 6 |
 | [`pipeline-load`](pipeline-load.md) | Finding the pipelines a user wrote, wherever they put them. | 6 |
 | [`pipeline`](pipeline.md) | A pipeline is *data*: an ordered list of combinator calls, declared as YAML frontmatter + Markdown, following the same convention as an agent. | 5 |
@@ -28,6 +28,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`result`](result.md) | `Result`: the single contract shared by everything else. | 3 |
 | [`resume`](resume.md) | Saving a build so it can be picked up again. | 10 |
 | [`run`](run.md) | `run()`: the disposable form. Spawn, ask, close. | 2 |
+| [`scratch`](scratch.md) | A working copy with a lifetime: made for one piece of work, and released when that work is done. | 2 |
 | [`session`](session.md) | The whole pi API lives here, and nowhere else. | 9 |
 | [`subagent`](subagent.md) | A subagent: a live session, a memory, a state. | 4 |
 | [`text`](text.md) | Reading what a model wrote: shortening it, and finding the structure in it. | 2 |
@@ -71,6 +72,7 @@ reporters/tui
 result
 resume
 run
+scratch
 session
 subagent
 text

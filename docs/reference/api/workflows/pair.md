@@ -111,6 +111,22 @@ export type PairResult = Result & {
 	 * which ones are still open rather than only that it stopped.
 	 */
 	obligations: readonly Obligation[];
+	/**
+	 * The branch the work was committed to, when `worktree` asked for a copy.
+	 *
+	 * The copy itself is gone by the time a caller reads this, and the commit on
+	 * this branch is what is left of it. A caller that drops the patch below has
+	 * still lost nothing. Absent when the pair wrote nothing: a branch naming no
+	 * work would only pile up.
+	 */
+	worktree?: string;
+	/**
+	 * What the work changed, as a patch against what it started from.
+	 *
+	 * Present with `worktree`, and empty when nothing was written. Applying it is
+	 * nobody's job here: this workflow produces the change, it does not land it.
+	 */
+	patch?: string;
 };
 ```
 

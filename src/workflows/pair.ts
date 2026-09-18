@@ -13,6 +13,7 @@
 
 import type { Agent } from "./../agent.ts";
 import { createLedger, openList, type Ledger, type Obligation } from "./../ledger.ts";
+import { scratchWorktree, type Scratch } from "./../scratch.ts";
 import { failed, type Result } from "./../result.ts";
 import { saysWord } from "./../text.ts";
 import { sumUsage, type Usage } from "./../usage.ts";
@@ -77,6 +78,22 @@ export type PairResult = Result & {
 	 * which ones are still open rather than only that it stopped.
 	 */
 	obligations: readonly Obligation[];
+	/**
+	 * The branch the work was committed to, when `worktree` asked for a copy.
+	 *
+	 * The copy itself is gone by the time a caller reads this, and the commit on
+	 * this branch is what is left of it. A caller that drops the patch below has
+	 * still lost nothing. Absent when the pair wrote nothing: a branch naming no
+	 * work would only pile up.
+	 */
+	worktree?: string;
+	/**
+	 * What the work changed, as a patch against what it started from.
+	 *
+	 * Present with `worktree`, and empty when nothing was written. Applying it is
+	 * nobody's job here: this workflow produces the change, it does not land it.
+	 */
+	patch?: string;
 };
 
 /**
@@ -112,6 +129,8 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 	const steps: Result[] = [];
 	const startedAt = performance.now();
 	let verdict: Verdict | undefined;
+	let scratch: Scratch | undefined;
+	let patch: string | undefined;
 
 	const outcome = (work: Result, review: Result | undefined, rounds: number, approved: boolean): PairResult => ({
 		...work,
@@ -126,6 +145,8 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 		approved,
 		verdict,
 		obligations: ledger.all,
+		worktree: patch ? scratch?.branch : undefined,
+		patch,
 	});
 
 	if (signal?.aborted) {
@@ -134,22 +155,38 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 		return outcome(aborted, undefined, 0, false);
 	}
 
+	// Both agents share the copy: a reviewer reading anywhere else would be
+	// reading the code the worker did not touch. One that could not be made stops
+	// the pair, rather than quietly writing into the tree it was meant to spare.
+	if (options.worktree) {
+		const made = await scratchWorktree(options.cwd ?? process.cwd(), input);
+		if (!made.ok) {
+			const stopped = failed(worker.name, `no working copy: ${made.error}`);
+			steps.push(stopped);
+			return outcome(stopped, undefined, 0, false);
+		}
+		scratch = made.value;
+	}
+
 	// A pair is a conversation between two agents: they keep their memory unless
 	// the caller says otherwise. The default is written **after** the spread, not
 	// before: a caller that builds its options by merging hands us
 	// `lifetime: undefined` for an option nobody set, and an explicit `undefined`
 	// spread over a default silently wins.
-	// Only the reviewer is offered the tool. The worker writing into the same
-	// collector would make the two agents' answers indistinguishable, and pi's
-	// allowlist would refuse it anyway.
+	//
+	// Only the reviewer is offered the verdict tool. The worker writing into the
+	// same collector would make the two agents' answers indistinguishable, and
+	// pi's allowlist would refuse it anyway.
 	const pool = new SubagentPool({
 		...options,
+		cwd: scratch?.path ?? options.cwd,
 		lifetime: options.lifetime ?? "workflow",
 		customTools: verdicts ? (agent) => (agent.name === reviewer.name ? [verdicts.tool] : undefined) : options.customTools,
 	});
 	let work: Result | undefined;
 	let review: Result | undefined;
 	let rounds = 0;
+	let approved = false;
 
 	try {
 		let task = input;
@@ -188,10 +225,13 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 				// and nothing it raised earlier is still open. A reviewer holding the
 				// tool and calling nothing has not approved either - guessing from its
 				// prose is the reading this tool exists to retire.
-				if (verdict?.approved && ledger.settled) return outcome(work, review, round, true);
-			} else if (await isApproved(review, round)) {
-				return outcome(work, review, round, true);
+				approved = !!verdict?.approved && ledger.settled;
+			} else {
+				approved = await isApproved(review, round);
 			}
+			// Breaking rather than returning: the copy is released in the `finally`
+			// below, and a result built before that would carry no patch.
+			if (approved) break;
 
 			// The review itself, never the verdict's summary of it: the reviewer's
 			// definition is what disciplines this text - five remarks at most, each
@@ -205,10 +245,16 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 		}
 	} finally {
 		await pool.closeAll();
+		// Whoever opens closes, cancellation included. A patch that could not be
+		// taken leaves the copy on disk rather than losing what is in it.
+		if (scratch) {
+			const released = await scratch.release();
+			patch = released.ok ? released.value : undefined;
+		}
 	}
 
 	// `work` is always set: maxRounds is at least 1 and every path assigns it.
-	return outcome(work as Result, review, rounds, false);
+	return outcome(work as Result, review, rounds, approved);
 }
 
 /** `LGTM` on a line of its own, whatever decoration the model put around it. */
