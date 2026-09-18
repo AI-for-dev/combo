@@ -440,6 +440,20 @@ is the one question the whole arrangement exists to answer.
 Landing adds no commit and moves no ref. What goes in stays in the working tree,
 the way `deliver` already leaves its work for a human to read.
 
+`deliver` takes `worktree` and does both halves: a copy per subtask, then a
+landing per batch of them. That is why the two were built in this order -
+`deliver`'s check had nowhere to run while the work sat in copies nothing put
+back, so the policy had to exist before the delivery could use the mechanism.
+
+`approved` gains a third condition there: the auditor signed off, nothing it
+raised is open, the check passed, **and** every patch reached the tree. Work
+nobody could land is not delivered, whatever was said about the reports.
+
+It does not combine with `resume` yet, and the refusal is the right one rather
+than a missing feature: a resumed delivery starts on a tree already holding what
+landed last time, and landing a patch onto somebody else's changes is what makes
+"which patch broke this" unanswerable.
+
 ## Pipelines: a workflow written down
 
 `src/pipeline.ts` parses one, `src/pipeline-load.ts` finds it, and

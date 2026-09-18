@@ -115,11 +115,21 @@ export type DeliverOptions = WorkflowOptions & {
 	/**
 	 * Subtasks in flight at once. Defaults to **2**, not 4.
 	 *
-	 * These workers write to the same working tree. Two at a time is already the
-	 * point where "independent subtasks" stops being a promise the planner can
-	 * keep, and a caller who knows their tasks are truly disjoint can raise it.
+	 * Without `worktree` these workers write to the same tree, and two at a time
+	 * is already the point where "independent subtasks" stops being a promise the
+	 * planner can keep. With it the limit is what a run costs rather than what the
+	 * filesystem allows, and a caller can raise it on that basis.
 	 */
 	concurrency?: number;
+	/**
+	 * Give each subtask a copy of the repository, and put the work back after.
+	 *
+	 * Every pair runs in a git worktree of `cwd`, and what they wrote is applied
+	 * to `cwd` one patch at a time with `verify` run between them, so a patch that
+	 * breaks the tree is named rather than bisected. Off by default: a delivery
+	 * that fits in one tree has no use for the machinery.
+	 */
+	worktree?: boolean;
 	/** Rounds inside each pair. Defaults to 3. */
 	maxRounds?: number;
 	/** Audit → fix → re-audit cycles. Defaults to 2. */
@@ -173,6 +183,14 @@ export type DeliverResult = {
 	audits: AuditRound[];
 	/** The last verification, when one was configured. */
 	verification?: Verification;
+	/**
+	 * What became of the copies' patches, one entry per batch that ran.
+	 *
+	 * Empty without `worktree`. A batch that stopped on a patch names it, and
+	 * `approved` is false while any of these is: work that never reached the tree
+	 * is not delivered, whatever the auditor thought of the reports.
+	 */
+	landings: readonly Landed[];
 	/**
 	 * What the auditor raised across the rounds, and what became of each.
 	 *
