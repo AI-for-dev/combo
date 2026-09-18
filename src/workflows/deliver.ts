@@ -24,7 +24,7 @@ import type { Agent } from "./../agent.ts";
 import { land, type Landed } from "./../land.ts";
 import { createLedger, openList, type Ledger, type Obligation } from "./../ledger.ts";
 import { failed, type Result } from "./../result.ts";
-import { saysWord } from "./../text.ts";
+import { saysWord, truncate } from "./../text.ts";
 import { emptyUsage, sumUsage, type Usage } from "./../usage.ts";
 import type { BuildProgress } from "./../resume.ts";
 import { declaresVerdict, lastVerdict, verdictTool, type Verdict } from "./../verdict.ts";
@@ -271,8 +271,13 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 
 		const landed = await land(
 			shared.cwd ?? process.cwd(),
-			batch.map((one) => ({ label: one.input, patch: one.patch ?? "" })),
-			{ verify },
+			// A short label, not the subtask: a report naming three patches by their
+			// full text is one nobody reads.
+			batch.map((one) => ({ label: truncate(one.input, 60), patch: one.patch ?? "" })),
+			// Only the first landing of a delivery meets a tree it did not write.
+			// Refusing the later ones would break the option on any audit that
+			// asks for a fix.
+			{ verify, requireCleanTree: landings.length === 0 },
 		);
 		landings.push(landed);
 		// The last check `land` ran is the tree as it stands. With nothing to land
@@ -332,7 +337,7 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 		const approved = said && ledger.settled;
 		// The auditor names who fixes what, in the plan convention: one parser,
 		// one vocabulary. A name it invented is dropped, like anywhere else.
-		const fixes = approved || !review.ok ? [] : fixesFrom(review, workers, raised);
+		const fixes = approved || !review.ok ? [] : fixesFrom(review, workers, raised, !!verdicts);
 
 		const results = fixes.length > 0 ? await mapConcurrent(fixes, concurrency, run) : [];
 		audits.push({ review, verdict, verification, approved, fixes, results });
@@ -421,17 +426,25 @@ async function auditOnce(options: AuditOptions): Promise<Result> {
  * exactly **one** worker could take it, the whole review is handed to them:
  * there is no ambiguity to resolve. With several workers there is, and dropping
  * it stays right - guessing who owns a fix is how the wrong file gets rewritten.
+ *
+ * That concession is for prose and for prose only. An auditor holding the
+ * verdict tool has a place to put what it wants done, and `byTool` says it did;
+ * reading its prose as well turned the word `APPROVED` into a fix a coder was
+ * sent away to make.
  */
-function fixesFrom(review: Result, workers: readonly Agent[], raised: readonly string[] = []): PlannedTask[] {
-	// What the tool carries wins when it carries anything: those lines are what
-	// the auditor put on the ledger, so acting on the prose instead would work
-	// from something nobody is going to be asked about again.
-	const source = raised.length ? raised.join("\n") : review.output;
-	const named = parsePlan(source, workers);
+function fixesFrom(
+	review: Result,
+	workers: readonly Agent[],
+	raised: readonly string[],
+	byTool: boolean,
+): PlannedTask[] {
+	if (byTool) return parsePlan(raised.join("\n"), workers);
+
+	const named = parsePlan(review.output, workers);
 	if (named.length > 0 || workers.length !== 1) return named;
 
 	const only = workers[0] as Agent;
-	const remarks = source.trim();
+	const remarks = review.output.trim();
 	return remarks ? [{ agent: only, task: `The audit asked for this. Address it:\n\n${remarks}` }] : [];
 }
 

@@ -49,20 +49,29 @@ export type Landed = {
  * the middle of would make "which patch broke this" unanswerable, which is the
  * one question this function exists to answer.
  *
+ * `requireCleanTree: false` is for the caller that put those changes there
+ * itself, which is the only one that can tell them from somebody else's. A
+ * delivery lands its subtasks, then lands the fixes its audit asked for onto a
+ * tree holding the first lot: the second call knows exactly what it is adding
+ * to, and refusing it would make the option useless the moment an audit asks
+ * for anything.
+ *
  * Order matters and is the caller's: these are applied as given.
  */
 export async function land(
 	repo: string,
 	landings: readonly Landing[],
-	options: { verify?: Verify } = {},
+	options: { verify?: Verify; requireCleanTree?: boolean } = {},
 ): Promise<Landed> {
 	const applied: string[] = [];
 	const checks: Verification[] = [];
 
-	const dirty = await status(repo);
-	if (!dirty.ok) return { applied, checks, ok: false, error: dirty.error };
-	if (dirty.value.trim()) {
-		return { applied, checks, ok: false, error: "refusing to land onto a tree that already has changes in it" };
+	if (options.requireCleanTree !== false) {
+		const dirty = await status(repo);
+		if (!dirty.ok) return { applied, checks, ok: false, error: dirty.error };
+		if (dirty.value.trim()) {
+			return { applied, checks, ok: false, error: "refusing to land onto a tree that already has changes in it" };
+		}
 	}
 
 	for (const landing of landings) {

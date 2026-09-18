@@ -103,8 +103,12 @@ touches nothing.
 
 **Nothing is rolled back.** A failure stops the rest where it is, and what
 landed stays landed: undoing would discard work, and every patch is also on its
-branch. The tree has to be clean to start with, or "which patch broke this"
-stops having an answer.
+branch.
+
+The tree has to be clean to start with, or "which patch broke this" stops
+having an answer. `requireCleanTree: false` is for the caller that put those
+changes there itself and is therefore the only one able to tell them from
+somebody else's.
 
 Landing adds no commit and moves no ref. What goes in stays in the working tree
 for a human to read.

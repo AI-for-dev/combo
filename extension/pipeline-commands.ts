@@ -68,7 +68,7 @@ export default function registerPipelineCommands(pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("run", {
-		description: "Run a pipeline by name, with no interview and no commit (`--model <pattern>` to override)",
+		description: "Run a pipeline by name, with no interview and no commit (`--model <pattern>`, `--worktree`)",
 		handler: async (args: string, ctx: ExtensionCommandContext) => {
 			await runNamed(args, ctx as unknown as CommandCtx, { sendMessage });
 		},
@@ -113,7 +113,7 @@ export function listPipelines(ctx: CommandCtx, deps: PipelineDeps = {}): string[
 }
 
 /**
- * `/run [--model <pattern>] <pipeline> <what it should work on>`.
+ * `/run [--model <pattern>] [--worktree] <pipeline> <what it should work on>`.
  *
  * No interview and no commit stop: this runs a pipeline and hands back what it
  * said. Whatever a step writes to the working tree is still written - `/run` is
@@ -126,8 +126,9 @@ export function listPipelines(ctx: CommandCtx, deps: PipelineDeps = {}): string[
  * model before it knows anything about it.
  */
 export async function runNamed(args: string, ctx: CommandCtx, deps: PipelineDeps = {}): Promise<PipelineRunResult | undefined> {
-	const { flags, rest: text } = parseLeadingFlags(args, ["model"]);
+	const { flags, rest: text } = parseLeadingFlags(args, ["model"], ["worktree"]);
 	const model = flags.model;
+	const worktree = flags.worktree === "true";
 	const [name, ...rest] = text.split(/\s+/).filter(Boolean);
 	if (!name) {
 		return refuse(ctx, "run: say which pipeline, for example /run explore how usage is measured. /pipelines lists them", "warning");
@@ -166,6 +167,7 @@ export async function runNamed(args: string, ctx: CommandCtx, deps: PipelineDeps
 			exportDir,
 			verify: deps.verify ?? pipelineVerifier(pipeline, ctx.cwd),
 			model,
+			worktree,
 			signal: ctx.signal,
 			onEvent: live.onEvent,
 		});

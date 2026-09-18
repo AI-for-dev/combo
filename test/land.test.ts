@@ -137,6 +137,21 @@ describe("land", () => {
 		assert.equal(fs.existsSync(path.join(dir, "a.txt")), false);
 	});
 
+	test("a caller that put the changes there itself can say so", async () => {
+		const dir = repo();
+		const first = await land(dir, [{ label: "one", patch: adds("a.txt", "first") }]);
+		assert.equal(first.ok, true);
+
+		const refused = await land(dir, [{ label: "two", patch: adds("b.txt", "second") }]);
+		assert.equal(refused.ok, false, "by default the tree it finds is somebody else's");
+
+		const allowed = await land(dir, [{ label: "two", patch: adds("b.txt", "second") }], {
+			requireCleanTree: false,
+		});
+		assert.equal(allowed.ok, true);
+		assert.deepEqual(allowed.applied, ["two"]);
+	});
+
 	test("with no check, nothing runs between them", async () => {
 		const dir = repo();
 		const done = await land(dir, [{ label: "one", patch: adds("a.txt", "first") }]);

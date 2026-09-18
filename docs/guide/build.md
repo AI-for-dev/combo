@@ -73,6 +73,11 @@ const built = await deliver({ /* … */ cwd, worktree: true, verify });
 built.landings;   // one entry per batch: what went in, and what stopped it
 ```
 
+From pi it is `/build --worktree <request>`, and `/run --worktree <pipeline>
+<input>` for a pipeline holding a `deliver` step. Whether two workers may share
+a tree is a fact about the machine a run happens on, so it is the caller's to
+set and not something a pipeline file declares.
+
 `approved` gains a third condition with it: work that never reached the tree is
 not delivered, whatever the auditor thought of the reports.
 
@@ -81,10 +86,15 @@ at 2 either way. What changes is the reason for that number: with copies the
 limit is what a run costs rather than what one working tree can take, so a
 caller can raise it on that basis.
 
+A delivery lands twice or more: once for the planned subtasks, then once per
+round of audit fixes. Only the first meets a tree it did not write, and the
+later ones say so, or the option would stop working the moment an audit asked
+for anything.
+
 **It does not combine with `resume` yet.** A resumed delivery starts on a tree
-that already holds what landed last time, and landing refuses a tree with
-changes in it, by design: "which patch broke this" stops having an answer
-otherwise. The refusal says so in those words.
+that holds what landed in a previous process, which is not the same as one it
+filled itself, and it has no record of what that was. The landing refuses it,
+and the refusal says so in those words.
 
 ## What the auditor still owes
 

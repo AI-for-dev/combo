@@ -741,3 +741,33 @@ describe("/herdr", () => {
 		}
 	});
 });
+
+describe("parseBuildArgs, with a switch", () => {
+	test("--worktree takes no value, so the request that follows it survives", () => {
+		assert.deepEqual(parseBuildArgs("--worktree add a cache"), { worktree: true, request: "add a cache" });
+	});
+
+	test("it mixes with the valued flags, in any order", () => {
+		assert.deepEqual(parseBuildArgs("--worktree --model local/one add a cache"), {
+			worktree: true,
+			model: "local/one",
+			request: "add a cache",
+		});
+		assert.deepEqual(parseBuildArgs("--model local/one --worktree add a cache"), {
+			model: "local/one",
+			worktree: true,
+			request: "add a cache",
+		});
+	});
+
+	test("`--worktree=false` says no, and anything else about it says yes", () => {
+		assert.equal(parseBuildArgs("--worktree=false add a cache").worktree, undefined);
+		assert.equal(parseBuildArgs("--worktree=true add a cache").worktree, true);
+	});
+
+	test("without it the request is untouched, switch or not", () => {
+		assert.deepEqual(parseBuildArgs("add a --worktree to the loader"), {
+			request: "add a --worktree to the loader",
+		});
+	});
+});

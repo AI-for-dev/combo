@@ -30,6 +30,11 @@ repository live in `.pi/agents/`, so ask for them explicitly:
 That is deliberate: project agents are repository-controlled content, so they are
 never loaded by default. See [Agents](agents.md).
 
+`--worktree` takes no value, unlike `--model`: a flag that swallowed the word
+after it would eat the first word of the request. It is off unless it is
+written, and `--worktree=false` says no explicitly. See
+[Worktrees](worktree.md) for what it costs and what it buys.
+
 `until` is a **whole-line match**: the loop stops when the word stands alone on
 one of the lines, whatever decoration the model put around it. A line with
 anything else on it does not count, so a review that writes "I cannot say LGTM
@@ -52,9 +57,10 @@ What the run looks like while it happens is covered in [Display](display.md).
 | `/build <request>` | Interview, then the build pipeline, then the commit. |
 | `/build --pipeline <name> <request>` | The same, with a pipeline of your choosing. |
 | `/build --model <pattern> <request>` | The same, with every subagent on that model. Checked before the interview: a typo costs a second. |
+| `/build --worktree <request>` | The same, with each subtask in a copy of the repository and the work landed one patch at a time. |
 | `/build resume` | Carries on an interrupted build from `runs/<timestamp>/build.json`. |
 | `/pipelines` | Lists the pipelines that are loaded, and the files that do not parse. |
-| `/run [--model <pattern>] <name> <input>` | Runs a pipeline with no interview and no commit stop; its answer lands in the conversation. |
+| `/run [--model <pattern>] [--worktree] <name> <input>` | Runs a pipeline with no interview and no commit stop; its answer lands in the conversation. |
 | `/herdr on\|off` | Give every subagent its own herdr split for this session. |
 
 `/interview` and `/build` are commands rather than tools because a question card
