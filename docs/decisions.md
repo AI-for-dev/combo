@@ -473,6 +473,13 @@ person waiting for the next question cannot tell a slow turn from a stuck one.
 Five minutes is what `NEXT.md` measures these models at; 120s fails roughly half
 the turns, so a shorter one would cut work that was going to finish.
 
+The interview writes its transcript too, into the same `runs/<timestamp>/` the
+pipeline uses, and that folder is now made **before** it rather than after. A
+failed interview used to leave nothing behind, which is the one moment the only
+question worth asking is what was actually sent - a report of `[node9] prompt
+blocked` from a guard sitting in front of the provider had no record to check it
+against. The failure names the folder.
+
 The interview is also watched like everything else. It had a fixed
 `interviewing…` and no reporter, so its first turn - 35 seconds and seven file
 reads, measured on this repository - looked exactly like a turn that had hung.

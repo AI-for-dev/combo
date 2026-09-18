@@ -821,3 +821,46 @@ describe("the interview gets what it was promised", () => {
 		assert.equal(typeof seen?.timeoutMs, "number", "pi's agent loop has no step cap; an interactive turn needs one");
 	});
 });
+
+describe("a failed interview leaves something to read", () => {
+	test("the transcript goes to the run's own folder, and the failure names it", async () => {
+		const { ctx, notes } = fakeCtx();
+		let seen: Record<string, unknown> | undefined;
+
+		const outcome = await runInterview("add a cache", ctx, deps({
+			runDir: () => "runs/the-one-folder",
+			interview: (async (options: Record<string, unknown>) => {
+				seen = options;
+				return result({ brief: "", answers: [], steps: [], submitted: false, ok: false, error: "[node9] prompt blocked" }) as never;
+			}) as never,
+		}));
+
+		assert.equal(seen?.exportDir, "runs/the-one-folder", "the subagent exports as it closes, failure included");
+		assert.equal(outcome?.ok, false);
+		assert.match(
+			notes.map((note) => note.message).join("\n"),
+			/interview failed: \[node9\] prompt blocked - the transcript is in runs\/the-one-folder/,
+		);
+	});
+
+	test("the interview and the pipeline share one folder", async () => {
+		const { ctx } = fakeCtx({ confirm: [true, true] });
+		const { git } = fakeGit();
+		const dirs: string[] = [];
+
+		await runBuild("add a cache", ctx, deps({
+			git,
+			runDir: () => "runs/one-run-one-folder",
+			interview: (async (options: { exportDir?: string }) => {
+				dirs.push(options.exportDir ?? "(none)");
+				return result({ brief: "THE BRIEF", answers: [], steps: [], submitted: false }) as never;
+			}) as never,
+			runPipeline: (async (options: { exportDir?: string }) => {
+				dirs.push(options.exportDir ?? "(none)");
+				return delivered();
+			}) as never,
+		}));
+
+		assert.deepEqual(dirs, ["runs/one-run-one-folder", "runs/one-run-one-folder"]);
+	});
+});
