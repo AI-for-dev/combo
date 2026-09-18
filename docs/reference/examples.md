@@ -16,6 +16,7 @@ node examples/10-interview.ts    # the interview, in a plain terminal
 node examples/11-build.ts        # the pipeline on a throwaway repository
 node examples/12-experiment.ts   # the same loop on several models, twice each
 node examples/13-concurrent-writers.ts  # two pairs writing at once, a copy each
+node examples/14-delegation-tree.ts     # one explorer, three scouts, one answer
 ```
 
 `11-build.ts` and `13-concurrent-writers.ts` write code, and both refuse to run

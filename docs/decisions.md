@@ -504,6 +504,40 @@ Two things are exempted by name, and both would break silently otherwise.
 told to write French writes `PRÊT`, which is an interview that never finishes and
 burns every one of its questions first.
 
+## A subagent may have subagents
+
+An agent whose `tools:` names `subagent` is handed `delegateTool()`, and can
+split its task across children of its own. `examples/14-delegation-tree.ts` is
+the case it was built for: one explorer that cannot read a large repository in a
+turn, three scouts that each read a part, one note back.
+
+**This is the second exception to invariant 5**, and the only one besides
+`situate()`. Granting it is not inheritance: the tool comes from combo rather
+than from the user's machine, the roster is the one the caller passed, and an
+agent that does not name the tool in its own definition cannot have it. What an
+agent can do stays readable in its file, which is the part of that invariant
+that was ever load-bearing. It is still an exception to the letter, which is why
+`AGENTS.md` names it.
+
+The tool is built outside `spawn` and handed over through
+`SpawnOptions.customTools`, the seam the verdict tool already uses. `spawn` never
+learns what a roster is, and the recursion stays in one file: a child that
+declares the tool is handed one built at `depth + 1`.
+
+**The depth guard ships with the feature.** Delegation that can go on forever is
+a bill discovered afterwards. Two levels by default - the session, a child, a
+grandchild - which is where a split stops paying, because a grandchild rarely
+knows enough about the whole to split anything usefully.
+
+At the bound the tool is still handed over and refuses when called, saying how
+deep it is and how deep it may go. Withholding it would leave a model calling a
+tool that does not exist, getting "unknown tool" back and trying again, which is
+the runaway turn `timeoutMs` exists to survive rather than one to cause.
+
+The bound travels in a closure. Nothing reads the environment for it: an ambient
+variable is how the model hole in invariant 5 existed, and that mistake is not
+worth making twice.
+
 ## Pipelines: a workflow written down
 
 `src/pipeline.ts` parses one, `src/pipeline-load.ts` finds it, and

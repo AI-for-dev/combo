@@ -108,6 +108,11 @@ Some names in `tools:` are not pi's. `verdict` is combo's, and a reviewer that
 names it is handed it by [`pair`](workflows.md) so it can declare its decision as
 a call rather than as a word in its prose.
 
+`subagent` is combo's too, and an agent that names it can split its task across
+children of its own. Two levels deep by default, and the roster it may reach is
+the caller's to pass. See [Design decisions](../decisions.md); `agents/explorer.md`
+is the one shipped agent that asks for it.
+
 The allowlist covers these exactly as it covers pi's own, which is what keeps
 the rule readable: what an agent can do is in its file. Naming `verdict` in an
 agent nobody offers it to costs nothing, and the tool is simply absent.
