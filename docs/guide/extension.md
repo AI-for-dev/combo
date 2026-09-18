@@ -30,6 +30,19 @@ repository live in `.pi/agents/`, so ask for them explicitly:
 That is deliberate: project agents are repository-controlled content, so they are
 never loaded by default. See [Agents](agents.md).
 
+The interview is watched the way the pipeline is: a row per subagent, with what
+it is reading. Measured on this repository against `ilaas/gemma-4-31b`, its first
+turn is 35 seconds and seven file reads, and the whole interview 57 seconds over
+three turns. Without the row that first turn is half a minute of a status line
+that does not move, which is indistinguishable from a turn that has hung.
+
+**`--model` covers the interview too**, and `--questions` caps how many it asks.
+The interviewer reads the repository between questions rather than asking what
+it could find out, so a question is an exploration and not a round trip: six of
+them on a slow model is the whole of `/build` before any work starts. Each turn
+gets a five minute deadline, because pi's agent loop has no step cap and a
+person waiting cannot tell a slow turn from a stuck one.
+
 `--worktree` takes no value, unlike `--model`: a flag that swallowed the word
 after it would eat the first word of the request. It is off unless it is
 written, and `--worktree=false` says no explicitly. See
@@ -53,7 +66,7 @@ What the run looks like while it happens is covered in [Display](display.md).
 
 | Command | What it does |
 | --- | --- |
-| `/interview <request>` | Turns a vague request into a brief, one question at a time. |
+| `/interview [--model <pattern>] [--questions <n>] <request>` | Turns a vague request into a brief, one question at a time. |
 | `/build <request>` | Interview, then the build pipeline, then the commit. |
 | `/build --pipeline <name> <request>` | The same, with a pipeline of your choosing. |
 | `/build --model <pattern> <request>` | The same, with every subagent on that model. Checked before the interview: a typo costs a second. |

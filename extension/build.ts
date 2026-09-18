@@ -105,6 +105,19 @@ export type BuildDeps = {
 
 const REAL_GIT = { isRepository, status, diff, diffStat, untracked, createBranch, commitAll };
 
+/**
+ * Deadline for one interview turn.
+ *
+ * The library refuses to pick one, deliberately: it cannot know how long a task
+ * should take. A command can, and this one has to. The interviewer reads the
+ * repository between questions, pi's agent loop has no step cap, and the person
+ * waiting for the next question cannot tell a slow turn from a stuck one.
+ *
+ * Five minutes is what `NEXT.md` measures these models at - 120s fails roughly
+ * half the turns, so a shorter deadline would cut work that was going to finish.
+ */
+const INTERVIEW_TURN_MS = 300_000;
+
 /** What these commands need from pi. Narrow on purpose: a test can stand in for it. */
 export type CommandCtx = {
 	cwd: string;
@@ -129,9 +142,10 @@ export type CommandCtx = {
  */
 export default function registerCommands(pi: ExtensionAPI) {
 	pi.registerCommand("interview", {
-		description: "Turn a vague request into a brief, one question at a time",
+		description: "Turn a vague request into a brief, one question at a time (`--model <pattern>`, `--questions <n>`)",
 		handler: async (args: string, ctx: ExtensionCommandContext) => {
-			await runInterview(args, ctx as unknown as CommandCtx);
+			const { model, questions, request } = parseBuildArgs(args);
+			await runInterview(request, ctx as unknown as CommandCtx, {}, { model, maxQuestions: questions });
 		},
 	});
 
@@ -144,7 +158,7 @@ export default function registerCommands(pi: ExtensionAPI) {
 
 	pi.registerCommand("build", {
 		description:
-			"Interview, run the build pipeline, then commit (`--pipeline <name>`, `--model <pattern>`, `--worktree`, or `resume` to carry on)",
+			"Interview, run the build pipeline, then commit (`--pipeline <name>`, `--model <pattern>`, `--worktree`, `--questions <n>`, or `resume` to carry on)",
 		handler: async (args: string, ctx: ExtensionCommandContext) => {
 			await runBuild(args, ctx as unknown as CommandCtx);
 		},
@@ -216,13 +230,19 @@ export function parseBuildArgs(args: string): {
 	pipeline?: string;
 	model?: string;
 	worktree?: boolean;
+	questions?: number;
 	request: string;
 } {
-	const { flags, rest } = parseLeadingFlags(args, ["pipeline", "model"], ["worktree"]);
-	const parsed: { pipeline?: string; model?: string; worktree?: boolean; request: string } = { request: rest };
+	const { flags, rest } = parseLeadingFlags(args, ["pipeline", "model", "questions"], ["worktree"]);
+	const parsed: ReturnType<typeof parseBuildArgs> = { request: rest };
 	if (flags.pipeline) parsed.pipeline = flags.pipeline;
 	if (flags.model) parsed.model = flags.model;
 	if (flags.worktree === "true") parsed.worktree = true;
+
+	// A count that is not one is dropped rather than guessed at: `--questions x`
+	// is a typo, and turning it into 0 would silently skip the interview.
+	const questions = Number(flags.questions);
+	if (Number.isInteger(questions) && questions > 0) parsed.questions = questions;
 	return parsed;
 }
 
@@ -318,6 +338,8 @@ type BuildPlan = {
 	model?: string;
 	/** Whether each subtask gets a copy of the repository. See `--worktree`. */
 	worktree?: boolean;
+	/** How many questions the interview may ask. See `--questions`. */
+	questions?: number;
 	/** What the user typed, minus the flags. */
 	request: string;
 	/** The interrupted build being carried on, when this is a `/build resume`. */
@@ -333,7 +355,7 @@ type BuildPlan = {
  */
 async function validateBuild(args: string, ctx: CommandCtx, deps: BuildDeps): Promise<BuildPlan | undefined> {
 	const git = deps.git ?? REAL_GIT;
-	const { pipeline: wanted, model, worktree, request } = parseBuildArgs(args);
+	const { pipeline: wanted, model, worktree, questions, request } = parseBuildArgs(args);
 
 	// `/build resume` carries on the last interrupted build in this directory:
 	// same brief, same plan, the approved subtasks kept. Everything the workers
@@ -361,7 +383,7 @@ async function validateBuild(args: string, ctx: CommandCtx, deps: BuildDeps): Pr
 		// Same reasoning as the lines above: a mistyped model must cost a second,
 		// not the interview it would otherwise sit through first.
 		if (model) await (deps.checkModel ?? checkModel)(model);
-		return { git, agents, pipeline, committer, model, worktree, request, previous };
+		return { git, agents, pipeline, committer, model, worktree, questions, request, previous };
 	} catch (cause) {
 		return refuse(ctx, cause instanceof Error ? cause.message : String(cause), "error");
 	}
@@ -379,7 +401,7 @@ type StartingPoint = { brief: string; resume?: BuildProgress };
 async function loadOrResume(plan: BuildPlan, ctx: CommandCtx, deps: BuildDeps): Promise<StartingPoint | undefined> {
 	const previous = plan.previous;
 	if (!previous) {
-		const brief = (await runInterview(plan.request, ctx, deps))?.brief;
+		const brief = (await runInterview(plan.request, ctx, deps, { model: plan.model, maxQuestions: plan.questions }))?.brief;
 		return brief ? { brief } : undefined;
 	}
 
@@ -666,7 +688,12 @@ function firstLines(text: string, n: number): string {
  * artefact of this command, it is long, and the user is the last person who
  * gets to correct it before anything is built on top of it.
  */
-export async function runInterview(request: string, ctx: CommandCtx, deps: BuildDeps = {}): Promise<InterviewResult | undefined> {
+export async function runInterview(
+	request: string,
+	ctx: CommandCtx,
+	deps: BuildDeps = {},
+	options: { model?: string; maxQuestions?: number } = {},
+): Promise<InterviewResult | undefined> {
 	if (!request.trim()) {
 		return refuse(ctx, "interview: say what you want built, for example /interview add a cache to the loader", "warning");
 	}
@@ -682,6 +709,12 @@ export async function runInterview(request: string, ctx: CommandCtx, deps: Build
 		return refuse(ctx, cause instanceof Error ? cause.message : String(cause), "error");
 	}
 
+	// The same live view the pipeline gets. Without it the first turn is half a
+	// minute of a frozen status line while the interviewer reads the repository,
+	// and a user cannot tell that from a turn that has hung.
+	const live = liveRun(ctx.ui, { tickMs: deps.tickMs });
+	const startedAt = performance.now();
+
 	ctx.ui.setStatus(STATUS, "interviewing…");
 	let result: InterviewResult;
 	try {
@@ -691,10 +724,15 @@ export async function runInterview(request: string, ctx: CommandCtx, deps: Build
 			ask: createAskUi(ctx.ui),
 			cwd: ctx.cwd,
 			signal: ctx.signal,
+			model: options.model,
+			maxQuestions: options.maxQuestions,
+			timeoutMs: INTERVIEW_TURN_MS,
+			onEvent: live.onEvent,
 		});
 	} finally {
-		// In a `finally`: a thrown interview must not leave "interviewing…" in
-		// the footer for the rest of the session.
+		// In a `finally`: a thrown interview must not leave "interviewing…" and a
+		// dead row of dots in the footer for the rest of the session.
+		live.stop(undefined, performance.now() - startedAt);
 		ctx.ui.setStatus(STATUS, undefined);
 	}
 

@@ -771,3 +771,53 @@ describe("parseBuildArgs, with a switch", () => {
 		});
 	});
 });
+
+describe("the interview gets what it was promised", () => {
+	test("--questions takes a count, and a count that is not one is dropped", () => {
+		assert.equal(parseBuildArgs("--questions 2 add a cache").questions, 2);
+		assert.equal(parseBuildArgs("--questions x add a cache").questions, undefined, "a typo must not become 0");
+		assert.equal(parseBuildArgs("--questions 0 add a cache").questions, undefined, "nor skip the interview");
+		assert.equal(parseBuildArgs("add a cache").questions, undefined);
+	});
+
+	test("the interviewer is watched while it works, not left behind a frozen line", async () => {
+		const { ctx, widgets } = fakeCtx();
+		await runInterview(
+			"add a cache",
+			ctx,
+			deps({
+				interview: (async (options: { onEvent?: (event: unknown) => void }) => {
+					options.onEvent?.({ type: "spawn", id: "interviewer#1", agent: "interviewer", lifetime: "workflow", openInHerdr: false });
+					options.onEvent?.({ type: "status", id: "interviewer#1", status: "working", task: "…" });
+					options.onEvent?.({ type: "tool", id: "interviewer#1", name: "read", args: { path: "src/agent.ts" } });
+					return result({ brief: "THE BRIEF", answers: [], steps: [], submitted: false }) as never;
+				}) as never,
+			}),
+		);
+
+		const drawn = widgets.flatMap((lines) => lines ?? []).join("\n");
+		assert.match(drawn, /interviewer/, "the reader is on screen");
+		assert.match(drawn, /read/, "and so is what it is reading");
+		assert.equal(widgets.at(-1), undefined, "and the row goes when the interview does");
+	});
+
+	test("the model, the cap and a deadline all reach it", async () => {
+		const { ctx } = fakeCtx();
+		let seen: Record<string, unknown> | undefined;
+		await runInterview(
+			"add a cache",
+			ctx,
+			deps({
+				interview: (async (options: Record<string, unknown>) => {
+					seen = options;
+					return result({ brief: "THE BRIEF", answers: [], steps: [], submitted: false }) as never;
+				}) as never,
+			}),
+			{ model: "local/one", maxQuestions: 2 },
+		);
+
+		assert.equal(seen?.model, "local/one", "a model checked before the interview must be the one running it");
+		assert.equal(seen?.maxQuestions, 2);
+		assert.equal(typeof seen?.timeoutMs, "number", "pi's agent loop has no step cap; an interactive turn needs one");
+	});
+});
