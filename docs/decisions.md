@@ -392,6 +392,14 @@ carries no patch.
 
 A copy that cannot be made stops the pair. Carrying on would write into the tree
 the caller asked to spare, which is the failure the option exists to prevent.
+And a copy that cannot be **released** fails it too: the first version dropped
+that error, so an approved pair whose patch never came back was indistinguishable
+from one that wrote nothing, while the work sat in a temporary directory nothing
+named. The path goes in the error.
+
+`worktree` is an option of `pair`, not of `WorkflowOptions`. On the shared type
+every workflow accepts it and one honours it, which is a silent no-op for the
+rest - `fanOut({ worktree: true })` would typecheck and run in the caller's tree.
 
 The work is **committed** on the copy's branch before the copy goes. A first run
 left the branches pointing at the base commit, holding nothing, one pair of them

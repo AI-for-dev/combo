@@ -25,9 +25,11 @@ export type Scratch = {
 	/**
 	 * Takes the patch, then removes the copy and the directory holding it.
 	 *
-	 * Idempotent, and safe to call in a `finally`. A patch that could not be
-	 * taken leaves everything where it is: the caller gets the error and the work
-	 * stays on disk, which is the only order these two can go in.
+	 * Idempotent, and safe to call in a `finally`: a second call gives back the
+	 * patch the first one took, not an empty one, so a caller that releases
+	 * explicitly and again in a `finally` cannot lose it. A patch that could not
+	 * be taken leaves everything where it is - the caller gets the error and the
+	 * work stays on disk, which is the only order these two can go in.
 	 */
 	release(): Promise<GitResult<string>>;
 };
