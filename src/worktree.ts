@@ -17,14 +17,7 @@
  * module performs on anyone's behalf.
  */
 
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import type { GitResult } from "./git.ts";
-
-const run = promisify(execFile);
-
-/** Output is capped: a patch can be enormous, and it ends up in a prompt. */
-const MAX_BUFFER = 10 * 1024 * 1024;
+import { git, type GitResult } from "./git-run.ts";
 
 /** One working copy, as git reports it. */
 export type Worktree = {
@@ -45,17 +38,6 @@ export type CreateWorktreeOptions = {
 	/** What to branch from. Defaults to `HEAD`. */
 	base?: string;
 };
-
-/** Runs one git command. Arguments are an array: no shell, no interpolation. */
-async function git(cwd: string, args: string[]): Promise<GitResult<string>> {
-	try {
-		const { stdout } = await run("git", args, { cwd, maxBuffer: MAX_BUFFER });
-		return { ok: true, value: stdout };
-	} catch (cause) {
-		const error = cause as { stderr?: string; message?: string };
-		return { ok: false, error: (error.stderr || error.message || String(cause)).trim() };
-	}
-}
 
 /**
  * Creates a working copy on a branch of its own.

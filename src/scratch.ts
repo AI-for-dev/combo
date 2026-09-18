@@ -11,7 +11,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { branchName, commitAll, deleteBranch, headSha, type GitResult } from "./git.ts";
+import { branchName, commitAll, deleteBranch, headSha } from "./git.ts";
+import type { GitResult } from "./git-run.ts";
 import { truncate } from "./text.ts";
 import { createWorktree, removeWorktree, worktreePatch } from "./worktree.ts";
 

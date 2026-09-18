@@ -14,7 +14,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`experiment-report`](experiment-report.md) | What an experiment leaves behind: one JSON document, one comparison table. | 6 |
 | [`experiment`](experiment.md) | Running the same work across several models, several times. | 4 |
 | [`export`](export.md) | Exporting a run: `runs/<timestamp>/` with one HTML and one JSONL per subagent, plus a `usage.json`. | 9 |
-| [`git`](git.md) | The git a pipeline is allowed to do - and nothing else. | 12 |
+| [`git`](git.md) | The git a pipeline is allowed to do - and nothing else. | 11 |
 | [`land`](land.md) | Putting the work of several copies back into one tree. | 3 |
 | [`ledger`](ledger.md) | What is left to do, as a list nobody can lose track of. | 6 |
 | [`pipeline-load`](pipeline-load.md) | Finding the pipelines a user wrote, wherever they put them. | 6 |
