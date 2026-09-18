@@ -192,6 +192,13 @@ export {
 export { scratchWorktree, type Scratch } from "./scratch.ts";
 export { land, type Landed, type Landing } from "./land.ts";
 export {
+	declaresDelegate,
+	delegateTool,
+	MAX_DEPTH,
+	SUBAGENT_TOOL,
+	type DelegateOptions,
+} from "./delegate.ts";
+export {
 	createWorktree,
 	listWorktrees,
 	removeWorktree,

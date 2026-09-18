@@ -164,6 +164,25 @@ See [Deliver a change](build.md).
 Plan, a pair per subtask, the project's own check, an audit, fixes. See
 [Deliver a change](build.md).
 
+### A subagent with subagents
+
+An agent whose `tools:` names `subagent` can delegate in turn. The tool is built
+by the caller and handed over like any other:
+
+```typescript
+const answer = await run(explorer, question, {
+	cwd: repo,
+	customTools: [delegateTool({ agents, cwd: repo })],
+});
+```
+
+`agents` is the roster it may name, and nothing else. It goes two levels deep by
+default: the session, a child, a grandchild. At the bound the tool refuses and
+says so, rather than being withheld and leaving a model calling something that
+is not there.
+
+`examples/14-delegation-tree.ts` is one explorer, three scouts and one answer.
+
 ## Writing one in Markdown
 
 A linear sequence of these combinators can be written as a file rather than as

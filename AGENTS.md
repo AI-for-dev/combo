@@ -37,9 +37,14 @@ no enums, no namespaces, no parameter properties.
    event stream; unplug them all and the result is identical. A listener that
    throws is swallowed.
 5. **A subagent inherits nothing from the user's environment**
-   (`StaticResourceLoader`, never `DefaultResourceLoader`). The single exception
-   is `situate()`: its working directory, because that is the ground every tool
-   call stands on.
+   (`StaticResourceLoader`, never `DefaultResourceLoader`). Two exceptions, and
+   only two. `situate()`: its working directory, because that is the ground
+   every tool call stands on. And `delegateTool()`: an agent whose `tools:`
+   names `subagent` is handed one, so it can split its task across children of
+   its own. That is not inheritance - the tool comes from combo rather than from
+   the machine, the roster is the caller's, and an agent that does not name it
+   cannot have it. What an agent can do stays readable in its own file, which is
+   the part of this rule that was ever load-bearing.
 
    **The model is an explicit knob at every level, and the nearest override
    wins**: `SpawnOptions.model` / `WorkflowOptions.model` (also the tool's
