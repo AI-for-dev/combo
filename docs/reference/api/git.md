@@ -117,20 +117,6 @@ export async function diffStat(cwd: string): Promise<GitResult<string>> { /* …
 
 `git diff --stat` over tracked changes, including what is staged.
 
-## `GitResult`
-
-*type*
-
-```typescript
-export type GitResult<T> = { ok: true; value: T } | { ok: false; error: string };
-```
-
-What a git call gives back: a value, or git's own words about why not.
-
-A typed result rather than an exception, for the same reason a workflow turns
-a model failure into `ok: false`: a commit that could not be made is an
-outcome the caller must decide about, not a crash.
-
 ## `headSha`
 
 *function*

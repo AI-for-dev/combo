@@ -17,33 +17,9 @@
  * away a name and never work.
  */
 
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { git, gitWithInput, type GitResult } from "./git-run.ts";
 
-const run = promisify(execFile);
-
-/** Output is capped: a diff can be enormous, and it ends up in a prompt. */
-const MAX_BUFFER = 10 * 1024 * 1024;
-
-/**
- * What a git call gives back: a value, or git's own words about why not.
- *
- * A typed result rather than an exception, for the same reason a workflow turns
- * a model failure into `ok: false`: a commit that could not be made is an
- * outcome the caller must decide about, not a crash.
- */
-export type GitResult<T> = { ok: true; value: T } | { ok: false; error: string };
-
-/** Runs one git command. Arguments are an array: no shell, no interpolation. */
-async function git(cwd: string, args: string[]): Promise<GitResult<string>> {
-	try {
-		const { stdout } = await run("git", args, { cwd, maxBuffer: MAX_BUFFER });
-		return { ok: true, value: stdout };
-	} catch (cause) {
-		const error = cause as { stderr?: string; message?: string };
-		return { ok: false, error: (error.stderr || error.message || String(cause)).trim() };
-	}
-}
+export type { GitResult };
 
 /** Whether `cwd` is inside a git working tree. */
 export async function isRepository(cwd: string): Promise<boolean> {
@@ -136,22 +112,11 @@ export async function commitAll(cwd: string, message: string): Promise<GitResult
 	const staged = await git(cwd, ["add", "-A"]);
 	if (!staged.ok) return staged;
 
-	const committed = await commitFromStdin(cwd, text);
+	const committed = await gitWithInput(cwd, ["commit", "-F", "-"], text);
 	if (!committed.ok) return committed;
 
 	const sha = await git(cwd, ["rev-parse", "--short", "HEAD"]);
 	return sha.ok ? { ok: true, value: sha.value.trim() } : sha;
-}
-
-/** `git commit -F -`, with the message piped in rather than interpolated. */
-function commitFromStdin(cwd: string, message: string): Promise<GitResult<string>> {
-	return new Promise((resolve) => {
-		const child = execFile("git", ["commit", "-F", "-"], { cwd, maxBuffer: MAX_BUFFER }, (cause, stdout, stderr) => {
-			if (cause) resolve({ ok: false, error: (stderr || cause.message).trim() });
-			else resolve({ ok: true, value: stdout });
-		});
-		child.stdin?.end(`${message}\n`);
-	});
 }
 
 /**
@@ -197,20 +162,10 @@ export async function deleteBranch(cwd: string, name: string): Promise<GitResult
 export async function applyPatch(cwd: string, patch: string): Promise<GitResult<void>> {
 	if (!patch.trim()) return { ok: false, error: "refusing to apply an empty patch" };
 
-	const fits = await applyFromStdin(cwd, ["apply", "--check"], patch);
+	const fits = await gitWithInput(cwd, ["apply", "--check"], patch);
 	if (!fits.ok) return fits;
 
-	const applied = await applyFromStdin(cwd, ["apply"], patch);
+	const applied = await gitWithInput(cwd, ["apply"], patch);
 	return applied.ok ? { ok: true, value: undefined } : applied;
 }
 
-/** `git apply`, with the patch piped in rather than written to a file. */
-function applyFromStdin(cwd: string, args: string[], patch: string): Promise<GitResult<void>> {
-	return new Promise((resolve) => {
-		const child = execFile("git", args, { cwd, maxBuffer: MAX_BUFFER }, (cause, _stdout, stderr) => {
-			if (cause) resolve({ ok: false, error: (stderr || cause.message).trim() });
-			else resolve({ ok: true, value: undefined });
-		});
-		child.stdin?.end(patch.endsWith("\n") ? patch : `${patch}\n`);
-	});
-}
