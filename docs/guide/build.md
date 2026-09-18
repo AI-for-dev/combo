@@ -73,6 +73,11 @@ const built = await deliver({ /* … */ cwd, worktree: true, verify });
 built.landings;   // one entry per batch: what went in, and what stopped it
 ```
 
+From pi it is `/build --worktree <request>`, and `/run --worktree <pipeline>
+<input>` for a pipeline holding a `deliver` step. Whether two workers may share
+a tree is a fact about the machine a run happens on, so it is the caller's to
+set and not something a pipeline file declares.
+
 `approved` gains a third condition with it: work that never reached the tree is
 not delivered, whatever the auditor thought of the reports.
 

@@ -67,6 +67,14 @@ export type PipelineRunOptions = WorkflowOptions & {
 	 * decision, because it is the caller who owns the working tree.
 	 */
 	verify?: Verify;
+	/**
+	 * Give each subtask of a `deliver` step a copy of the repository.
+	 *
+	 * The caller's to set rather than the pipeline's: whether two workers may
+	 * share a tree is a fact about the machine the run happens on, not about the
+	 * shape of the work the file describes.
+	 */
+	worktree?: boolean;
 	/** Called as each step finishes. A listener that throws is swallowed. */
 	onStep?: (step: PipelineStepResult) => void;
 	/**

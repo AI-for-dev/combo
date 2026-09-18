@@ -106,6 +106,14 @@ export type PipelineRunOptions = WorkflowOptions & {
 	 * decision, because it is the caller who owns the working tree.
 	 */
 	verify?: Verify;
+	/**
+	 * Give each subtask of a `deliver` step a copy of the repository.
+	 *
+	 * The caller's to set rather than the pipeline's: whether two workers may
+	 * share a tree is a fact about the machine the run happens on, not about the
+	 * shape of the work the file describes.
+	 */
+	worktree?: boolean;
 	/** Called as each step finishes. A listener that throws is swallowed. */
 	onStep?: (step: PipelineStepResult) => void;
 	/**
@@ -137,7 +145,7 @@ const REQUEST = "## Request";
  * and it throws *before* spawning anything.
  */
 export async function runPipeline(options: PipelineRunOptions): Promise<PipelineRunResult> {
-	const { pipeline, agents, input, verify, onStep, delivery, ...shared } = options;
+	const { pipeline, agents, input, verify, onStep, ...shared } = options;
 
 	// Resolution first, for the whole file: a name that does not exist must cost
 	// nothing, and it costs three steps of real work if it is discovered late.
@@ -158,7 +166,7 @@ export async function runPipeline(options: PipelineRunOptions): Promise<Pipeline
 			break;
 		}
 
-		const outcome = await runStep(step, cast, input, previous, { ...shared, verify, delivery });
+		const outcome = await runStep(step, cast, input, previous, { ...shared, verify });
 		done.push(outcome);
 		report(onStep, outcome);
 
@@ -266,9 +274,9 @@ async function runStep(
 	cast: ResolvedCast,
 	request: string,
 	previous: Previous | undefined,
-	shared: WorkflowOptions & Pick<PipelineRunOptions, "verify" | "delivery">,
+	shared: WorkflowOptions & Pick<PipelineRunOptions, "verify" | "worktree" | "delivery">,
 ): Promise<PipelineStepResult> {
-	const { verify, delivery, ...workflow } = shared;
+	const { verify, worktree, delivery, ...workflow } = shared;
 	const common = override(workflow, {
 		lifetime: step.lifetime,
 		openInHerdr: step.openInHerdr,
@@ -400,6 +408,7 @@ async function runStep(
 				concurrency: step.concurrency,
 				maxRounds: step.maxRounds,
 				maxAuditRounds: step.maxAuditRounds,
+				worktree,
 				resume: delivery?.resume?.(step.id),
 				onProgress: delivery?.onProgress && ((progress) => delivery.onProgress?.(step.id, progress)),
 			});

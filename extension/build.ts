@@ -144,7 +144,7 @@ export default function registerCommands(pi: ExtensionAPI) {
 
 	pi.registerCommand("build", {
 		description:
-			"Interview, run the build pipeline, then commit (`--pipeline <name>`, `--model <pattern>`, or `resume` to carry on)",
+			"Interview, run the build pipeline, then commit (`--pipeline <name>`, `--model <pattern>`, `--worktree`, or `resume` to carry on)",
 		handler: async (args: string, ctx: ExtensionCommandContext) => {
 			await runBuild(args, ctx as unknown as CommandCtx);
 		},
@@ -212,31 +212,59 @@ const CAST = {
  * convention that reads the first word as a pipeline name eventually swallows
  * someone's "build fix the parser". Both flags, in either order.
  */
-export function parseBuildArgs(args: string): { pipeline?: string; model?: string; request: string } {
-	const { flags, rest } = parseLeadingFlags(args, ["pipeline", "model"]);
-	const parsed: { pipeline?: string; model?: string; request: string } = { request: rest };
+export function parseBuildArgs(args: string): {
+	pipeline?: string;
+	model?: string;
+	worktree?: boolean;
+	request: string;
+} {
+	const { flags, rest } = parseLeadingFlags(args, ["pipeline", "model"], ["worktree"]);
+	const parsed: { pipeline?: string; model?: string; worktree?: boolean; request: string } = { request: rest };
 	if (flags.pipeline) parsed.pipeline = flags.pipeline;
 	if (flags.model) parsed.model = flags.model;
+	if (flags.worktree === "true") parsed.worktree = true;
 	return parsed;
 }
 
 /**
- * Reads leading `--name value` flags off a command line, in any order.
+ * Reads leading flags off a command line, in any order.
  *
  * Only the given names are consumed: an unknown `--flag` stays in the text,
  * because in free prose it may simply *be* the text. `=` and a space both
  * separate a value, like everywhere in pi.
+ *
+ * A name in `switches` takes no value and arrives as `"true"`. Which list a
+ * name is in has to be decided here rather than guessed from what follows it:
+ * in `--worktree add a cache`, `add` is the request and not the flag's value.
  */
-export function parseLeadingFlags(args: string, names: readonly string[]): { flags: Record<string, string>; rest: string } {
+export function parseLeadingFlags(
+	args: string,
+	names: readonly string[],
+	switches: readonly string[] = [],
+): { flags: Record<string, string>; rest: string } {
 	const flags: Record<string, string> = {};
 	let rest = args;
+
 	for (;;) {
-		const match = /^\s*--([a-z]+)(?:=|\s+)(\S+)\s*/i.exec(rest);
-		const name = match?.[1]?.toLowerCase();
-		if (!match || !name || !names.includes(name)) break;
-		flags[name] = match[2] as string;
-		rest = rest.slice(match[0].length);
+		// The name first, and an `=value` only if it is written that way. What
+		// follows a space is claimed by a valued flag and left alone by a switch.
+		const head = /^\s*--([a-z]+)(?:=(\S+))?/i.exec(rest);
+		const name = head?.[1]?.toLowerCase();
+		if (!head || !name) break;
+
+		if (switches.includes(name)) {
+			flags[name] = head[2] === "false" ? "false" : "true";
+			rest = rest.slice(head[0].length);
+			continue;
+		}
+		if (!names.includes(name)) break;
+
+		const valued = /^\s*--[a-z]+(?:=|\s+)(\S+)\s*/i.exec(rest);
+		if (!valued?.[1]) break;
+		flags[name] = valued[1];
+		rest = rest.slice(valued[0].length);
 	}
+
 	return { flags, rest: rest.trim() };
 }
 
@@ -288,6 +316,8 @@ type BuildPlan = {
 	/** The agent that writes the commit message. Resolved early: it is needed last. */
 	committer: Agent;
 	model?: string;
+	/** Whether each subtask gets a copy of the repository. See `--worktree`. */
+	worktree?: boolean;
 	/** What the user typed, minus the flags. */
 	request: string;
 	/** The interrupted build being carried on, when this is a `/build resume`. */
@@ -303,7 +333,7 @@ type BuildPlan = {
  */
 async function validateBuild(args: string, ctx: CommandCtx, deps: BuildDeps): Promise<BuildPlan | undefined> {
 	const git = deps.git ?? REAL_GIT;
-	const { pipeline: wanted, model, request } = parseBuildArgs(args);
+	const { pipeline: wanted, model, worktree, request } = parseBuildArgs(args);
 
 	// `/build resume` carries on the last interrupted build in this directory:
 	// same brief, same plan, the approved subtasks kept. Everything the workers
@@ -331,7 +361,7 @@ async function validateBuild(args: string, ctx: CommandCtx, deps: BuildDeps): Pr
 		// Same reasoning as the lines above: a mistyped model must cost a second,
 		// not the interview it would otherwise sit through first.
 		if (model) await (deps.checkModel ?? checkModel)(model);
-		return { git, agents, pipeline, committer, model, request, previous };
+		return { git, agents, pipeline, committer, model, worktree, request, previous };
 	} catch (cause) {
 		return refuse(ctx, cause instanceof Error ? cause.message : String(cause), "error");
 	}
@@ -415,6 +445,7 @@ async function runTheWork(
 			exportDir,
 			verify,
 			model,
+			worktree: plan.worktree,
 			delivery: deliveryWiring(plan, started, { exportDir, label }, ctx, deps),
 			signal: ctx.signal,
 			onEvent: live.onEvent,
