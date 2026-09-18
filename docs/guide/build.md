@@ -61,6 +61,31 @@ Defaults worth knowing: `concurrency` is **2**, not 4, because these workers
 write to the same working tree; `maxRounds` inside a pair is 3; audit cycles
 default to 2; `maxTasks` defaults to 8.
 
+## Delivering in copies
+
+`worktree: true` gives each subtask a copy of the repository. The pairs write
+there, and what they wrote is applied to `cwd` one patch at a time with the
+check run between them, so a patch that breaks the tree is named rather than
+bisected.
+
+```typescript
+const built = await deliver({ /* … */ cwd, worktree: true, verify });
+built.landings;   // one entry per batch: what went in, and what stopped it
+```
+
+`approved` gains a third condition with it: work that never reached the tree is
+not delivered, whatever the auditor thought of the reports.
+
+Without the option `deliver` behaves exactly as before, and `concurrency` stays
+at 2 either way. What changes is the reason for that number: with copies the
+limit is what a run costs rather than what one working tree can take, so a
+caller can raise it on that basis.
+
+**It does not combine with `resume` yet.** A resumed delivery starts on a tree
+that already holds what landed last time, and landing refuses a tree with
+changes in it, by design: "which patch broke this" stops having an answer
+otherwise. The refusal says so in those words.
+
 ## What the auditor still owes
 
 An auditor whose `tools:` names `verdict` decides through that tool, and each

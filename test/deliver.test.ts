@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { describe, test } from "node:test";
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, describe, test } from "node:test";
 import { AUDIT_APPROVAL, auditPrompt, deliver } from "../src/workflows/deliver.ts";
 import { APPROVAL } from "../src/workflows/pair.ts";
 import { emptyUsage } from "../src/usage.ts";
@@ -576,5 +580,141 @@ describe("an auditor that signs through the verdict tool", () => {
 
 		const second = fake.asks.filter((ask) => ask.id.startsWith("auditor"))[1]?.task ?? "";
 		assert.match(second, /Still open, from your earlier rounds:\no1: coder: one/);
+	});
+});
+
+describe("delivering in copies", () => {
+	const scratchDirs: string[] = [];
+	afterEach(() => {
+		for (const dir of scratchDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+	});
+
+	/** A repository holding one file, so patches have something to sit on. */
+	function repo(): string {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-deliver-"));
+		scratchDirs.push(dir);
+		const run = (...args: string[]) => execFileSync("git", args, { cwd: dir, stdio: "pipe" });
+		run("init", "--initial-branch=main");
+		run("config", "user.email", "test@example.com");
+		run("config", "user.name", "Test");
+		fs.writeFileSync(path.join(dir, "kept.txt"), "one\n");
+		run("add", "-A");
+		run("commit", "-m", "first");
+		return dir;
+	}
+
+	/**
+	 * The cast again, with each coder writing a file named after its subtask.
+	 *
+	 * The write happens in whatever `cwd` the pool handed the subagent, which is
+	 * the copy: that is what makes the landing afterwards real work.
+	 */
+	function writingCast(audits: string[] = [AUDIT_APPROVAL]) {
+		let audit = 0;
+		return fakeSpawn((task, agent, options) => {
+			switch (agent.name) {
+				case "planner":
+					return { output: plan };
+				case "reviewer":
+					return { output: APPROVAL };
+				case "auditor":
+					return { output: audits[audit++] ?? AUDIT_APPROVAL };
+				default: {
+					const name = task.includes("document") ? "doc.txt" : "code.txt";
+					fs.writeFileSync(path.join(options.cwd ?? ".", name), `${agent.name} was here\n`);
+					return { output: `${agent.name} wrote ${name}` };
+				}
+			}
+		});
+	}
+
+	test("each subtask writes in its own copy, and the work lands in the caller's tree", async () => {
+		const dir = repo();
+		const fake = writingCast();
+		const result = await deliver({
+			planner,
+			workers,
+			reviewer,
+			auditor,
+			brief: "x",
+			cwd: dir,
+			worktree: true,
+			spawn: fake.spawn,
+		});
+
+		assert.equal(result.approved, true);
+		assert.equal(result.landings.length, 1, "one batch of subtasks, one landing");
+		assert.equal(result.landings[0]?.ok, true);
+		assert.equal(result.landings[0]?.applied.length, 2);
+
+		assert.equal(fs.readFileSync(path.join(dir, "code.txt"), "utf8"), "coder was here\n");
+		assert.equal(fs.readFileSync(path.join(dir, "doc.txt"), "utf8"), "scribe was here\n");
+	});
+
+	test("the check runs between the patches, not once at the end", async () => {
+		const dir = repo();
+		const fake = writingCast();
+		const seen: number[] = [];
+		let files = 0;
+
+		await deliver({
+			planner,
+			workers,
+			reviewer,
+			auditor,
+			brief: "x",
+			cwd: dir,
+			worktree: true,
+			spawn: fake.spawn,
+			verify: async () => {
+				files = fs.readdirSync(dir).filter((name) => name.endsWith(".txt")).length;
+				seen.push(files);
+				return { ok: true, output: "", command: "check" };
+			},
+		});
+
+		assert.deepEqual(seen.slice(0, 2), [2, 3], "one file landed, then the other, with a check after each");
+	});
+
+	test("a patch that never reached the tree is not a delivery, whatever the auditor said", async () => {
+		const dir = repo();
+		// Both subtasks rewrite the same line, so the second patch cannot apply.
+		const fake = fakeSpawn((task, agent, options) => {
+			switch (agent.name) {
+				case "planner":
+					return { output: plan };
+				case "reviewer":
+					return { output: APPROVAL };
+				case "auditor":
+					return { output: AUDIT_APPROVAL };
+				default:
+					fs.writeFileSync(path.join(options.cwd ?? ".", "kept.txt"), `${agent.name} won\n`);
+					return { output: `${agent.name} rewrote it` };
+			}
+		});
+
+		const result = await deliver({
+			planner,
+			workers,
+			reviewer,
+			auditor,
+			brief: "x",
+			cwd: dir,
+			worktree: true,
+			spawn: fake.spawn,
+		});
+
+		assert.equal(result.approved, false, "the auditor approved, and one patch is still not in");
+		assert.equal(result.ok, true, "every turn ran: this is not a model failure");
+		assert.equal(result.landings[0]?.ok, false);
+		assert.ok(result.landings[0]?.rejected, "and it says which one");
+	});
+
+	test("without the option nothing touches git, and no landing is reported", async () => {
+		const fake = cast();
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn });
+
+		assert.equal(result.approved, true);
+		assert.deepEqual(result.landings, []);
 	});
 });

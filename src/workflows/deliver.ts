@@ -21,6 +21,7 @@
  */
 
 import type { Agent } from "./../agent.ts";
+import { land, type Landed } from "./../land.ts";
 import { createLedger, openList, type Ledger, type Obligation } from "./../ledger.ts";
 import { failed, type Result } from "./../result.ts";
 import { saysWord } from "./../text.ts";
@@ -53,11 +54,21 @@ export type DeliverOptions = WorkflowOptions & {
 	/**
 	 * Subtasks in flight at once. Defaults to **2**, not 4.
 	 *
-	 * These workers write to the same working tree. Two at a time is already the
-	 * point where "independent subtasks" stops being a promise the planner can
-	 * keep, and a caller who knows their tasks are truly disjoint can raise it.
+	 * Without `worktree` these workers write to the same tree, and two at a time
+	 * is already the point where "independent subtasks" stops being a promise the
+	 * planner can keep. With it the limit is what a run costs rather than what the
+	 * filesystem allows, and a caller can raise it on that basis.
 	 */
 	concurrency?: number;
+	/**
+	 * Give each subtask a copy of the repository, and put the work back after.
+	 *
+	 * Every pair runs in a git worktree of `cwd`, and what they wrote is applied
+	 * to `cwd` one patch at a time with `verify` run between them, so a patch that
+	 * breaks the tree is named rather than bisected. Off by default: a delivery
+	 * that fits in one tree has no use for the machinery.
+	 */
+	worktree?: boolean;
 	/** Rounds inside each pair. Defaults to 3. */
 	maxRounds?: number;
 	/** Audit → fix → re-audit cycles. Defaults to 2. */
@@ -122,6 +133,14 @@ export type DeliverResult = {
 	/** The last verification, when one was configured. */
 	verification?: Verification;
 	/**
+	 * What became of the copies' patches, one entry per batch that ran.
+	 *
+	 * Empty without `worktree`. A batch that stopped on a patch names it, and
+	 * `approved` is false while any of these is: work that never reached the tree
+	 * is not delivered, whatever the auditor thought of the reports.
+	 */
+	landings: readonly Landed[];
+	/**
 	 * What the auditor raised across the rounds, and what became of each.
 	 *
 	 * Empty when the auditor holds no verdict tool. A run that stopped short says
@@ -167,6 +186,7 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 		maxRounds,
 		maxAuditRounds = 2,
 		verify,
+		worktree,
 		resume,
 		onProgress,
 		...shared
@@ -176,6 +196,7 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 	const audits: AuditRound[] = [...(resume?.audits ?? [])];
 	let tasks: PairResult[] = [];
 	let verification: Verification | undefined = resume?.verification;
+	const landings: Landed[] = [];
 
 	// The auditor decides through a tool when its definition asks for one. Built
 	// once for the whole delivery, although `auditOnce` spawns a fresh auditor
@@ -212,10 +233,12 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 			tasks,
 			audits,
 			verification,
+			landings,
 			obligations: ledger.all,
-			// A failing check outranks every opinion above it, and an obligation
-			// nobody closed outranks the auditor's own yes.
-			approved: signedOff && ledger.settled && verification?.ok !== false,
+			// A failing check outranks every opinion above it, an obligation nobody
+			// closed outranks the auditor's own yes, and work that never reached
+			// the tree is not delivered whatever was said about the reports.
+			approved: signedOff && ledger.settled && verification?.ok !== false && landings.every((one) => one.ok),
 			usage: sumUsage(usages, performance.now() - startedAt),
 			ok: !error && planning.ok && !broken,
 			error: error ?? broken?.error ?? planning.error,
@@ -230,7 +253,32 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 	if (!planned.ok) return outcome([], planned.planning, false, planned.error);
 	report(planned.plan);
 
-	const run = (step: PlannedTask) => pair({ ...shared, worker: step.agent, reviewer, input: step.task, maxRounds });
+	const run = (step: PlannedTask) =>
+		pair({ ...shared, worker: step.agent, reviewer, input: step.task, maxRounds, worktree });
+
+	/**
+	 * Runs the check, and first puts the copies' work back when there were any.
+	 *
+	 * One call rather than two at each of the two places a batch of pairs
+	 * finishes: without `worktree` this is the check on its own, exactly as
+	 * before, and with it the check is what `land` ran between the patches.
+	 */
+	const settle = async (batch: readonly PairResult[]) => {
+		if (!worktree) {
+			verification = await verify?.();
+			return;
+		}
+
+		const landed = await land(
+			shared.cwd ?? process.cwd(),
+			batch.map((one) => ({ label: one.input, patch: one.patch ?? "" })),
+			{ verify },
+		);
+		landings.push(landed);
+		// The last check `land` ran is the tree as it stands. With nothing to land
+		// it ran none, and the check still has to be asked.
+		verification = landed.checks.at(-1) ?? (await verify?.());
+	};
 
 	// Only what was **approved** survives a resume: a subtask still being argued
 	// over left the tree in a state nobody signed off on, so it runs again.
@@ -243,7 +291,7 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 		const task = kept.get(step.task) ?? byTask.get(step.task);
 		return task ? [task] : [];
 	});
-	verification = await verify?.();
+	await settle(done);
 	report(planned.plan);
 
 	if (!auditor) {
@@ -289,7 +337,7 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 		const results = fixes.length > 0 ? await mapConcurrent(fixes, concurrency, run) : [];
 		audits.push({ review, verdict, verification, approved, fixes, results });
 		tasks = [...tasks, ...results];
-		if (results.length > 0) verification = await verify?.();
+		if (results.length > 0) await settle(results);
 		report(planned.plan);
 
 		// An approval on top of a failing check is not an approval: keep going
