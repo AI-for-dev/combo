@@ -61,6 +61,16 @@ Defaults worth knowing: `concurrency` is **2**, not 4, because these workers
 write to the same working tree; `maxRounds` inside a pair is 3; audit cycles
 default to 2; `maxTasks` defaults to 8.
 
+## The language of the interview
+
+The questions, the options and the specification come back in the language of
+the request. `/interview ajoute un cache` is answered in French.
+
+The specification then travels to the planner, the coder, the reviewer and the
+auditor, whose prompts are English. That is deliberate: the person correcting the
+spec before anything is built on it is the one who has to read it exactly, and a
+model takes a request in any language.
+
 ## Delivering in copies
 
 `worktree: true` gives each subtask a copy of the repository. The pairs write

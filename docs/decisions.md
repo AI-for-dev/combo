@@ -485,6 +485,25 @@ it, so the interviewer ran on whatever `~/.pi/agent/settings.json` named. That i
 the hole invariant 5 exists to close, one command away from where it was closed
 everywhere else.
 
+### The interview answers in the language it was asked in
+
+A question the user reads less precisely is one they answer less precisely, and
+the specification is the artefact they are handed to correct before anything is
+built on it. Both now come back in the language of the request.
+
+This is the one place output leaves English, and it does not contradict the
+English-everywhere rule: that rule governs what is written into the repository,
+and none of this is. The **specification** does travel on to the planner, the
+coder, the reviewer and the auditor, whose own prompts stay English. A model
+takes a request in any language without trouble, and the person signing off on
+the spec reading it exactly is worth more than a uniform pipeline.
+
+Two things are exempted by name, and both would break silently otherwise.
+`parseQuestion` reads the question by its JSON **keys**, so a translated
+`options` is a question nobody can display. And the loop ends on `READY`: a model
+told to write French writes `PRÊT`, which is an interview that never finishes and
+burns every one of its questions first.
+
 ## Pipelines: a workflow written down
 
 `src/pipeline.ts` parses one, `src/pipeline-load.ts` finds it, and

@@ -21,6 +21,26 @@ import { SubagentPool, type WorkflowOptions } from "./common.ts";
 /** The agent says this - alone - when it has enough to write the brief. */
 export const READY = "READY";
 
+/**
+ * Answer the user in the language they wrote in - and the two things that must
+ * not follow.
+ *
+ * The questions are read by the person being asked, and one they read less
+ * precisely is one they answer less precisely. The specification is read by them
+ * too: they are the last person who gets to correct it, and it is written down
+ * for agents whose prompts are English but who take a request in any language
+ * without trouble.
+ *
+ * The exceptions are not decoration. `parseQuestion` reads the JSON by its
+ * **keys**, so a translated `options` is a question nobody can display; and the
+ * loop ends on {@link READY}, so a model told to write French writes `PRÊT`,
+ * which is an interview that never finishes.
+ */
+const SPEAK_THEIR_LANGUAGE = [
+	"Write your questions, your options and the specification in the language the request above is written in.",
+	`The JSON keys stay exactly as given - "header", "question", "options", "label", "description" - and ${READY} stays ${READY}.`,
+].join("\n");
+
 /** Who asks, what about, how it reaches the user, and when it must stop. */
 export type InterviewOptions = WorkflowOptions & {
 	/** The agent conducting the interview. */
@@ -164,6 +184,8 @@ export function questionPrompt(input: string, maxQuestions: number): string {
 		'Answer with one JSON object only: {"header": "two words", "question": "…", "options": [{"label": "…", "description": "…"}]}',
 		"Two to four options, concrete and mutually exclusive. Put the one you would recommend first.",
 		`When you know enough to write the specification, answer with ${READY} alone instead.`,
+		"",
+		SPEAK_THEIR_LANGUAGE,
 	].join("\n");
 }
 
@@ -176,6 +198,8 @@ export function answerPrompt(answer: Answer, remaining: number): string {
 		remaining > 0
 			? `Ask the next question in the same JSON form, or answer ${READY} if you know enough.`
 			: `That was the last question. Answer ${READY}.`,
+		"",
+		SPEAK_THEIR_LANGUAGE,
 	]
 		.filter(Boolean)
 		.join("\n");
@@ -200,6 +224,8 @@ export function briefPrompt(input: string, answers: readonly Answer[]): string {
 		"Write it as: the goal in one or two sentences, then what must be done, then what is",
 		"explicitly out of scope, then how anyone can tell it is finished.",
 		"State decisions as decisions. Do not hedge, do not offer alternatives, do not ask anything.",
+		"",
+		SPEAK_THEIR_LANGUAGE,
 	].join("\n");
 }
 
