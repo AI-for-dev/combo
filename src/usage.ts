@@ -7,6 +7,7 @@
  */
 
 import type { SessionStats } from "@earendil-works/pi-coding-agent";
+import { plural } from "./text.ts";
 
 /** Measurements of a subagent, or of a single turn of work. */
 export type Usage = {
@@ -111,7 +112,7 @@ export function sumUsage(parts: readonly Usage[], wallMs: number): Usage {
 /** Compact usage line: `3 turns 12.4s ↑12k ↓2.1k R8k $0.0412 ctx:34k`. */
 export function formatUsage(usage: Usage): string {
 	const parts = [
-		`${usage.turns} turn${usage.turns > 1 ? "s" : ""}`,
+		plural(usage.turns, "turn"),
 		`${(usage.busyMs / 1000).toFixed(1)}s`,
 		`↑${compact(usage.input)}`,
 		`↓${compact(usage.output)}`,

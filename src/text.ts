@@ -13,6 +13,17 @@
  */
 
 /**
+ * `1 turn`, `2 turns`, `0 turns`.
+ *
+ * One rule in one place, because a count is shown in a widget, a notification
+ * and a listing at once, and they have to agree. Zero takes the plural, because
+ * English does.
+ */
+export function plural(count: number, word: string): string {
+	return `${count} ${word}${count === 1 ? "" : "s"}`;
+}
+
+/**
  * One line, whitespace flattened, at most `max` characters with an ellipsis.
  *
  * `max` has no default on purpose: the width belongs to whoever is drawing, and

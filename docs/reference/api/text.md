@@ -16,6 +16,20 @@ A model does not answer in a format. It answers in prose with the format
 somewhere inside, decorated with whatever markdown it felt like adding, which
 is why these are lenient by design.
 
+## `plural`
+
+*function*
+
+```typescript
+export function plural(count: number, word: string): string { /* … */ }
+```
+
+`1 turn`, `2 turns`, `0 turns`.
+
+One rule in one place, because a count is shown in a widget, a notification
+and a listing at once, and they have to agree. Zero takes the plural, because
+English does.
+
 ## `saysWord`
 
 *function*
