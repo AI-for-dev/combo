@@ -59,10 +59,10 @@ export type DeliverOptions = WorkflowOptions & {
 	/**
 	 * Subtasks in flight at once. Defaults to **2**, not 4.
 	 *
-	 * Without `worktree` these workers write to the same tree, and two at a time
-	 * is already the point where "independent subtasks" stops being a promise the
-	 * planner can keep. With it the limit is what a run costs rather than what the
-	 * filesystem allows, and a caller can raise it on that basis.
+	 * Two at a time is already the point where "independent subtasks" stops being
+	 * a promise the planner can keep, and a copy per pair does not change that:
+	 * what it bounds is the filesystem, not the plan. The limit is now what a run
+	 * costs rather than what the tree allows, and a caller can raise it knowingly.
 	 */
 	concurrency?: number;
 	/**
@@ -70,8 +70,19 @@ export type DeliverOptions = WorkflowOptions & {
 	 *
 	 * Every pair runs in a git worktree of `cwd`, and what they wrote is applied
 	 * to `cwd` one patch at a time with `verify` run between them, so a patch that
-	 * breaks the tree is named rather than bisected. Off by default: a delivery
-	 * that fits in one tree has no use for the machinery.
+	 * breaks the tree is named rather than bisected.
+	 *
+	 * **Defaulted from the plan**: a plan with more than one subtask gets the
+	 * copies, a plan with one does not. Left unset it is decided after planning,
+	 * which is the first moment the number is known; `true` and `false` are
+	 * obeyed as written.
+	 *
+	 * The default is that way round because a shared directory is not only a race
+	 * between two writers, it is a **channel between them**. Measured: four
+	 * subagents given one directory each read the other three's files inside a
+	 * single turn, without being asked to look. A delivery of one subtask has
+	 * nobody to leak to and stays where it was told to write, which is what
+	 * `/build` on your own repository is for.
 	 */
 	worktree?: boolean;
 	/** Rounds inside each pair. Defaults to 3. */
@@ -130,7 +141,7 @@ export type DeliverResult = {
 	/**
 	 * What became of the copies' patches, one entry per batch that ran.
 	 *
-	 * Empty without `worktree`. A batch that stopped on a patch names it, and
+	 * Empty when the subtasks shared the tree. A batch that stopped on a patch names it, and
 	 * `approved` is false while any of these is: work that never reached the tree
 	 * is not delivered, whatever the auditor thought of the reports.
 	 */

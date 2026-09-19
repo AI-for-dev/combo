@@ -17,7 +17,7 @@
  * list of what went in, and the name of what did not.
  */
 
-import { applyPatch, status } from "./git.ts";
+import { applyPatch, status, type GitResult } from "./git.ts";
 import type { Verification, Verify } from "./verify.ts";
 
 /** One piece of work, and something to call it in the report. */
@@ -41,6 +41,21 @@ export type Landed = {
 	/** Set if and only if `ok` is false. */
 	error?: string;
 };
+
+/**
+ * Whether `repo` can take a landing at all, asked before anything is written.
+ *
+ * The same check {@link land} makes on its way in, exported because a caller
+ * about to hand out copies of the repository needs the answer *first*: a patch
+ * that cannot come back is a subtask paid for and thrown away. Both questions
+ * are one call - git answers "not a repository" and "not clean" the same way.
+ */
+export async function landable(repo: string): Promise<GitResult<void>> {
+	const dirty = await status(repo);
+	if (!dirty.ok) return { ok: false, error: dirty.error };
+	if (dirty.value.trim()) return { ok: false, error: "refusing to land onto a tree that already has changes in it" };
+	return { ok: true, value: undefined };
+}
 
 /**
  * Applies each patch in turn, checking the tree between them.
@@ -67,11 +82,8 @@ export async function land(
 	const checks: Verification[] = [];
 
 	if (options.requireCleanTree !== false) {
-		const dirty = await status(repo);
-		if (!dirty.ok) return { applied, checks, ok: false, error: dirty.error };
-		if (dirty.value.trim()) {
-			return { applied, checks, ok: false, error: "refusing to land onto a tree that already has changes in it" };
-		}
+		const ready = await landable(repo);
+		if (!ready.ok) return { applied, checks, ok: false, error: ready.error };
 	}
 
 	for (const landing of landings) {

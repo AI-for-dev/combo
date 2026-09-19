@@ -189,7 +189,7 @@ export {
 	type GitResult,
 } from "./git.ts";
 export { scratchWorktree, type Scratch } from "./scratch.ts";
-export { land, type Landed, type Landing } from "./land.ts";
+export { land, landable, type Landed, type Landing } from "./land.ts";
 export {
 	declaresDelegate,
 	delegateTool,

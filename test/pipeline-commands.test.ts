@@ -144,6 +144,23 @@ describe("/run", () => {
 		assert.equal(seen, "local/qwen");
 	});
 
+	test("an unsaid --worktree reaches the run as unsaid, not as a no", async () => {
+		// The delivery decides from the size of its own plan, and it can only do
+		// that if the command did not answer for it.
+		const { ctx } = fakeCtx();
+		const seen: unknown[] = [];
+		const run = (async (options: { worktree?: boolean }) => {
+			seen.push(options.worktree);
+			return { pipeline: "explore", steps: [], output: "x", usage: { turns: 1 }, ok: true };
+		}) as never;
+
+		await runNamed("explore what is here", ctx, deps({ runPipeline: run }));
+		await runNamed("--worktree explore what is here", ctx, deps({ runPipeline: run }));
+		await runNamed("--worktree=false explore what is here", ctx, deps({ runPipeline: run }));
+
+		assert.deepEqual(seen, [undefined, true, false]);
+	});
+
 	test("a model that does not resolve stops before anything is spawned", async () => {
 		const { ctx, said } = fakeCtx();
 		let ran = false;

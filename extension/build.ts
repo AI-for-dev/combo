@@ -238,7 +238,10 @@ export function parseBuildArgs(args: string): {
 	const parsed: ReturnType<typeof parseBuildArgs> = { request: rest };
 	if (flags.pipeline) parsed.pipeline = flags.pipeline;
 	if (flags.model) parsed.model = flags.model;
-	if (flags.worktree === "true") parsed.worktree = true;
+	// Set only when it was written: an explicit `undefined` spread over a default
+	// silently wins, and the default is the whole point of leaving it unsaid.
+	const worktree = switchValue(flags, "worktree");
+	if (worktree !== undefined) parsed.worktree = worktree;
 
 	// A count that is not one is dropped rather than guessed at: `--questions x`
 	// is a typo, and turning it into 0 would silently skip the interview.
@@ -287,6 +290,19 @@ export function parseLeadingFlags(
 	}
 
 	return { flags, rest: rest.trim() };
+}
+
+/**
+ * A switch that can be left unsaid.
+ *
+ * `--worktree` is `true`, `--worktree=false` is `false`, and absent is
+ * `undefined` - which is not the same as `false` any more: it is what lets the
+ * workflow decide from the plan it just made. Coercing it here is how the
+ * default would be lost on its way through a command.
+ */
+export function switchValue(flags: Record<string, string>, name: string): boolean | undefined {
+	const raw = flags[name];
+	return raw === undefined ? undefined : raw === "true";
 }
 
 /**

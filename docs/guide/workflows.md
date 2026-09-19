@@ -148,8 +148,9 @@ not name stays open. [Design decisions](../decisions.md) has the reasoning for
 both.
 
 `worktree: true` gives the pair a copy of the repository to itself, so two of
-them can run at once without writing over each other. See
-[Worktrees](worktree.md).
+them can run at once without writing over each other - or reading each other,
+which is the half that is easy to miss. `deliver` turns it on by itself from two
+subtasks up; a lone `pair` is the caller's to set. See [Worktrees](worktree.md).
 
 ### `interview` - the agent questions the user
 
