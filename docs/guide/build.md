@@ -32,7 +32,10 @@ in the tests, which is how a conversation with a human is replayed offline.
 One question at a time, because a good second question depends on the first
 answer. Returning `undefined` from `ask` is the **submit**, not a cancel: what
 was already answered still counts, and the brief is still written. `esc` maps to
-it for the same reason.
+it for the same reason, and while a card is up that is the only thing `esc`
+does: the run's stop key is held for as long as somebody is being asked, or the
+interviewer that has to write the brief would go with the press. See
+[Display](display.md#stopping-what-you-are-watching).
 
 The interviewer's lifetime defaults to `"workflow"`. An interview *is* a
 conversation, and a `"task"` interviewer would forget the answer it just received

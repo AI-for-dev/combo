@@ -1213,6 +1213,20 @@ failed `Result` and the workflow decides: a `fanOut` branch dies alone, a
 pipeline step that fails ends the pipeline. Saying more than that in the
 message would be a promise the extension is not in a position to keep.
 
+**A question card owns `esc` while it is up.** The card had said "esc build
+with what you have" since before a run could be stopped from the keyboard, and
+the two meanings collided the first time somebody pressed it: measured on
+`/build`, `esc` on the first card ended with `interview failed: stopped`. The
+card resolved to a submit, the listener stopped every subagent of the run, and
+the interviewer that had to write the brief was one of them. So `whileAsking`
+in `extension/stop.ts` holds the stop for the length of a question, free-text
+box included, and `escape` falls through to pi as before. Held rather than
+dropped, because the run's subagents are idle while a question waits: there is
+nothing running that the key would have been pressed to call off. The other
+way round - making the card's `esc` a cancel, so that both meanings agree - was
+rejected, because it throws the answers away, and the reflex to escape out of a
+dialog is exactly the moment those answers are worth keeping.
+
 ## Asking the user, and touching the world
 
 Two ports, one rule: **the agents produce text, our code performs the act.**

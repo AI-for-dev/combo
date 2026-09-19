@@ -182,6 +182,13 @@ interrupt fires as well, so inside a model's turn the turn goes with the
 subagents and the model gets no chance to delegate again. During `/run`,
 `/build` or `/step` pi has no turn to abort, and this is what stops them.
 
+The one time it does not is while a question card is up. There `esc` is the
+card's, and means "build with what you have": the interviewer that will write
+the brief is a subagent of the same run, and a key that stopped it as well
+would end the interview it was meant to close. The run's subagents are idle
+while a question waits, so nothing is running that the key would have called
+off.
+
 `ctrl+↑` and `ctrl+↓` move a `▸` through the subagents that are still working -
 delegated children included, in the order the widget draws them - and `ctrl+del`
 stops the one it points at. `/stop` does the same by name:

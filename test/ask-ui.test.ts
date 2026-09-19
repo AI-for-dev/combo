@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { initTheme } from "@earendil-works/pi-coding-agent";
 import { createAskUi, items, OTHER, SUBMIT, type AskUi } from "../extension/ask-ui.ts";
+import { isAsking } from "../extension/stop.ts";
 import type { Question } from "../src/ask.ts";
 import { testTheme } from "./fixtures/theme.ts";
 
@@ -96,6 +97,27 @@ describe("the question card", () => {
 			const { ui } = fakeUi(OTHER, typed);
 			assert.equal(await createAskUi(ui)(question), undefined);
 		}
+	});
+
+	test("the card holds the run's escape key while it is up, and the free-text box too", async () => {
+		const seen: boolean[] = [];
+		const { ui } = fakeUi(OTHER, "redis");
+		const watching: AskUi = {
+			...ui,
+			custom: (factory) => {
+				seen.push(isAsking());
+				return ui.custom(factory);
+			},
+			input: (title, placeholder) => {
+				seen.push(isAsking());
+				return ui.input(title, placeholder);
+			},
+		};
+
+		assert.equal(isAsking(), false);
+		await createAskUi(watching)(question);
+		assert.deepEqual(seen, [true, true]);
+		assert.equal(isAsking(), false);
 	});
 
 	test("a card with no header still builds", async () => {
