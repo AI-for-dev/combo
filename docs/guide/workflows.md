@@ -194,7 +194,8 @@ is its name on the board, and a task-lifetime member gets a new one every round.
 control arm: the board's worth is the difference between the two, measured, on
 the job you actually have.
 
-Two things a run of it showed, both now built in. Members are *handed* what is
+[Swarms](swarm.md) is the page on it: what a member is, what running one says,
+and what a board does not do. Two things a run of it showed, both now built in. Members are *handed* what is
 new on the board rather than made to fetch it, because once something
 arbitrates they stop reading it altogether. And whatever a member still held is
 released when it goes, because claims left by a member that has closed are work

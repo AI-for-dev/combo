@@ -55,9 +55,9 @@ subagent, one that remembers, a workflow, and the same thing from inside pi.
 
 ## Workflows
 
-Nine combinators - `chain`, `fanOut`, `loop`, `reduce`, `route`, `orchestrate`,
-`pair`, `interview`, `deliver` - all taking the same options and all returning
-`Result`s.
+Ten combinators - `chain`, `fanOut`, `loop`, `reduce`, `route`, `orchestrate`,
+`pair`, `interview`, `deliver`, `swarm` - all taking the same options and all
+returning `Result`s.
 
 ```typescript
 const { results, usage } = await fanOut({ agent: scout, tasks, concurrency: 2 });
