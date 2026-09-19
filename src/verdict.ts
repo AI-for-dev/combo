@@ -55,11 +55,11 @@ export type VerdictToolOptions = {
 	/**
 	 * Whether an id is one the agent may close right now.
 	 *
-	 * Without it every id is taken on trust. Measured against
-	 * `ilaas/gemma-4-31b`: an auditor with nothing open sent
-	 * `resolved: [{ id: "1" }]`, inventing both the line and the id format. A
-	 * closure the ledger would refuse is better refused here, where the agent is
-	 * told and can call again.
+	 * Without it every id is taken on trust. Measured with a small open-weight
+	 * model: an auditor with nothing open sent `resolved: [{ id: "1" }]`,
+	 * inventing both the line and the id format. A closure the ledger would
+	 * refuse is better refused here, where the agent is told and can call
+	 * again.
 	 */
 	knows?: (id: string) => boolean;
 	/** The ids it may close, named in the refusal so it can correct itself. */

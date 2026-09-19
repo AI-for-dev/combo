@@ -29,7 +29,7 @@ tests has no built-ins to collide with, so 750 green tests had nothing to say
 about it.
 
     python3 scripts/drive-pi.py \\
-        --model ilaas/gemma-4-31b \\
+        --model <provider/model> \\
         "/step scout where the wall time is measured||25||300" \\
         "/chain" "/quote"
 

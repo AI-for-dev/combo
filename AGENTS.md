@@ -63,8 +63,8 @@ no enums, no namespaces, no parameter properties.
      key for that provider.
    - **A measurement pins it.** An experiment that left every level empty is
      measuring the operator, not the models. Measured: `/run explore` with no
-     `--model` put all four subagents on `ilaas/gemma-4-31b`, a model named
-     nowhere in this repository, and an earlier run got `thinkingLevel: high`
+     `--model` put all four subagents on a model named nowhere in this
+     repository, and an earlier run got `thinkingLevel: high`
      nobody asked for. `experiment()` takes `models` and every command takes
      `--model` for exactly this: use them, and the run says on its face what it
      ran on.
