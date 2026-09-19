@@ -1040,17 +1040,29 @@ learn it - and until it did, every collapsed row in the TUI showed a blank task.
 ### herdr reporter (the default when available)
 
 Implemented in `src/reporters/herdr.ts`, transport in `herdr-client.ts`.
-Verified against herdr 0.7.3, protocol 16.
+Verified against herdr 0.9.0, protocol 22, by `node scripts/check-herdr.ts` and
+by a run with panes open.
 
 **The key idea, because it is not the obvious one.** A herdr pane cannot *host*
-an in-process subagent: there is no process and no TTY to attach, while
-`pane.split` and `agent.start` launch an argv in a real terminal. So the pane
+an in-process subagent: there is no process and no TTY to attach. So the pane
 does not host the subagent - it **displays a stream we write**. We append to a
-file and open a pane running `tail -n +1 -f` on it:
+file and open a pane running `tail -n +1 -f` on it, which takes three calls
+because herdr has no single call that does all three:
 
 ```typescript
-agent.start { name: "reviewer#2", argv: ["tail", "-n", "+1", "-f", logPath], split: "right" }
+pane.split      { direction: "right", target_pane_id: ours, focus: false }   // → result.pane.pane_id
+pane.rename     { pane_id, label: "reviewer#2" }
+pane.send_input { pane_id, text: "exec tail -n +1 -f '<log>'", keys: ["enter"] }
 ```
+
+`target_pane_id` is ours, from `HERDR_PANE_ID`: with none, herdr splits whatever
+pane is focused, which can belong to another client.
+
+`exec`, so the pane *is* the stream - closing it closes what it follows - and
+the clear that puts the name at the top is written into the log file rather than
+run as a command, because the shell is still starting up and writes over
+anything printed before it has finished. Measured, as a zsh history warning
+sitting on top of a member's first turn.
 
 This also settles the ownership question: a pane carries exactly **one** `agent`
 / `agent_status`, and the main pane's already belongs to herdr's own pi
@@ -1073,8 +1085,11 @@ Points that cost time to discover:
   unknown`, even though the *event* `AgentStatus` enum does have `done`. Our
   `"done"` maps to `idle`, and `pane.release_agent` is what actually retires the
   agent.
-- **`agent.start` answers with the `pane_id`** (`result.agent.pane_id`), which
-  is the only way to later report on, release and close that pane.
+- **`pane.split` answers with the `pane_id`** (`result.pane.pane_id`), which is
+  the only way to later name, run in, report on, release and close that pane.
+- **`agent.start` is not that call**, whatever its name suggests: it starts a
+  *recognised* agent in a pane that already exists. `pane.split` is what makes
+  panes. See the reversal below.
 - **Release before close.** Closing first leaves herdr holding an agent on a
   pane that no longer exists.
 - **Every promise chain ends in a `catch`.** A try/catch around the listener is
@@ -1083,7 +1098,10 @@ Points that cost time to discover:
 - `seq` is a monotonic ordering field; seed it from the clock like the pi
   integration does, so two processes reporting on one pane do not collide.
 - Useful CLI equivalents when debugging: `herdr pane list`, `herdr agent list`,
-  `herdr pane read <pane_id> --source visible`.
+  `herdr pane read <pane_id> --source visible`. The read sources are
+  `visible | recent | recent_unwrapped | detection`, with an underscore - the
+  CLI's own `--source recent-unwrapped` is spelt the other way and the socket
+  refuses it.
 
 **`openInHerdr` is opt-in, per subagent**, exactly like `lifetime`: a fan-out of
 twenty branches must not carpet the screen unless someone asked. The other
@@ -1109,6 +1127,30 @@ Nobody works in that pane, so no agent state is ever reported on it and nothing
 is released when it closes - a pane that never had an agent has none to give
 back, which is now what `finish` checks rather than assumes. It opens only when
 the run is watched at all, and closes with the last member.
+
+**Reversed: `agent.start` was never the call that opens a pane.** Under herdr
+0.7.3 it took an `argv` and a `split` and did open one. By 0.9.0 it takes a
+`kind` and a `pane_id` and starts a recognised agent in an existing pane, so
+every request combo sent was answered `invalid_request`. Nothing said so: a
+reporter must never throw, so the refusal was swallowed, `paneIdOf` gave
+`undefined`, and every call after it was skipped by design. `/herdr on` warned
+only about herdr being absent, which it was not. The suite stayed green over a
+feature that opened nothing at all, because every test of it asserted on combo's
+own idea of the request.
+
+The guard for it is not another test. `node scripts/check-herdr.ts` runs the
+reporter through a subagent's whole life against a recording transport, then
+holds every request it made to `herdr api schema --json`. Because it validates
+what the code sends rather than a copy of it, it cannot drift from the code the
+way example payloads would; run against the shape that shipped, it names both
+missing fields. `scripts/drive-pi.py` plays the same part for pi: a check a fake
+cannot perform, run by hand.
+
+Two tests asserted that the suite runs outside herdr. It does not, for anyone
+developing this in the window it is written for: both passed for the wrong
+reason there, and one of them opened a pane in the terminal running `npm test`.
+`test/fixtures/no-herdr.ts` takes the markers out of the environment for the
+length of a body, so the suite answers the same either way.
 
 The wording of those lines lives in `src/reporters/traffic.ts` and nowhere else.
 The console and a herdr pane are read side by side when a run is compared

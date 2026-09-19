@@ -13,6 +13,12 @@ there is no process and no TTY to attach. So the pane does not host it, it
 state on it: the main pane's state already belongs to herdr's own pi
 integration, and two sources cannot own one pane.
 
+That takes three calls, because herdr has none that does all three:
+`pane.split` makes the pane and hands back its id, `pane.rename` puts the
+subagent's name on it, and `pane.send_input` types the command into the shell
+the split started. `agent.start` sounds like the call that opens one and is
+not: it puts a *recognised* agent into a pane that already exists.
+
 ## `createHerdrReporter`
 
 *function*
@@ -45,6 +51,14 @@ The reporter proper, with the transport already chosen. Exported for tests.
 export type HerdrOptions = {
 	/** Where the split opens. Defaults to `"right"`. */
 	split?: "right" | "down";
+	/**
+	 * The pane ours open beside. Defaults to the one pi was launched in.
+	 *
+	 * Named rather than left out: with no target herdr splits whichever pane is
+	 * focused, and that can belong to another client, or to the user reading
+	 * something else in the next tab.
+	 */
+	pane?: string;
 	/** Steal focus when a split opens. Defaults to `false` - you are still typing. */
 	focus?: boolean;
 	/** Transport. Injection point for tests; defaults to the real socket. */

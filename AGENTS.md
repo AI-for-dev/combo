@@ -19,6 +19,7 @@ npm run typecheck
 npm run docs    # regenerate docs/reference/api/ - required after any signature change
 pi -e extension # load the extension in a real pi (the only check fakes cannot do)
 python3 scripts/drive-pi.py "/agents"   # the same, hands-free: it types and reads back
+node scripts/check-herdr.ts     # hold our herdr calls to `herdr api schema --json`
 ```
 
 Node >= 23.6 runs TypeScript natively. No build step. `erasableSyntaxOnly` is on:
@@ -158,7 +159,10 @@ reachable by forgetting an argument.
   `systemPrompt` field. A read-only toolset is `["read", "grep", "find", "ls"]`.
 - Reference docs live in `node_modules/@earendil-works/pi-coding-agent/docs/`
   (`sdk.md`, `extensions.md`, `tui.md`): read them before inventing an API, it
-  probably exists. For herdr, `herdr api schema --json` is authoritative.
+  probably exists. For herdr, `herdr api schema --json` is authoritative - and
+  it moves: `agent.start` opened a pane under protocol 16 and starts an agent in
+  an existing one under 22, which left `/herdr on` opening nothing while every
+  test stayed green. `node scripts/check-herdr.ts` is what holds us to it.
 
 ## Read before you write
 

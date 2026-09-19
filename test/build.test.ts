@@ -24,6 +24,7 @@ import type { PipelineRunResult } from "../src/workflows/pipeline-run.ts";
 import { emptyUsage } from "../src/usage.ts";
 import { fakeCtx } from "./fixtures/command-ctx.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
+import { withoutHerdr } from "./fixtures/no-herdr.ts";
 import { testTheme } from "./fixtures/theme.ts";
 
 initTheme();
@@ -694,8 +695,7 @@ describe("/herdr", () => {
 	test("outside herdr it says nothing will open, rather than pretending", () => {
 		const { ctx, notes } = fakeCtx();
 		try {
-			toggleHerdr("on", ctx);
-			// The suite does not run inside herdr, so this is the real path.
+			withoutHerdr(() => toggleHerdr("on", ctx));
 			assert.equal(notes.at(-1)?.type, "warning");
 			assert.match(notes.at(-1)?.message ?? "", /not running inside herdr/);
 		} finally {

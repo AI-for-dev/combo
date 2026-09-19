@@ -6,10 +6,14 @@ Source: [`src/reporters/herdr-client.ts`](https://github.com/AI-for-dev/combo/bl
 
 Detection and transport for herdr's socket API. Nothing else lives here.
 
-Ported from the integration herdr installs into pi itself
-(`~/.pi/agent/extensions/herdr-agent-state.ts`, `HERDR_INTEGRATION_ID=pi`):
-that file is the reference implementation, proven against this exact server,
+Reporting agent state is ported from the integration herdr installs into pi
+itself (`~/.pi/agent/extensions/herdr-agent-state.ts`,
+`HERDR_INTEGRATION_ID=pi`): that file is proven against this exact server,
 and there is no reason to invent a second dialect.
+
+Opening a pane is not in it - the integration only ever reports on the pane
+it was launched in - so those calls answer to `herdr api schema --json`
+alone, and `scripts/check-herdr.ts` is what holds them to it.
 
 ## `detectHerdr`
 

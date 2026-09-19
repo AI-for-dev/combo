@@ -7,6 +7,12 @@
  * `tail -f` on it. The pane is then ours, which is also why we can report agent
  * state on it: the main pane's state already belongs to herdr's own pi
  * integration, and two sources cannot own one pane.
+ *
+ * That takes three calls, because herdr has none that does all three:
+ * `pane.split` makes the pane and hands back its id, `pane.rename` puts the
+ * subagent's name on it, and `pane.send_input` types the command into the shell
+ * the split started. `agent.start` sounds like the call that opens one and is
+ * not: it puts a *recognised* agent into a pane that already exists.
  */
 
 import * as fs from "node:fs";
@@ -25,6 +31,14 @@ export const BOARD_PANE = "board";
 export type HerdrOptions = {
 	/** Where the split opens. Defaults to `"right"`. */
 	split?: "right" | "down";
+	/**
+	 * The pane ours open beside. Defaults to the one pi was launched in.
+	 *
+	 * Named rather than left out: with no target herdr splits whichever pane is
+	 * focused, and that can belong to another client, or to the user reading
+	 * something else in the next tab.
+	 */
+	pane?: string;
 	/** Steal focus when a split opens. Defaults to `false` - you are still typing. */
 	focus?: boolean;
 	/** Transport. Injection point for tests; defaults to the real socket. */
@@ -53,9 +67,11 @@ export type HerdrOptions = {
  * telling them herdr is not running when they never asked for herdr.
  */
 export function createHerdrReporter(options: HerdrOptions = {}): EventListener | undefined {
-	const send = options.send ?? bindSocket();
-	if (!send) return undefined;
-	return createHerdrReporterWith(send, options);
+	if (options.send) return createHerdrReporterWith(options.send, options);
+	const env = detectHerdr();
+	if (!env) return undefined;
+	// The pane pi is in is where the splits belong, and an explicit `pane` still wins.
+	return createHerdrReporterWith(createHerdrSend(env), { pane: env.paneId, ...options });
 }
 
 /** The reporter proper, with the transport already chosen. Exported for tests. */
@@ -156,7 +172,11 @@ function openPane(send: HerdrSend, dir: string, id: string, options: HerdrOption
 	// is a pane and not an agent, and releasing one herdr never heard of is a
 	// call that can only go wrong.
 	let reported = false;
-	fs.writeFileSync(logPath, `${id}\n\n`);
+	// The name, over a cleared screen. The clear belongs to the stream and not
+	// to the command, because the shell that runs the command is still starting
+	// up and writes over anything the command printed before it finished -
+	// measured, as a zsh history warning sitting on top of a member's first turn.
+	fs.writeFileSync(logPath, `\u001b[2J\u001b[H${id}\n\n`);
 
 	// Writes are appended synchronously and in order. Interleaved async appends
 	// would scramble a token stream, which is precisely what we are displaying.
@@ -168,20 +188,27 @@ function openPane(send: HerdrSend, dir: string, id: string, options: HerdrOption
 		}
 	};
 
-	// `tail -f` follows the file we just created. `-n +1` shows it from the top,
-	// so the agent name written above is visible.
+	// Split, then type the command into the shell the split started - herdr
+	// opens a pane at a prompt, it does not open one running a command.
 	//
 	// Every chain below ends in a `catch`. "Never throws" is not enough for an
 	// observer: an unhandled rejection escapes the try/catch around the listener
 	// entirely, and in Node it takes the whole process down.
-	const started = send("agent.start", {
-		name: id,
-		argv: ["tail", "-n", "+1", "-f", logPath],
-		split: options.split ?? "right",
-		focus: options.focus ?? false,
-	})
-		.then(paneIdOf)
-		.catch(() => undefined);
+	const started = (async () => {
+		const paneId = paneIdOf(
+			await send("pane.split", {
+				direction: options.split ?? "right",
+				focus: options.focus ?? false,
+				...(options.pane ? { target_pane_id: options.pane } : {}),
+			}),
+		);
+		if (!paneId) return undefined;
+		// A split is an anonymous shell. The name is how three member panes are
+		// told apart, and the board's is the only thing saying what it is.
+		await send("pane.rename", { pane_id: paneId, label: id });
+		await send("pane.send_input", { pane_id: paneId, text: follow(logPath), keys: ["enter"] });
+		return paneId;
+	})().catch(() => undefined);
 
 	const onPane = (fn: (paneId: string) => Promise<unknown> | void) => {
 		void started
@@ -229,10 +256,16 @@ function openPane(send: HerdrSend, dir: string, id: string, options: HerdrOption
 	};
 }
 
-/** Real transport, or `undefined` when the environment says we are not in herdr. */
-function bindSocket(): HerdrSend | undefined {
-	const env = detectHerdr();
-	return env ? createHerdrSend(env) : undefined;
+/**
+ * What the pane is told to run.
+ *
+ * `exec` because the pane should *be* the stream: what it is following is then
+ * its own foreground process, and closing one closes both. `-n +1` shows the
+ * file from the top, so the clear and the name written above are the first
+ * thing that reaches the terminal.
+ */
+function follow(logPath: string): string {
+	return `exec tail -n +1 -f '${logPath.replace(/'/g, "'\\''")}'`;
 }
 
 /** A one-line hint of what a tool was called with. The pane is narrow. */

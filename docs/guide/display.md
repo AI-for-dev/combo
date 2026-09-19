@@ -115,14 +115,24 @@ await fanOut({
 ```
 
 A herdr pane cannot *host* an in-process subagent: there is no process and no TTY
-to attach, while a pane launches an argv in a real terminal. So the pane does not
-host the subagent, it **displays a stream we write**: the library appends to a
-file and opens a pane running `tail -n +1 -f` on it, showing tool calls, streamed
-text and a final usage line. Splits close on their own when their subagent does,
-so a fan-out leaves no orphan panes.
+to attach. So the pane does not host the subagent, it **displays a stream we
+write**: the library appends to a file and opens a pane running `tail -n +1 -f`
+on it, showing tool calls, streamed text and a final usage line. Splits close on
+their own when their subagent does, so a fan-out leaves no orphan panes.
+
+Opening one takes three calls, because herdr has no single call that does all
+three: `pane.split` makes the pane beside ours and answers with its id,
+`pane.rename` puts the subagent's name on it, and `pane.send_input` types the
+`tail` into the shell the split started. `agent.start` sounds like the call
+that opens one and is not: it puts a *recognised* agent into a pane that already
+exists, and mistaking the two is how `/herdr on` once opened nothing at all
+([decisions](../decisions.md)). `node scripts/check-herdr.ts` holds every one of
+those calls to `herdr api schema --json`.
 
 Detection needs `HERDR_ENV=1`, `HERDR_SOCKET_PATH` and `HERDR_PANE_ID`. All
-three, or nothing at all.
+three, or nothing at all. The pane id is what the splits open beside, so they
+land next to ours rather than next to whichever pane another client has
+focused.
 
 `openInHerdr` is opt-in per subagent, exactly like `lifetime`, so a fan-out of
 twenty branches cannot carpet the screen by accident. It can be a default on the
