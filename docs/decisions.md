@@ -496,20 +496,26 @@ everywhere else.
 
 A question the user reads less precisely is one they answer less precisely, and
 the specification is the artefact they are handed to correct before anything is
-built on it. Both now come back in the language of the request.
+built on it. Both come back in the language of the request.
 
-This is the one place output leaves English, and it does not contradict the
-English-everywhere rule: that rule governs what is written into the repository,
-and none of this is. The **specification** does travel on to the planner, the
-coder, the reviewer and the auditor, whose own prompts stay English. A model
-takes a request in any language without trouble, and the person signing off on
-the spec reading it exactly is worth more than a uniform pipeline.
+It does not contradict the English-everywhere rule: that rule governs what is
+written into the repository, and none of this is. The **specification** does
+travel on to the planner, the coder, the reviewer and the auditor, whose own
+prompts stay English. A model takes a request in any language without trouble,
+and the person signing off on the spec reading it exactly is worth more than a
+uniform pipeline.
 
 Two things are exempted by name, and both would break silently otherwise.
 `parseQuestion` reads the question by its JSON **keys**, so a translated
 `options` is a question nobody can display. And the loop ends on `READY`: a model
 told to write French writes `PRÊT`, which is an interview that never finishes and
 burns every one of its questions first.
+
+This was the first place output left English, and for a while the only one -
+[every subagent answers that way now](#every-subagent-answers-in-the-language-it-was-given).
+The per-turn reminder stays: it is the one prompt that names its own two
+exemptions, and an interview that loses `READY` costs six questions before
+anybody notices.
 
 ## A subagent may have subagents
 
@@ -1308,6 +1314,49 @@ You review the code produced and return at most 5 remarks…
   An error message is read by an LLM as often as by a human now; it has to name
   the real cause.
 - Agents are rediscovered on every call (hot editing works).
+
+### Every subagent answers in the language it was given
+
+Asked in French where the wall time is measured, `/step scout` answered in
+English. No definition asks for English; they inherit it from the prompt around
+them, which is English like everything written into this repository. The person
+who asked then reads their own repository through a translation they never
+asked for.
+
+So the instruction is standing, in `src/language.ts`, appended to every system
+prompt beside `situate()`. One place, and it reaches an agent a user wrote
+without ever thinking about the question - which a line added to the nine
+definitions here would not.
+
+**It points at the work, not at the prompt.** The first wording said "the
+language of the task you are given", and measured on `ilaas/gemma-4-31b` that
+loses the case worth having: a reviewer whose French goal is wrapped in English
+scaffolding ("Review this work.", "It was asked to:") answered in English,
+because most of the task really was English. Naming the material instead - the
+request, the specification, the report of another agent - and saying outright
+that these instructions never decide it, turned the same run French.
+
+**And it names no language.** The wording that fixed the reviewer did it with an
+example: *if the work you were handed is in French, answer in French*. The next
+English question came back in French. In a standing instruction an example reads
+as the target, and this one is in front of the model on every turn of every
+agent, so the rule now says that no example in it decides the language either.
+Three turns settle it, and they are the check to re-run on the day the sentence
+is touched: an English task answers English, a French task answers French, and
+French work inside English scaffolding answers French.
+
+**What must not move is exempted by shape.** A model writing French writes
+`PRÊT` for `READY` and `RAS` for `LGTM`: a loop that never converges, a review
+nobody can parse, and no error anywhere. The library could list its own
+sentinels, but a workflow somebody else writes has its own, so the rule is
+written as a shape: a word you were told to answer with, a JSON key, an agent
+name, an identifier, a path, anything quoted from code. Measured, on the same
+model: a French task asking for `LGTM` alone returns `LGTM`; the router answers
+`scout`; the planner answers valid JSON whose `task` strings are French, which
+is right, since they are the work the next agent reads.
+
+The interview keeps its own per-turn reminder. It is the one prompt that can
+name its exemptions exactly, and it pays the most for losing them.
 
 ## The model: an explicit knob at every level
 

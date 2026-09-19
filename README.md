@@ -27,6 +27,8 @@ against four models to see which one is worth its price.
   in pi's TUI otherwise, with no change to the calling code.
 - **Everything measured and exportable**: time and tokens per subagent, plus a
   readable HTML and replayable JSONL export of a whole run.
+- An **answer in the language you asked in**. The definitions are English; what
+  comes back follows the question, and the words a workflow reads back stay put.
 
 ## Getting started
 

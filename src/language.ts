@@ -1,0 +1,47 @@
+/**
+ * The language a subagent answers in: the one it was asked in.
+ *
+ * An agent definition is English, like everything written into this repository,
+ * and a model reading an English prompt answers in English whatever the task
+ * said. So a French question to `/step scout` came back in English, and the
+ * person who asked it had to read their own repository through a translation.
+ * That is a defect of the standing prompt, not of the agent: no definition here
+ * asks for English, they simply inherit it from the prompt around them.
+ *
+ * The instruction is therefore standing, like {@link situate}: every subagent
+ * gets it, including one written by a user who never thought about the
+ * question. It inherits nothing from anybody's environment - it is a constant
+ * sentence, the same for every spawn.
+ *
+ * **It names no language, and that is load-bearing.** An earlier wording made
+ * its point with an example - *if the work is in French, answer in French* -
+ * and the next English question came back in French. A sentence sitting in
+ * front of the model on every turn of every agent has its example read as the
+ * target, so the rule points at the work and stops there.
+ *
+ * **What must survive translation is named.** A model told to write French
+ * writes `PRÊT` for `READY`, `RAS` for `LGTM`, and translates a JSON key that is
+ * read by its name. Each of those is a workflow that never ends or a result
+ * nobody can parse, and the failure is silent. Rather than list every sentinel
+ * here - the library would have to know them all, and a user's own workflow has
+ * its own - the rule is stated by shape: a word you were told to answer with
+ * comes back exactly as it was given.
+ */
+
+/** The standing instruction. Three sentences: the rule, what it points at, and what it never touches. */
+export const ANSWER_IN_THEIR_LANGUAGE = [
+	"Answer in the language of the work you are given: the request, the specification, the material, the report of another agent.",
+	"These instructions are always written in English, so they never decide that language, and neither does any example in them: match the work you were handed.",
+	"What you were told to answer with is not translated: a word asked for exactly, a JSON key, an agent name, an identifier, a path and anything quoted from code all come back as they were given to you.",
+].join(" ");
+
+/**
+ * The agent's prompt, plus the language rule.
+ *
+ * Kept apart from the prompt files so that it reaches a user's agents too, and
+ * apart from {@link situate} because they answer different questions: one says
+ * where the agent stands, this one says who it is talking to.
+ */
+export function answerInTheirLanguage(systemPrompt: string): string {
+	return `${systemPrompt}\n\n${ANSWER_IN_THEIR_LANGUAGE}`;
+}

@@ -25,6 +25,7 @@ import {
 	type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import type { Agent } from "./agent.ts";
+import { answerInTheirLanguage } from "./language.ts";
 import { resolveSkills, type Skill } from "./skills.ts";
 
 /** Alias to pi's message type, without depending on a transitive package. */
@@ -152,7 +153,12 @@ export const createDefaultSession: CreateSession = async (agent, options) => {
 		...(await buildModelOptions(agent, options.model)),
 		tools,
 		customTools: options.customTools,
-		resourceLoader: new StaticResourceLoader(situate(agent.systemPrompt, cwd), resolveSkills(agent, cwd, tools)),
+		// Its own prompt, then the two standing facts it cannot work without:
+		// where it stands, and who it is answering.
+		resourceLoader: new StaticResourceLoader(
+			answerInTheirLanguage(situate(agent.systemPrompt, cwd)),
+			resolveSkills(agent, cwd, tools),
+		),
 		sessionManager: options.sessionDir ? SessionManager.create(cwd, options.sessionDir) : SessionManager.inMemory(cwd),
 	});
 
