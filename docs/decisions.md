@@ -314,6 +314,25 @@ nobody offered one to still has to be able to say yes.
 None of this makes a model's judgement deterministic. It makes reading that
 judgement deterministic, which is the only part of it that was ever ours.
 
+### A decision is not lost to the bookkeeping beside it
+
+Reversed, and the measurement is what reversed it. The verdict tool used to
+refuse the whole call when `resolved` named an id nothing had raised, on the
+grounds that a closure the ledger would refuse is better refused where the agent
+is told and can call again. Told, the agent called again with the same invented
+id, was refused again, and answered `APPROVED` in prose that nothing reads. The
+delivery ended unapproved with no fix raised and no reason a user could see,
+over an id that closed nothing either way.
+
+So an unknown id is dropped from the verdict and named back in the same result,
+beside `Recorded: approved.` The ledger is exactly as honest as before - an id
+nobody raised closes nothing, here or in `ledger.close` - and what changes is
+that the decision the call carried survives the mistake sitting next to it.
+
+The refusal that stays is the one about the decision itself: `approved: false`
+with no remarks and nothing raised is still refused, because there the missing
+part *is* the answer.
+
 ### Finished is a ledger, not an opinion
 
 Measured on the run that shipped the verdict tool: the reviewer called `verdict`

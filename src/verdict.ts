@@ -57,9 +57,9 @@ export type VerdictToolOptions = {
 	 *
 	 * Without it every id is taken on trust. Measured with a small open-weight
 	 * model: an auditor with nothing open sent `resolved: [{ id: "1" }]`,
-	 * inventing both the line and the id format. A closure the ledger would
-	 * refuse is better refused here, where the agent is told and can call
-	 * again.
+	 * inventing both the line and the id format. Such an id is dropped from the
+	 * verdict and named back to the agent, which keeps the ledger honest without
+	 * costing the decision the same call carried.
 	 */
 	knows?: (id: string) => boolean;
 	/** The ids it may close, named in the refusal so it can correct itself. */
@@ -144,27 +144,34 @@ export function verdictTool(options: VerdictToolOptions = {}): VerdictTool {
 				resolved.push({ id: one.id.trim(), how: one.how, reason: one.reason?.trim() || undefined });
 			}
 
-			const unknown = options.knows ? resolved.filter((one) => !options.knows?.(one.id)).map((one) => one.id) : [];
-			if (unknown.length > 0) {
-				const open = options.open?.() ?? [];
-				return {
-					content: [
-						{
-							type: "text" as const,
-							text: `No open obligation for ${unknown.join(", ")}. ${
-								open.length ? `The ids you may close: ${open.join(", ")}.` : "Nothing is open."
-							} Call again.`,
-						},
-					],
-					details: undefined,
-					isError: true,
-				};
-			}
+			// An id nobody raised closes nothing, here or in the ledger, so there is
+			// nothing left to protect by throwing the decision away with it. What
+			// that cost was measured: an auditor with nothing open sent
+			// `resolved: [{ id: "coder" }]` beside `approved: true`, was refused,
+			// sent the same id again, was refused again, and the delivery ended
+			// unapproved over bookkeeping while its decision had been given twice.
+			const known = options.knows ? resolved.filter((one) => options.knows?.(one.id)) : resolved;
+			const unknown = resolved.filter((one) => !known.includes(one)).map((one) => one.id);
 			const raised = (params.raised ?? []).map((one) => one.trim()).filter(Boolean);
 
-			given.push({ approved: params.approved, remarks, resolved, raised });
+			given.push({ approved: params.approved, remarks, resolved: known, raised });
+
+			const recorded = params.approved ? "Recorded: approved." : "Recorded: not approved.";
+			if (unknown.length === 0) return { content: [{ type: "text" as const, text: recorded }], details: undefined };
+
+			// Said rather than hidden, and in the same breath as the decision: the
+			// agent learns its bookkeeping was wrong without learning that its
+			// answer was thrown away.
+			const open = options.open?.() ?? [];
 			return {
-				content: [{ type: "text" as const, text: params.approved ? "Recorded: approved." : "Recorded: not approved." }],
+				content: [
+					{
+						type: "text" as const,
+						text: `${recorded} Nothing was closed for ${unknown.join(", ")}: no obligation has that id. ${
+							open.length ? `The ids you may close: ${open.join(", ")}.` : "Nothing is open."
+						}`,
+					},
+				],
 				details: undefined,
 			};
 		},

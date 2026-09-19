@@ -612,6 +612,19 @@ describe("an auditor that signs through the verdict tool", () => {
 		assert.deepEqual(result.audits[0]?.fixes.map((fix) => fix.agent.name), ["coder"]);
 	});
 
+	test("an id the auditor invented does not cost it the delivery", async () => {
+		// The run this is taken from: nothing was open, the auditor approved and
+		// named `coder` as a resolution anyway, and the whole verdict was thrown
+		// away twice over an id that closed nothing.
+		const fake = withVerdicts([{ approved: true, resolved: [{ id: "coder", how: "addressed" }] }]);
+		const result = await deliver({ planner, workers, reviewer, auditor: judge, brief: "x", spawn: fake.spawn,
+			worktree: false,
+		});
+
+		assert.equal(result.approved, true);
+		assert.deepEqual(result.obligations, [], "and nothing was closed that was never open");
+	});
+
 	test("an auditor that signs over an open obligation does not deliver", async () => {
 		const fake = withVerdicts([
 			{ approved: false, raised: ["coder: one", "scribe: two"] },

@@ -140,6 +140,14 @@ So `approved` needs three things now: the auditor signed off, nothing it raised
 is still open, and the check passed. A run that stops short names the ids that
 are left rather than only saying it stopped.
 
+**An id nobody raised costs nothing but itself.** Measured: an auditor with
+nothing open answered `approved: true` with `resolved: [{ id: "coder" }]`, an id
+it invented. The tool used to refuse the call outright, the auditor repeated the
+same id and then gave up into prose, and the delivery ended unapproved with no
+fix and no reason on screen. The unknown id is now dropped and named back beside
+`Recorded: approved.`, so the decision survives the bookkeeping. Nothing is
+closed that was not open, here or in the ledger.
+
 [Workflows](workflows.md) covers the same mechanism inside a pair, and
 [Design decisions](../decisions.md) has the reasoning.
 
