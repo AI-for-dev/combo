@@ -162,6 +162,40 @@ same split as everywhere else here: the collector lays out, the terminal
 decides what a level looks like. A run with no delegation is drawn exactly as
 it always was.
 
+### Stopping what you are watching
+
+The dots are also the list of what can be called off. Under them, while
+something is still running:
+
+```
+esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
+```
+
+`esc` stops every subagent of the run. It is **not** intercepted: pi's own
+interrupt fires as well, so inside a model's turn the turn goes with the
+subagents and the model gets no chance to delegate again. During `/run`,
+`/build` or `/step` pi has no turn to abort, and this is what stops them.
+
+`ctrl+↑` and `ctrl+↓` move a `▸` through the subagents that are still working -
+delegated children included, in the order the widget draws them - and `ctrl+del`
+stops the one it points at. `/stop` does the same by name:
+
+| Command | What it stops |
+| --- | --- |
+| `/stop` | the selected subagent, or the only one running |
+| `/stop <id>` | that one, e.g. `/stop scout#2` |
+| `/stop all` | the whole run, like `esc` |
+
+One subagent stopping is **not** the run stopping: its turn comes back as a
+failed `Result` reading `stopped`, and what the workflow does next is the
+workflow's business - a `fanOut` branch dies alone, while a pipeline step that
+fails ends the pipeline. Either way what already ran is kept, and exported.
+
+`/stop` is only typeable while the *model* is running subagents: pi executes an
+extension command immediately during a turn, but processes no submission at all
+while a slash command of its own is awaiting. That is why the same act has a
+key.
+
 The widget disappears the moment the work ends, in a `finally`, so a thrown
 workflow never leaves a dead row of dots above the prompt. The full record is one
 line below, in the tool row: one line per subagent with its last tool calls.

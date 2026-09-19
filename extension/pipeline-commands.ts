@@ -155,7 +155,7 @@ export async function runNamed(args: string, ctx: CommandCtx, deps: PipelineDeps
 	}
 
 	const exportDir = (deps.runDir ?? createRunDir)();
-	const live = liveRun(ctx.ui, { tickMs: deps.tickMs });
+	const live = liveRun(ctx.ui, { tickMs: deps.tickMs, signal: ctx.signal });
 	ctx.ui.setStatus(STATUS, `running ${pipeline.name}…`);
 
 	let done: PipelineRunResult | undefined;
@@ -169,7 +169,8 @@ export async function runNamed(args: string, ctx: CommandCtx, deps: PipelineDeps
 			verify: deps.verify ?? pipelineVerifier(pipeline, ctx.cwd),
 			model,
 			worktree,
-			signal: ctx.signal,
+			signal: live.signal,
+			spawn: live.spawn,
 			onEvent: live.onEvent,
 		});
 	} finally {

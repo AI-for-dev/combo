@@ -177,6 +177,51 @@ describe("ask", () => {
 		assert.equal(result.error, "aborted");
 	});
 
+	test("stop() cuts the turn in flight short", async () => {
+		const { subagent, session } = await spawnWith([{ delayMs: 5_000, text: "never finished" }]);
+
+		const pending = subagent.ask("a");
+		setTimeout(() => subagent.stop(), 5);
+		const result = await pending;
+
+		assert.equal(session.aborted, 1);
+		assert.equal(result.ok, false);
+		assert.equal(result.error, "stopped", "a person pressing a key is not a deadline, and not a run ending");
+	});
+
+	test("a stopped subagent refuses the next turn instead of running it", async () => {
+		const { subagent, session } = await spawnWith([{ text: "first" }, { text: "second" }]);
+		await subagent.ask("a");
+		subagent.stop();
+
+		const result = await subagent.ask("b");
+
+		assert.equal(result.ok, false);
+		assert.equal(result.error, "stopped");
+		assert.deepEqual(session.prompts, ["a"], "the refused turn must never reach the session");
+	});
+
+	test("stopping one subagent leaves the next spawn alone", async () => {
+		const { subagent } = await spawnWith([{ text: "one" }]);
+		subagent.stop();
+
+		const other = await spawnWith([{ text: "two" }]);
+		const result = await other.subagent.ask("b");
+
+		assert.equal(result.ok, true, "the stop switch is per subagent, not per process");
+		assert.equal(result.output, "two");
+	});
+
+	test("a stopped subagent can still be exported and closed", async () => {
+		const { subagent, session } = await spawnWith([{ delayMs: 5_000 }]);
+		const pending = subagent.ask("a");
+		subagent.stop();
+		await pending;
+
+		await subagent.close();
+		assert.equal(session.disposed, true, "stopping is not closing: the owner still owns the close");
+	});
+
 	test("a shared signal does not accumulate listeners across turns", async () => {
 		const { subagent } = await spawnWith([{}, {}, {}]);
 		const controller = new AbortController();

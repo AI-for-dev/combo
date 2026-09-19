@@ -136,6 +136,8 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 		reporter: deps.reporter,
 		herdrAll: params.herdrAll,
 		mainSessionFile: deps.mainSessionFile,
+		signal: deps.signal,
+		spawn: deps.spawn,
 		onChange: (snapshot) =>
 			deps.onUpdate?.({ content: [{ type: "text", text: progressLine(snapshot) }], details: undefined }),
 	});
@@ -147,14 +149,18 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 
 	// What every subagent of this call runs on. The children of a delegating one
 	// get the same, minus the lifetime: a delegated child is disposable.
+	//
+	// The signal and the spawn are the run's, not the caller's: that is what puts
+	// every subagent of this call - delegated children included - within reach of
+	// Escape and of `/stop`.
 	const inherited = {
 		exportDir,
-		signal: deps.signal,
+		signal: live.signal,
 		timeoutMs: params.timeoutMs,
 		openInHerdr: params.openInHerdr,
 		model: params.model,
 		cwd: deps.cwd,
-		spawn: deps.spawn,
+		spawn: live.spawn,
 		onEvent: live.onEvent,
 	};
 

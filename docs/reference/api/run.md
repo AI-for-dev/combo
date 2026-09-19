@@ -30,7 +30,11 @@ The session is closed even if the turn fails or is cancelled.
 *type*
 
 ```typescript
-export type RunOptions = Omit<SpawnOptions, "lifetime"> & AskOptions;
+export type RunOptions = Omit<SpawnOptions, "lifetime"> &
+	AskOptions & {
+		/** Defaults to the real {@link spawn}, like every combinator's. */
+		spawn?: SpawnFn;
+	};
 ```
 
 {@link SpawnOptions} without `lifetime` - `run` is `"task"` by definition - plus the per-turn deadline.

@@ -79,6 +79,9 @@ export function fakeSpawn(
 		// display test would pass on a stream that is empty in production.
 		const bus = options.bus;
 		let lastResult: Result | undefined;
+		let stopped = false;
+		/** Resolves the in-flight delay, so `stop()` really cuts a turn short. */
+		let interrupt: (() => void) | undefined;
 		if (options.onEvent) bus?.subscribe(options.onEvent);
 		const lifetime = options.lifetime ?? agent.lifetime ?? "task";
 		bus?.emit({
@@ -105,8 +108,35 @@ export function fakeSpawn(
 				maxConcurrent = Math.max(maxConcurrent, inFlight);
 				bus?.emit({ type: "status", id, status: "working", task });
 				try {
-					const answer = await reply(task, agent, spawnOptions);
-					if (answer.delayMs) await new Promise((resolve) => setTimeout(resolve, answer.delayMs));
+					// Like the real `ask`: a turn that cannot run is refused, and a
+					// turn that is stopped mid-flight is cut short rather than slept
+					// through. A fake that answered anyway would let a stop switch
+					// that reaches nothing look like one that works.
+					const cutShort = () => (stopped ? "stopped" : options.signal?.aborted ? "aborted" : undefined);
+					let error = cutShort();
+
+					const answer = error ? ({} as FakeReply) : await reply(task, agent, spawnOptions);
+					if (!error && answer.delayMs) {
+						const onAbort = () => interrupt?.();
+						options.signal?.addEventListener("abort", onAbort, { once: true });
+						await new Promise<void>((resolve) => {
+							const timer = setTimeout(resolve, answer.delayMs);
+							interrupt = () => {
+								clearTimeout(timer);
+								resolve();
+							};
+						});
+						options.signal?.removeEventListener("abort", onAbort);
+						interrupt = undefined;
+						error = cutShort();
+					}
+
+					if (error) {
+						const result: Result = { agent: agent.name, output: "", messages: [], usage: emptyUsage(), ok: false, error };
+						lastResult = result;
+						bus?.emit({ type: "status", id, status: "blocked" });
+						return result;
+					}
 
 					const usage: Usage = { ...emptyUsage(), turns: 1, ...answer.usage };
 					const ok = answer.ok ?? true;
@@ -126,6 +156,11 @@ export function fakeSpawn(
 					inFlight--;
 				}
 			},
+			stop() {
+				stopped = true;
+				interrupt?.();
+			},
+
 			async export(dir = options.exportDir) {
 				if (!dir) return { id, error: "no export directory" };
 				exported.push({ id, dir });

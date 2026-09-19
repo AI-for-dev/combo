@@ -1075,6 +1075,56 @@ timestamp pi does not have.
   it off. A cell whose stream was not kept can only be re-run, and a matrix is
   expensive. The day someone needs it off is the day the knob is justified.
 
+## Stopping a run, and one subagent of it
+
+A run already obeys a `signal`, and that is all it took to call the whole thing
+off - as long as somebody held one. Two things were missing, and they are
+different: **a signal cannot single a branch out**, because every subagent under
+a workflow shares it and a combinator hands out no handles; and **a command had
+no signal at all**, because pi's `ctx.signal` is the *agent run's*, which is
+`undefined` while no turn is in flight. So `esc` during a `subagent` tool call
+already stopped everything, and `esc` during `/run` stopped nothing at all.
+
+`stopSwitch` (`src/stop.ts`) is the pair that fixes both: a signal to give the
+workflow, and a `spawn` to give it too. The handles are registered on the way
+out of that `spawn`, which is the only place they all pass - delegated children
+included. `liveRun` builds one per run and hands the two to the call sites, so
+the tool, `/run`, `/build` and `/step` are stoppable by the same act.
+
+**Stopping is a `Subagent` method, not a second signal.** `stop()` aborts the
+turn in flight and refuses every later one with `"stopped"`. One-way, because
+that is what a person pressing a key means, and distinct from `close()`: the
+session is still there to be exported, and whoever opened it still closes it.
+The label matters more than it looks - a deadline, a cancelled run and a person
+call for different reactions, and before this they all read `aborted`.
+
+Three ways in, because no single one reaches every case:
+
+- **`esc` stops everything, and is listened to rather than consumed.** pi binds
+  it to `app.interrupt`; swallowing it would stop the subagents and leave the
+  turn running, which hands the model a wall of `stopped` results and every
+  freedom to delegate again. Not consuming it means one key with one meaning:
+  inside a turn the turn goes too, and during a command pi's own handler finds
+  nothing to abort and ours does the work.
+- **`ctrl+↑↓` select and `ctrl+del` stops the selection.** The list is already
+  on screen, so it is the list a key moves through; the three are bound to
+  nothing in pi and are read only while a run is live, through
+  `ctx.ui.onTerminalInput`. Registering `escape` as an extension shortcut was
+  the other option and is a trap: pi checks extension shortcuts *before* its own
+  keybindings and swallows the key whatever the handler does, so it would break
+  interrupt, autocomplete cancellation and clearing the editor for the whole
+  session.
+- **`/stop [<id>|all]`** names one, which no key can. It is not enough on its
+  own: pi executes an extension command immediately during a *turn*, but
+  processes no submission at all while a slash command of its own is awaiting -
+  measured, typing `/stop all` during `/run` ran nothing until the run was over.
+  That is the whole reason `ctrl+del` exists.
+
+**Stopping one branch is not stopping the run.** The branch comes back as a
+failed `Result` and the workflow decides: a `fanOut` branch dies alone, a
+pipeline step that fails ends the pipeline. Saying more than that in the
+message would be a promise the extension is not in a position to keep.
+
 ## Asking the user, and touching the world
 
 Two ports, one rule: **the agents produce text, our code performs the act.**

@@ -465,7 +465,7 @@ async function runTheWork(
 	const verify = deps.verify ?? pipelineVerifier(pipeline, ctx.cwd) ?? (await askForCheck(ctx));
 
 	// The same dots the tool draws, and the same ones `/run` draws.
-	const live = liveRun(ctx.ui, { tickMs: deps.tickMs });
+	const live = liveRun(ctx.ui, { tickMs: deps.tickMs, signal: ctx.signal });
 
 	let done: PipelineRunResult | undefined;
 	ctx.ui.setStatus(STATUS, "building…");
@@ -480,7 +480,8 @@ async function runTheWork(
 			model,
 			worktree: plan.worktree,
 			delivery: deliveryWiring(plan, started, { exportDir, label }, ctx, deps),
-			signal: ctx.signal,
+			signal: live.signal,
+			spawn: live.spawn,
 			onEvent: live.onEvent,
 		});
 	} finally {
@@ -723,7 +724,7 @@ export async function runInterview(
 	// The same live view the pipeline gets. Without it the first turn is half a
 	// minute of a frozen status line while the interviewer reads the repository,
 	// and a user cannot tell that from a turn that has hung.
-	const live = liveRun(ctx.ui, { tickMs: deps.tickMs });
+	const live = liveRun(ctx.ui, { tickMs: deps.tickMs, signal: ctx.signal });
 	const startedAt = performance.now();
 	const where = options.exportDir ?? (deps.runDir ?? createRunDir)();
 
@@ -735,7 +736,8 @@ export async function runInterview(
 			input: request.trim(),
 			ask: createAskUi(ctx.ui),
 			cwd: ctx.cwd,
-			signal: ctx.signal,
+			signal: live.signal,
+			spawn: live.spawn,
 			model: options.model,
 			maxQuestions: options.maxQuestions,
 			timeoutMs: INTERVIEW_TURN_MS,

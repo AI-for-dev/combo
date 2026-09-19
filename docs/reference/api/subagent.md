@@ -166,6 +166,16 @@ export type Subagent = {
 	/** Runs one turn of work. Never throws on a model failure - returns `ok: false`. */
 	ask(task: string, options?: AskOptions): Promise<Result>;
 	/**
+	 * Stops this subagent, for good: the turn in flight is cut short, and any
+	 * later `ask` fails at once with `"stopped"`.
+	 *
+	 * One-way and idempotent, because that is what a person pressing a key
+	 * means. It is **not** `close()`: the session is still there, so the
+	 * transcript of what it did before it was stopped is still exportable, and
+	 * whoever opened it still owes it a `close()`.
+	 */
+	stop(): void;
+	/**
 	 * Writes this subagent's transcript into `dir` - HTML and JSONL, pi's own.
 	 *
 	 * Callable at any moment while the subagent lives, not only at the end: an

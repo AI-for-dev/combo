@@ -35,6 +35,7 @@ import registerAgentCommands from "./agents-command.ts";
 import registerCommands from "./build.ts";
 import registerPipelineCommands, { PIPELINE_MESSAGE } from "./pipeline-commands.ts";
 import registerStepCommands, { STEP_ENTRY, type StepEntry } from "./step-commands.ts";
+import registerStopCommand from "./stop.ts";
 import { executeSubagent, inferMode, type Details, type Params } from "./execute.ts";
 
 /** How many tool lines the collapsed view shows before it starts eliding. */
@@ -102,6 +103,7 @@ export default function (pi: ExtensionAPI) {
 	registerPipelineCommands(pi);
 	registerAgentCommands(pi);
 	registerStepCommands(pi);
+	registerStopCommand(pi);
 
 	// A finished pipeline leaves its answer in the conversation. Drawn as its own
 	// block, because pi hands custom messages to the model as *user* messages,
