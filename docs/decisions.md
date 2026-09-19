@@ -1560,6 +1560,42 @@ Flag columns are the union of the outcome keys actually seen, so a study
 comparing `converged` gets a `converged` column with nothing configured. `error`
 never becomes one: a column of distinct sentences compares nothing.
 
+## A board, if there is to be one, is append-only and stamps its own names
+
+Everything else here passes `Result`s between subagents that never meet. A board
+is the other arrangement, and it is worth having only if a run that used one can
+be read back afterwards exactly as it happened. That is what fixes its shape
+before anything is built on top of it.
+
+**Nothing is rewritten and nothing is deleted.** A member can add to the record,
+and that is the whole of what it can do to it. The record is the only thing that
+says what happened, so a run able to edit it is a run that cannot be
+investigated.
+
+**`from` is stamped by the board, never carried in the draft.** The caller says
+who is posting. `Draft` has no such field, and a model that sends one anyway is
+not believed - there is a test for exactly that, and it is the load-bearing one
+of the file. Identity that can be claimed in a parameter is what makes a medium
+one where any member can speak as any other, and no prompt repairs that
+afterwards. The same rule as "only whoever raised an obligation may close it".
+
+**All three caps have defaults**: 200 posts, 2000 characters each, 50 per
+member. Not because those numbers are right, but because a medium with no cap is
+bounded by the deadline and nothing else, which is the same reason
+`maxIterations` defaults to 5.
+
+Three smaller things, each one a fork that could have gone the other way:
+
+- **A refusal is `{ ok: false, error }`**, the shape `Ledger.close` already
+  returns, rather than a post-or-error union a caller can mistake for a post.
+- **`to` names a member, not a topic.** A board that cannot tell the two apart
+  cannot refuse an address that reaches nobody, and `kind` already carries what
+  a topic would have. A board told no members accepts any address: refusing one
+  it cannot check would be guessing.
+- **A reader is not handed its own posts.** It wrote them, they are already in
+  its context, and the point of the cursor is to spend as little of that as
+  possible.
+
 ## The public surface: one entry point, grouped as it is learnt
 
 `src/index.ts` is the only door - the examples and the extension import from it,
