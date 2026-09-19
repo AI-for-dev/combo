@@ -24,7 +24,7 @@ import {
 	type SpawnFn,
 	type Usage,
 } from "../src/index.ts";
-import type { BuildDeps, CommandCtx } from "./build.ts";
+import type { BuildDeps, CommandCtx } from "./command.ts";
 import { pipelineVerifier } from "./run-ui.ts";
 
 /** What a step turned out to name. Resolved before anything is spawned. */

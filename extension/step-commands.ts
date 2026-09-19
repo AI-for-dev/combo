@@ -22,7 +22,7 @@
 import * as path from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { checkModel, checkPipelineAgents, createRunDir, exportBaseName, plural } from "../src/index.ts";
-import { loadRoster, parseLeadingFlags, refuse, switchValue, type CommandCtx } from "./build.ts";
+import { loadRoster, parseLeadingFlags, refuse, switchValue, type CommandCtx } from "./command.ts";
 import { PIPELINE_MESSAGE, type PipelineDeps } from "./pipeline-commands.ts";
 import {
 	chainInput,

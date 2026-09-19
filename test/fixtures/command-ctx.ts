@@ -8,7 +8,7 @@
  * `confirm` answers when the script runs out.
  */
 
-import type { CommandCtx } from "../../extension/build.ts";
+import type { CommandCtx } from "../../extension/command.ts";
 import { testTheme } from "./theme.ts";
 
 /** Answers the double gives, in order. Past the end, it falls back to the prefill. */

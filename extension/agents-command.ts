@@ -16,7 +16,7 @@ import {
 	type ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
 import type { Agent, AgentSource } from "../src/index.ts";
-import { loadRoster, type BuildDeps, type CommandCtx } from "./build.ts";
+import { loadRoster, type BuildDeps, type CommandCtx } from "./command.ts";
 
 /**
  * The three sources, most specific first, and where each would be read from.

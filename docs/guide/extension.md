@@ -157,8 +157,11 @@ pi.
 `extension/index.ts` keeps only what genuinely needs a terminal - the renderers.
 The tool body lives in `extension/execute.ts`, and everything it touches is
 injectable: agent loading, `spawn`, the second reporter, the UI, the repaint
-timer. The commands have the same seam in `extension/build.ts`, where the
-interview, the delivery, the committer and every git call are injected.
+timer. The commands have the same seam, and it is declared once in
+`extension/command.ts`: `CommandCtx` is the slice of pi they are handed,
+`BuildDeps` the doubles a test puts in its place, and `loadRoster`,
+`choosePipeline`, the flag parser and `refuse` are the four things all of them
+do the same way. Each command's own file holds only what that command does.
 
 That split exists because the path that wires the reporters and calls the
 combinators is where the three worst bugs so far have hidden, each behind a green

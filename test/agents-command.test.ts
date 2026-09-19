@@ -12,7 +12,7 @@ import * as path from "node:path";
 import { describe, test } from "node:test";
 import { getAgentDir, initTheme } from "@earendil-works/pi-coding-agent";
 import { agentLines, groupAgents, listAgents } from "../extension/agents-command.ts";
-import type { CommandCtx } from "../extension/build.ts";
+import type { CommandCtx } from "../extension/command.ts";
 import type { Agent } from "../src/index.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
 
