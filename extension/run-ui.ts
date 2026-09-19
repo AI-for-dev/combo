@@ -179,13 +179,17 @@ export function writeRunReport(dir: string, snapshot: TuiSnapshot, wallMs: numbe
  */
 export function paintWidget(snapshot: TuiSnapshot, theme: WidgetTheme): string[] {
 	return widgetRows(snapshot).map((row) => {
-		if (row.kind === "detail") return `  ${theme.fg("dim", row.text)}`;
+		// A delegated subagent sits under the one that asked for it, live and in
+		// the table alike: the tree is what the run costs, so it is what it looks
+		// like while it runs.
+		const indent = "  ".repeat(row.depth);
+		if (row.kind === "detail") return `${indent}  ${theme.fg("dim", row.text)}`;
 
 		const colour =
 			row.status === "failed" ? "error" : row.status === "done" ? "success" : row.status === "blocked" ? "warning" : "accent";
 		const dot = theme.fg(colour, row.icon);
 		// The id carries the weight; the activity is deliberately quiet.
-		return `${dot} ${theme.fg("toolTitle", row.id)}  ${theme.fg("muted", row.activity)}`;
+		return `${indent}${dot} ${theme.fg("toolTitle", row.id)}  ${theme.fg("muted", row.activity)}`;
 	});
 }
 

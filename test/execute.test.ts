@@ -17,7 +17,9 @@ import { executeSubagent, inferMode, textForModel } from "../extension/execute.t
 import { paintWidget, STATUS } from "../extension/run-ui.ts";
 import type { SubagentEvent } from "../src/events.ts";
 import type { Details } from "../extension/execute.ts";
-import { fakeSpawn, testAgent } from "./fixtures/fake-subagent.ts";
+import { SUBAGENT_TOOL } from "../src/delegate.ts";
+import { callTool } from "./fixtures/call-tool.ts";
+import { fakeSpawn, offeredTools, testAgent } from "./fixtures/fake-subagent.ts";
 
 const scout = testAgent("scout");
 const coder = testAgent("coder");
@@ -439,7 +441,89 @@ describe("executeSubagent", () => {
 	});
 });
 
+describe("delegation from the tool", () => {
+	const explorer = testAgent("explorer", { tools: ["read", SUBAGENT_TOOL] });
+	const roster = [scout, explorer];
+
+	test("an agent whose definition names the tool is handed one", async () => {
+		const fake = fakeSpawn();
+		await executeSubagent({ agent: "explorer", task: "split it" }, deps({ loadAgents: () => roster, spawn: fake.spawn }));
+
+		const offered = offeredTools(fake.spawned[0]?.options ?? {});
+		assert.deepEqual(
+			offered.map((tool) => tool.name),
+			[SUBAGENT_TOOL],
+		);
+	});
+
+	test("anybody else is offered nothing at all", async () => {
+		const fake = fakeSpawn();
+		await executeSubagent({ agent: "scout", task: "read it" }, deps({ loadAgents: () => roster, spawn: fake.spawn }));
+
+		assert.deepEqual(offeredTools(fake.spawned[0]?.options ?? {}), []);
+	});
+
+	test("the children run on the terms of the call, and hang under their parent", async () => {
+		const fake = fakeSpawn();
+		await executeSubagent(
+			{ agent: "explorer", task: "split it", model: "local/qwen", timeoutMs: 1_000 },
+			deps({ loadAgents: () => roster, spawn: fake.spawn }),
+		);
+
+		const parent = fake.spawned[0];
+		const tool = offeredTools(parent?.options ?? {}, parent?.id)[0];
+		await callTool(tool as never, { agent: "scout", tasks: ["read A", "read B"] });
+
+		assert.deepEqual(
+			fake.spawned.slice(1).map((one) => [one.agent, one.options.parentId, one.options.model]),
+			[
+				["scout", "explorer#1", "local/qwen"],
+				["scout", "explorer#1", "local/qwen"],
+			],
+		);
+	});
+
+	test("maxDepth is the caller's, and one level means no delegation at all", async () => {
+		const fake = fakeSpawn();
+		await executeSubagent(
+			{ agent: "explorer", task: "split it", maxDepth: 1 },
+			deps({ loadAgents: () => roster, spawn: fake.spawn }),
+		);
+
+		const parent = fake.spawned[0];
+		const tool = offeredTools(parent?.options ?? {}, parent?.id)[0];
+		const refused = await callTool(tool as never, { agent: "scout", tasks: ["read A"] });
+
+		assert.equal(refused.isError, true);
+		assert.match(refused.content[0]?.text ?? "", /1 level\(s\) deep and 1 is the limit/);
+		assert.equal(fake.spawned.length, 1, "and nothing was spawned under it");
+	});
+});
+
 describe("paintWidget", () => {
+	test("a delegated subagent is drawn under the one that asked for it", () => {
+		const row = (id: string, parentId?: string) => ({
+			id,
+			agent: id.split("#")[0] as string,
+			lifetime: "task",
+			status: "working" as const,
+			task: "x",
+			tools: [],
+			output: "",
+			parentId,
+			usage: { wallMs: 0, busyMs: 0, turns: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
+		});
+		const usage = { wallMs: 0, busyMs: 0, turns: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
+
+		const painted = paintWidget(
+			{ subagents: [row("explorer#1"), row("scout#1", "explorer#1")], total: 2, done: 0, running: 2, failed: 0, usage },
+			{ fg: (_colour, text) => text },
+		);
+
+		assert.match(painted[0] as string, /^● explorer#1/);
+		assert.match(painted[2] as string, /^ {2}● scout#1/);
+	});
+
 	test("colours nothing that widgetRows did not lay out", () => {
 		const painted = paintWidget(
 			{

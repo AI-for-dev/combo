@@ -330,19 +330,21 @@ export function currentActivity(snapshot: SubagentSnapshot): string {
  * gets {@link widgetRows} instead, which says *what* each line is.
  */
 export type WidgetRow =
-	| { kind: "activity"; icon: string; status: SubagentStatus | "failed"; id: string; activity: string }
-	| { kind: "detail"; text: string };
+	| { kind: "activity"; icon: string; status: SubagentStatus | "failed"; id: string; activity: string; depth: number }
+	| { kind: "detail"; text: string; depth: number };
 
 /**
  * The widget, as rows that say what they are: one activity line per subagent,
  * one dimmed detail line under it.
  *
- * Layout without colour, so it can be asserted on without a terminal.
+ * Layout without colour, so it can be asserted on without a terminal. `depth`
+ * is how far under a root the subagent sits; the caller turns it into indent,
+ * because how wide a level is drawn is a decision about a terminal.
  */
 export function widgetRows(snapshot: TuiSnapshot): WidgetRow[] {
 	const rows: WidgetRow[] = [];
 
-	for (const one of snapshot.subagents) {
+	for (const { snapshot: one, depth } of treeOrder(snapshot.subagents)) {
 		rows.push({
 			kind: "activity",
 			// A filled dot while it lives, a verdict once it is over.
@@ -350,8 +352,9 @@ export function widgetRows(snapshot: TuiSnapshot): WidgetRow[] {
 			status: one.ok === false ? "failed" : one.status,
 			id: one.id,
 			activity: currentActivity(one),
+			depth,
 		});
-		rows.push({ kind: "detail", text: detailLine(one) });
+		rows.push({ kind: "detail", text: detailLine(one), depth });
 	}
 
 	return rows;
@@ -379,9 +382,10 @@ export function detailLine(snapshot: SubagentSnapshot, now?: number): string {
 
 /** Plain text rows, for a caller with no theme - and for tests. */
 export function widgetLines(snapshot: TuiSnapshot): string[] {
-	return widgetRows(snapshot).map((row) =>
-		row.kind === "activity" ? `${row.icon} ${row.id}  ${row.activity}` : `  ${row.text}`,
-	);
+	return widgetRows(snapshot).map((row) => {
+		const indent = "  ".repeat(row.depth);
+		return row.kind === "activity" ? `${indent}${row.icon} ${row.id}  ${row.activity}` : `${indent}  ${row.text}`;
+	});
 }
 
 /** `2/3 done, 1 running` - what a parallel run looks like while it runs. */

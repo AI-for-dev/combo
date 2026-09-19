@@ -16,6 +16,8 @@
 import {
 	chain,
 	createRunDir,
+	declaresDelegate,
+	delegateTool,
 	fanOut,
 	findAgent,
 	loadAgents as loadAgentsFromDisk,
@@ -49,6 +51,8 @@ export type Params = {
 	until?: string;
 	maxIterations?: number;
 	maxTasks?: number;
+	/** How deep delegation may go, for an agent whose definition asks for it. */
+	maxDepth?: number;
 	timeoutMs?: number;
 	openInHerdr?: boolean;
 	/** Give **every** subagent of this call a split, not only the ones that asked. */
@@ -141,8 +145,9 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 	// close, so it has to exist before the first one finishes.
 	const exportDir = params.export ? (deps.runDir ?? createRunDir)() : undefined;
 
-	const shared = {
-		lifetime: asLifetime(params.lifetime),
+	// What every subagent of this call runs on. The children of a delegating one
+	// get the same, minus the lifetime: a delegated child is disposable.
+	const inherited = {
 		exportDir,
 		signal: deps.signal,
 		timeoutMs: params.timeoutMs,
@@ -151,6 +156,19 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 		cwd: deps.cwd,
 		spawn: deps.spawn,
 		onEvent: live.onEvent,
+	};
+
+	const shared = {
+		...inherited,
+		lifetime: asLifetime(params.lifetime),
+		// Delegation is enabled by the definition, never by this call: an agent
+		// whose `tools:` names `subagent` is handed one, anybody else is offered
+		// nothing. The roster it may reach is this call's, and the bound is
+		// `maxDepth`.
+		customTools: (agent: Agent) =>
+			declaresDelegate(agent.tools)
+				? (id: string) => [delegateTool({ ...inherited, agents, holder: agent, parentId: id, maxDepth: params.maxDepth })]
+				: undefined,
 	};
 
 	const startedAt = performance.now();

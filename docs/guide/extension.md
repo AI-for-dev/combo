@@ -66,7 +66,30 @@ inherited**: a subagent running on whatever the operator's TUI happens to be on
 is the same bug one level up. The model comes from an explicit artifact - an
 argument or a file - or pi's settings take over as the last resort.
 
-What the run looks like while it happens is covered in [Display](display.md).
+## A subagent that splits further
+
+A subagent spawned here can have subagents of its own, and **its own definition
+decides**: an agent whose `tools:` names `subagent` is handed the tool, anybody
+else is offered nothing. Nothing in the call turns it on, and nothing turns it
+on for an agent that did not ask.
+
+```
+> use subagent with agent "explorer" to compare the four reporters
+```
+
+The roster a child may reach is the one this call loaded, so `scope` covers it
+too. `maxDepth` is the bound, two by default: the session, a child, a
+grandchild. At the bound the tool is still handed over and refuses when called,
+because a model told "unknown tool" tries again, and that is the runaway turn
+`timeoutMs` exists to survive.
+
+The children run on the terms of the call - its model, its deadline, its export
+directory, its signal - and they are **drawn under the subagent that asked for
+them**, in the dots above the prompt and in both views of the finished call. A
+run with no delegation looks exactly as it did.
+
+What the run looks like while it happens is covered in [Display](display.md),
+and what a tree costs in [Measurements](measurements.md).
 
 ## The commands
 
