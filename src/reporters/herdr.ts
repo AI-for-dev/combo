@@ -195,13 +195,7 @@ function openPane(send: HerdrSend, dir: string, id: string, options: HerdrOption
 	// observer: an unhandled rejection escapes the try/catch around the listener
 	// entirely, and in Node it takes the whole process down.
 	const started = (async () => {
-		const paneId = paneIdOf(
-			await send("pane.split", {
-				direction: options.split ?? "right",
-				focus: options.focus ?? false,
-				...(options.pane ? { target_pane_id: options.pane } : {}),
-			}),
-		);
+		const paneId = paneIdOf(await send("pane.split", splitParams(options)));
 		if (!paneId) return undefined;
 		// A split is an anonymous shell. The name is how three member panes are
 		// told apart, and the board's is the only thing saying what it is.
@@ -253,6 +247,21 @@ function openPane(send: HerdrSend, dir: string, id: string, options: HerdrOption
 					}),
 			);
 		},
+	};
+}
+
+/**
+ * The `pane.split` a pane is opened with.
+ *
+ * Its own function because `probeHerdr` sends it too: a probe built from a
+ * second copy of these fields would keep answering yes about a request nobody
+ * makes any more.
+ */
+export function splitParams(options: HerdrOptions): Record<string, unknown> {
+	return {
+		direction: options.split ?? "right",
+		focus: options.focus ?? false,
+		...(options.pane ? { target_pane_id: options.pane } : {}),
 	};
 }
 

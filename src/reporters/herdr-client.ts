@@ -113,6 +113,19 @@ function parse(chunk: Buffer): unknown {
 	}
 }
 
+/**
+ * The error herdr answered with, if it answered with one.
+ *
+ * A refusal and a success are both delivered responses, and telling them apart
+ * is not a reporter's business: it drops a pane either way. It is
+ * `/herdr on`'s, which is the one place allowed to say so out loud.
+ */
+export function errorOf(response: unknown): { code: string; message: string } | undefined {
+	const error = (response as { error?: { code?: unknown; message?: unknown } })?.error;
+	if (typeof error?.code !== "string") return undefined;
+	return { code: error.code, message: typeof error.message === "string" ? error.message : error.code };
+}
+
 /** Pulls the pane id out of a `pane.split` response, if there is one. */
 export function paneIdOf(response: unknown): string | undefined {
 	const pane = (response as { result?: { pane?: { pane_id?: unknown } } })?.result?.pane;

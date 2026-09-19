@@ -24,7 +24,6 @@ import type { PipelineRunResult } from "../src/workflows/pipeline-run.ts";
 import { emptyUsage } from "../src/usage.ts";
 import { fakeCtx } from "./fixtures/command-ctx.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
-import { withoutHerdr } from "./fixtures/no-herdr.ts";
 import { testTheme } from "./fixtures/theme.ts";
 
 initTheme();
@@ -661,43 +660,77 @@ describe("/build resume", () => {
 });
 
 describe("/herdr", () => {
-	test("on and off, and the state is remembered between calls", () => {
+	/** A herdr that is there and answers the way a working one does. */
+	const working = { detect: () => ({ socketPath: "/tmp/s.sock", paneId: "w1:p1" }), probe: async () => undefined };
+	/** No herdr at all, whatever the terminal running the suite happens to be. */
+	const absent = { detect: () => undefined };
+
+	test("on and off, and the state is remembered between calls", async () => {
 		const { ctx, said } = fakeCtx();
 		try {
-			assert.equal(toggleHerdr("on", ctx), true);
+			assert.equal(await toggleHerdr("on", ctx, working), true);
 			assert.equal(watchEverything(), true, "it is a session preference, not an argument");
-			assert.equal(toggleHerdr("off", ctx), false);
+			assert.equal(await toggleHerdr("off", ctx, working), false);
 			assert.equal(watchEverything(), false);
-			// Outside herdr the "on" message is the warning; what matters here is
-			// that the switch itself is remembered.
 			assert.match(said(), /only the subagents that ask/);
 		} finally {
 			watchEverythingIs(false);
 		}
 	});
 
-	test("no argument reports where it stands rather than toggling blindly", () => {
+	test("no argument reports where it stands rather than toggling blindly", async () => {
 		const { ctx } = fakeCtx();
 		try {
-			toggleHerdr("on", ctx);
-			assert.equal(toggleHerdr("", ctx), true, "asking must not flip it");
+			await toggleHerdr("on", ctx, working);
+			assert.equal(await toggleHerdr("", ctx, working), true, "asking must not flip it");
 		} finally {
 			watchEverythingIs(false);
 		}
 	});
 
-	test("anything else is refused with the current state, not silently ignored", () => {
+	test("anything else is refused with the current state, not silently ignored", async () => {
 		const { ctx, said } = fakeCtx();
-		assert.equal(toggleHerdr("maybe", ctx), false);
+		assert.equal(await toggleHerdr("maybe", ctx), false);
 		assert.match(said(), /say on or off/);
 	});
 
-	test("outside herdr it says nothing will open, rather than pretending", () => {
+	test("outside herdr it says nothing will open, rather than pretending", async () => {
 		const { ctx, notes } = fakeCtx();
 		try {
-			withoutHerdr(() => toggleHerdr("on", ctx));
+			await toggleHerdr("on", ctx, absent);
 			assert.equal(notes.at(-1)?.type, "warning");
-			assert.match(notes.at(-1)?.message ?? "", /not running inside herdr/);
+			assert.match(notes.at(-1)?.message ?? "", /not running inside herdr - nothing will open/);
+		} finally {
+			watchEverythingIs(false);
+		}
+	});
+
+	test("a herdr that refuses our request is said out loud, in its own words", async () => {
+		const { ctx, notes } = fakeCtx();
+		try {
+			await toggleHerdr("on", ctx, {
+				detect: working.detect,
+				probe: async () => "herdr refused pane.split: missing field `kind`",
+			});
+			assert.equal(notes.at(-1)?.type, "warning");
+			assert.match(notes.at(-1)?.message ?? "", /missing field `kind` - nothing will open/);
+			assert.equal(watchEverything(), true, "what the user asked for is not herdr's to decide");
+		} finally {
+			watchEverythingIs(false);
+		}
+	});
+
+	test("herdr is asked only when there is something to ask about", async () => {
+		const asked: string[] = [];
+		const counting = { probe: async () => void asked.push("probe") as undefined };
+		const { ctx } = fakeCtx();
+		try {
+			await toggleHerdr("off", ctx, { ...counting, detect: working.detect });
+			await toggleHerdr("on", ctx, { ...counting, detect: absent.detect });
+			assert.deepEqual(asked, [], "nothing opens either way, so nothing is worth a round-trip");
+
+			await toggleHerdr("on", ctx, { ...counting, detect: working.detect });
+			assert.deepEqual(asked, ["probe"]);
 		} finally {
 			watchEverythingIs(false);
 		}
