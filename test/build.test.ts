@@ -11,7 +11,10 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { initTheme } from "@earendil-works/pi-coding-agent";
-import { parseBuildArgs, runBuild, runInterview, toggleHerdr } from "../extension/build.ts";
+import { runBuild } from "../extension/build.ts";
+import { parseBuildArgs } from "../extension/command.ts";
+import { toggleHerdr } from "../extension/herdr-command.ts";
+import { runInterview } from "../extension/interview-command.ts";
 import type { BuildDeps, CommandCtx } from "../extension/command.ts";
 import { parsePipeline } from "../src/pipeline.ts";
 import { watchEverything, watchEverythingIs } from "../extension/run-ui.ts";

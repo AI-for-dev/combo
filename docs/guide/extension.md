@@ -154,14 +154,21 @@ pi.
 
 ## How it is split
 
-`extension/index.ts` keeps only what genuinely needs a terminal - the renderers.
-The tool body lives in `extension/execute.ts`, and everything it touches is
-injectable: agent loading, `spawn`, the second reporter, the UI, the repaint
-timer. The commands have the same seam, and it is declared once in
-`extension/command.ts`: `CommandCtx` is the slice of pi they are handed,
-`BuildDeps` the doubles a test puts in its place, and `loadRoster`,
-`choosePipeline`, the flag parser and `refuse` are the four things all of them
-do the same way. Each command's own file holds only what that command does.
+`extension/index.ts` keeps only what genuinely needs a terminal - the renderers -
+and registers every command. The tool body lives in `extension/execute.ts`, and
+everything it touches is injectable: agent loading, `spawn`, the second
+reporter, the UI, the repaint timer. The commands have the same seam, and it is
+declared once in `extension/command.ts`: `CommandCtx` is the slice of pi they
+are handed, `BuildDeps` the doubles a test puts in its place, and `loadRoster`,
+`choosePipeline`, the flag parser and `refuse` are the things all of them do the
+same way.
+
+Each command's own file holds only what that command does, `/build` included:
+the interview it opens with is `interview-command.ts`, which is a command in its
+own right, the commit it ends on is `commit.ts`, and `build.ts` is the order
+they happen in. The two stops sit apart from the state machine on purpose -
+"the agent writes the message, this code makes the commit" is a boundary that
+should be readable in one file.
 
 That split exists because the path that wires the reporters and calls the
 combinators is where the three worst bugs so far have hidden, each behind a green

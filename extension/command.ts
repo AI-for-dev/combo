@@ -107,6 +107,36 @@ export function loadRoster(ctx: CommandCtx, deps: BuildDeps = {}): Agent[] {
 }
 
 /**
+ * `/build [--pipeline <name>] [--model <pattern>] <request>`.
+ *
+ * Flags rather than positional words, because a request is free text: any
+ * convention that reads the first word as a pipeline name eventually swallows
+ * someone's "build fix the parser". Both flags, in either order.
+ */
+export function parseBuildArgs(args: string): {
+	pipeline?: string;
+	model?: string;
+	worktree?: boolean;
+	questions?: number;
+	request: string;
+} {
+	const { flags, rest } = parseLeadingFlags(args, ["pipeline", "model", "questions"], ["worktree"]);
+	const parsed: ReturnType<typeof parseBuildArgs> = { request: rest };
+	if (flags.pipeline) parsed.pipeline = flags.pipeline;
+	if (flags.model) parsed.model = flags.model;
+	// Set only when it was written: an explicit `undefined` spread over a default
+	// silently wins, and the default is the whole point of leaving it unsaid.
+	const worktree = switchValue(flags, "worktree");
+	if (worktree !== undefined) parsed.worktree = worktree;
+
+	// A count that is not one is dropped rather than guessed at: `--questions x`
+	// is a typo, and turning it into 0 would silently skip the interview.
+	const questions = Number(flags.questions);
+	if (Number.isInteger(questions) && questions > 0) parsed.questions = questions;
+	return parsed;
+}
+
+/**
  * Reads leading flags off a command line, in any order.
  *
  * Only the given names are consumed: an unknown `--flag` stays in the text,
@@ -188,4 +218,10 @@ export function choosePipeline(wanted: string | undefined, ctx: CommandCtx, deps
 	if (broken) throw new Error(`${command}: ${broken.filePath} does not parse: ${broken.error}`);
 
 	return findPipeline(catalogue, name);
+}
+
+/** The first `n` lines, for a dialog that must stay readable. */
+export function firstLines(text: string, n: number): string {
+	const lines = text.trim().split("\n");
+	return lines.length <= n ? lines.join("\n") : `${lines.slice(0, n).join("\n")}\n…`;
 }

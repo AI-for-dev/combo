@@ -32,7 +32,9 @@ import {
 	truncate,
 } from "../src/index.ts";
 import registerAgentCommands from "./agents-command.ts";
-import registerCommands from "./build.ts";
+import registerBuildCommand from "./build.ts";
+import registerHerdrCommand from "./herdr-command.ts";
+import registerInterviewCommand from "./interview-command.ts";
 import registerPipelineCommands, { PIPELINE_MESSAGE } from "./pipeline-commands.ts";
 import registerStepCommands, { STEP_ENTRY, type StepEntry } from "./step-commands.ts";
 import registerStopCommand from "./stop.ts";
@@ -99,7 +101,9 @@ const Schema = Type.Object({
 export default function (pi: ExtensionAPI) {
 	// The interactive flows are commands, not tools: an interview owns the
 	// terminal question by question, which a model's turn cannot.
-	registerCommands(pi);
+	registerInterviewCommand(pi);
+	registerBuildCommand(pi);
+	registerHerdrCommand(pi);
 	registerPipelineCommands(pi);
 	registerAgentCommands(pi);
 	registerStepCommands(pi);
