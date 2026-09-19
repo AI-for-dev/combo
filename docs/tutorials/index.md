@@ -28,6 +28,7 @@ what follows depends on a strong one. Where a page quotes a number, it says
 what produced it.
 
 ## The twelve
+
 **Reading.** The session's context is the scarce thing, and every page here
 spends someone else's instead.
 
@@ -40,7 +41,6 @@ spends someone else's instead.
    walked by hand, with the main model told nothing until you say so, and a
    different model per step.
 
-
 **Writing definitions.** Agents are data, workflows are code, and both are
 files you can read in a diff.
 
@@ -52,7 +52,6 @@ files you can read in a diff.
 6. [Teach it a house rule](06-teach-it-a-rule.md) - a skill the reviewer opens
    itself, resolved nearest first.
 
-
 **Writing code.** Agents that argue, and code that runs before anyone signs.
 
 7. [Two agents arguing until LGTM](07-until-lgtm.md) - the loop, the two
@@ -62,6 +61,15 @@ files you can read in a diff.
 9. [Two coders, one tree](09-two-coders-one-tree.md) - why several writers
    get a copy each, patches landed one at a time, and nothing rolled back.
 
+**Running it for real.** What it cost, how to stop it, and what the numbers
+are worth.
+
+10. [Watch the meter](10-the-meter.md) - the turn that made 79 calls to a tool
+    that did not exist, and the three ways to end one.
+11. [Same work, two models](11-two-models.md) - an A/B from the prompt line,
+    then the honest version: M models, N repetitions, one table.
+12. [A subagent that splits its own task](12-a-subagent-with-subagents.md) -
+    delegation, its depth, and a bill shaped like a tree.
 
 ```{toctree}
 :maxdepth: 1
@@ -76,4 +84,7 @@ files you can read in a diff.
 07-until-lgtm
 08-build
 09-two-coders-one-tree
+10-the-meter
+11-two-models
+12-a-subagent-with-subagents
 ```
