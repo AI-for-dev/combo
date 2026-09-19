@@ -183,6 +183,12 @@ export function questionPrompt(input: string, maxQuestions: number): string {
 		"",
 		'Answer with one JSON object only: {"header": "two words", "question": "…", "options": [{"label": "…", "description": "…"}]}',
 		"Two to four options, concrete and mutually exclusive. Put the one you would recommend first.",
+		// The card draws a label and its description on one line, and pi-tui cuts
+		// what does not fit with no ellipsis: measured, `…before r` was the end of
+		// an option on a 120-column terminal, and nothing said a word was missing.
+		// Asked for here rather than in `agents/interviewer.md`, because the width
+		// belongs to the card and the rule has to reach an interviewer a user wrote.
+		"Keep a label under 30 characters and a description under 60: they share one line, and what overflows is cut.",
 		`When you know enough to write the specification, answer with ${READY} alone instead.`,
 		"",
 		SPEAK_THEIR_LANGUAGE,

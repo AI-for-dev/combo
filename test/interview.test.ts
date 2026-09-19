@@ -141,6 +141,16 @@ describe("interview", () => {
 	});
 });
 
+describe("questionPrompt", () => {
+	test("asks for a label and a description that fit on one line", () => {
+		// The card cuts what overflows and says nothing about it, so the only
+		// place the width can be defended is where the question is asked for.
+		const prompt = questionPrompt("add a cache", 6);
+		assert.match(prompt, /label under 30 characters/);
+		assert.match(prompt, /description under 60/);
+	});
+});
+
 describe("parseQuestion", () => {
 	test("reads the JSON object the agent was asked for", () => {
 		const parsed = parseQuestion(question("Which storage?", "sqlite", "postgres"));
