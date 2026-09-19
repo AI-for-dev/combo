@@ -56,6 +56,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`workflows/plan`](workflows/plan.md) | Reading a plan an agent wrote: the prompt, the parser, the validation. | 6 |
 | [`workflows/reduce`](workflows/reduce.md) | `reduce`: N → 1. One agent synthesises the results of a fan-out. | 3 |
 | [`workflows/route`](workflows/route.md) | `route`: 1 → 1. A classifier agent picks who should do the work. | 5 |
+| [`workflows/swarm`](workflows/swarm.md) | Several members on one job, for as many rounds as you allow. | 7 |
 | [`worktree`](worktree.md) | Working copies, so two agents can write at once without writing over each other. | 6 |
 
 ```{toctree}
@@ -109,5 +110,6 @@ workflows/pipeline-run
 workflows/plan
 workflows/reduce
 workflows/route
+workflows/swarm
 worktree
 ```

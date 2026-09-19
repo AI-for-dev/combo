@@ -38,6 +38,16 @@ export { compact, deltaUsage, emptyUsage, formatUsage, snapshotUsage, sumUsage, 
 export { mapConcurrent, SubagentPool, type SpawnFn, type WorkflowOptions } from "./workflows/common.ts";
 export { chain, type ChainOptions } from "./workflows/chain.ts";
 export { aggregate, fanOut, type FanOutOptions, type FanOutResult } from "./workflows/fan-out.ts";
+export {
+	swarm,
+	task as swarmTask,
+	type MemberSpec,
+	type SwarmClaim,
+	type SwarmEnd,
+	type SwarmMember,
+	type SwarmOptions,
+	type SwarmResult,
+} from "./workflows/swarm.ts";
 export { loop, type LoopOptions, type LoopResult, type UntilPredicate } from "./workflows/loop.ts";
 export { formatBranches, reduce, type ReduceOptions } from "./workflows/reduce.ts";
 export { pickDestination, route, routingPrompt, type RouteOptions, type RouteResult } from "./workflows/route.ts";

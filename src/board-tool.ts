@@ -152,21 +152,18 @@ export function boardTool(options: BoardToolOptions): ToolDefinition {
 		if (!key) return refuse("Name what you are taking: give `key`.");
 
 		if (action === "release") {
+			// Who does hold it, before the refusal loses the fact: a record that
+			// says only "refused" cannot tell "not yours" from "no such thing".
+			const holder = claims.owner(key);
 			const gone = claims.release(from, key);
-			bus?.emit({ type: "claim", id: from, key, action, ok: gone });
-			return gone ? said(`Gave up ${key}.`) : refuse(`You are not holding \`${key}\`${owned(key)}.`);
+			bus?.emit({ type: "claim", id: from, key, action, ok: gone, ...(gone || !holder ? {} : { heldBy: holder }) });
+			return gone ? said(`Gave up ${key}.`) : refuse(`You are not holding \`${key}\`${holder ? ` - ${holder} is` : ""}.`);
 		}
 
 		const outcome = claims.take(from, key);
 		bus?.emit({ type: "claim", id: from, key, action, ok: outcome.ok, ...(outcome.ok ? {} : { heldBy: outcome.heldBy }) });
 		if (outcome.ok) return said(`${key} is yours. Release it when you are done.`);
 		return refuse(`${outcome.error}${remaining()}`);
-	}
-
-	/** Who holds it, said in passing. */
-	function owned(key: string): string {
-		const holder = claims?.owner(key);
-		return holder ? ` - ${holder} is` : "";
 	}
 
 	/** What is still there to take, when the caller said what there was. */

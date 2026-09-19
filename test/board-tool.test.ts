@@ -220,6 +220,7 @@ describe("taking and releasing", () => {
 		await callTool(first, { action: "take", key: "the parser" });
 
 		assert.match(await answer(second, { action: "release", key: "the parser" }), /not holding `the parser` - scout#1 is/);
+		assert.match(await answer(second, { action: "release", key: "nothing at all" }), /not holding `nothing at all`\./, "and a thing nobody holds names nobody");
 		assert.match(await answer(first, { action: "release", key: "the parser" }), /Gave up the parser/);
 		assert.match(await answer(second, { action: "take", key: "the parser" }), /is yours/);
 	});

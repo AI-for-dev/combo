@@ -1653,6 +1653,36 @@ run that collided. Nobody posted and nobody read: arbitration made the
 announcing half unnecessary for this job, which is worth knowing before anything
 is built on the assumption that members talk.
 
+## A swarm is built to be compared against not having one
+
+Every other combinator decides who does what. A swarm decides none of it, which
+makes it the one whose value is an open question rather than a design. So it is
+built to lose honestly: **with no board, no claims and one round, `swarm` is
+`fanOut`**. That degenerate case is a test, and it is the control arm of any
+experiment run with it - the board's worth is the difference between the two, on
+the job you actually have, and not an argument.
+
+Three things are decided in the combinator rather than left to a prompt, each
+one from a run that happened before it was written:
+
+- **Members remember.** `lifetime` defaults to `"workflow"` here and nowhere
+  else. A member that forgets the round before cannot build on what it saw, and
+  a swarm of amnesiacs is a fan-out that costs more. `"task"` with more than one
+  round is refused outright: a member's id is its name on the board, and a
+  task-lifetime member gets a new one every round, so from the second nobody
+  would be talking to who they think they are.
+- **What is new is handed over, not fetched.** Measured: once something
+  arbitrated, members stopped reading the board entirely - they take, they are
+  refused, they take something else. Charging them a call to learn what the
+  workflow already knows is charging them for its bookkeeping.
+- **A member that is gone holds nothing.** Measured: two of three members never
+  released what they took and were still holding after they closed. Claims left
+  by a member that is gone are work nobody will do and nobody can take, so the
+  swarm releases them and the result says which.
+
+`stoppedBy` is separate from `ok` and from `converged`, for the reason `loop`
+separates them: a swarm that ran out of rounds did not succeed, it stopped.
+
 ## The public surface: one entry point, grouped as it is learnt
 
 `src/index.ts` is the only door - the examples and the extension import from it,

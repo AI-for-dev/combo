@@ -31,7 +31,7 @@ docs/
     quickstart.md       the first subagent, the first workflow, the first build
     agents.md           defining an agent in Markdown, tools, scopes
     lifetime.md         the central choice: disposable or persistent
-    workflows.md        the nine combinators and the options they share
+    workflows.md        the ten combinators and the options they share
     pipelines.md        a workflow written in Markdown, next to your agents
     build.md            interview, plan, pair, check, audit, commit
     display.md          reporters, herdr splits, the pi TUI widget

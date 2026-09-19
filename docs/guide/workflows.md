@@ -18,7 +18,7 @@ type Result = {
 Every combinator is an exported function. No classes, no inheritance, no global
 registry.
 
-## The nine
+## The ten
 
 ### `chain` - 1 to 1 to 1
 
@@ -164,6 +164,41 @@ See [Deliver a change](build.md).
 
 Plan, a pair per subtask, the project's own check, an audit, fixes. See
 [Deliver a change](build.md).
+
+### `swarm` - several members, one job, nobody dividing it
+
+Every combinator above decides who does what. A swarm decides none of it: the
+members are told the same goal, handed a board to talk on and a set of claims to
+take work from, and what they divide between them is theirs.
+
+```typescript
+const done = await swarm({
+	members: [{ agent: member, count: 3 }],
+	goal: "describe every file under src/reporters/",
+	claims: createClaims({ keys: files }),
+	rounds: 2,
+});
+done.posts;    // the run's social history, in order
+done.claims;   // what was held at the end, and what the swarm released
+done.converged // whether `until` fired. Reaching the round cap is not success
+```
+
+A round is one `ask` per live member. A member whose turn fails drops out rather
+than costing every remaining round, and keeps the turn that failed as its
+answer. `lifetime` defaults to `"workflow"` here and nowhere else: a member that
+forgets the last round cannot build on what it saw. For the same reason
+`lifetime: "task"` with more than one round is refused outright - a member's id
+is its name on the board, and a task-lifetime member gets a new one every round.
+
+**With no board, no claims and one round, a swarm is a fan-out.** That is the
+control arm: the board's worth is the difference between the two, measured, on
+the job you actually have.
+
+Two things a run of it showed, both now built in. Members are *handed* what is
+new on the board rather than made to fetch it, because once something
+arbitrates they stop reading it altogether. And whatever a member still held is
+released when it goes, because claims left by a member that has closed are work
+nobody will do and nobody can take.
 
 ### A subagent with subagents
 
