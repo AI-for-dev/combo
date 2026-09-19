@@ -10,6 +10,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | --- | --- | --- |
 | [`agent`](agent.md) | An agent is *content*: a system prompt, a model, a set of tools. It is declared as Markdown + frontmatter, following the pi convention. | 8 |
 | [`ask`](ask.md) | Asking the *user* a question - the one place a workflow may block on a human. | 5 |
+| [`board-tool`](board-tool.md) | How a member reaches the board. | 4 |
 | [`board`](board.md) | A place several subagents can leave messages for each other. | 10 |
 | [`delegate`](delegate.md) | Letting a subagent have subagents of its own. | 5 |
 | [`events`](events.md) | The event stream: one core, many reporters. | 5 |
@@ -61,6 +62,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 
 agent
 ask
+board-tool
 board
 delegate
 events

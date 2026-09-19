@@ -7,6 +7,7 @@
  */
 
 import type { Lifetime } from "./agent.ts";
+import type { Post } from "./board.ts";
 import type { Result } from "./result.ts";
 import type { Usage } from "./usage.ts";
 
@@ -66,6 +67,15 @@ export type SubagentEvent =
 	  }
 	| { type: "text"; id: string; delta: string }
 	| { type: "tool"; id: string; name: string; args: unknown }
+	/**
+	 * A member said something on the board.
+	 *
+	 * `id` is the member, as on every other event; the post carries who it was
+	 * for and what kind of thing it was. Nothing in the display reacts to it
+	 * today - it is emitted so that `record.ts` writes it down, which is what
+	 * makes the traffic of a run readable afterwards instead of reconstructed.
+	 */
+	| { type: "post"; id: string; post: Post }
 	| { type: "usage"; id: string; usage: Usage }
 	| { type: "close"; id: string; result: Result };
 

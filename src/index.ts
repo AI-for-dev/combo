@@ -223,6 +223,7 @@ export {
 	type Ledger,
 	type Obligation,
 } from "./ledger.ts";
+export { boardTool, declaresBoard, BOARD_TOOL, type BoardToolOptions } from "./board-tool.ts";
 export {
 	boardLines,
 	createBoard,
