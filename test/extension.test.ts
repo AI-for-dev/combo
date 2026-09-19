@@ -116,6 +116,11 @@ describe("renderCall", () => {
 		const text = lines(tool.renderCall({ agent: "scout", tasks: ["a", "b", "c"] }, theme, context));
 		assert.match(text, /\+2 more/);
 	});
+
+	test("a bound on the delegation is shown, the way the model is", () => {
+		assert.match(lines(tool.renderCall({ agent: "explorer", maxDepth: 3 }, theme, context)), /≤3 deep/);
+		assert.doesNotMatch(lines(tool.renderCall({ agent: "explorer" }, theme, context)), /deep/, "silent when nobody set one");
+	});
 });
 
 describe("renderResult", () => {
@@ -164,6 +169,31 @@ describe("renderResult", () => {
 		const failed = result({ subagents: [subagent({ ok: false, error: "provider exploded", output: "" })] });
 		const text = lines(tool.renderResult(failed, { expanded: true, isPartial: false }, theme, context));
 		assert.match(text, /provider exploded/);
+	});
+
+	test("a delegated subagent is drawn under the one that asked for it", () => {
+		const tree = result({
+			subagents: [
+				subagent({ id: "explorer#1", agent: "explorer" }),
+				subagent({ id: "scout#1", parentId: "explorer#1" }),
+			],
+		});
+
+		for (const expanded of [false, true]) {
+			const rows = lines(tool.renderResult(tree, { expanded, isPartial: false }, theme, context)).split("\n");
+			const explorer = rows.findIndex((row) => row.includes("explorer#1"));
+			const scout = rows.findIndex((row) => row.includes("scout#1"));
+
+			assert.ok(explorer < scout, `the parent comes first (expanded=${expanded})`);
+			assert.match(rows[scout] as string, /^ {2}\S/, `the child is indented (expanded=${expanded})`);
+		}
+	});
+
+	test("a flat run is drawn exactly as it was", () => {
+		const flat = result({ subagents: [subagent(), subagent({ id: "scout#2" })] });
+		const rows = lines(tool.renderResult(flat, { expanded: false, isPartial: false }, theme, context)).split("\n");
+
+		assert.doesNotMatch(rows[0] as string, /^ /, "nothing is indented when nobody delegated");
 	});
 
 	test("a loop reports whether it converged, not just that it ran", () => {

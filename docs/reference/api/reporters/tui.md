@@ -235,8 +235,8 @@ The whole picture: every subagent, plus what it adds up to.
 
 ```typescript
 export type WidgetRow =
-	| { kind: "activity"; icon: string; status: SubagentStatus | "failed"; id: string; activity: string }
-	| { kind: "detail"; text: string };
+	| { kind: "activity"; icon: string; status: SubagentStatus | "failed"; id: string; activity: string; depth: number }
+	| { kind: "detail"; text: string; depth: number };
 ```
 
 A dot per subagent, above the prompt - the Claude Code shape.
@@ -257,4 +257,6 @@ export function widgetRows(snapshot: TuiSnapshot): WidgetRow[] { /* … */ }
 The widget, as rows that say what they are: one activity line per subagent,
 one dimmed detail line under it.
 
-Layout without colour, so it can be asserted on without a terminal.
+Layout without colour, so it can be asserted on without a terminal. `depth`
+is how far under a root the subagent sits; the caller turns it into indent,
+because how wide a level is drawn is a decision about a terminal.

@@ -555,6 +555,26 @@ The bound travels in a closure. Nothing reads the environment for it: an ambient
 variable is how the model hole in invariant 5 existed, and that mistake is not
 worth making twice.
 
+## Delegation reaches pi the way it reached a script
+
+The `subagent` tool wires `delegateTool` for **any agent whose definition names
+it**, and for nobody else. No flag turns it on: a call that enabled delegation
+would be the caller granting a capability the agent's file does not admit to,
+which is the whole of invariant 5 read backwards. `maxDepth` only tightens the
+bound the library already has.
+
+The children inherit the **call's** terms - model, deadline, export directory,
+signal - and not its lifetime: a delegated child is disposable, whatever the
+parent was asked to be. `orchestrate` gets it too, through the same
+`customTools`, so a planner's worker that declares the tool can split its share.
+
+The drawing follows `parentId` rather than the spawn order, everywhere at once:
+the dots above the prompt, the collapsed tool row, the expanded view. A
+`WidgetRow` carries a `depth` and the terminal applies the indent - the
+collector lays out and never draws, the same split the rest of the display
+already keeps. A run with no delegation renders exactly as it did, which is the
+property the tests pin.
+
 ## What a delegated run costs is a tree
 
 A delegation with no tree-shaped measurement is a cost discovered on the

@@ -20,7 +20,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
-import { collapsedLine, formatToolCall, formatUsage, statusIcon, summaryTable, truncate } from "../src/index.ts";
+import { collapsedLine, formatToolCall, formatUsage, MAX_DEPTH, statusIcon, summaryTable, treeOrder, truncate } from "../src/index.ts";
 import registerAgentCommands from "./agents-command.ts";
 import registerCommands from "./build.ts";
 import registerPipelineCommands, { PIPELINE_MESSAGE } from "./pipeline-commands.ts";
@@ -58,6 +58,11 @@ const Schema = Type.Object({
 	),
 	maxIterations: Type.Optional(Type.Number({ description: "Loop iteration cap. Default 5." })),
 	maxTasks: Type.Optional(Type.Number({ description: "Most subtasks an orchestrate plan may contain. Default 8." })),
+	maxDepth: Type.Optional(
+		Type.Number({
+			description: `How deep a subagent may delegate in turn. Default ${MAX_DEPTH}: a child and a grandchild.`,
+		}),
+	),
 	candidates: Type.Optional(
 		Type.Array(Type.String(), {
 			description: "Agent names the router may pick from, or the planner may delegate to.",
@@ -116,6 +121,8 @@ export default function (pi: ExtensionAPI) {
 			'Set lifetime: "workflow" when the subagents should remember previous turns.',
 			`Agents come from ${getAgentDir()}/agents by default;`,
 			`set scope: "project" or "both" to also load ${CONFIG_DIR_NAME}/agents from the repository.`,
+			"An agent whose own definition names the subagent tool may split its task further;",
+			`that goes ${MAX_DEPTH} levels deep unless maxDepth says otherwise, and nobody else can delegate at all.`,
 			"Set export: true to keep the transcripts and the measurements of the run on disk.",
 		].join(" "),
 		promptSnippet: "Delegate work to isolated subagents (single, parallel, chain, loop)",
@@ -148,6 +155,7 @@ export default function (pi: ExtensionAPI) {
 			const who = args.agent ?? args.steps?.join(" → ") ?? args.candidates?.join(", ");
 			if (who) line += theme.fg("muted", ` ${who}`);
 			if (args.lifetime === "workflow") line += theme.fg("muted", " [workflow]");
+			if (args.maxDepth !== undefined) line += theme.fg("muted", ` [≤${args.maxDepth} deep]`);
 		if (args.model) line += theme.fg("muted", ` [${args.model}]`);
 			if (args.openInHerdr || args.herdrAll) line += theme.fg("muted", args.herdrAll ? " [herdr:all]" : " [herdr]");
 			if (args.export) line += theme.fg("muted", " [export]");
@@ -184,18 +192,21 @@ export default function (pi: ExtensionAPI) {
 function renderCollapsed(details: Details, theme: Theme): Container {
 	const container = new Container();
 
-	for (const one of details.subagents) {
+	for (const { snapshot: one, depth } of treeOrder(details.subagents)) {
+		// A subagent that was delegated sits under the one that asked for it:
+		// three scouts read as an explorer's split rather than as five peers.
+		const indent = "  ".repeat(depth);
 		const icon = one.ok === false ? theme.fg("error", "✗") : theme.fg("success", "✓");
-		let line = `${icon} ${theme.fg("toolTitle", theme.bold(one.id))}`;
+		let line = `${indent}${icon} ${theme.fg("toolTitle", theme.bold(one.id))}`;
 		if (one.task) line += ` ${theme.fg("dim", truncate(one.task, 50))}`;
 		if (one.error) line += ` ${theme.fg("error", truncate(one.error, 40))}`;
 		container.addChild(new Text(line, 0, 0));
 
 		const shown = one.tools.slice(-COLLAPSED_TOOLS);
 		const hidden = one.tools.length - shown.length;
-		if (hidden > 0) container.addChild(new Text(theme.fg("muted", `    … ${hidden} earlier calls`), 0, 0));
+		if (hidden > 0) container.addChild(new Text(theme.fg("muted", `${indent}    … ${hidden} earlier calls`), 0, 0));
 		for (const tool of shown) {
-			container.addChild(new Text(theme.fg("muted", `    ${formatToolCall(tool.name, tool.args)}`), 0, 0));
+			container.addChild(new Text(theme.fg("muted", `${indent}    ${formatToolCall(tool.name, tool.args)}`), 0, 0));
 		}
 	}
 
@@ -215,11 +226,11 @@ function renderExpanded(details: Details, theme: Theme): Container {
 	const container = new Container();
 	const markdown = getMarkdownTheme();
 
-	for (const [index, one] of details.subagents.entries()) {
+	for (const [index, { snapshot: one, depth }] of treeOrder(details.subagents).entries()) {
 		if (index > 0) container.addChild(new Spacer(1));
 
 		const icon = one.ok === false ? theme.fg("error", "✗") : theme.fg("success", "✓");
-		container.addChild(new Text(`${icon} ${theme.fg("toolTitle", theme.bold(one.id))}`, 0, 0));
+		container.addChild(new Text(`${"  ".repeat(depth)}${icon} ${theme.fg("toolTitle", theme.bold(one.id))}`, 0, 0));
 
 		if (one.task) {
 			container.addChild(new Text(theme.fg("muted", "─── task ───"), 0, 0));

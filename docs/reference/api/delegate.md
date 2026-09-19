@@ -11,12 +11,12 @@ its task across children of its own. Nothing else changes: the tool is built
 here and passed through `SpawnOptions.customTools`, so `spawn` never learns
 what a roster is.
 
-**This is a second exception to "a subagent inherits nothing".** The first is
-`situate()`. Granting this is not inheritance either: the tool comes from
-combo rather than from the user's machine, the roster is the one the caller
-chose, and an agent that does not name it in its own file cannot have it. What
-an agent can do stays readable in its definition, which is the part of the
-invariant that was ever load-bearing.
+**This is one of the three exceptions to "a subagent inherits nothing"**,
+beside `situate()` and `skills:`. Granting it is not inheritance either: the
+tool comes from combo rather than from the user's machine, the roster is the
+one the caller chose, and an agent that does not name it in its own file
+cannot have it. What an agent can do stays readable in its definition, which
+is the part of the invariant that was ever load-bearing.
 
 The depth guard ships with the feature rather than after it. Delegation that
 can go on forever is a bill discovered afterwards, and the bound is carried in

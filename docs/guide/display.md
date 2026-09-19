@@ -147,6 +147,21 @@ lands when a turn ends - so the widget reads the turn's start and repaints on a
 timer. A subagent thinking for twenty seconds emits nothing, and a frozen clock
 reads as a hung agent.
 
+A subagent that was **delegated** sits under the one that asked for it, here and
+in the tool row alike:
+
+```
+● explorer#1  subagent explorer → scout
+  ilaas/gemma-4-31b · ↑8k ↓412 · 21.0s
+  ● scout#1  read src/reporters/tui.ts
+    ilaas/gemma-4-31b · ↑14k ↓980 · 9.4s
+```
+
+A row says how deep it sits and the drawing applies the indent, which is the
+same split as everywhere else here: the collector lays out, the terminal
+decides what a level looks like. A run with no delegation is drawn exactly as
+it always was.
+
 The widget disappears the moment the work ends, in a `finally`, so a thrown
 workflow never leaves a dead row of dots above the prompt. The full record is one
 line below, in the tool row: one line per subagent with its last tool calls.

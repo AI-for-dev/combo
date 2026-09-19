@@ -361,6 +361,26 @@ describe("progressLine", () => {
 	});
 });
 
+describe("the widget and the tree", () => {
+	test("a row says how deep it sits, and the plain lines indent it", () => {
+		const collector = replay(spawned("explorer#1"), spawned("scout#1", "explorer#1"));
+
+		assert.deepEqual(
+			widgetRows(collector.snapshot())
+				.filter((row) => row.kind === "activity")
+				.map((row) => [row.id, row.depth]),
+			[
+				["explorer#1", 0],
+				["scout#1", 1],
+			],
+		);
+
+		const lines = widgetLines(collector.snapshot());
+		assert.match(lines[0] as string, /^● explorer#1/);
+		assert.match(lines[2] as string, /^ {2}● scout#1/);
+	});
+});
+
 describe("treeOrder", () => {
 	test("a child follows the parent it hangs under, however the spawns interleaved", () => {
 		const collector = replay(
