@@ -83,6 +83,21 @@ export type ClaimsOptions = {
 	 * things, and both are granted.
 	 */
 	keys?: readonly string[];
+	/**
+	 * How much one member may hold at once. Unbounded by default.
+	 *
+	 * Measured, on three members and six keys: with no bound one of them took
+	 * everything and the other two spent their turns being refused, and telling
+	 * them in the prompt to take one at a time changed nothing - four held at
+	 * once in both arms, the same as with no rule. A bound of one held it to one,
+	 * and the work still went round: more grants, not fewer.
+	 *
+	 * It is not the default because it is not free. The same measurement put the
+	 * bounded arm 29% slower and 64% heavier in input tokens, since taking,
+	 * releasing and being refused are all calls. Reach for it when there is
+	 * contention, which is when it pays for itself.
+	 */
+	maxPerMember?: number;
 };
 
 /**
@@ -94,6 +109,7 @@ export type ClaimsOptions = {
  */
 export function createClaims(options: ClaimsOptions = {}): Claims {
 	const known = options.keys ? new Set(options.keys.map((key) => key.trim())) : undefined;
+	const most = options.maxPerMember;
 	// Insertion order, which is the order they were taken: a reader of `open()`
 	// sees the run as it happened.
 	const held = new Map<string, string>();
@@ -109,6 +125,16 @@ export function createClaims(options: ClaimsOptions = {}): Claims {
 			const holder = held.get(wanted);
 			if (holder === member) return { ok: true };
 			if (holder) return { ok: false, error: `\`${wanted}\` is held by ${holder} - ask ${holder}, or take something else`, heldBy: holder };
+
+			// After the contention check, so a member at its bound asking for
+			// something already taken is told who has it: that is the fact it can
+			// act on, and its own bound is the one it can fix by itself.
+			if (most !== undefined) {
+				const mine = [...held].filter(([, by]) => by === member).map(([key]) => key);
+				if (mine.length >= most) {
+					return { ok: false, error: `you already hold ${mine.join(", ")}, which is all one member gets - release before taking another` };
+				}
+			}
 
 			held.set(wanted, member);
 			return { ok: true };

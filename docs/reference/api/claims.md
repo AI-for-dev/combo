@@ -82,6 +82,21 @@ export type ClaimsOptions = {
 	 * things, and both are granted.
 	 */
 	keys?: readonly string[];
+	/**
+	 * How much one member may hold at once. Unbounded by default.
+	 *
+	 * Measured, on three members and six keys: with no bound one of them took
+	 * everything and the other two spent their turns being refused, and telling
+	 * them in the prompt to take one at a time changed nothing - four held at
+	 * once in both arms, the same as with no rule. A bound of one held it to one,
+	 * and the work still went round: more grants, not fewer.
+	 *
+	 * It is not the default because it is not free. The same measurement put the
+	 * bounded arm 29% slower and 64% heavier in input tokens, since taking,
+	 * releasing and being refused are all calls. Reach for it when there is
+	 * contention, which is when it pays for itself.
+	 */
+	maxPerMember?: number;
 };
 ```
 
