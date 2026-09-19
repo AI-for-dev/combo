@@ -10,6 +10,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { createBoard, type Post } from "../src/board.ts";
+import { createClaims } from "../src/claims.ts";
 import { boardTool, declaresBoard, BOARD_TOOL } from "../src/board-tool.ts";
 import { createEventBus, type SubagentEvent } from "../src/events.ts";
 import { callTool } from "./fixtures/call-tool.ts";
@@ -185,5 +186,69 @@ describe("the record", () => {
 
 		await callTool(tool, { action: "post", kind: "tell", text: "anything" });
 		assert.deepEqual(seen, []);
+	});
+});
+
+describe("taking and releasing", () => {
+	const setup = (keys?: readonly string[]) => {
+		const claims = createClaims(keys ? { keys } : {});
+		const board = createBoard();
+		return { claims, first: boardTool({ board, from: "scout#1", claims }), second: boardTool({ board, from: "scout#2", claims }) };
+	};
+
+	test("the first to ask holds it, and the second is told who does and what is left", async () => {
+		const { first, second } = setup(["console.ts", "tui.ts", "record.ts"]);
+
+		assert.match(await answer(first, { action: "take", key: "console.ts" }), /console\.ts is yours/);
+
+		const denied = await answer(second, { action: "take", key: "console.ts" });
+		assert.match(denied, /held by scout#1 - ask scout#1/);
+		assert.match(denied, /Still free: tui\.ts, record\.ts/, "one call is enough to move on");
+	});
+
+	test("what a model invents is refused with what there is", async () => {
+		// The three members of a real run named one file three ways. A key that
+		// is not on the list has to come back as a list, not as a grant.
+		const { first } = setup(["console.ts", "tui.ts"]);
+
+		const stray = await answer(first, { action: "take", key: "I will handle src/reporters/console.ts" });
+		assert.match(stray, /nothing called.*to claim - there is console\.ts, tui\.ts/);
+	});
+
+	test("only the holder gives it back, and then somebody else can have it", async () => {
+		const { first, second } = setup();
+		await callTool(first, { action: "take", key: "the parser" });
+
+		assert.match(await answer(second, { action: "release", key: "the parser" }), /not holding `the parser` - scout#1 is/);
+		assert.match(await answer(first, { action: "release", key: "the parser" }), /Gave up the parser/);
+		assert.match(await answer(second, { action: "take", key: "the parser" }), /is yours/);
+	});
+
+	test("a tool with nothing to claim does not offer to", async () => {
+		const tool = boardTool({ board: createBoard(), from: "scout#1" });
+
+		assert.ok(!tool.description.includes("take"), "and the description does not mention it");
+		assert.match(await answer(tool, { action: "take", key: "anything" }), /nothing to take here/);
+	});
+
+	test("taking without saying what is refused", async () => {
+		const { first } = setup();
+		assert.match(await answer(first, { action: "take" }), /Name what you are taking/);
+	});
+
+	test("every grant and every refusal is recorded", async () => {
+		const claims = createClaims({ keys: ["console.ts"] });
+		const bus = createEventBus();
+		const seen: SubagentEvent[] = [];
+		bus.subscribe((event) => seen.push(event));
+		const board = createBoard();
+
+		await callTool(boardTool({ board, from: "scout#1", claims, bus }), { action: "take", key: "console.ts" });
+		await callTool(boardTool({ board, from: "scout#2", claims, bus }), { action: "take", key: "console.ts" });
+
+		assert.deepEqual(seen, [
+			{ type: "claim", id: "scout#1", key: "console.ts", action: "take", ok: true },
+			{ type: "claim", id: "scout#2", key: "console.ts", action: "take", ok: false, heldBy: "scout#1" },
+		]);
 	});
 });

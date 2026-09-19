@@ -16,12 +16,18 @@ whole reason this file exists rather than the board being handed round: a
 `from` a model can write is a `from` a model can borrow, and a medium where
 anybody can post as anybody is not a record of anything.
 
-Both halves go onto the event bus, so a reporter sees the traffic as it
+Every half goes onto the event bus, so a reporter sees the traffic as it
 happens and `record.ts` writes it down beside everything else. **Reading is
 announced as well as posting**, and that is not symmetry for its own sake:
 the posts say who said what, and an investigation of a run asks who *knew*
 what. Knowing comes from being handed something, so being handed something is
 an event.
+
+When the caller gives it a {@link Claims}, the tool also grants and returns
+things. That is a different act from posting a `claim`: a post announces into
+a medium that was empty when the member looked, and a take is decided. Both
+are offered, because a member still has to say what it is doing, and only one
+of them settles who does it.
 
 ## `BOARD_TOOL`
 
@@ -68,6 +74,14 @@ export type BoardToolOptions = {
 	from: string;
 	/** Where a `post` event goes. Absent, the board still works and nobody watches. */
 	bus?: EventBus;
+	/**
+	 * What there is to take, when anything is.
+	 *
+	 * Absent, the tool offers `post` and `read` only, and says so in its
+	 * description: a member is never shown an action that would be refused
+	 * whatever it asked for.
+	 */
+	claims?: Claims;
 };
 ```
 

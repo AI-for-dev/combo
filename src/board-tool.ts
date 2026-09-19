@@ -11,16 +11,23 @@
  * `from` a model can write is a `from` a model can borrow, and a medium where
  * anybody can post as anybody is not a record of anything.
  *
- * Both halves go onto the event bus, so a reporter sees the traffic as it
+ * Every half goes onto the event bus, so a reporter sees the traffic as it
  * happens and `record.ts` writes it down beside everything else. **Reading is
  * announced as well as posting**, and that is not symmetry for its own sake:
  * the posts say who said what, and an investigation of a run asks who *knew*
  * what. Knowing comes from being handed something, so being handed something is
  * an event.
+ *
+ * When the caller gives it a {@link Claims}, the tool also grants and returns
+ * things. That is a different act from posting a `claim`: a post announces into
+ * a medium that was empty when the member looked, and a take is decided. Both
+ * are offered, because a member still has to say what it is doing, and only one
+ * of them settles who does it.
  */
 
 import { Type } from "typebox";
 import { boardLines, type Board, type PostKind } from "./board.ts";
+import type { Claims } from "./claims.ts";
 import type { EventBus } from "./events.ts";
 import { defineTool, type ToolDefinition } from "./session.ts";
 
@@ -54,6 +61,14 @@ export type BoardToolOptions = {
 	from: string;
 	/** Where a `post` event goes. Absent, the board still works and nobody watches. */
 	bus?: EventBus;
+	/**
+	 * What there is to take, when anything is.
+	 *
+	 * Absent, the tool offers `post` and `read` only, and says so in its
+	 * description: a member is never shown an action that would be refused
+	 * whatever it asked for.
+	 */
+	claims?: Claims;
 };
 
 /** Whether an agent's definition asks to be allowed on the board. */
@@ -72,7 +87,7 @@ export function declaresBoard(tools: readonly string[] | undefined): boolean {
  * member whose call vanished tries again.
  */
 export function boardTool(options: BoardToolOptions): ToolDefinition {
-	const { board, from, bus } = options;
+	const { board, from, bus, claims } = options;
 	// This member's place in the log, kept here because it is nobody else's
 	// business: two members read at their own pace and neither waits for the
 	// other.
@@ -84,18 +99,27 @@ export function boardTool(options: BoardToolOptions): ToolDefinition {
 		description:
 			"Leave a message for the others, or read what they have left. " +
 			"Everyone works at the same time and nobody sees your context: the board is all they know of you. " +
-			`Kinds: ${KINDS.join(", ")}.`,
+			`Kinds: ${KINDS.join(", ")}.` +
+			(claims ? " Before you start on something, `take` it: the first to ask holds it and everyone else is refused." : ""),
 		promptSnippet: "Post to the board, or read what the others posted",
 		parameters: Type.Object({
-			action: Type.String({ description: '"post" to say something, "read" to catch up.' }),
+			action: Type.String({
+				description: claims
+					? '"take" to be given something to work on, "release" to give it back, "post" to say something, "read" to catch up.'
+					: '"post" to say something, "read" to catch up.',
+			}),
 			kind: Type.Optional(Type.String({ description: `What the post is for. One of: ${KINDS.join(", ")}.` })),
 			text: Type.Optional(Type.String({ description: "What you are saying. Required to post." })),
 			to: Type.Optional(Type.String({ description: "One member. Left out, everybody reads it." })),
+			key: Type.Optional(Type.String({ description: "The thing to take or release, named exactly." })),
 		}),
 		async execute(_toolCallId, params) {
 			const action = params.action.trim().toLowerCase();
 			if (action === "read") return said(read());
-			if (action !== "post") return refuse(`\`action\` is "post" or "read", not "${params.action}".`);
+			if (action === "take" || action === "release") return grant(action, params.key?.trim() ?? "");
+			if (action !== "post") {
+				return refuse(`\`action\` is ${claims ? '"take", "release", "post" or "read"' : '"post" or "read"'}, not "${params.action}".`);
+			}
 
 			const text = params.text?.trim();
 			if (!text) return refuse("A post says something: give `text`.");
@@ -115,6 +139,42 @@ export function boardTool(options: BoardToolOptions): ToolDefinition {
 			return said(`Posted as ${outcome.post.id}.`);
 		},
 	});
+
+	/**
+	 * Being given a thing to work on, or giving it back.
+	 *
+	 * A refusal names the holder *and* what is still free, so one call is enough
+	 * to move on: a member told only "taken" asks again for the next one it
+	 * thought of, which is the race one level down.
+	 */
+	function grant(action: "take" | "release", key: string) {
+		if (!claims) return refuse('There is nothing to take here: `action` is "post" or "read".');
+		if (!key) return refuse("Name what you are taking: give `key`.");
+
+		if (action === "release") {
+			const gone = claims.release(from, key);
+			bus?.emit({ type: "claim", id: from, key, action, ok: gone });
+			return gone ? said(`Gave up ${key}.`) : refuse(`You are not holding \`${key}\`${owned(key)}.`);
+		}
+
+		const outcome = claims.take(from, key);
+		bus?.emit({ type: "claim", id: from, key, action, ok: outcome.ok, ...(outcome.ok ? {} : { heldBy: outcome.heldBy }) });
+		if (outcome.ok) return said(`${key} is yours. Release it when you are done.`);
+		return refuse(`${outcome.error}${remaining()}`);
+	}
+
+	/** Who holds it, said in passing. */
+	function owned(key: string): string {
+		const holder = claims?.owner(key);
+		return holder ? ` - ${holder} is` : "";
+	}
+
+	/** What is still there to take, when the caller said what there was. */
+	function remaining(): string {
+		const free = claims?.free();
+		if (free === undefined) return "";
+		return free.length ? `. Still free: ${free.join(", ")}` : ". Nothing is free.";
+	}
 
 	/** What is new for this member, a page at a time. */
 	function read(): string {

@@ -61,6 +61,14 @@ export type Claims = {
 	releaseAll(member: string): readonly string[];
 	/** Who holds `key`, if anyone. */
 	owner(key: string): string | undefined;
+	/**
+	 * What is left to take, when the caller said what there was.
+	 *
+	 * `undefined` when it did not: a list of what is free cannot be derived from
+	 * a list of what is held, and inventing one would be this file guessing at
+	 * the size of the work. It is what turns a refusal into a next move.
+	 */
+	free(): readonly string[] | undefined;
 	/** What is held right now, in the order it was taken. */
 	open(): readonly Holding[];
 };
@@ -121,6 +129,10 @@ export function createClaims(options: ClaimsOptions = {}): Claims {
 
 		owner(key) {
 			return held.get(key.trim());
+		},
+
+		free() {
+			return known && [...known].filter((key) => !held.has(key));
 		},
 
 		open() {

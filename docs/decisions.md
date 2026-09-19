@@ -1636,6 +1636,23 @@ Two smaller ones:
   dies holding claims leaves work nobody will do and nobody can take. The run
   says which ones rather than leaving a reader to notice the gap.
 
+The same three members, the same job, with `take` on the tool:
+
+```
+   +693ms member#3 take console.ts -> granted
+  +1063ms member#2 take console.ts -> refused (member#3)
+  +1675ms member#2 take herdr.ts   -> granted
+  +3081ms member#1 take console.ts -> refused (member#3)
+  +3711ms member#1 take record.ts  -> granted
+```
+
+All three went for the same file again, which is the point: the models did not
+change, the medium did. Both refusals were absorbed on the next call, inside the
+same turn, and three different files were described in half the wall time of the
+run that collided. Nobody posted and nobody read: arbitration made the
+announcing half unnecessary for this job, which is worth knowing before anything
+is built on the assumption that members talk.
+
 ## The public surface: one entry point, grouped as it is learnt
 
 `src/index.ts` is the only door - the examples and the extension import from it,

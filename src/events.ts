@@ -90,6 +90,15 @@ export type SubagentEvent =
 	 * strongest thing the record holds about what a member could not have known.
 	 */
 	| { type: "read"; id: string; posts: readonly string[]; waiting: number }
+	/**
+	 * A member asked for a thing, or gave one back.
+	 *
+	 * `ok` is whether it got what it asked for, and `heldBy` names the holder
+	 * when a take was refused. Recorded for the same reason a read is: the
+	 * question afterwards is who held what and when, and a refusal is as much a
+	 * fact of the run as a grant.
+	 */
+	| { type: "claim"; id: string; key: string; action: "take" | "release"; ok: boolean; heldBy?: string }
 	| { type: "usage"; id: string; usage: Usage }
 	| { type: "close"; id: string; result: Result };
 
