@@ -13,9 +13,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { EventListener, SubagentEvent, SubagentStatus } from "../events.ts";
-import { scalar, truncate } from "../text.ts";
+import { plural, scalar, truncate } from "../text.ts";
 import { formatUsage } from "../usage.ts";
+import { trafficLine } from "./traffic.ts";
 import { createHerdrSend, detectHerdr, HERDR_SOURCE, nextSeq, paneIdOf, type HerdrSend } from "./herdr-client.ts";
+
+/** The name of the pane the members talk on. Not an agent: nobody works in it. */
+export const BOARD_PANE = "board";
 
 /** How the herdr reporter behaves: where splits open, and for whom. */
 export type HerdrOptions = {
@@ -61,6 +65,12 @@ export function createHerdrReporterWith(send: HerdrSend, options: HerdrOptions =
 	const all = options.all ?? false;
 
 	const panes = new Map<string, Pane>();
+	// The board is a pane of the **run**, not of a member: what one said is in
+	// its own pane, and who it was talking to is only legible where all of them
+	// are. Opened on the first thing anybody says, so a run with no board never
+	// grows a window for one.
+	let board: Pane | undefined;
+	let lines = 0;
 
 	return (event) => {
 		// A reporter must never throw into the bus, and never make the caller
@@ -77,6 +87,16 @@ export function createHerdrReporterWith(send: HerdrSend, options: HerdrOptions =
 			// Opt-in per subagent, unless the whole run was asked to be watched.
 			if (!event.openInHerdr && !all) return;
 			panes.set(event.id, openPane(send, dir, event.id, options));
+			return;
+		}
+
+		const traffic = trafficLine(event);
+		if (traffic !== undefined) {
+			lines += 1;
+			boardPane()?.write(`${traffic}\n`);
+			// The same line in the member's own pane, without its own name: the
+			// header above it already says who this is.
+			panes.get(event.id)?.write(`${trafficLine(event, { self: event.id })}\n`);
 			return;
 		}
 
@@ -99,8 +119,22 @@ export function createHerdrReporterWith(send: HerdrSend, options: HerdrOptions =
 			case "close":
 				panes.delete(event.id);
 				pane.finish(formatUsage(event.result.usage));
+				// The board goes when the last member does: it belongs to the run,
+				// and a pane left behind is one the next run opens beside.
+				if (panes.size === 0 && board) {
+					board.finish(`${plural(lines, "line")} between them`);
+					board = undefined;
+				}
 				break;
 		}
+	}
+
+	/** The board's pane, opened on demand - and only when this run is watched. */
+	function boardPane(): Pane | undefined {
+		// Nobody watching any member is nobody watching the run: a board pane on
+		// its own would be a window that was never asked for.
+		if (!board && (all || panes.size > 0)) board = openPane(send, dir, BOARD_PANE, options);
+		return board;
 	}
 }
 
@@ -118,6 +152,10 @@ type Pane = {
  */
 function openPane(send: HerdrSend, dir: string, id: string, options: HerdrOptions): Pane {
 	const logPath = path.join(dir, `${id.replace(/[^\w.#-]/g, "_")}.log`);
+	// Only a pane that had an agent reported on it has one to release. The board
+	// is a pane and not an agent, and releasing one herdr never heard of is a
+	// call that can only go wrong.
+	let reported = false;
 	fs.writeFileSync(logPath, `${id}\n\n`);
 
 	// Writes are appended synchronously and in order. Interleaved async appends
@@ -155,6 +193,7 @@ function openPane(send: HerdrSend, dir: string, id: string, options: HerdrOption
 		write,
 
 		report(status) {
+			reported = true;
 			onPane((paneId) =>
 				send("pane.report_agent", {
 					pane_id: paneId,
@@ -172,7 +211,9 @@ function openPane(send: HerdrSend, dir: string, id: string, options: HerdrOption
 		finish(usageLine) {
 			write(`\n--\n${usageLine}\n`);
 			onPane((paneId) =>
-				send("pane.release_agent", { pane_id: paneId, source: HERDR_SOURCE, agent: id, seq: nextSeq() })
+				(reported
+					? send("pane.release_agent", { pane_id: paneId, source: HERDR_SOURCE, agent: id, seq: nextSeq() })
+					: Promise.resolve(undefined))
 					// Close after the release, not in parallel: closing first would
 					// leave herdr holding an agent on a pane that no longer exists.
 					.then(() => send("pane.close", { pane_id: paneId }))

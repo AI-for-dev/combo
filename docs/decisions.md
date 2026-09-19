@@ -1100,6 +1100,21 @@ pure observer, it never queries anything.
 The split **closes automatically** when the subagent closes, after the final
 usage line is written. No orphan panes after a fan-out.
 
+**A board gets a pane, and it is not an agent.** A pane per member shows each
+one working and none of them talking: what a member said is in its own pane, and
+who it was addressing is only legible where all of them are. So the first thing
+anybody says opens one more pane, named `board`, carrying the exchange in order,
+and each member's pane keeps its own half of it without repeating its own name.
+Nobody works in that pane, so no agent state is ever reported on it and nothing
+is released when it closes - a pane that never had an agent has none to give
+back, which is now what `finish` checks rather than assumes. It opens only when
+the run is watched at all, and closes with the last member.
+
+The wording of those lines lives in `src/reporters/traffic.ts` and nowhere else.
+The console and a herdr pane are read side by side when a run is compared
+against another, and a difference in how they say it would read as a difference
+in what happened.
+
 **A reporter that nobody subscribes reports nothing.** `onEvent` takes a single
 listener, so watching in the TUI *and* in herdr means composing them - use
 `combineReporters(collector.reporter, createHerdrReporter())`, which drops the

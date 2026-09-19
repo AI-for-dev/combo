@@ -152,6 +152,29 @@ createHerdrReporter({ all: true });    // from a script
 There is no environment variable for it, and there will not be: configuration is
 an argument or a command, never something a shell exported three days ago.
 
+### The board gets a pane of its own
+
+A [swarm](swarm.md) is the case a pane per member does not cover: what one
+member said is in its own pane, and who it was talking to is only legible where
+all of them are. So the first thing anybody says opens one more pane, named
+`board`, carrying the exchange in order:
+
+```text
+⇣ member#2 was handed nothing
+✉ member#1 → member#2 [ask] who has console.ts?
+⚑ member#2 take console.ts → refused (member#1)
+```
+
+Each member's own pane keeps its half of that, without its own name in front of
+it - the pane header above already says who it is. The wording is the console
+reporter's, from one place (`src/reporters/traffic.ts`), because two displays of
+one run are read side by side and a difference between them would read as a
+difference in the run.
+
+The pane opens only when the run is being watched at all, closes with the last
+member, and carries no herdr *agent*: nobody works in it, so there is nothing to
+report a state for and nothing to release.
+
 ## The pi TUI
 
 While the subagents work, a dot per subagent sits just above the prompt:
