@@ -38,6 +38,13 @@ The interviewer's lifetime defaults to `"workflow"`. An interview *is* a
 conversation, and a `"task"` interviewer would forget the answer it just received
 and ask around it forever.
 
+A label and its description share one line of the card, and pi-tui cuts what
+does not fit without an ellipsis: on a 120-column terminal an option ended
+`…before r`, and nothing on screen said a word was missing. `questionPrompt`
+therefore asks for a label under 30 characters and a description under 60. It
+belongs there and not in `agents/interviewer.md`, because the width is the
+card's and the rule has to reach an interviewer you wrote yourself.
+
 ## The delivery
 
 From a script, without the interview:
