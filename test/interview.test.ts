@@ -202,6 +202,9 @@ describe("the language the user wrote in", () => {
 			["brief", briefPrompt("ajoute un cache", [])],
 		] as const) {
 			assert.match(prompt, /in the language the request above is written in/, `${name} asks for it`);
+			// The header is drawn above the question on the same card. Left unnamed,
+			// it came back English over a French question.
+			assert.match(prompt, /your headers/, `${name} names the header`);
 			assert.match(prompt, /"header", "question", "options", "label", "description"/, `${name} keeps the keys`);
 			assert.match(prompt, /READY stays READY/, `${name} keeps the stop word`);
 		}
