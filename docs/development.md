@@ -84,6 +84,31 @@ It is how `/share` was found to collide with one of pi's built-in slash
 commands - the fake `pi` the tests hand the extension has no built-ins to
 collide with, so nothing offline could have said so.
 
+Its `--model` is pi's own model, and not the subagents': a command spawns them
+on the `--model` **it** was given, and on pi's settings when it was given none.
+A frame showing `mistral` in the status bar and `gemma` under every subagent is
+not a bug, it is those two knobs being set apart.
+
+### Looking at a frame
+
+Printed frames have their escape sequences stripped, which answers what pi said
+and nothing about how it looked. `--log` keeps the raw bytes, and
+`scripts/frame.py` replays them into a screen and draws it:
+
+```bash
+python3 scripts/drive-pi.py --log run.log "/run explore how usage is measured||6||150"
+python3 scripts/frame.py run.log run.png
+```
+
+It needs `pyte` and `pillow`, asked for at the prompt rather than in a
+requirements file: like `drive-pi.py` it is a pre-flight run by hand, and
+`npm test` must not come to depend on a python environment.
+
+Spacing, colour and density are the half of the display no assertion covers. The
+first three pictures it drew found an option description cut mid-word at the
+right edge, a fan-out reading `scout#2, scout#1, scout#3`, and `esc` claiming
+two different things on screen at once.
+
 ## Documentation
 
 Documentation is part of the deliverable, not a follow-up task.

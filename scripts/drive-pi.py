@@ -38,6 +38,12 @@ seconds: how long a silence means the step is over, and how long to wait
 regardless. The defaults suit a listing; a step that spawns subagents wants a
 longer pair.
 
+`--model` is the model **pi** runs on. A command spawns its subagents on the
+`--model` it was itself given, and on pi's settings when it was given none, so
+the status bar and the subagent lines can honestly disagree. `--log` keeps every
+byte, escape sequences included: `scripts/frame.py` turns that into a picture,
+which is the only way to judge spacing and colour.
+
 An argument of the form `key:<name>` presses a key instead of typing a line,
 which is the only way to check what stops a run:
 
@@ -160,7 +166,7 @@ def main() -> None:
         nargs="+",
         help=f"a command line, or `key:<{'|'.join(KEYS)}>`, optionally `||idle||cap` in seconds",
     )
-    parser.add_argument("--model", default="ilaas/gemma-4-31b", help="what every subagent runs on")
+    parser.add_argument("--model", default="ilaas/gemma-4-31b", help="pi's own model; a command's subagents take their own --model")
     parser.add_argument("--extension", default="extension/index.ts", help="the extension to load")
     parser.add_argument("--cwd", default=str(ROOT), help="where pi runs, and where runs/ lands")
     parser.add_argument("--log", default="drive-pi.log", help="every byte pi wrote, escape sequences included")
