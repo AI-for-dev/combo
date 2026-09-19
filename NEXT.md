@@ -480,7 +480,13 @@ Running it settled four things, none of which an offline test could reach:
 `budget.ts` was dropped rather than deferred: nothing has asked for a budget,
 and a knob nobody uses is maintenance without a user.
 
-Four things are left, and the case for each is weaker than it looks:
+`/swarm` shipped once a run from the window asked for it: several copies of one
+agent on one goal, drawn as a step of the chain so `/quote` and `/step --from`
+reach it. It carries its own finish line - with `--claim` naming what there is,
+the run stops when each thing has been reported on, which took the same job from
+3 rounds and 9 turns to 1 and 3.
+
+Three things are left, and the case for each is weaker than it looks:
 
 - **A released key looks free again**, so under `maxPerMember: 1` a file
   somebody has finished is taken and described a second time. Claims have no
@@ -491,7 +497,6 @@ Four things are left, and the case for each is weaker than it looks:
   measurement in it but the last has been done by hand three times; the last
   needs members that talk to each other, and they stopped as soon as something
   arbitrated.
-- **`/swarm` in the extension.** After a run from code has asked for one.
 - **A job that cannot be finished alone**, which is the only one worth doing
   next. The investigation these mechanisms are modelled on found coordination
   coming out of the tasks with no legitimate solution, about 93% of the traffic

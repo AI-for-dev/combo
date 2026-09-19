@@ -126,6 +126,38 @@ found the same thing from the other end: of the tasks its agents were given, the
 ones with no legitimate solution produced about 93% of the traffic on their
 board. Coordination came out of work that could not be done.
 
+## From inside pi
+
+```
+/swarm --members 3 --claim src/reporters/console.ts,src/reporters/silent.ts,src/reporters/record.ts --hold 1 describe each file you take, in two sentences, and post a result naming it
+```
+
+The members appear above the prompt while they work, `ctrl+↑↓` walks them and
+`ctrl+del` stops the selected one, `esc` stops all of them. What comes back is a
+**step of the chain**, drawn in the transcript and kept out of the model's
+context: a board pasted into a session would turn the window into an
+orchestrator, and it is long. `/quote` is the door into the conversation and
+`/step --from` carries it on, exactly as for [a chain walked by
+hand](chain-by-hand.md).
+
+`--claim` is what turns announcing into holding. It also gives the run something
+to be finished by: with things named, the swarm stops when each of them has been
+reported on. Measured in a real pi on the line above, three members and three
+files:
+
+| | rounds | turns | posts |
+| --- | --- | --- | --- |
+| round cap alone | 3 | 9 | 6, three of them describing a file already described |
+| stopping when the named things are done | 1 | 3 | 7 |
+
+A round cap bounds the worst case; it is not a plan. Without `--claim` there is
+nothing to be done with, so the members run their rounds and stop.
+
+`--agent` takes any agent, and one that does not name `board` in its `tools:`
+is run anyway with a word about it: its copies cannot reach each other, which
+makes the run a fan-out, and that is the arm this whole page is measured
+against.
+
 ## Containment
 
 A swarm shipped without these reproduces the parts of that incident worth

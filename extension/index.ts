@@ -37,6 +37,7 @@ import registerHerdrCommand from "./herdr-command.ts";
 import registerInterviewCommand from "./interview-command.ts";
 import registerPipelineCommands, { PIPELINE_MESSAGE } from "./pipeline-commands.ts";
 import registerStepCommands, { STEP_ENTRY, type StepEntry } from "./step-commands.ts";
+import registerSwarmCommand from "./swarm-command.ts";
 import registerStopCommand from "./stop.ts";
 import { executeSubagent, inferMode, type Details, type Params } from "./execute.ts";
 
@@ -107,6 +108,7 @@ export default function (pi: ExtensionAPI) {
 	registerPipelineCommands(pi);
 	registerAgentCommands(pi);
 	registerStepCommands(pi);
+	registerSwarmCommand(pi);
 	registerStopCommand(pi);
 
 	// A finished pipeline leaves its answer in the conversation. Drawn as its own

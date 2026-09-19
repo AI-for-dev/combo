@@ -86,6 +86,10 @@ One `runs/<timestamp>/` for the chain, one subfolder per step -
 `usage.json`, exactly as [`/run` exports one](export.md). `/chain` names the
 folder and totals the turns.
 
+`/swarm` is a step too, of kind `swarm`: several copies of one agent on one
+goal, recorded like any other so `/chain`, `/quote` and `--from` reach it. See
+[Swarms](swarm.md).
+
 A step that **fails** leaves the chain untouched. It produced nothing to carry,
 and recording it would hand the next agent an error message as its input; what
 ran is still on disk, and the same command can be retried on another model.
