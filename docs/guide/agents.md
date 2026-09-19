@@ -55,7 +55,7 @@ const reviewer = findAgent(agents, "reviewer");    // throws on an unknown name
 
 There is a third source, off by default: the agents **shipped with this
 package** (`scout`, `coder`, `reviewer`, `planner`, `router`, `synthesiser`,
-`interviewer`, `auditor`, `committer`). Pass `builtin: true` to include them -
+`interviewer`, `auditor`, `committer`, `explorer`, `member`). Pass `builtin: true` to include them -
 which the pi extension always does, because otherwise its commands only work
 inside a repository where someone has already copied the definitions by hand.
 
@@ -244,7 +244,7 @@ machine is welcome to declare one; it is only what ships that must not.
 
 `agents/` holds the demo definitions used by the examples and by `/build`:
 `scout`, `coder`, `reviewer`, `planner`, `router`, `synthesiser`, `interviewer`,
-`auditor`, `committer`. They are symlinked into `.pi/agents/` so the extension
+`auditor`, `committer`, `explorer`, `member`. They are symlinked into `.pi/agents/` so the extension
 can find them - with an explicit scope, like anyone else's. None of them pins a
 model, for the reason above.
 

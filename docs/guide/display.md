@@ -45,7 +45,7 @@ onEvent: combineReporters(collector.reporter, createHerdrReporter());
 `createHerdrReporter()` returns `undefined` outside herdr, and `combineReporters`
 drops it.
 
-**Reading is an event too**, and a [swarm](workflows.md) cannot be read back
+**Reading is an event too**, and a [swarm](swarm.md) cannot be read back
 without it. The posts say who said what; `read` says who *knew* what, and a
 member handed nothing is the strongest thing the record holds about what a
 member could not have known. Three members claiming the same file reads as three
