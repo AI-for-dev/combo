@@ -90,6 +90,7 @@ export function fakeSpawn(
 			agent: agent.name,
 			lifetime,
 			openInHerdr: options.openInHerdr ?? false,
+			order: counter,
 			parentId: options.parentId,
 		});
 		bus?.emit({ type: "status", id, status: "idle" });

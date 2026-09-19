@@ -26,10 +26,13 @@ function tmpDir(): string {
 	return dir;
 }
 
+let launch = 0;
+
 const spawnEvent = (id: string, openInHerdr: boolean, parentId?: string): SubagentEvent => ({
 	type: "spawn",
 	id,
 	agent: id.split("#")[0] as string,
+	order: ++launch,
 	lifetime: "task",
 	openInHerdr,
 	parentId,

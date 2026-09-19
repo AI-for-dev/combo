@@ -92,11 +92,16 @@ export type TuiCollector = {
 /**
  * Collects subagent events into a renderable snapshot.
  *
- * Insertion order is preserved: a fan-out reads top to bottom in the order the
- * branches were launched, not in the order they happen to finish.
+ * A fan-out reads top to bottom in the order the branches were launched, not in
+ * the order they finish and not in the order their sessions came up. The last
+ * one is why this sorts rather than trusting arrival: `spawn` cannot be emitted
+ * before the session exists, since it carries the model pi resolved, and three
+ * scouts launched together drew as `scout#2, scout#1, scout#3`.
  */
 export function createTuiCollector(): TuiCollector {
 	const byId = new Map<string, SubagentSnapshot>();
+	/** Apart from the snapshot: where a row is drawn is the display's business. */
+	const launched = new Map<string, number>();
 	const listeners: (() => void)[] = [];
 
 	const touch = () => {
@@ -105,6 +110,7 @@ export function createTuiCollector(): TuiCollector {
 
 	const reporter: EventListener = (event) => {
 		if (event.type === "spawn") {
+			launched.set(event.id, event.order);
 			byId.set(event.id, {
 				id: event.id,
 				agent: event.agent,
@@ -164,7 +170,9 @@ export function createTuiCollector(): TuiCollector {
 		},
 
 		snapshot() {
-			const subagents = [...byId.values()];
+			const subagents = [...byId.values()].sort(
+				(one, other) => (launched.get(one.id) ?? 0) - (launched.get(other.id) ?? 0),
+			);
 			return {
 				subagents,
 				total: subagents.length,

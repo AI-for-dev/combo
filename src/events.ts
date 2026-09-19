@@ -31,6 +31,16 @@ export type SubagentEvent =
 			/** `provider/id` as pi resolved it. Absent when pi could not say. */
 			model?: string;
 			/**
+			 * Where this subagent came in the launch, counting from 1.
+			 *
+			 * The event cannot be emitted until the session exists, because it
+			 * carries the model pi resolved - and sessions come up in whatever
+			 * order they come up in. Measured: a fan-out of three drew as
+			 * `scout#2, scout#1, scout#3`. A reader that wants the order the
+			 * branches were launched in sorts on this.
+			 */
+			order: number;
+			/**
 			 * The subagent that had this one spawned, when one did.
 			 *
 			 * Absent at the top level, which is what makes a root a root. It
@@ -98,21 +108,29 @@ export function createEventBus(): EventBus {
 }
 
 const counters = new Map<string, number>();
+let launched = 0;
 
 /**
- * A stable id for a subagent: `reviewer#2`.
+ * A stable id for a subagent, and where it came in the launch.
  *
- * It is the key used by the TUI, herdr and the export to follow one subagent
+ * The id is the key the TUI, herdr and the export use to follow one subagent
  * across its whole life. Counters are per-process and per-agent-name, which is
  * enough to read a fan-out of the same agent side by side.
+ *
+ * `order` counts every subagent of the process instead, and the two are handed
+ * out together because they are one fact: the moment this subagent was asked
+ * for. A second counter incremented somewhere else would drift from the id the
+ * day one of the two calls moved.
  */
-export function nextSubagentId(agentName: string): string {
+export function nextSubagentId(agentName: string): { id: string; order: number } {
 	const n = (counters.get(agentName) ?? 0) + 1;
 	counters.set(agentName, n);
-	return `${agentName}#${n}`;
+	launched += 1;
+	return { id: `${agentName}#${n}`, order: launched };
 }
 
 /** Resets the id counters. For tests that assert on exact ids. */
 export function resetSubagentIds(): void {
 	counters.clear();
+	launched = 0;
 }

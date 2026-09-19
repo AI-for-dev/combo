@@ -52,13 +52,20 @@ describe("nextSubagentId", () => {
 	beforeEach(() => resetSubagentIds());
 
 	test("numbers each agent independently", () => {
-		assert.equal(nextSubagentId("scout"), "scout#1");
-		assert.equal(nextSubagentId("scout"), "scout#2");
-		assert.equal(nextSubagentId("reviewer"), "reviewer#1");
+		assert.equal(nextSubagentId("scout").id, "scout#1");
+		assert.equal(nextSubagentId("scout").id, "scout#2");
+		assert.equal(nextSubagentId("reviewer").id, "reviewer#1");
+	});
+
+	test("the launch order counts every agent together, so a fan-out can be read back in it", () => {
+		assert.deepEqual(
+			[nextSubagentId("scout"), nextSubagentId("reviewer"), nextSubagentId("scout")].map((one) => one.order),
+			[1, 2, 3],
+		);
 	});
 
 	test("ids are unique across a fan-out of the same agent", () => {
-		const ids = new Set(Array.from({ length: 50 }, () => nextSubagentId("scout")));
+		const ids = new Set(Array.from({ length: 50 }, () => nextSubagentId("scout").id));
 		assert.equal(ids.size, 50);
 	});
 });
