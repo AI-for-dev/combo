@@ -21,6 +21,7 @@ import {
 	type PipelineDeps,
 } from "../extension/pipeline-commands.ts";
 import { parsePipeline } from "../src/pipeline.ts";
+import { fakeCtx } from "./fixtures/command-ctx.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
 import { testTheme } from "./fixtures/theme.ts";
 
@@ -48,39 +49,6 @@ Answer.
 `,
 	".pi/pipelines/explore.md",
 );
-
-function fakeCtx() {
-	const notes: { message: string; type?: string }[] = [];
-	const statuses: (string | undefined)[] = [];
-	const widgets: (string[] | undefined)[] = [];
-	let editorText = "";
-
-	const ctx = {
-		cwd: "/repo",
-		hasUI: true,
-		ui: {
-			theme: testTheme(),
-			async custom<T>(): Promise<T> {
-				throw new Error("no card is asked for here");
-			},
-			async input() {
-				return undefined;
-			},
-			notify: (message: string, type?: string) => void notes.push({ message, type }),
-			setStatus: (_key: string, text: string | undefined) => void statuses.push(text),
-			setWidget: (_key: string, lines: string[] | undefined) => void widgets.push(lines),
-			async editor(_title: string, prefill?: string) {
-				return prefill;
-			},
-			async confirm() {
-				return true;
-			},
-			setEditorText: (text: string) => void (editorText = text),
-		},
-	} as unknown as CommandCtx;
-
-	return { ctx, notes, statuses, widgets, said: () => notes.map((note) => note.message).join("\n"), editorText: () => editorText };
-}
 
 function deps(over: PipelineDeps = {}): PipelineDeps {
 	return {

@@ -20,10 +20,21 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
-import { collapsedLine, formatToolCall, formatUsage, MAX_DEPTH, statusIcon, summaryTable, treeOrder, truncate } from "../src/index.ts";
+import {
+	collapsedLine,
+	formatToolCall,
+	formatUsage,
+	MAX_DEPTH,
+	plural,
+	statusIcon,
+	summaryTable,
+	treeOrder,
+	truncate,
+} from "../src/index.ts";
 import registerAgentCommands from "./agents-command.ts";
 import registerCommands from "./build.ts";
 import registerPipelineCommands, { PIPELINE_MESSAGE } from "./pipeline-commands.ts";
+import registerStepCommands, { STEP_ENTRY, type StepEntry } from "./step-commands.ts";
 import { executeSubagent, inferMode, type Details, type Params } from "./execute.ts";
 
 /** How many tool lines the collapsed view shows before it starts eliding. */
@@ -90,6 +101,7 @@ export default function (pi: ExtensionAPI) {
 	registerCommands(pi);
 	registerPipelineCommands(pi);
 	registerAgentCommands(pi);
+	registerStepCommands(pi);
 
 	// A finished pipeline leaves its answer in the conversation. Drawn as its own
 	// block, because pi hands custom messages to the model as *user* messages,
@@ -104,6 +116,28 @@ export default function (pi: ExtensionAPI) {
 			new Text(`${theme.fg("accent", "◆")} ${theme.fg("toolTitle", theme.bold(details?.pipeline ?? "pipeline"))}${theme.fg("dim", steps)}`, 0, 0),
 		);
 		container.addChild(new Markdown(String(message.content).trim(), 0, 0, getMarkdownTheme()));
+		return container;
+	});
+
+	// A step of a hand-walked chain is an **entry**, not a message: it is drawn
+	// in the transcript and stays out of the model's context, which is the whole
+	// reason `/step` exists beside `/run`. The header says so, because a report
+	// sitting in the transcript otherwise reads as something the session has
+	// read - and the next command is chosen on that belief.
+	pi.registerEntryRenderer(STEP_ENTRY, (entry, _options, theme: Theme) => {
+		const data = entry.data as StepEntry;
+		const container = new Container();
+		const carried = data.from ? theme.fg("dim", ` ←${data.from}`) : "";
+
+		container.addChild(
+			new Text(
+				`${theme.fg("accent", "◇")} ${theme.fg("toolTitle", theme.bold(data.id))}${theme.fg("muted", ` ${data.kind}`)}${carried}` +
+					`  ${theme.fg("muted", `${plural(data.turns, "turn")} · not in this conversation, /quote puts it there`)}`,
+				0,
+				0,
+			),
+		);
+		container.addChild(new Markdown(String(data.output).trim(), 0, 0, getMarkdownTheme()));
 		return container;
 	});
 

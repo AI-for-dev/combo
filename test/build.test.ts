@@ -18,6 +18,7 @@ import { BUILD_STATE_VERSION, type BuildState } from "../src/resume.ts";
 import type { DeliverResult } from "../src/workflows/deliver.ts";
 import type { PipelineRunResult } from "../src/workflows/pipeline-run.ts";
 import { emptyUsage } from "../src/usage.ts";
+import { fakeCtx } from "./fixtures/command-ctx.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
 import { testTheme } from "./fixtures/theme.ts";
 
@@ -26,49 +27,6 @@ initTheme();
 const agents = ["interviewer", "planner", "coder", "reviewer", "auditor", "committer"].map((name) =>
 	testAgent(name, { description: `${name} for tests` }),
 );
-
-/** Records everything the command showed, and answers as the script says. */
-function fakeCtx(answers: { confirm?: boolean[]; editor?: (string | undefined)[] } = {}) {
-	const notes: { message: string; type?: string }[] = [];
-	const confirms: string[] = [];
-	const editors: string[] = [];
-	const widgets: (string[] | undefined)[] = [];
-	const statuses: (string | undefined)[] = [];
-	const inputs: string[] = [];
-	let editorText = "";
-
-	const confirmAnswers = [...(answers.confirm ?? [])];
-	const editorAnswers = [...(answers.editor ?? [])];
-
-	const ctx: CommandCtx = {
-		cwd: "/repo",
-		hasUI: true,
-		ui: {
-			theme: testTheme(),
-			async custom<T>(): Promise<T> {
-				throw new Error("the card must not be reached: the interview itself is injected");
-			},
-			async input(title: string) {
-				inputs.push(title);
-				return undefined;
-			},
-			notify: (message, type) => void notes.push({ message, type }),
-			setStatus: (_key, text) => void statuses.push(text),
-			setWidget: (_key, lines) => void widgets.push(lines),
-			async editor(title, prefill) {
-				editors.push(title);
-				return editorAnswers.length ? editorAnswers.shift() : prefill;
-			},
-			async confirm(title) {
-				confirms.push(title);
-				return confirmAnswers.length ? Boolean(confirmAnswers.shift()) : true;
-			},
-			setEditorText: (text) => void (editorText = text),
-		},
-	};
-
-	return { ctx, notes, confirms, editors, widgets, statuses, inputs, said: () => notes.map((note) => note.message).join("\n"), editorText: () => editorText };
-}
 
 const result = <T extends object>(over: T) => ({ usage: emptyUsage(), ok: true, ...over });
 

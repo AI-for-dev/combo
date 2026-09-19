@@ -146,7 +146,19 @@ pi install ./extension   # permanently, via settings
 While the subagents work, a dot per subagent sits above the prompt with its
 model, tokens and a clock counting up live; the tool row below holds the record.
 
-See [Extension](docs/guide/extension.md) and [Display](docs/guide/display.md).
+Or walk the chain yourself, one command at a time, with this session kept out of
+it until you say otherwise:
+
+```
+> /step explore how usage is measured
+> /step planner three steps at most      # handed what the explorer found
+> /step coder
+> /quote                                 # only now does the session read any of it
+```
+
+See [Extension](docs/guide/extension.md),
+[Walk a chain by hand](docs/guide/chain-by-hand.md) and
+[Display](docs/guide/display.md).
 
 ## Documentation
 
