@@ -22,10 +22,11 @@ pi -e extension
 ```
 
 You need a model pi can reach. The frames shown here were drawn by a real pi,
-0.85.1, with every subagent on `ilaas/gemma-4-31b`, a small open-weight model
-served locally. A slow, cheap model is where every weakness shows, and none of
-what follows depends on a strong one. Where a page quotes a number, it says
-what produced it.
+0.85.1, with every subagent on one small open-weight model served locally. A
+slow, cheap model is where every weakness shows, and none of what follows
+depends on a strong one. Where a page quotes a number, it says what kind of
+model produced it; the model column of a frame reads `provider/model`, because
+the one these pages ran on is not the one you will have.
 
 ## The twelve
 

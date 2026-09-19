@@ -29,7 +29,7 @@ Then, as a sentence:
 
 ```
 ● coder#1  edit src/text.ts
-  ilaas/gemma-4-31b · ↑8.1k ↓1.1k · 10.1s
+  provider/model · ↑8.1k ↓1.1k · 10.1s
 ```
 
 Then the reviewer, then the row:
@@ -132,7 +132,7 @@ better. Say which one you meant, every time.
 ## What approval is worth
 
 A reviewer's yes is not the end of the argument, only of the reviewer's part
-in it. Measured on `ilaas/qwen-3.6-35b-instruct`, a reviewer holding the
+in it. Measured on a small open-weight model, a reviewer holding the
 `verdict` tool called it correctly and approved a function that computed
 `a - b` while claiming to add. A clean channel does nothing about a wrong
 judgement.
