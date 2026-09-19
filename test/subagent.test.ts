@@ -387,6 +387,22 @@ describe("events", () => {
 		assert.deepEqual(events, ["spawn", "status", "status", "tool", "text", "usage", "status", "status", "close"]);
 	});
 
+	test("a tool pi did not name reads as unknown, never as an empty verb", async () => {
+		// pi sends an empty `toolName`, not a missing one, so `??` never fires and
+		// the widget draws the arguments with no verb in front of them.
+		const names: string[] = [];
+		const session = fakeSession([{ text: "ok", tools: [{ name: "", args: { path: "src/index.ts" } }] }]);
+		const subagent = await spawn(scout, {
+			createSession: async () => session,
+			onEvent: (event) => void (event.type === "tool" && names.push(event.name)),
+		});
+
+		await subagent.ask("a");
+		await subagent.close();
+
+		assert.deepEqual(names, ["?"]);
+	});
+
 	test("says who had it spawned, when somebody did", async () => {
 		const spawns: (string | undefined)[] = [];
 		const listen = { onEvent: (event: SubagentEvent) => void (event.type === "spawn" && spawns.push(event.parentId)) };

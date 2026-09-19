@@ -225,7 +225,10 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 			}
 		} else if (event.type === "tool_execution_start") {
 			const call = event as { toolName?: string; args?: unknown };
-			bus.emit({ type: "tool", id, name: call.toolName ?? "?", args: call.args });
+			// `??` is not enough: a call pi cannot name arrives with an empty name
+			// rather than none, and an empty verb draws a row of bare arguments -
+			// what the call was given, and never what was done with it.
+			bus.emit({ type: "tool", id, name: call.toolName?.trim() || "?", args: call.args });
 		}
 	});
 
