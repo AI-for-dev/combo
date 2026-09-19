@@ -166,6 +166,34 @@ describe("what a member was holding", () => {
 	});
 });
 
+describe("what an observer sees", () => {
+	test("board traffic reaches the listener the caller passed, not only a bus it did not pass", async () => {
+		const claims = createClaims({ keys: ["a"] });
+		const seen: string[] = [];
+		const fake = fakeSpawn(async (_task, _agent, options) => {
+			const tool = offeredTools(options, "member#1")[0];
+			if (tool) {
+				await callTool(tool, { action: "take", key: "a" });
+				await callTool(tool, { action: "post", kind: "result", text: "done a" });
+			}
+			return {};
+		});
+
+		await swarm({
+			members: [{ agent: member, count: 1 }],
+			goal: "x",
+			rounds: 1,
+			claims,
+			spawn: fake.spawn,
+			onEvent: (event) => seen.push(event.type),
+		});
+
+		assert.ok(seen.includes("claim"), "a grant is as much of the run as a turn is");
+		assert.ok(seen.includes("post"), "and so is what a member said");
+		assert.equal(seen.filter((type) => type === "post").length, 1, "one listener, one bus: no event twice");
+	});
+});
+
 describe("with no board and no claims, one round", () => {
 	test("a swarm is a fan-out: every member asked once, the goal and nothing else", async () => {
 		const fake = fakeSpawn();

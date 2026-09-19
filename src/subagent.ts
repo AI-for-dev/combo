@@ -11,7 +11,7 @@
 
 import path from "node:path";
 import type { Agent, Lifetime } from "./agent.ts";
-import { createEventBus, nextSubagentId, type EventBus, type EventListener, type SubagentEvent } from "./events.ts";
+import { busFor, nextSubagentId, type EventBus, type EventListener, type SubagentEvent } from "./events.ts";
 import { exportSession, type SessionExport } from "./export.ts";
 import { failed, type Result } from "./result.ts";
 import {
@@ -173,8 +173,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 	const lifetime = options.lifetime ?? agent.lifetime ?? "task";
 	const { id, order } = nextSubagentId(agent.name);
 
-	const bus = options.bus ?? createEventBus();
-	if (options.onEvent) bus.subscribe(options.onEvent);
+	const bus = busFor(options);
 
 	const createSession = options.createSession ?? createDefaultSession;
 	// Asking for an export is asking for a session on disk: pi refuses to render

@@ -7,7 +7,7 @@
  */
 
 import type { Agent, Lifetime } from "./../agent.ts";
-import { createEventBus, type EventBus, type EventListener } from "./../events.ts";
+import { busFor, type EventBus, type EventListener } from "./../events.ts";
 import type { ToolDefinition } from "./../session.ts";
 import { spawn as defaultSpawn, type CustomToolsFor, type SpawnOptions, type Subagent } from "./../subagent.ts";
 
@@ -105,8 +105,7 @@ export class SubagentPool {
 		this.spawnFn = options.spawn ?? defaultSpawn;
 		this.customTools = options.customTools;
 
-		const bus = options.bus ?? createEventBus();
-		if (options.onEvent) bus.subscribe(options.onEvent);
+		const bus = busFor(options);
 		this.spawnOptions = {
 			lifetime: this.lifetime,
 			bus,
