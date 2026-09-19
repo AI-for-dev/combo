@@ -138,12 +138,16 @@ export default function (pi: ExtensionAPI) {
 		container.addChild(
 			new Text(
 				`${theme.fg("accent", "◇")} ${theme.fg("toolTitle", theme.bold(data.id))}${theme.fg("muted", ` ${data.kind}`)}${carried}` +
-					`  ${theme.fg("muted", `${plural(data.turns, "turn")} · not in this conversation, /quote puts it there`)}`,
+					`  ${theme.fg("muted", plural(data.turns, "turn"))}` +
+					`  ${theme.fg("warning", "outside this conversation")}${theme.fg("muted", " - /quote puts it in")}`,
 				0,
 				0,
 			),
 		);
-		container.addChild(new Markdown(String(data.output).trim(), 0, 0, getMarkdownTheme()));
+		// Indented, because the header alone was not enough: drawn flush left and
+		// full width, a step reads exactly like an answer the session gave, and
+		// the one line saying otherwise is the quietest thing on the screen.
+		container.addChild(new Markdown(String(data.output).trim(), 2, 0, getMarkdownTheme()));
 		return container;
 	});
 

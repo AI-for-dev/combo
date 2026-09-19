@@ -91,13 +91,20 @@ pi -e extension
 /run explore how usage is measured          # then ctrl+↑↓, ctrl+del, esc
 ```
 
-Still unseen by anyone: the same frames on a real terminal, where the face and
-the theme are the user's own rather than the palette `frame.py` assumes.
+**The step entry has been looked at**, and it did not read at a glance. The
+header said `not in this conversation, /quote puts it there` in the same muted
+grey as the turn count, above a report drawn flush left at full width - the way
+an answer the session gave is drawn. Everything on that screen was louder than
+the one line saying the session had not read any of it.
 
-The step entry `/step` leaves in the transcript has the same problem: it is
-asserted on, and nobody has seen one. The line that has to read at a glance is
-the one saying the step is **not** in the conversation - if it does not, the
-next command is typed on a wrong belief about what this session knows.
+Two changes, both judged from the frame rather than from the assertion: the
+phrase takes the theme's warning colour, so it separates from the cost beside
+it, and the body is indented two columns, so the block reads as an aside before
+a word of it is read. The notification below it is untouched, because a
+tutorial quotes it.
+
+What that leaves: the same frames on a real terminal, where the face and the
+theme are the user's own rather than the palette `frame.py` assumes.
 
 ## 2. The pipeline is only as good as its worker - answered
 

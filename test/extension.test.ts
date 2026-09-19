@@ -288,8 +288,10 @@ describe("the step entry renderer", () => {
 		assert.match(drawn, /plan/);
 		assert.match(drawn, /←look/);
 		assert.match(drawn, /2 turns/);
-		assert.match(drawn, /not in this conversation/, "the one thing that must be readable at a glance");
+		assert.match(drawn, /outside this conversation/, "the one thing that must be readable at a glance");
+		assert.match(drawn, /\/quote puts it in/, "and the door out of it");
 		assert.match(drawn, /Three steps\./);
+		assert.match(drawn, /^ {2}Three steps\./m, "the body is indented, so the block reads as an aside rather than an answer");
 	});
 
 	test("data it did not write does not make it throw", () => {
