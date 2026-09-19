@@ -223,6 +223,18 @@ export {
 	type Ledger,
 	type Obligation,
 } from "./ledger.ts";
+export {
+	boardLines,
+	createBoard,
+	type Board,
+	type BoardLimits,
+	type BoardOptions,
+	type Draft,
+	type Post,
+	type PostKind,
+	type PostOutcome,
+	type Reading,
+} from "./board.ts";
 export { scriptedAsk, type Answer, type AskUser, type Choice, type Question } from "./ask.ts";
 export {
 	BUILD_STATE_FILE,
