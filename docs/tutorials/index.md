@@ -41,6 +41,18 @@ spends someone else's instead.
    different model per step.
 
 
+**Writing definitions.** Agents are data, workflows are code, and both are
+files you can read in a diff.
+
+4. [Write the chain down](04-write-it-down.md) - your first pipeline in
+   `.pi/pipelines/`, and what a typo costs.
+5. [An agent that cannot do harm](05-an-agent-that-cannot-write.md) - your
+   first agent in `.pi/agents/`, why its toolset is the boundary and its prompt is
+   not, and why a repository's agents are third-party instructions.
+6. [Teach it a house rule](06-teach-it-a-rule.md) - a skill the reviewer opens
+   itself, resolved nearest first.
+
+
 ```{toctree}
 :maxdepth: 1
 :hidden:
@@ -48,4 +60,7 @@ spends someone else's instead.
 01-one-scout
 02-three-scouts
 03-keep-the-session-out
+04-write-it-down
+05-an-agent-that-cannot-write
+06-teach-it-a-rule
 ```
