@@ -332,18 +332,31 @@ export function currentActivity(snapshot: SubagentSnapshot): string {
 /**
  * A dot per subagent, above the prompt - the Claude Code shape.
  *
- * Two lines each: the dot with what it is doing, then a dimmed line with model,
- * tokens and time. Colour is not applied here; the caller wraps the lines,
- * because a colour code depends on a theme this file must not know about. It
- * gets {@link widgetRows} instead, which says *what* each line is.
+ * Two lines while it works: the dot with what it is doing, then a dimmed line
+ * with model, tokens and time. **One** line once it is over, because the second
+ * line of a finished subagent held its last tool call, which nobody needs any
+ * more; its numbers move up beside the tick instead. A fan-out of three took
+ * seven lines from the first dot to the last, and now shrinks as it finishes.
+ *
+ * Colour is not applied here; the caller wraps the lines, because a colour code
+ * depends on a theme this file must not know about. It gets {@link widgetRows}
+ * instead, which says *what* each line is.
  */
 export type WidgetRow =
-	| { kind: "activity"; icon: string; status: SubagentStatus | "failed"; id: string; activity: string; depth: number }
+	| {
+			kind: "activity";
+			icon: string;
+			status: SubagentStatus | "failed";
+			id: string;
+			activity: string;
+			/** Model, tokens and time, when they belong on this line rather than under it. */
+			detail?: string;
+			depth: number;
+	  }
 	| { kind: "detail"; text: string; depth: number };
 
 /**
- * The widget, as rows that say what they are: one activity line per subagent,
- * one dimmed detail line under it.
+ * The widget, as rows that say what they are.
  *
  * Layout without colour, so it can be asserted on without a terminal. `depth`
  * is how far under a root the subagent sits; the caller turns it into indent,
@@ -353,16 +366,20 @@ export function widgetRows(snapshot: TuiSnapshot): WidgetRow[] {
 	const rows: WidgetRow[] = [];
 
 	for (const { snapshot: one, depth } of treeOrder(snapshot.subagents)) {
+		const failed = one.ok === false;
+		const over = failed || one.status === "done";
 		rows.push({
 			kind: "activity",
 			// A filled dot while it lives, a verdict once it is over.
-			icon: one.ok === false ? "✗" : one.status === "done" ? "✓" : "●",
-			status: one.ok === false ? "failed" : one.status,
+			icon: failed ? "✗" : one.status === "done" ? "✓" : "●",
+			status: failed ? "failed" : one.status,
 			id: one.id,
-			activity: currentActivity(one),
+			// A tick already says "done"; an error says something the tick cannot.
+			activity: over && !failed ? "" : currentActivity(one),
+			...(over ? { detail: detailLine(one) } : {}),
 			depth,
 		});
-		rows.push({ kind: "detail", text: detailLine(one), depth });
+		if (!over) rows.push({ kind: "detail", text: detailLine(one), depth });
 	}
 
 	return rows;
@@ -392,7 +409,8 @@ export function detailLine(snapshot: SubagentSnapshot, now?: number): string {
 export function widgetLines(snapshot: TuiSnapshot): string[] {
 	return widgetRows(snapshot).map((row) => {
 		const indent = "  ".repeat(row.depth);
-		return row.kind === "activity" ? `${indent}${row.icon} ${row.id}  ${row.activity}` : `${indent}  ${row.text}`;
+		if (row.kind === "detail") return `${indent}  ${row.text}`;
+		return [`${indent}${row.icon} ${row.id}`, row.activity, row.detail].filter(Boolean).join("  ");
 	});
 }
 

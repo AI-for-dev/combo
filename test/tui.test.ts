@@ -282,10 +282,20 @@ describe("the widget above the prompt", () => {
 
 	test("the dot becomes a check when it finishes, a cross when it fails", () => {
 		const ok = replay(spawned("scout#1"), closed("scout#1", true));
-		assert.match(widgetLines(ok.snapshot())[0] as string, /^✓ scout#1 {2}done/);
+		// No "done" beside the tick: the tick is what says so.
+		assert.match(widgetLines(ok.snapshot())[0] as string, /^✓ scout#1 {2}↑0 ↓0/);
 
 		const bad = replay(spawned("scout#1"), closed("scout#1", false));
-		assert.match(widgetLines(bad.snapshot())[0] as string, /^✗ scout#1 {2}it broke/);
+		assert.match(widgetLines(bad.snapshot())[0] as string, /^✗ scout#1 {2}it broke {2}↑0 ↓0/);
+	});
+
+	test("a subagent that is over takes one line, and its numbers move up beside the tick", () => {
+		const collector = replay(
+			spawnedWith("scout#1", "ilaas/qwen-3.6-35b-instruct"),
+			closed("scout#1", true, { input: 12_000, output: 209, busyMs: 12_400 }),
+		);
+
+		assert.deepEqual(widgetLines(collector.snapshot()), ["✓ scout#1  ilaas/qwen-3.6-35b-instruct · ↑12k ↓209 · 12.4s"]);
 	});
 
 	test("the activity is the tool in flight, or a word when there is none yet", () => {
@@ -310,12 +320,15 @@ describe("the widget above the prompt", () => {
 	});
 
 	test("the rows say what they are, so the caller applies colour and we can test layout", () => {
-		const collector = replay(spawned("scout#1"), closed("scout#1", false));
-		const rows = widgetRows(collector.snapshot());
+		const failed = widgetRows(replay(spawned("scout#1"), closed("scout#1", false)).snapshot());
+		assert.equal(failed.length, 1, "a subagent that is over is one row");
+		assert.equal(failed[0]?.kind, "activity");
+		assert.equal((failed[0] as { status: string }).status, "failed", "colour is chosen from this, not parsed back out");
+		assert.match((failed[0] as { detail?: string }).detail ?? "", /↑0 ↓0/);
 
-		assert.equal(rows[0]?.kind, "activity");
-		assert.equal((rows[0] as { status: string }).status, "failed", "colour is chosen from this, not parsed back out");
-		assert.equal(rows[1]?.kind, "detail");
+		const working = widgetRows(replay(spawned("scout#1"), { type: "status", id: "scout#1", status: "working" }).snapshot());
+		assert.equal(working[1]?.kind, "detail", "while it works the numbers stay on their own line");
+		assert.equal((working[0] as { detail?: string }).detail, undefined);
 	});
 
 	test("a missing model is simply left out, never guessed", () => {
@@ -348,10 +361,10 @@ describe("the widget above the prompt", () => {
 
 	test("cost appears only when the provider reported one", () => {
 		const free = replay(spawned("scout#1"), closed("scout#1", true, { input: 10 }));
-		assert.ok(!(widgetLines(free.snapshot())[1] as string).includes("$"));
+		assert.ok(!(widgetLines(free.snapshot())[0] as string).includes("$"));
 
 		const paid = replay(spawned("scout#1"), closed("scout#1", true, { input: 10, cost: 0.0412 }));
-		assert.match(widgetLines(paid.snapshot())[1] as string, /\$0\.0412/);
+		assert.match(widgetLines(paid.snapshot())[0] as string, /\$0\.0412/);
 	});
 });
 

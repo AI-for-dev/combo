@@ -136,8 +136,7 @@ While the subagents work, a dot per subagent sits just above the prompt:
 ```
 ● scout#1  grep /lifetime/
   ilaas/qwen-3.6-35b-instruct · ↑12k ↓209 · 12.4s
-✓ scout#2  done
-  ilaas/qwen-3.6-35b-instruct · ↑8k ↓150 · 8.1s
+✓ scout#2  ilaas/qwen-3.6-35b-instruct · ↑8k ↓150 · 8.1s
 ```
 
 `●` while it works, `✓` when it succeeded, `✗` when it failed, coloured by
@@ -146,6 +145,13 @@ counting up live. Events alone cannot keep that clock - `usage.busyMs` only
 lands when a turn ends - so the widget reads the turn's start and repaints on a
 timer. A subagent thinking for twenty seconds emits nothing, and a frozen clock
 reads as a hung agent.
+
+**Two lines while it works, one once it is over**, as `scout#2` above. The
+second line of a finished subagent held its last tool call, which nobody needs
+any more, so its numbers move up beside the tick and the line goes. A fan-out of
+three takes seven lines at its widest and shrinks as it finishes, rather than
+holding the terminal at its widest until the run ends. A failure keeps what the
+tick cannot say: `✗ coder#1  402 from the provider  ilaas/… · ↑2k ↓0 · 3.1s`.
 
 A subagent that was **delegated** sits under the one that asked for it, here and
 in the tool row alike:
