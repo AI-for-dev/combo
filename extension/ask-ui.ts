@@ -10,12 +10,15 @@
  * **Other…** for a free answer, and **that's enough** to submit. The second one
  * is not a cancel - the answers already given still count, and the brief is
  * still written. `esc` means the same thing, so the reflex to escape out of a
- * dialog does not throw the conversation away.
+ * dialog does not throw the conversation away - and for as long as a card is
+ * up, `esc` means nothing else: the run's stop key is held, or the interviewer
+ * who has to write the brief would be stopped by the same press.
  */
 
 import { DynamicBorder, type Theme } from "@earendil-works/pi-coding-agent";
 import { Container, SelectList, Text, type SelectItem } from "@earendil-works/pi-tui";
 import type { Answer, AskUser, Question } from "../src/index.ts";
+import { whileAsking } from "./stop.ts";
 
 /**
  * Sentinels for the two entries we add ourselves.
@@ -44,20 +47,21 @@ const MAX_VISIBLE = 8;
  * and an interview with no user is a submit on the first question.
  */
 export function createAskUi(ui: AskUi): AskUser {
-	return async (question: Question): Promise<Answer | undefined> => {
-		const picked = await showCard(ui, question);
-		if (picked === SUBMIT || picked === undefined) return undefined;
+	return (question: Question): Promise<Answer | undefined> =>
+		whileAsking(async () => {
+			const picked = await showCard(ui, question);
+			if (picked === SUBMIT || picked === undefined) return undefined;
 
-		if (picked === OTHER) {
-			const typed = await ui.input(question.question, "your answer");
-			// Escaping out of the free-text box goes back to meaning "enough":
-			// the user has twice declined to pick, and asking again would loop.
-			if (!typed?.trim()) return undefined;
-			return { question: question.question, answer: typed.trim(), custom: true };
-		}
+			if (picked === OTHER) {
+				const typed = await ui.input(question.question, "your answer");
+				// Escaping out of the free-text box goes back to meaning "enough":
+				// the user has twice declined to pick, and asking again would loop.
+				if (!typed?.trim()) return undefined;
+				return { question: question.question, answer: typed.trim(), custom: true };
+			}
 
-		return { question: question.question, answer: picked, custom: false };
-	};
+			return { question: question.question, answer: picked, custom: false };
+		});
 }
 
 /** One card. Resolves with the chosen label, a sentinel, or `undefined` on esc. */

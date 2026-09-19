@@ -11,7 +11,9 @@
  * which aborts the turn a tool call runs inside; swallowing it would leave the
  * model free to delegate again the moment the tool returned. During a command
  * pi's own handler finds no run to abort, and this is what stops the subagents
- * then. One key, one meaning, wherever it is pressed.
+ * then. One key, one meaning, wherever it is pressed - with one exception, a
+ * question card, which owns the key for as long as it is on screen. See
+ * {@link whileAsking}.
  */
 
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
@@ -59,6 +61,37 @@ let unlisten: (() => void) | undefined;
 /** The pi the keys are read from, and answered to. Set with the first run. */
 let terminal: KeyUi | undefined;
 
+/** How many question cards are open. Escape is theirs while it is not zero. */
+let asking = 0;
+
+/**
+ * Runs `work` with escape left to whoever is asking the user something.
+ *
+ * A question card says `esc` means "build with what you have", and the
+ * interviewer that will write that brief is a subagent of the very run this
+ * file can stop. Measured: pressing `esc` on the first card of `/build` ended
+ * with `interview failed: stopped`, because both meanings fired and the stop
+ * won. While a card is open the key belongs to the card, and the run's own
+ * subagents are idle anyway - nothing is running that a person would want to
+ * call off by pressing it.
+ *
+ * A counter and not a flag, because the free-text box that follows "Other…" is
+ * a second prompt inside the first answer.
+ */
+export async function whileAsking<T>(work: () => Promise<T>): Promise<T> {
+	asking++;
+	try {
+		return await work();
+	} finally {
+		asking--;
+	}
+}
+
+/** Whether a question card currently owns escape. */
+export function isAsking(): boolean {
+	return asking > 0;
+}
+
 /**
  * Watches a run for as long as it lasts.
  *
@@ -105,7 +138,7 @@ export function currentRun(): LiveRun | undefined {
 function onKey(data: string): { consume?: boolean } | undefined {
 	switch (parseKey(data)) {
 		case "escape":
-			stopEverything();
+			if (!isAsking()) stopEverything();
 			return undefined;
 		case "ctrl+up":
 			moveSelection(-1);

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, test } from "node:test";
 import { paintWidget } from "../extension/run-ui.ts";
-import { forgetRun, moveSelection, stopCommand, stoppable, watchRun, type KeyUi, type LiveRun } from "../extension/stop.ts";
+import { forgetRun, isAsking, moveSelection, stopCommand, stoppable, watchRun, whileAsking, type KeyUi, type LiveRun } from "../extension/stop.ts";
 import type { SubagentSnapshot, TuiSnapshot } from "../src/index.ts";
 import { emptyUsage } from "../src/index.ts";
 
@@ -118,6 +118,28 @@ describe("the keys a live run listens to", () => {
 
 		assert.equal(fake.all, 1);
 		assert.equal(answer?.consume, undefined, "pi's own interrupt must still fire: the turn goes with the subagents");
+	});
+
+	test("escape belongs to a question card while one is open, and to the run again after", async () => {
+		const keys = fakeKeyUi();
+		const fake = open([one("interviewer#1", "idle")], keys.ui);
+
+		await whileAsking(async () => {
+			assert.equal(isAsking(), true);
+			keys.press(ESCAPE);
+			assert.equal(fake.all, 0, "the card's esc must not stop the interviewer that writes the brief");
+		});
+
+		assert.equal(isAsking(), false);
+		keys.press(ESCAPE);
+		assert.equal(fake.all, 1);
+	});
+
+	test("a card that throws still gives escape back", async () => {
+		await assert.rejects(whileAsking(async () => {
+			throw new Error("card failed");
+		}));
+		assert.equal(isAsking(), false);
 	});
 
 	test("ctrl+↓ and ctrl+↑ walk the running subagents, and wrap", () => {
