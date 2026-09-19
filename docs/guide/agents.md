@@ -202,11 +202,29 @@ resource loader: no extensions, no context files, no project trust, and no skill
 the definition did not name. A subagent sees what its own file asks for, which
 is what makes a run reproducible.
 
-One line is appended to it: **where it is**. That is not inherited context, it is
-the ground every tool call stands on, and without it a model guesses. A real run
-showed the cost - a scout called `ls /Users/loic/gouarin/…`, the user's name with
-a dot turned into a slash, got "no such path" and gave up without ever trying a
-relative one.
+Two lines are appended to it, and neither is inherited context. The first is
+**where it is**: the ground every tool call stands on, without which a model
+guesses. A real run showed the cost - a scout called `ls /Users/loic/gouarin/…`,
+the user's name with a dot turned into a slash, got "no such path" and gave up
+without ever trying a relative one.
+
+The second is **which language to answer in**: the one the work is written in,
+not the one these instructions are. Definitions here are English, so a French
+question used to come back in English, translated by nobody's decision. The rule
+points at the material rather than at the prompt around it, which is what makes
+it hold when a workflow wraps a French request in English scaffolding - a review,
+a plan, an audit - and it names no language itself, because an example in a
+standing instruction is read as the target. Measured on `ilaas/gemma-4-31b`: an
+English task answers English, a French one answers French, `/step scout` and the
+whole `explore` pipeline answer in French, and a reviewer handed a French goal
+answers in French while the router still answers an agent name and the planner
+still answers JSON.
+
+What a word must not do is move. A model writing French writes `PRÊT` for
+`READY` and `RAS` for `LGTM`, which is a loop that never ends and a review nobody
+can parse. The instruction exempts by shape rather than by list - a word you were
+told to answer with, a JSON key, a name, an identifier, a path, anything quoted
+from code - so it also covers the sentinels of a workflow you write yourself.
 
 ## The model: yours to pin, not ours
 
@@ -234,3 +252,4 @@ model, for the reason above.
 
 - [`agent`](../reference/api/agent.md) - `Agent`, `loadAgents`, `findAgent`, `parseAgent`.
 - [`skills`](../reference/api/skills.md) - `resolveSkills`, `skillDirs`.
+- [`language`](../reference/api/language.md) - `answerInTheirLanguage`, the standing instruction.
