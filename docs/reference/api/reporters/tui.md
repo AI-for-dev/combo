@@ -238,16 +238,30 @@ The whole picture: every subagent, plus what it adds up to.
 
 ```typescript
 export type WidgetRow =
-	| { kind: "activity"; icon: string; status: SubagentStatus | "failed"; id: string; activity: string; depth: number }
+	| {
+			kind: "activity";
+			icon: string;
+			status: SubagentStatus | "failed";
+			id: string;
+			activity: string;
+			/** Model, tokens and time, when they belong on this line rather than under it. */
+			detail?: string;
+			depth: number;
+	  }
 	| { kind: "detail"; text: string; depth: number };
 ```
 
 A dot per subagent, above the prompt - the Claude Code shape.
 
-Two lines each: the dot with what it is doing, then a dimmed line with model,
-tokens and time. Colour is not applied here; the caller wraps the lines,
-because a colour code depends on a theme this file must not know about. It
-gets {@link widgetRows} instead, which says *what* each line is.
+Two lines while it works: the dot with what it is doing, then a dimmed line
+with model, tokens and time. **One** line once it is over, because the second
+line of a finished subagent held its last tool call, which nobody needs any
+more; its numbers move up beside the tick instead. A fan-out of three took
+seven lines from the first dot to the last, and now shrinks as it finishes.
+
+Colour is not applied here; the caller wraps the lines, because a colour code
+depends on a theme this file must not know about. It gets {@link widgetRows}
+instead, which says *what* each line is.
 
 ## `widgetRows`
 
@@ -257,8 +271,7 @@ gets {@link widgetRows} instead, which says *what* each line is.
 export function widgetRows(snapshot: TuiSnapshot): WidgetRow[] { /* … */ }
 ```
 
-The widget, as rows that say what they are: one activity line per subagent,
-one dimmed detail line under it.
+The widget, as rows that say what they are.
 
 Layout without colour, so it can be asserted on without a terminal. `depth`
 is how far under a root the subagent sits; the caller turns it into indent,

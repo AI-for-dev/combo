@@ -219,8 +219,11 @@ export function paintWidget(snapshot: TuiSnapshot, theme: WidgetTheme, selected?
 		const marked = row.id === selected && row.status !== "done";
 		const dot = marked ? theme.fg("accent", "▸") : theme.fg(colour, row.icon);
 		const id = theme.fg(marked ? "accent" : "toolTitle", row.id);
-		// The id carries the weight; the activity is deliberately quiet.
-		return `${indent}${dot} ${id}  ${theme.fg("muted", row.activity)}`;
+		// The id carries the weight; the activity is deliberately quiet, and the
+		// numbers of a finished subagent are quieter still - they sit where its
+		// second line used to be, on the same line.
+		const said = [row.activity && theme.fg("muted", row.activity), row.detail && theme.fg("dim", row.detail)].filter(Boolean);
+		return [`${indent}${dot} ${id}`, ...said].join("  ");
 	});
 
 	if (snapshot.done < snapshot.total) lines.push(theme.fg("muted", HINT));
