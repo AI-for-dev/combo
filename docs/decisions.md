@@ -1261,6 +1261,37 @@ anything reaches history. A refusal at either stop leaves everything where it is
 - the brief in the editor, the work in the working tree. Nothing is undone on the
 user's behalf.
 
+## A check the auditor contradicts goes out with the fix
+
+The auditor is handed the check's command and its output, and it can still
+write the opposite. Measured on a delivery that worked: four green tests, then
+`"Test file has a syntax error causing failure."` and a fix raised for it, and a
+round spent rewriting a file that was fine. Audit 2 approved. Every honest
+signal was there and none of them stopped the round.
+
+Three ways out, and the middle one is the one taken.
+
+- **Drop the fix.** It needs us to read the auditor's prose for a claim about
+  the check, and a false positive there throws away a real remark. Guessing at
+  meaning is what the verdict tool exists to avoid.
+- **Send the evidence with the work.** Every audit fix carries one line saying
+  the check passes on the tree it is about to change, so a worker sent after a
+  failure that is not there settles it by reading instead of by rewriting. The
+  remark still reaches the worker exactly as the auditor wrote it, which is what
+  keeps a real fix from being lost to a heuristic.
+- **Say nothing and pay the round.** That is what the measurement cost, and the
+  round is not the whole of it: the rewrite lands in the tree and the next audit
+  reads a file nobody meant to change.
+
+The audit prompt now states the passing case with the same force as the failing
+one, which was already there: a fix is asked for because the code is wrong, not
+because something fails. That sentence is not the mechanism, though. Invariant 7
+holds here as everywhere - the prompt asks, and the evidence travelling with the
+fix is what a worker cannot talk itself out of.
+
+A **failing** check is not attached. It is what the fix is for, and the suite
+says so the moment the worker runs it.
+
 ## Resuming a build
 
 A delivery is long, it costs money and it writes to a working tree. `deliver`

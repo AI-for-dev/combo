@@ -24,7 +24,7 @@ import { emptyUsage, sumUsage, type Usage } from "./../usage.ts";
 import type { BuildProgress } from "./../resume.ts";
 import { declaresVerdict, lastVerdict, verdictTool, type Verdict } from "./../verdict.ts";
 import type { Verification, Verify } from "./../verify.ts";
-import { auditOnce, fixesFrom, isApproved, type AuditRound } from "./audit.ts";
+import { auditOnce, fixesFrom, isApproved, withCheck, type AuditRound } from "./audit.ts";
 import { mapConcurrent, SubagentPool, type WorkflowOptions } from "./common.ts";
 import { pair, type PairResult } from "./pair.ts";
 import { makePlan, type PlannedTask } from "./plan.ts";
@@ -345,7 +345,10 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 		// one vocabulary. A name it invented is dropped, like anywhere else.
 		const fixes = approved || !review.ok ? [] : fixesFrom(review, workers, raised, !!verdicts);
 
-		const results = fixes.length > 0 ? await mapConcurrent(fixes, concurrency, run) : [];
+		// The check goes out with the fix, not only with the audit that asked for
+		// it: `withCheck` says what that is worth.
+		const sent = fixes.map((fix) => ({ ...fix, task: withCheck(fix.task, verification) }));
+		const results = sent.length > 0 ? await mapConcurrent(sent, concurrency, run) : [];
 		audits.push({ review, verdict, verification, approved, fixes, results });
 		tasks = [...tasks, ...results];
 		if (results.length > 0) await settle(results);

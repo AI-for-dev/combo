@@ -486,6 +486,29 @@ describe("verification", () => {
 		assert.equal(result.approved, true);
 	});
 
+	test("a fix goes out holding the check that was standing when it was asked for", async () => {
+		const fake = cast(["coder: the test file has a syntax error", AUDIT_APPROVAL]);
+		await deliver({ planner, workers, reviewer, auditor, brief: "x", verify: passing, spawn: fake.spawn,
+			worktree: false,
+		});
+
+		// The last thing the coder was asked is the fix; the first two are the
+		// planned subtask and whatever the pair's review round sent back.
+		const fix = fake.asks.filter((ask) => ask.id.startsWith("coder")).at(-1)?.task ?? "";
+		assert.match(fix, /syntax error/, "the remark reaches the worker as the auditor wrote it");
+		assert.match(fix, /npm test.*passes on this tree/s, "and so does the evidence against it");
+	});
+
+	test("a failing check is not repeated to the worker: the suite is about to say so itself", async () => {
+		const fake = cast(["coder: fix the import", AUDIT_APPROVAL]);
+		await deliver({ planner, workers, reviewer, auditor, brief: "x", verify: failing, spawn: fake.spawn,
+			worktree: false,
+		});
+
+		const fix = fake.asks.filter((ask) => ask.id.startsWith("coder")).at(-1)?.task ?? "";
+		assert.ok(!fix.includes("passes on this tree"));
+	});
+
 	test("with no check configured, nothing pretends one ran", async () => {
 		const fake = cast();
 		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn,
@@ -533,6 +556,13 @@ describe("auditPrompt", () => {
 
 		assert.match(prompt, /coder \(reviewed and approved\)/);
 		assert.match(prompt, /scribe \(failed: boom\)/);
+	});
+
+	test("a passing check is put to the auditor as evidence, not as a note", () => {
+		const prompt = auditPrompt("x", [], 1, 2, { ok: true, output: "12 tests passed", command: "npm test" });
+
+		assert.match(prompt, /passing check is evidence/);
+		assert.match(prompt, /handed this same result/, "which is what makes the sentence true");
 	});
 
 	test("the last audit says so, so it does not open a debate it cannot finish", () => {
