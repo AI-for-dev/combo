@@ -267,7 +267,12 @@ article h6 {
  * on the API pages; upper-casing them misstates what you would type.
  *
  * `code.literal` and not bare `code`: furo fills inline code from a selector carrying a
- * class, so an element-only selector here loses to it however deeply it nests. */
+ * class, so an element-only selector here loses to it however deeply it nests.
+ *
+ * `h1` is in the list because every generated reference page has one: its title is the
+ * module's name, so it is code, and without this the inline-code background paints a grey
+ * chip around the title of forty-seven pages while the headings below it carry none. */
+article h1 code.literal,
 article h2 code.literal,
 article h3 code.literal,
 article h4 code.literal {
