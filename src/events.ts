@@ -140,6 +140,22 @@ export function createEventBus(): EventBus {
 	};
 }
 
+/**
+ * The one stream a run's events travel on: the caller's bus, or a new one
+ * carrying the caller's listener.
+ *
+ * `bus` is set by a caller that already had one, which is the extension's case
+ * and nobody else's; everyone else passes `onEvent`. Anything a workflow emits
+ * beside its subagents - a board's traffic, a claim granted - has to go on the
+ * same one, or an observer sees a run's subagents and none of what passed
+ * between them.
+ */
+export function busFor(options: { bus?: EventBus; onEvent?: EventListener }): EventBus {
+	const bus = options.bus ?? createEventBus();
+	if (options.onEvent) bus.subscribe(options.onEvent);
+	return bus;
+}
+
 const counters = new Map<string, number>();
 let launched = 0;
 

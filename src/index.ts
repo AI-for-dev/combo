@@ -85,6 +85,7 @@ export { auditPrompt, AUDIT_APPROVAL, type AuditPromptOptions, type AuditRound }
 // ── Watching a run: reporters, and the state they collect ────────────────────
 
 export {
+	busFor,
 	createEventBus,
 	type EventBus,
 	type EventListener,

@@ -34,6 +34,7 @@ import type { Agent } from "./../agent.ts";
 import { boardTool } from "./../board-tool.ts";
 import { boardLines, createBoard, type Board, type Post } from "./../board.ts";
 import { createClaims, type Claims } from "./../claims.ts";
+import { busFor } from "./../events.ts";
 import { failed, type Result } from "./../result.ts";
 import { sumUsage, type Usage } from "./../usage.ts";
 import type { Subagent } from "./../subagent.ts";
@@ -139,14 +140,19 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 	const claims = options.claims ?? createClaims();
 	const concurrency = Math.max(1, options.concurrency ?? 4);
 	const startedAt = performance.now();
+	// The members and the board report on one stream, and the pool would open a
+	// second one of its own if it were handed `onEvent` again.
+	const bus = busFor(options);
 	const pool = new SubagentPool({
 		...options,
+		bus,
+		onEvent: undefined,
 		lifetime,
 		// Every member is handed the board under its own name. The id exists only
 		// once the subagent does, which is what the function form is for.
 		customTools: (agent) => (id: string) => [
 			...(options.customTools?.(agent) as never[] | undefined ?? []),
-			boardTool({ board, from: id, claims, bus: options.bus }),
+			boardTool({ board, from: id, claims, bus }),
 		],
 	});
 

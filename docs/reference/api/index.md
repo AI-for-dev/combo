@@ -14,7 +14,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`board`](board.md) | A place several subagents can leave messages for each other. | 10 |
 | [`claims`](claims.md) | One owner per thing, decided here rather than agreed between members. | 6 |
 | [`delegate`](delegate.md) | Letting a subagent have subagents of its own. | 5 |
-| [`events`](events.md) | The event stream: one core, many reporters. | 5 |
+| [`events`](events.md) | The event stream: one core, many reporters. | 6 |
 | [`experiment-report`](experiment-report.md) | What an experiment leaves behind: one JSON document, one comparison table. | 6 |
 | [`experiment`](experiment.md) | Running the same work across several models, several times. | 4 |
 | [`export`](export.md) | Exporting a run: `runs/<timestamp>/` with one HTML and one JSONL per subagent, plus a `usage.json`. | 9 |
