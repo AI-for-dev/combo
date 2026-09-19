@@ -20,6 +20,9 @@ type SubagentEvent =
 	| { type: "status"; id: string; status: "working" | "idle" | "blocked" | "done"; task?: string }
 	| { type: "text";   id: string; delta: string }
 	| { type: "tool";   id: string; name: string; args: unknown }
+	| { type: "post";   id: string; post: Post }
+	| { type: "read";   id: string; posts: readonly string[]; waiting: number }
+	| { type: "claim";  id: string; key: string; action: "take" | "release"; ok: boolean; heldBy?: string }
 	| { type: "usage";  id: string; usage: Usage }
 	| { type: "close";  id: string; result: Result };
 ```
@@ -42,6 +45,12 @@ onEvent: combineReporters(collector.reporter, createHerdrReporter());
 `createHerdrReporter()` returns `undefined` outside herdr, and `combineReporters`
 drops it.
 
+**Reading is an event too**, and a [swarm](workflows.md) cannot be read back
+without it. The posts say who said what; `read` says who *knew* what, and a
+member handed nothing is the strongest thing the record holds about what a
+member could not have known. Three members claiming the same file reads as three
+models thinking alike until the three reads before them are in the stream.
+
 ## Picking a reporter
 
 ```typescript
@@ -52,6 +61,20 @@ onEvent: autoReporter();   // herdr when it is running, silent otherwise
 
 `autoReporter()` never warns and never throws: not running under herdr is the
 normal case, not a degraded one.
+
+`consoleReporter()` prints one line per event, board traffic included:
+
+```text
+   ⇣ member#3 was handed nothing
+   ⚑ member#3 take console.ts → granted
+   ⚑ member#2 take console.ts → refused (member#3)
+   ✉ member#2 → member#3 [ask] Are you far off on console.ts?
+   ⚑ member#3 release console.ts → given back
+```
+
+A refusal names the holder: contention has somebody in it, and "refused" alone
+cannot tell that from asking for something that was never there. The TUI widget
+shows subagents rather than traffic, and says nothing about a board.
 
 ## Keeping the stream
 

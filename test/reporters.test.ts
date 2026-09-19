@@ -393,6 +393,29 @@ describe("consoleReporter", () => {
 		assert.match(lines[3] as string, /^ {2}✓ scout#1/);
 	});
 
+	test("a board reads as a board: who said what, who was handed what, who holds what", () => {
+		const lines: string[] = [];
+		const report = consoleReporter({ write: (line) => lines.push(line) });
+
+		report({ type: "read", id: "member#1", posts: [], waiting: 0 });
+		report({
+			type: "post",
+			id: "member#1",
+			post: { id: "p1", from: "member#1", to: "member#2", kind: "ask", text: "Who is holding\nconsole.ts?", at: 12 },
+		});
+		report({ type: "read", id: "member#2", posts: ["p1"], waiting: 2 });
+		report({ type: "claim", id: "member#2", key: "console.ts", action: "take", ok: true });
+		report({ type: "claim", id: "member#1", key: "console.ts", action: "take", ok: false, heldBy: "member#2" });
+		report({ type: "claim", id: "member#2", key: "console.ts", action: "release", ok: true });
+
+		assert.match(lines[0] as string, /member#1 was handed nothing$/, "the quiet half, and the one a race needs");
+		assert.match(lines[1] as string, /member#1 → member#2 \[ask\] Who is holding console.ts\?$/);
+		assert.match(lines[2] as string, /member#2 was handed 1 post, 2 waiting$/);
+		assert.match(lines[3] as string, /member#2 take console.ts → granted$/);
+		assert.match(lines[4] as string, /member#1 take console.ts → refused \(member#2\)$/);
+		assert.match(lines[5] as string, /member#2 release console.ts → given back$/);
+	});
+
 	test("streamed text is off by default, because it is noisy", () => {
 		const quiet: string[] = [];
 		consoleReporter({ write: (line) => quiet.push(line) })({ type: "text", id: "scout#1", delta: "hello" });
