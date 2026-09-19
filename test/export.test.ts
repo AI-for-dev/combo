@@ -209,6 +209,66 @@ describe("usage.json", () => {
 		assert.equal(coder?.error, "provider exploded");
 	});
 
+	/** An explorer, and the scout it had spawned - which failed. */
+	function tree() {
+		const collector = createTuiCollector();
+		const feed = collector.reporter;
+		const spent = (busyMs: number, input: number) => ({ ...emptyUsage(), turns: 1, busyMs, input });
+
+		feed({ type: "spawn", id: "explorer#1", agent: "explorer", lifetime: "task", openInHerdr: false });
+		feed({ type: "spawn", id: "scout#1", agent: "scout", lifetime: "task", openInHerdr: false, parentId: "explorer#1" });
+		feed({
+			type: "close",
+			id: "scout#1",
+			result: { agent: "scout", output: "", messages: [], usage: spent(400, 900), ok: false, error: "it broke" },
+		});
+		feed({
+			type: "close",
+			id: "explorer#1",
+			result: { agent: "explorer", output: "here it is", messages: [], usage: spent(100, 100), ok: true },
+		});
+		return collector.snapshot();
+	}
+
+	test("a delegated subagent is reported under the one that spawned it", () => {
+		const [explorer, scout] = usageReport(tree(), 500).subagents;
+
+		assert.equal(explorer?.id, "explorer#1");
+		assert.equal(explorer?.parentId, undefined, "a root is a subagent nobody asked for");
+		assert.equal(scout?.id, "scout#1");
+		assert.equal(scout?.parentId, "explorer#1");
+	});
+
+	test("the total is the whole tree, failed children included", () => {
+		const report = usageReport(tree(), 500);
+
+		assert.equal(report.total.subagents, 2);
+		assert.equal(report.total.failed, 1);
+		assert.equal(report.total.input, 1_000, "what ruins a run is the tree's total, not one branch of it");
+		assert.equal(report.total.busyMs, 500);
+	});
+
+	test("a provider that reports nothing gives zero at every level, never an estimate", () => {
+		const collector = createTuiCollector();
+		collector.reporter({ type: "spawn", id: "explorer#1", agent: "explorer", lifetime: "task", openInHerdr: false });
+		collector.reporter({
+			type: "spawn",
+			id: "scout#1",
+			agent: "scout",
+			lifetime: "task",
+			openInHerdr: false,
+			parentId: "explorer#1",
+		});
+
+		const report = usageReport(collector.snapshot(), 100);
+
+		assert.deepEqual(
+			report.subagents.map((one) => one.usage.input),
+			[0, 0],
+		);
+		assert.equal(report.total.input, 0);
+	});
+
 	test("writes readable JSON that round-trips", () => {
 		const dir = tmpDir();
 		const file = writeUsageReport(dir, usageReport(snapshot(), 700));

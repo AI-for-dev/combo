@@ -40,6 +40,8 @@ export type SubagentSnapshot = {
 	usage: Usage;
 	/** `provider/id` as pi resolved it, when it could. */
 	model?: string;
+	/** The subagent that had this one spawned. Absent on a root. */
+	parentId?: string;
 	/**
 	 * Monotonic instant the current turn began, while one is running.
 	 *
@@ -113,6 +115,7 @@ export function createTuiCollector(): TuiCollector {
 				output: "",
 				usage: emptyUsage(),
 				model: event.model,
+				parentId: event.parentId,
 			});
 			touch();
 			return;
@@ -182,6 +185,60 @@ function sumSnapshots(subagents: readonly SubagentSnapshot[]): Usage {
 		0,
 	);
 }
+
+/** One subagent, and how far under a root it sits. */
+export type TreeRow = {
+	/** The subagent itself, untouched. */
+	snapshot: SubagentSnapshot;
+	/** `0` for a root, one more for each level of delegation under it. */
+	depth: number;
+};
+
+/**
+ * Spawn order, rearranged so that a child follows the parent it hangs under.
+ *
+ * The snapshot itself stays flat, and this is why: every existing reader keeps
+ * working, and the one that wants a tree asks for it here. A delegating run
+ * spawns its children after their parent anyway, so with a single root the
+ * order barely moves; with two parents working at once it stops interleaving
+ * three readers of one explorer with three of the other.
+ *
+ * **Nothing is ever dropped.** A subagent whose parent is not in the list - a
+ * reporter attached mid-run, a snapshot assembled by hand - reads as a root,
+ * and anything the walk could not reach is appended rather than lost. A
+ * measurement that silently omits a subagent is worse than one that misplaces
+ * it.
+ */
+export function treeOrder(subagents: readonly SubagentSnapshot[]): TreeRow[] {
+	const known = new Set(subagents.map((one) => one.id));
+	const childrenOf = new Map<string, SubagentSnapshot[]>();
+	for (const one of subagents) {
+		const parent = one.parentId && known.has(one.parentId) ? one.parentId : ROOT;
+		const siblings = childrenOf.get(parent);
+		if (siblings) siblings.push(one);
+		else childrenOf.set(parent, [one]);
+	}
+
+	const rows: TreeRow[] = [];
+	const seen = new Set<string>();
+	const walk = (parent: string, depth: number) => {
+		for (const one of childrenOf.get(parent) ?? []) {
+			if (seen.has(one.id)) continue;
+			seen.add(one.id);
+			rows.push({ snapshot: one, depth });
+			walk(one.id, depth + 1);
+		}
+	};
+	walk(ROOT, 0);
+
+	for (const one of subagents) {
+		if (!seen.has(one.id)) rows.push({ snapshot: one, depth: 0 });
+	}
+	return rows;
+}
+
+/** The bucket a subagent with no reachable parent goes in. No id can collide with it. */
+const ROOT = "";
 
 /** `⏳` while it works, `✓` when it succeeded, `✗` when it did not. */
 export function statusIcon(snapshot: SubagentSnapshot): string {
@@ -341,9 +398,15 @@ export function progressLine(snapshot: TuiSnapshot): string {
  * `wallMs` is passed in because the collector cannot know it: on a fan-out the
  * elapsed time is not the sum of the branches, and that difference is the
  * whole point of the number.
+ *
+ * A delegated subagent is indented under the one that asked for it, and the
+ * total is still the sum of every row: what ruins a run is what the tree cost
+ * altogether, never what one leaf of it cost.
  */
 export function summaryTable(snapshot: TuiSnapshot, wallMs: number): string[] {
-	const lines = snapshot.subagents.map((one) => `${statusIcon(one)} ${pad(one.id, 16)} ${formatUsage(one.usage)}`);
+	const lines = treeOrder(snapshot.subagents).map(
+		({ snapshot: one, depth }) => `${statusIcon(one)} ${pad(`${"  ".repeat(depth)}${one.id}`, 16)} ${formatUsage(one.usage)}`,
+	);
 	lines.push(`${pad("total", 18)} ${formatUsage({ ...snapshot.usage, wallMs })}`);
 	if (wallMs > 0 && snapshot.usage.busyMs > wallMs) {
 		lines.push(`parallelism ×${(snapshot.usage.busyMs / wallMs).toFixed(2)}`);

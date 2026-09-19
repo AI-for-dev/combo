@@ -7,7 +7,7 @@ import { afterEach, describe, test } from "node:test";
 import { APPROVAL, pair } from "../src/workflows/pair.ts";
 import { VERDICT_TOOL } from "../src/verdict.ts";
 import { callTool } from "./fixtures/call-tool.ts";
-import { fakeSpawn, testAgent } from "./fixtures/fake-subagent.ts";
+import { fakeSpawn, offeredTools, testAgent } from "./fixtures/fake-subagent.ts";
 
 const worker = testAgent("coder", { description: "Writes code" });
 const reviewer = testAgent("reviewer", { description: "Reviews code" });
@@ -172,7 +172,7 @@ describe("pair, when the reviewer decides through the verdict tool", () => {
 		return fakeSpawn(async (_task, agent, options) => {
 			if (agent.name !== "reviewer") return { output: "work done" };
 			round++;
-			const tool = options.customTools?.[0];
+			const tool = offeredTools(options)[0];
 			assert.ok(tool, "the reviewer is offered the tool it declared");
 			await callTool(tool, round >= n ? { approved: true } : { approved: false, remarks: `round ${round}: short form` });
 			return { output: `round ${round}: the parser drops the last token, src/parse.ts:12` };
@@ -211,7 +211,7 @@ describe("pair, when the reviewer decides through the verdict tool", () => {
 		const fake = decidesAt(1);
 		await pair({ worker, reviewer: judge, input: "x", spawn: fake.spawn });
 
-		const offered = fake.spawned.map((one) => [one.agent, one.options.customTools?.length ?? 0]);
+		const offered = fake.spawned.map((one) => [one.agent, offeredTools(one.options).length]);
 		assert.deepEqual(offered, [
 			["coder", 0],
 			["reviewer", 1],
@@ -236,7 +236,7 @@ describe("pair, when the reviewer decides through the verdict tool", () => {
 		assert.equal(result.approved, true);
 		assert.equal(result.verdict, undefined);
 		assert.deepEqual(result.obligations, []);
-		assert.equal(fake.spawned[1]?.options.customTools, undefined);
+		assert.deepEqual(offeredTools(fake.spawned[1]?.options ?? {}), []);
 	});
 });
 
@@ -248,7 +248,7 @@ describe("pair, with a ledger of obligations", () => {
 		let round = 0;
 		return fakeSpawn(async (task, agent, options) => {
 			if (agent.name !== "reviewer") return { output: "work done" };
-			const tool = options.customTools?.[0];
+			const tool = offeredTools(options)[0];
 			assert.ok(tool);
 			await callTool(tool, rounds[round++] ?? { approved: true });
 			return { output: `saw: ${task.slice(-120)}` };
@@ -335,7 +335,7 @@ describe("pair, when the reviewer names an id nothing is open for", () => {
 		const seen: string[] = [];
 		const fake = fakeSpawn(async (_task, agent, options) => {
 			if (agent.name !== "reviewer") return { output: "work done" };
-			const tool = options.customTools?.[0];
+			const tool = offeredTools(options)[0];
 			assert.ok(tool);
 
 			// What `ilaas/gemma-4-31b` did in a real run: an id in a format it

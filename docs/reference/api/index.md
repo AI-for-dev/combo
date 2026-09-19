@@ -26,14 +26,14 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`reporters/index`](reporters/index.md) | Choosing a reporter, so the caller does not have to. | 3 |
 | [`reporters/record`](reporters/record.md) | The event stream, on disk: one JSON object per line, in the order it happened. | 1 |
 | [`reporters/silent`](reporters/silent.md) | The no-op reporter. | 1 |
-| [`reporters/tui`](reporters/tui.md) | State and formatting for the pi TUI, with no pi-tui in sight. | 12 |
+| [`reporters/tui`](reporters/tui.md) | State and formatting for the pi TUI, with no pi-tui in sight. | 14 |
 | [`result`](result.md) | `Result`: the single contract shared by everything else. | 3 |
 | [`resume`](resume.md) | Saving a build so it can be picked up again. | 10 |
 | [`run`](run.md) | `run()`: the disposable form. Spawn, ask, close. | 2 |
 | [`scratch`](scratch.md) | A working copy with a lifetime: made for one piece of work, and released when that work is done. | 2 |
 | [`session`](session.md) | The whole pi API lives here, and nowhere else. | 9 |
 | [`skills`](skills.md) | The skills an agent may load, and where they are looked up. | 3 |
-| [`subagent`](subagent.md) | A subagent: a live session, a memory, a state. | 4 |
+| [`subagent`](subagent.md) | A subagent: a live session, a memory, a state. | 5 |
 | [`text`](text.md) | Reading what a model wrote: shortening it, and finding the structure in it. | 2 |
 | [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 7 |
 | [`verdict`](verdict.md) | A verdict given as a tool call, rather than recovered from prose. | 7 |

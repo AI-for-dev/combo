@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { getEventListeners } from "node:events";
 import { beforeEach, describe, test } from "node:test";
-import { resetSubagentIds } from "../src/events.ts";
+import { resetSubagentIds, type SubagentEvent } from "../src/events.ts";
 import { run } from "../src/run.ts";
 import { spawn } from "../src/subagent.ts";
 import { fakeSession, fakeSessionFactory, type Turn } from "./fixtures/fake-session.ts";
@@ -37,6 +37,22 @@ describe("spawn", () => {
 		const persistent = testAgent("reviewer", { lifetime: "workflow" });
 		const subagent = await spawn(persistent, { createSession: async () => fakeSession([]) });
 		assert.equal(subagent.lifetime, "workflow");
+	});
+
+	test("custom tools can be built from the id the subagent is about to get", async () => {
+		// The only thing a caller cannot decide beforehand: a tool that spawns
+		// children has to name their parent, and the parent is minted here.
+		let seen: string | undefined;
+		const subagent = await spawn(scout, {
+			createSession: async () => fakeSession([]),
+			customTools: (id) => {
+				seen = id;
+				return [];
+			},
+		});
+
+		assert.equal(seen, subagent.id);
+		await subagent.close();
 	});
 
 	test("openInHerdr resolves like lifetime: argument, then frontmatter, then false", async () => {
@@ -324,6 +340,16 @@ describe("events", () => {
 		await subagent.close();
 
 		assert.deepEqual(events, ["spawn", "status", "status", "tool", "text", "usage", "status", "status", "close"]);
+	});
+
+	test("says who had it spawned, when somebody did", async () => {
+		const spawns: (string | undefined)[] = [];
+		const listen = { onEvent: (event: SubagentEvent) => void (event.type === "spawn" && spawns.push(event.parentId)) };
+
+		await spawnWith([], { ...listen, parentId: "explorer#1" });
+		await spawnWith([], listen);
+
+		assert.deepEqual(spawns, ["explorer#1", undefined], "a root is a subagent nobody asked for");
 	});
 
 	test("a throwing reporter never breaks the turn", async () => {

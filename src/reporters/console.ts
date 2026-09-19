@@ -19,23 +19,31 @@ export type ConsoleReporterOptions = {
 /** Builds a console reporter. */
 export function consoleReporter(options: ConsoleReporterOptions = {}): EventListener {
 	const write = options.write ?? ((line: string) => console.log(line));
+	// The one thing this reporter remembers, and it earns it: a delegated
+	// subagent reads as a delegated subagent only if it is under the one that
+	// asked for it. The stream says so on `spawn`, once.
+	const depths = new Map<string, number>();
+	const indent = (id: string) => "  ".repeat(depths.get(id) ?? 0);
 
 	return (event) => {
 		switch (event.type) {
-			case "spawn":
-				write(`\n⏳ ${event.id}  (lifetime: ${event.lifetime})`);
+			case "spawn": {
+				const depth = event.parentId ? (depths.get(event.parentId) ?? 0) + 1 : 0;
+				depths.set(event.id, depth);
+				write(`\n${indent(event.id)}⏳ ${event.id}  (lifetime: ${event.lifetime})`);
 				break;
+			}
 			case "tool":
-				write(`   · ${event.id} → ${event.name}`);
+				write(`${indent(event.id)}   · ${event.id} → ${event.name}`);
 				break;
 			case "text":
 				if (options.text) write(event.delta);
 				break;
 			case "usage":
-				write(`   ${event.id}  ${formatUsage(event.usage)}`);
+				write(`${indent(event.id)}   ${event.id}  ${formatUsage(event.usage)}`);
 				break;
 			case "close":
-				write(`✓ ${event.id}  ${formatUsage(event.result.usage)}`);
+				write(`${indent(event.id)}✓ ${event.id}  ${formatUsage(event.result.usage)}`);
 				break;
 			case "status":
 				break;

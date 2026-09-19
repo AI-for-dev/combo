@@ -26,12 +26,13 @@ function tmpDir(): string {
 	return dir;
 }
 
-const spawnEvent = (id: string, openInHerdr: boolean): SubagentEvent => ({
+const spawnEvent = (id: string, openInHerdr: boolean, parentId?: string): SubagentEvent => ({
 	type: "spawn",
 	id,
 	agent: id.split("#")[0] as string,
 	lifetime: "task",
 	openInHerdr,
+	parentId,
 });
 
 const closeEvent = (id: string): SubagentEvent => ({
@@ -372,6 +373,21 @@ describe("consoleReporter", () => {
 		assert.match(lines[0] as string, /scout#1/);
 		assert.match(lines[1] as string, /→ grep/);
 		assert.match(lines[2] as string, /^✓ scout#1/);
+	});
+
+	test("a delegated subagent is written under the one that asked for it", () => {
+		const lines: string[] = [];
+		const report = consoleReporter({ write: (line) => lines.push(line) });
+
+		report(spawnEvent("explorer#1", false));
+		report(spawnEvent("scout#1", false, "explorer#1"));
+		report({ type: "tool", id: "scout#1", name: "grep", args: {} });
+		report(closeEvent("scout#1"));
+
+		assert.match(lines[0] as string, /^\n⏳ explorer#1/);
+		assert.match(lines[1] as string, /^\n {2}⏳ scout#1/);
+		assert.match(lines[2] as string, /^ {2} {3}· scout#1/);
+		assert.match(lines[3] as string, /^ {2}✓ scout#1/);
 	});
 
 	test("streamed text is off by default, because it is noisy", () => {

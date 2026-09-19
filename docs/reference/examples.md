@@ -40,6 +40,20 @@ See [Measurements](../guide/measurements.md) for why a zero is printed rather th
 estimated. `12-experiment.ts` takes its models as plain arguments instead: it
 runs one per model, which is what an [experiment](../guide/experiments.md) is.
 
+## Keeping what a run did
+
+`14-delegation-tree.ts` also takes `--export`, which writes every subagent's
+transcript and a `usage.json` into `runs/<timestamp>/`:
+
+```bash
+node examples/14-delegation-tree.ts --model ilaas/gemma-4-31b --export "how do the reporters differ?"
+```
+
+The flag takes no value, unlike `--model`: one that swallowed the word after it
+would eat the first word of the question. The report carries the delegation -
+each scout with the `parentId` of the explorer that asked for it, rows in tree
+order, and a total that is the whole tree. See [Export](../guide/export.md).
+
 ## Watching them work
 
 `examples/05-herdr.ts` asks for a split per subagent with `openInHerdr: true`.

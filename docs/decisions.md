@@ -555,6 +555,38 @@ The bound travels in a closure. Nothing reads the environment for it: an ambient
 variable is how the model hole in invariant 5 existed, and that mistake is not
 worth making twice.
 
+## What a delegated run costs is a tree
+
+A delegation with no tree-shaped measurement is a cost discovered on the
+invoice: two children and their six grandchildren read as eight peers, and the
+agent that caused the bill reads as the cheapest row in it.
+
+The link is **the parent's id, on the `spawn` event**. Not a name, which two
+explorers running at once already share. Not a lookup into the core either -
+invariant 4 stands, a reporter observes and never queries, the same reason
+`openInHerdr` travels on the event.
+
+**The id is minted by `spawn`**, so a tool that will spawn children cannot be
+built before the subagent that holds it exists. Hence `SpawnOptions.customTools`
+accepting a function of the id to come, next to the list it already took. The
+alternatives were worse: generating the id outside `spawn` scatters the one
+place a subagent is named, and a mutable box filled in after the fact is a
+lifetime bug waiting for a second caller. The list form stays because most tools
+- a verdict, a check - have no use for an id, and paying for delegation
+everywhere would be the tax invariant 11 exists to refuse.
+
+**The measurement stays a flat list carrying a link, rather than nesting.**
+`usage.json` keeps `subagents` flat with a `parentId` on each row, ordered so a
+child follows its parent; `summaryTable` indents. Nesting the document would
+force every reader to walk a tree to sum it, for a total that is a sum over
+every row either way. The tree is one pass away for whoever wants one -
+`treeOrder` is that pass - and no reader written against the flat shape breaks.
+
+Two properties are pinned by tests because losing either would be silent:
+**nothing is ever dropped** - a subagent whose parent is not in the list reads
+as a root, and even a pair pointing at each other is still reported - and **the
+total is the whole tree**, failed children included.
+
 ## A subagent may name skills
 
 An agent's `skills:` is an allowlist, read exactly like `tools:`. What it names

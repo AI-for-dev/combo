@@ -40,6 +40,19 @@ export type AskOptions = {
 
 What governs one turn: how it can be stopped, and when it must be.
 
+## `CustomToolsFor`
+
+*type*
+
+```typescript
+export type CustomToolsFor = (id: string) => ToolDefinition[] | undefined;
+```
+
+Tools built once the subagent's id is known.
+
+The one thing a caller cannot decide before `spawn`: a tool that spawns
+children has to name their parent, and the parent does not exist yet.
+
 ## `spawn`
 
 *function*
@@ -94,8 +107,21 @@ export type SpawnOptions = {
 	 * Offered, not granted: the agent's `tools:` is an allowlist and covers these
 	 * too, so one it does not name is not enabled. See
 	 * {@link CreateSessionOptions.customTools}.
+	 *
+	 * A function receives the id this subagent is about to get, before its
+	 * session opens. That is what a tool spawning children needs in order to
+	 * name their parent, and it is the only way to have it: the id is minted
+	 * here, after the caller has built everything it could.
 	 */
-	customTools?: ToolDefinition[];
+	customTools?: ToolDefinition[] | CustomToolsFor;
+	/**
+	 * The subagent that had this one spawned, when one did.
+	 *
+	 * Set by `delegateTool`, never guessed: a name is ambiguous the moment two
+	 * explorers run at once, so the link is an id or it is nothing. It reaches
+	 * the reporters on the `spawn` event and nothing else reads it.
+	 */
+	parentId?: string;
 	/**
 	 * Model pattern for this subagent, e.g. `"anthropic/claude-sonnet-5"`.
 	 *

@@ -8,7 +8,7 @@
 
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { consoleReporter, findAgent, loadAgentsFromDir, type Agent } from "../src/index.ts";
+import { consoleReporter, createRunDir, findAgent, loadAgentsFromDir, type Agent } from "../src/index.ts";
 
 // The console reporter now lives in the library; every example wants it, and it
 // is the proof that the event stream carries enough on its own.
@@ -28,9 +28,19 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const flag = args.indexOf("--model");
 const modelOverride = flag >= 0 ? args[flag + 1] : undefined;
+const rest = flag >= 0 ? [...args.slice(0, flag), ...args.slice(flag + 2)] : args;
 
-/** What is left of the command line once `--model` is consumed. */
-export const positional: string[] = flag >= 0 ? [...args.slice(0, flag), ...args.slice(flag + 2)] : args;
+/**
+ * `runs/<timestamp>/` when `--export` was passed, and nothing otherwise.
+ *
+ * The flag takes **no value**, unlike `--model`: one that swallowed the word
+ * after it would eat the first word of the question. An example that has
+ * nothing to export ignores it.
+ */
+export const exportDir: string | undefined = rest.includes("--export") ? createRunDir() : undefined;
+
+/** What is left of the command line once the flags are consumed. */
+export const positional: string[] = rest.filter((arg) => arg !== "--export");
 
 /** The demo agents shipped with this repository. */
 export const agents: Agent[] = loadAgentsFromDir(path.join(here, "..", "agents"), "project").map((definition) =>

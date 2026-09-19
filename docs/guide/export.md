@@ -36,6 +36,11 @@ runs/2026-07-19_17-16-48/
 - **`usage.json`** is the only artefact produced here. It carries what pi cannot:
   time, attribution per subagent, and `parallelism` (busy over wall). It is built
   from the same snapshot the TUI draws - one collected state, two consumers.
+- **A delegated subagent carries `parentId`**, and the rows come out in tree
+  order, so reading top to bottom already shows the children under the one that
+  spawned them. The list stays **flat** on purpose: the total is a sum over the
+  whole tree either way, and a flat list with a link in it is one pass away from
+  a tree without asking every reader to walk one.
 
 ## `exportDir` implies a session directory
 

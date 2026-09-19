@@ -27,7 +27,7 @@ export {
 } from "./agent.ts";
 export { resolveSkills, skillDirs, type Skill, type SkillDir } from "./skills.ts";
 export { run, type RunOptions } from "./run.ts";
-export { spawn, type AskOptions, type SpawnOptions, type Subagent } from "./subagent.ts";
+export { spawn, type AskOptions, type CustomToolsFor, type SpawnOptions, type Subagent } from "./subagent.ts";
 export { failed, type Result, type WorkflowResult } from "./result.ts";
 export { compact, deltaUsage, emptyUsage, formatUsage, snapshotUsage, sumUsage, type Usage } from "./usage.ts";
 
@@ -115,7 +115,9 @@ export {
 	progressLine,
 	statusIcon,
 	summaryTable,
+	treeOrder,
 	widgetRows,
+	type TreeRow,
 	type WidgetRow,
 } from "./reporters/index.ts";
 export { saysWord, truncate } from "./text.ts";
