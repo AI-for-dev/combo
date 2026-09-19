@@ -152,6 +152,24 @@ createHerdrReporter({ all: true });    // from a script
 There is no environment variable for it, and there will not be: configuration is
 an argument or a command, never something a shell exported three days ago.
 
+### When nothing opens, it says so
+
+Every herdr call is fire-and-forget with an empty `catch`: a display problem is
+never a workflow problem. That is right for the run and wrong for the person
+watching, who asked for splits, got an ordinary run and no reason. So the first
+split of a run is reported, once, whichever way it went:
+
+```text
+herdr: splits are opening - scout#1 is in pane wD:p7
+herdr: no split opened for scout#1 - agent.start answered {"error":{"code":-32601,…}}
+herdr: no split opened for scout#1 - agent.start answered nothing - the socket did not answer
+```
+
+Verbatim and short, because "herdr refused the call" and "herdr never heard it"
+are different problems with the same symptom, and only the server can tell them
+apart. One line per run, not one per subagent: three members that failed to open
+have one cause between them.
+
 ### The board gets a pane of its own
 
 A [swarm](swarm.md) is the case a pane per member does not cover: what one

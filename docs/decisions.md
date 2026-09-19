@@ -1100,6 +1100,16 @@ pure observer, it never queries anything.
 The split **closes automatically** when the subagent closes, after the final
 usage line is written. No orphan panes after a fan-out.
 
+**An observer stays silent about the run, not about itself.** Every herdr call is
+fire-and-forget behind an empty `catch`, which is what keeps a display from ever
+taking a workflow down. Measured on a real herdr, with all three markers set and
+`/herdr on` typed: no pane opened, nothing was said, and the only way to the
+cause was reading the source. The rule that was missing is narrower than the one
+it sits beside - a reporter never reports on the *work*, and it owes a word about
+its own failure to whoever asked it to watch. The first split of a run is
+reported once, with what herdr answered, verbatim and truncated: "the call was
+refused" and "the socket never answered" are one symptom and two problems.
+
 **A board gets a pane, and it is not an agent.** A pane per member shows each
 one working and none of them talking: what a member said is in its own pane, and
 who it was addressing is only legible where all of them are. So the first thing

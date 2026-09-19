@@ -52,6 +52,17 @@ export type HerdrOptions = {
 	/** Directory for the live logs. Defaults to a per-run temp directory. */
 	dir?: string;
 	/**
+	 * Told once what became of the first split this run asked for.
+	 *
+	 * Every herdr call is fire-and-forget with an empty `catch`, because a
+	 * display problem is never a workflow problem. That is right for the run and
+	 * wrong for the person watching: asked for a split and given nothing, they
+	 * see an ordinary run and no reason. Measured, on a real herdr with all three
+	 * markers set: no pane opened, nothing said, and the cause was only
+	 * reachable by reading this file. One line, once, whichever way it went.
+	 */
+	notify?: (message: string, level: "info" | "warning") => void;
+	/**
 	 * Open a split for **every** subagent, whatever each one asked for.
 	 *
 	 * `openInHerdr` is opt-in per subagent so a fan-out of twenty branches

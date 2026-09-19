@@ -279,6 +279,44 @@ describe("herdr reporter", () => {
 		);
 	});
 
+	test("a split that was asked for and never opened says so, with what herdr answered", async () => {
+		const told: { message: string; level: string }[] = [];
+		const { send } = recorder(null);
+		const report = createHerdrReporterWith(send, { dir: tmpDir(), notify: (message, level) => void told.push({ message, level }) });
+
+		report(spawnEvent("scout#1", true));
+		report(spawnEvent("scout#2", true));
+		await settle();
+
+		assert.equal(told.length, 1, "three subagents that failed to open have one cause between them");
+		assert.equal(told[0]?.level, "warning");
+		assert.match(told[0]?.message ?? "", /no split opened for scout#1/);
+		assert.match(told[0]?.message ?? "", /agent.start answered .*"agent":\{\}/, "what came back, verbatim");
+	});
+
+	test("and one that opened says which pane it is in, once", async () => {
+		const told: string[] = [];
+		const { send } = recorder("wD:p7");
+		const report = createHerdrReporterWith(send, { dir: tmpDir(), notify: (message) => void told.push(message) });
+
+		report(spawnEvent("scout#1", true));
+		report(spawnEvent("scout#2", true));
+		await settle();
+
+		assert.deepEqual(told, ["herdr: splits are opening - scout#1 is in pane wD:p7"]);
+	});
+
+	test("a transport that answers nothing at all is said to have answered nothing", async () => {
+		const told: string[] = [];
+		const silent: HerdrSend = async () => undefined;
+		const report = createHerdrReporterWith(silent, { dir: tmpDir(), notify: (message) => void told.push(message) });
+
+		report(spawnEvent("scout#1", true));
+		await settle();
+
+		assert.match(told[0] ?? "", /the socket did not answer/);
+	});
+
 	test("a transport that fails never propagates: the display is not a participant", async () => {
 		const failing: HerdrSend = async () => {
 			throw new Error("herdr went away");

@@ -51,6 +51,8 @@ export type RunUi = KeyUi & {
 	theme: WidgetTheme;
 	setStatus?(key: string, text: string | undefined): void;
 	setWidget?(key: string, lines: string[] | undefined): void;
+	/** Where a display that could not do what was asked of it says so. */
+	notify?(message: string, type?: "info" | "warning" | "error"): void;
 };
 
 /**
@@ -143,7 +145,13 @@ export function liveRun(ui: RunUi | undefined, options: LiveRunOptions = {}): Li
 		collector.reporter,
 		// `herdrAll` belongs to the reporter, not to the spawn: whether a pane
 		// opens is a display decision, and the workflow runs identically either way.
-		options.reporter ?? createHerdrReporter({ all: options.herdrAll || watchEverything() }),
+		options.reporter ??
+			createHerdrReporter({
+				all: options.herdrAll || watchEverything(),
+				// A split that was asked for and never appeared is worth a line.
+				// Everything else herdr does stays silent, as it should.
+				notify: (message, level) => ui?.notify?.(message, level),
+			}),
 	);
 
 	const stopping = stopSwitch({ signal: options.signal, spawn: options.spawn });

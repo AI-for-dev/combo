@@ -32,6 +32,17 @@ export type HerdrOptions = {
 	/** Directory for the live logs. Defaults to a per-run temp directory. */
 	dir?: string;
 	/**
+	 * Told once what became of the first split this run asked for.
+	 *
+	 * Every herdr call is fire-and-forget with an empty `catch`, because a
+	 * display problem is never a workflow problem. That is right for the run and
+	 * wrong for the person watching: asked for a split and given nothing, they
+	 * see an ordinary run and no reason. Measured, on a real herdr with all three
+	 * markers set: no pane opened, nothing said, and the cause was only
+	 * reachable by reading this file. One line, once, whichever way it went.
+	 */
+	notify?: (message: string, level: "info" | "warning") => void;
+	/**
 	 * Open a split for **every** subagent, whatever each one asked for.
 	 *
 	 * `openInHerdr` is opt-in per subagent so a fan-out of twenty branches
@@ -65,6 +76,18 @@ export function createHerdrReporterWith(send: HerdrSend, options: HerdrOptions =
 	const all = options.all ?? false;
 
 	const panes = new Map<string, Pane>();
+	// Once per run, not once per subagent: three members that all failed to open
+	// have one cause between them, and three copies of it is noise.
+	let told = false;
+	const tell = (message: string, level: "info" | "warning") => {
+		if (told) return;
+		told = true;
+		try {
+			options.notify?.(message, level);
+		} catch {
+			// a display problem is never a workflow problem, this one included
+		}
+	};
 	// The board is a pane of the **run**, not of a member: what one said is in
 	// its own pane, and who it was talking to is only legible where all of them
 	// are. Opened on the first thing anybody says, so a run with no board never
@@ -86,7 +109,7 @@ export function createHerdrReporterWith(send: HerdrSend, options: HerdrOptions =
 		if (event.type === "spawn") {
 			// Opt-in per subagent, unless the whole run was asked to be watched.
 			if (!event.openInHerdr && !all) return;
-			panes.set(event.id, openPane(send, dir, event.id, options));
+			panes.set(event.id, openPane(send, dir, event.id, options, tell));
 			return;
 		}
 
@@ -133,7 +156,7 @@ export function createHerdrReporterWith(send: HerdrSend, options: HerdrOptions =
 	function boardPane(): Pane | undefined {
 		// Nobody watching any member is nobody watching the run: a board pane on
 		// its own would be a window that was never asked for.
-		if (!board && (all || panes.size > 0)) board = openPane(send, dir, BOARD_PANE, options);
+		if (!board && (all || panes.size > 0)) board = openPane(send, dir, BOARD_PANE, options, tell);
 		return board;
 	}
 }
@@ -150,7 +173,13 @@ type Pane = {
  * `agent.start` is asynchronous, but events arrive immediately: everything is
  * queued behind the pending pane id, so nothing is lost and nothing blocks.
  */
-function openPane(send: HerdrSend, dir: string, id: string, options: HerdrOptions): Pane {
+function openPane(
+	send: HerdrSend,
+	dir: string,
+	id: string,
+	options: HerdrOptions,
+	tell: (message: string, level: "info" | "warning") => void,
+): Pane {
 	const logPath = path.join(dir, `${id.replace(/[^\w.#-]/g, "_")}.log`);
 	// Only a pane that had an agent reported on it has one to release. The board
 	// is a pane and not an agent, and releasing one herdr never heard of is a
@@ -180,7 +209,15 @@ function openPane(send: HerdrSend, dir: string, id: string, options: HerdrOption
 		split: options.split ?? "right",
 		focus: options.focus ?? false,
 	})
-		.then(paneIdOf)
+		.then((answer) => {
+			const paneId = paneIdOf(answer);
+			// What herdr said, verbatim and short: "method not found" and "no
+			// answer at all" are different problems with the same symptom, and
+			// only the server can tell them apart.
+			if (paneId) tell(`herdr: splits are opening - ${id} is in pane ${paneId}`, "info");
+			else tell(`herdr: no split opened for ${id} - agent.start answered ${said(answer)}`, "warning");
+			return paneId;
+		})
 		.catch(() => undefined);
 
 	const onPane = (fn: (paneId: string) => Promise<unknown> | void) => {
@@ -227,6 +264,16 @@ function openPane(send: HerdrSend, dir: string, id: string, options: HerdrOption
 			);
 		},
 	};
+}
+
+/** What came back, short enough for one line. `HerdrSend` gives `undefined` when nothing did. */
+function said(answer: unknown): string {
+	if (answer === undefined) return "nothing - the socket did not answer";
+	try {
+		return truncate(JSON.stringify(answer), 120);
+	} catch {
+		return "something that is not JSON";
+	}
 }
 
 /** Real transport, or `undefined` when the environment says we are not in herdr. */
