@@ -925,6 +925,11 @@ Rules:
   what we want to see.
 - **A failure counts too.** A subagent that crashed after 12k tokens cost 12k
   tokens; its `Usage` is filled in even when `ok: false`.
+- **A refused turn does not.** Asking a subagent that has already been stopped
+  returns without reaching the session, so `turns` stays where it was: there was
+  no request and no answer, and a turn nobody made is the one kind of number
+  this section exists to keep out. A failure that *ran* still counts, which is
+  the line between the two.
 - **Never** estimate tokens by counting characters. If the provider does not
   report them, the field is `0` and we say so.
 

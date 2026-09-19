@@ -284,8 +284,12 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 
 			bus.emit({ type: "status", id, status: "working", task });
 
+			let reached = false;
 			try {
-				if (!error) await session.prompt(task);
+				if (!error) {
+					reached = true;
+					await session.prompt(task);
+				}
 			} catch (cause) {
 				error = cause instanceof Error ? cause.message : String(cause);
 			} finally {
@@ -296,12 +300,15 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 			const busyMs = performance.now() - startedAt;
 			const turn = deltaUsage(before, readUsage(session));
 			turn.busyMs = busyMs;
-			turn.turns = 1;
+			// Even a failed turn counts: a subagent that died after 12k tokens did
+			// spend 12k tokens. A **refused** one does not: a subagent stopped
+			// before this call never reached the session, so there was no request,
+			// no answer and nothing to count. Reporting it as a turn is the one
+			// kind of number invariant 9 forbids - one nobody measured.
+			turn.turns = reached ? 1 : 0;
 
-			// Even a failed turn counts: a subagent that died after 12k tokens
-			// did spend 12k tokens.
 			usage.busyMs += busyMs;
-			usage.turns += 1;
+			usage.turns += turn.turns;
 			usage.input += turn.input;
 			usage.output += turn.output;
 			usage.cacheRead += turn.cacheRead;
