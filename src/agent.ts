@@ -9,7 +9,7 @@
 import * as path from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import { BUILTIN_AGENTS_DIR } from "./builtin.ts";
-import { asBoolean, asCount, asString, findProjectDir, readMarkdownDir } from "./markdown.ts";
+import { asBoolean, asCount, asList, asString, findProjectDir, readMarkdownDir } from "./markdown.ts";
 
 /**
  * Lifetime of a subagent - the central choice of this library.
@@ -50,6 +50,13 @@ export type Agent = {
 	systemPrompt: string;
 	/** Allowed tools. Absent means the read-only default is applied at spawn. */
 	tools?: string[];
+	/**
+	 * Skills this agent may load, by name - an allowlist, exactly like `tools`.
+	 *
+	 * Absent means none: a subagent is offered no skill it did not ask for.
+	 * `resolveSkills` in `src/skills.ts` says where a name is looked up.
+	 */
+	skills?: string[];
 	/** Model pattern, e.g. `"anthropic/claude-sonnet-5"`. Absent means pi's default. */
 	model?: string;
 	/** Default lifetime. An explicit call always wins. */
@@ -90,17 +97,13 @@ export function parseAgent(content: string, filePath: string, source: AgentSourc
 	const description = asString(frontmatter.description);
 	if (!name || !description) return undefined;
 
-	const tools = asString(frontmatter.tools)
-		?.split(",")
-		.map((tool) => tool.trim())
-		.filter(Boolean);
-
 	const lifetime = asString(frontmatter.lifetime);
 	return {
 		name,
 		description,
 		systemPrompt: body.trim(),
-		tools: tools && tools.length > 0 ? tools : undefined,
+		tools: asList(frontmatter.tools),
+		skills: asList(frontmatter.skills),
 		model: asString(frontmatter.model),
 		lifetime: lifetime && LIFETIMES.includes(lifetime) ? (lifetime as Lifetime) : undefined,
 		concurrency: asCount(frontmatter.concurrency),

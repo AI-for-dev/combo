@@ -54,9 +54,9 @@ export const createDefaultSession: CreateSession = async (agent, options) => {
 Creates a real, isolated pi session for an agent.
 
 The system prompt goes through a {@link StaticResourceLoader}: the subagent
-inherits neither the user's extensions, nor their skills, nor their context
-files. It only sees what its own definition gives it - which is what makes
-it reproducible.
+inherits neither the user's extensions, nor their context files, nor any
+skill it did not name. It only sees what its own definition gives it - which
+is what makes it reproducible.
 
 ## `CreateSession`
 
@@ -182,6 +182,7 @@ trying a relative one. One branch of three, wasted on a fabricated path.
 ```typescript
 export class StaticResourceLoader implements ResourceLoader {
 	readonly #systemPrompt: string;
+	readonly #skills: Skill[];
 	getExtensions() { /* … */ }
 	getSkills() { /* … */ }
 	getPrompts() { /* … */ }
@@ -194,9 +195,11 @@ export class StaticResourceLoader implements ResourceLoader {
 }
 ```
 
-A `ResourceLoader` that loads nothing: it returns the agent's system prompt,
-and empty lists for everything else.
+A `ResourceLoader` that discovers nothing: it returns the agent's system
+prompt, the skills it was handed, and empty lists for everything else.
 
 `DefaultResourceLoader` would re-read the disk on every spawn, load the
 user's extensions and trigger the project trust logic. For a subagent that
-is non-deterministic context nobody asked for.
+is non-deterministic context nobody asked for. Skills are the one thing that
+comes from outside the definition, and even then only by name: they are
+resolved by `resolveSkills` before we get here, never found by this loader.

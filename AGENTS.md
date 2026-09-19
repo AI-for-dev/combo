@@ -37,14 +37,16 @@ no enums, no namespaces, no parameter properties.
    event stream; unplug them all and the result is identical. A listener that
    throws is swallowed.
 5. **A subagent inherits nothing from the user's environment**
-   (`StaticResourceLoader`, never `DefaultResourceLoader`). Two exceptions, and
-   only two. `situate()`: its working directory, because that is the ground
-   every tool call stands on. And `delegateTool()`: an agent whose `tools:`
+   (`StaticResourceLoader`, never `DefaultResourceLoader`). Three exceptions,
+   and only three. `situate()`: its working directory, because that is the
+   ground every tool call stands on. `delegateTool()`: an agent whose `tools:`
    names `subagent` is handed one, so it can split its task across children of
-   its own. That is not inheritance - the tool comes from combo rather than from
-   the machine, the roster is the caller's, and an agent that does not name it
-   cannot have it. What an agent can do stays readable in its own file, which is
-   the part of this rule that was ever load-bearing.
+   its own. And `skills:`: a name written in the definition is resolved against
+   `agents/<name>/skills/`, then the repository's, then the user's - the widest
+   of the three, and the one to weigh before widening further. None of them is
+   inheritance: what arrives is named in the file, and an agent that names
+   nothing gets nothing. What an agent can do stays readable in its own file,
+   which is the part of this rule that was ever load-bearing.
 
    **The model is an explicit knob at every level, and the nearest override
    wins**: `SpawnOptions.model` / `WorkflowOptions.model` (also the tool's
@@ -98,6 +100,7 @@ src/                the library
   agent.ts subagent.ts run.ts result.ts usage.ts events.ts export.ts
   text.ts           reading what a model wrote: truncate, saysWord, jsonObjects
   markdown.ts       finding and reading a .md with frontmatter
+  skills.ts         resolving what an agent's `skills:` names, nearest first
   experiment.ts experiment-report.ts    one workflow, M models, N repetitions
   ask.ts verify.ts git.ts resume.ts     the ports that touch the world
   pipeline.ts pipeline-load.ts builtin.ts

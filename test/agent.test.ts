@@ -72,6 +72,17 @@ describe("parseAgent", () => {
 		assert.equal(absent?.openInHerdr, undefined, "absent must stay absent, so the caller's choice can win");
 	});
 
+	test("reads skills as a list, whichever way the file writes one", () => {
+		const inline = parseAgent("---\nname: a\ndescription: d\nskills: diffing, humanising\n---\nbody", "/x/a.md", "user");
+		assert.deepEqual(inline?.skills, ["diffing", "humanising"]);
+
+		const sequence = parseAgent("---\nname: a\ndescription: d\nskills:\n  - diffing\n---\nbody", "/x/a.md", "user");
+		assert.deepEqual(sequence?.skills, ["diffing"]);
+
+		const absent = parseAgent("---\nname: a\ndescription: d\nskills:  \n---\nbody", "/x/a.md", "user");
+		assert.equal(absent?.skills, undefined, "naming no skill must not become naming an empty one");
+	});
+
 	test("rejects an unknown lifetime rather than passing it through", () => {
 		const agent = parseAgent("---\nname: a\ndescription: d\nlifetime: forever\n---\nbody", "/x/a.md", "user");
 		assert.equal(agent?.lifetime, undefined);

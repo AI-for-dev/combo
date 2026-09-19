@@ -95,6 +95,19 @@ export function asCount(value: unknown): number | undefined {
 	return Number.isInteger(count) && count > 0 ? count : undefined;
 }
 
+/**
+ * A YAML-ish list: a real sequence, or one line of comma-separated items.
+ *
+ * Empty counts as absent, item by item: `tools: read, , grep` names two tools,
+ * and `skills:` with nothing after it names none - which is what lets a caller
+ * tell "the file said nothing" from "the file said nothing useful".
+ */
+export function asList(value: unknown): string[] | undefined {
+	const raw = Array.isArray(value) ? value : asString(value)?.split(",");
+	const items = (raw ?? []).map(asString).filter((item) => item !== undefined);
+	return items.length > 0 ? items : undefined;
+}
+
 /** A YAML-ish flag: a boolean, or the text `"true"` / `"false"`. */
 export function asBoolean(value: unknown): boolean | undefined {
 	if (typeof value === "boolean") return value;

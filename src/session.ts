@@ -25,6 +25,7 @@ import {
 	type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import type { Agent } from "./agent.ts";
+import { resolveSkills, type Skill } from "./skills.ts";
 
 /** Alias to pi's message type, without depending on a transitive package. */
 export type AgentMessage = AgentSession["messages"][number];
@@ -138,19 +139,20 @@ export type CreateSession = (agent: Agent, options: CreateSessionOptions) => Pro
  * Creates a real, isolated pi session for an agent.
  *
  * The system prompt goes through a {@link StaticResourceLoader}: the subagent
- * inherits neither the user's extensions, nor their skills, nor their context
- * files. It only sees what its own definition gives it - which is what makes
- * it reproducible.
+ * inherits neither the user's extensions, nor their context files, nor any
+ * skill it did not name. It only sees what its own definition gives it - which
+ * is what makes it reproducible.
  */
 export const createDefaultSession: CreateSession = async (agent, options) => {
 	const cwd = options.cwd ?? process.cwd();
+	const tools = agent.tools ?? [...READ_ONLY_TOOLS];
 
 	const { session } = await createAgentSession({
 		cwd,
 		...(await buildModelOptions(agent, options.model)),
-		tools: agent.tools ?? [...READ_ONLY_TOOLS],
+		tools,
 		customTools: options.customTools,
-		resourceLoader: new StaticResourceLoader(situate(agent.systemPrompt, cwd)),
+		resourceLoader: new StaticResourceLoader(situate(agent.systemPrompt, cwd), resolveSkills(agent, cwd, tools)),
 		sessionManager: options.sessionDir ? SessionManager.create(cwd, options.sessionDir) : SessionManager.inMemory(cwd),
 	});
 
@@ -172,19 +174,23 @@ export function situate(systemPrompt: string, cwd: string): string {
 }
 
 /**
- * A `ResourceLoader` that loads nothing: it returns the agent's system prompt,
- * and empty lists for everything else.
+ * A `ResourceLoader` that discovers nothing: it returns the agent's system
+ * prompt, the skills it was handed, and empty lists for everything else.
  *
  * `DefaultResourceLoader` would re-read the disk on every spawn, load the
  * user's extensions and trigger the project trust logic. For a subagent that
- * is non-deterministic context nobody asked for.
+ * is non-deterministic context nobody asked for. Skills are the one thing that
+ * comes from outside the definition, and even then only by name: they are
+ * resolved by `resolveSkills` before we get here, never found by this loader.
  */
 export class StaticResourceLoader implements ResourceLoader {
 	// Not a parameter property: Node erases types, it does not compile them.
 	readonly #systemPrompt: string;
+	readonly #skills: Skill[];
 
-	constructor(systemPrompt: string) {
+	constructor(systemPrompt: string, skills: Skill[] = []) {
 		this.#systemPrompt = systemPrompt;
+		this.#skills = skills;
 	}
 
 	// `LoadExtensionsResult` requires a runtime, even an empty one.
@@ -192,7 +198,7 @@ export class StaticResourceLoader implements ResourceLoader {
 		return { extensions: [], errors: [], runtime: createExtensionRuntime() };
 	}
 	getSkills() {
-		return { skills: [], diagnostics: [] };
+		return { skills: this.#skills, diagnostics: [] };
 	}
 	getPrompts() {
 		return { prompts: [], diagnostics: [] };

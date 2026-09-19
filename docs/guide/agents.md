@@ -27,6 +27,7 @@ The Markdown body is the system prompt, used verbatim.
 | `name` | yes | How every caller refers to the agent. |
 | `description` | yes | One line on what it is for. Also what `route` and `orchestrate` read to decide who does the work. |
 | `tools` | no | Allowed tools. Absent means read-only: `read`, `grep`, `find`, `ls`. |
+| `skills` | no | Skills it may load, by name. Absent means none - see below. |
 | `concurrency` | no | How many subagents it runs at once when it delegates. Only read for an agent that names `subagent`. |
 | `model` | no | A pattern such as `anthropic/claude-sonnet-5`. A caller's `model` argument beats it; absent everywhere means pi's default - see below. |
 | `lifetime` | no | Default [lifetime](lifetime.md). An explicit argument always wins. |
@@ -136,11 +137,46 @@ The allowlist covers these exactly as it covers pi's own, which is what keeps
 the rule readable: what an agent can do is in its file. Naming `verdict` in an
 agent nobody offers it to costs nothing, and the tool is simply absent.
 
+## Skills
+
+An agent can name skills, and only the ones it names:
+
+```markdown
+---
+name: scout
+description: Locates the code relevant to a question
+tools: read, grep, find, ls
+skills: diffing, humanising
+---
+```
+
+A name is looked up in three places, **nearest first**:
+
+1. `agents/scout/skills/` - beside the definition. `agents/scout.md` and the
+   skills it needs travel together, so a clone of the repository resolves the
+   same names.
+2. `.pi/skills/` in the repository, found by walking up from the working
+   directory.
+3. `~/.pi/agent/skills/` - yours.
+
+The first two are how a skill stays reproducible; the third is a convenience
+that depends on the machine. A skill an agent cannot work without belongs in
+the first.
+
+Nothing is loaded eagerly: pi puts a name, a description and a path in the
+system prompt, and the model opens `SKILL.md` itself. That last part is why an
+agent declaring a skill **needs `read`** in its `tools:` - without it pi drops
+the whole section - and why a skill whose frontmatter sets
+`disable-model-invocation` is refused, since pi keeps that one out of the prompt
+and the agent would never see it. Both fail at spawn, as does a name that
+matches nothing, and the error names the three directories it looked in.
+
 ## What a subagent inherits
 
 Nothing from your environment. The system prompt goes through the library's own
-resource loader: no extensions, no skills, no context files, no project trust.
-A subagent sees its own definition, which is what makes a run reproducible.
+resource loader: no extensions, no context files, no project trust, and no skill
+the definition did not name. A subagent sees what its own file asks for, which
+is what makes a run reproducible.
 
 One line is appended to it: **where it is**. That is not inherited context, it is
 the ground every tool call stands on, and without it a model guesses. A real run
@@ -173,3 +209,4 @@ model, for the reason above.
 ## Reference
 
 - [`agent`](../reference/api/agent.md) - `Agent`, `loadAgents`, `findAgent`, `parseAgent`.
+- [`skills`](../reference/api/skills.md) - `resolveSkills`, `skillDirs`.

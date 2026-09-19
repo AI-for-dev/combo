@@ -555,6 +555,41 @@ The bound travels in a closure. Nothing reads the environment for it: an ambient
 variable is how the model hole in invariant 5 existed, and that mistake is not
 worth making twice.
 
+## A subagent may name skills
+
+An agent's `skills:` is an allowlist, read exactly like `tools:`. What it names
+is resolved before pi is opened and handed to the resource loader; what it does
+not name is absent, whatever the machine holds.
+
+**This is the third exception to invariant 5**, and the widest one: a name
+resolves against the repository's `.pi/skills/` and the user's
+`~/.pi/agent/skills/`, so two machines can disagree about what a name means.
+That was the choice, and it is a trade rather than an oversight. The reason to
+take it: a skill is the unit people already have - they write them, share them,
+and hold directories full of them - and a library that refused to look there
+would be answered by pasting a skill's text into a prompt, which is the same
+dependency with none of the versioning. The reason it is survivable: the *name*
+is still written in the definition, so what an agent can do is still readable in
+its file, and `agents/<name>/skills/` is searched first, so anything that must
+be reproducible ships beside its definition and wins the name.
+
+Three ways a declared skill could have been dropped in silence, and none of them
+is:
+
+- A name matching nothing **throws at spawn**, naming the three directories.
+  Prose that quietly lacks a step is the expensive failure, not a stopped run.
+- A skill needs `read`: pi omits the whole section from a system prompt whose
+  toolset cannot open a file. Handing the tool over instead was rejected -
+  widening an allowlist to satisfy another field is exactly the silent grant
+  invariant 7 exists against.
+- `disable-model-invocation` is refused rather than honoured. pi keeps such a
+  skill out of the prompt entirely, and combo has no `/skill:` for the model to
+  reach it with, so accepting one would offer a capability that cannot arrive.
+
+Nothing is loaded eagerly. pi advertises a name, a description and a path; the
+model opens `SKILL.md` itself with `read`. A skill costs a line of prompt until
+it is used.
+
 ## Pipelines: a workflow written down
 
 `src/pipeline.ts` parses one, `src/pipeline-load.ts` finds it, and
@@ -1088,6 +1123,7 @@ Markdown + frontmatter, compatible with pi's convention
 name: reviewer
 description: Reviews code and returns actionable remarks
 tools: read, grep, find, ls
+skills: diffing             # our own extension: an allowlist, like tools
 model: anthropic/claude-sonnet-5
 lifetime: workflow          # our own extension: default lifetime
 ---
@@ -1097,6 +1133,9 @@ You review the code produced and return at most 5 remarks…
 
 - `name` and `description` are **mandatory**; a file without them is ignored
   silently (pi's behaviour, we keep it).
+- `tools` and `skills` are read the same way: a comma-separated line or a YAML
+  sequence, and a field with nothing after it names nothing rather than
+  something empty.
 - `lifetime` and `openInHerdr` in the frontmatter are only **defaults**: an
   explicit call always wins. Declaring `openInHerdr: true` on an agent is often
   what you want - a scout is worth watching whoever calls it.

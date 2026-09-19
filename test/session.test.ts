@@ -10,7 +10,8 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { buildRegistry, situate, type PiModule } from "../src/session.ts";
+import { formatSkillsForPrompt, type Skill } from "@earendil-works/pi-coding-agent";
+import { buildRegistry, situate, StaticResourceLoader, type PiModule } from "../src/session.ts";
 
 /** pi 0.80.7 and later: one ModelRuntime. */
 const modern: PiModule = {
@@ -60,6 +61,36 @@ describe("buildRegistry", () => {
 
 	test("a half-present legacy API is not enough", async () => {
 		await assert.rejects(() => buildRegistry({ AuthStorage: legacy.AuthStorage }), /Unsupported pi version/);
+	});
+});
+
+describe("StaticResourceLoader", () => {
+	const skill: Skill = {
+		name: "diffing",
+		description: "Reads a diff",
+		filePath: "/repo/agents/scout/skills/diffing/SKILL.md",
+		baseDir: "/repo/agents/scout/skills/diffing",
+		sourceInfo: { path: "/repo", source: "agent", scope: "project", origin: "top-level" },
+		disableModelInvocation: false,
+	};
+
+	test("hands pi a skill in the shape pi advertises", () => {
+		// pi's own formatter, not ours: the one thing a fake cannot check is
+		// that what we build is what pi reads.
+		const loader = new StaticResourceLoader("You scout.", [skill]);
+		const advertised = formatSkillsForPrompt(loader.getSkills().skills);
+
+		assert.match(advertised, /<name>diffing<\/name>/);
+		assert.match(advertised, /<location>.*diffing\/SKILL\.md<\/location>/);
+	});
+
+	test("discovers nothing on its own, skills included", () => {
+		const loader = new StaticResourceLoader("You scout.");
+
+		assert.deepEqual(loader.getSkills().skills, []);
+		assert.deepEqual(loader.getExtensions().extensions, []);
+		assert.deepEqual(loader.getPrompts().prompts, []);
+		assert.deepEqual(loader.getAgentsFiles().agentsFiles, []);
 	});
 });
 

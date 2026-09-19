@@ -25,6 +25,7 @@ export {
 	type AgentSource,
 	type Lifetime,
 } from "./agent.ts";
+export { resolveSkills, skillDirs, type Skill, type SkillDir } from "./skills.ts";
 export { run, type RunOptions } from "./run.ts";
 export { spawn, type AskOptions, type SpawnOptions, type Subagent } from "./subagent.ts";
 export { failed, type Result, type WorkflowResult } from "./result.ts";
