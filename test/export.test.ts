@@ -9,6 +9,7 @@
  */
 
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -90,6 +91,36 @@ describe("createRunDir", () => {
 		const first = createRunDir(base, new Date("2026-07-19T16:52:32Z"));
 		const second = createRunDir(base, new Date("2026-07-19T16:52:33Z"));
 		assert.notEqual(first, second);
+	});
+
+	test("git is not told about the exports, so a run can land in the tree it wrote in", () => {
+		// Both halves were measured in a real run: a delivery that gives its
+		// subtasks copies could not put them back, because `runs/` alone made the
+		// tree unclean, and `/build`'s `git add -A` would have committed the
+		// transcripts.
+		const repo = tmpDir();
+		const run = (...args: string[]) => execFileSync("git", args, { cwd: repo, stdio: "pipe" });
+		run("init", "--initial-branch=main");
+		run("config", "user.email", "test@example.com");
+		run("config", "user.name", "Test");
+		fs.writeFileSync(path.join(repo, "kept.txt"), "one\n");
+		run("add", "-A");
+		run("commit", "-m", "first");
+
+		createRunDir(path.join(repo, "runs"), new Date("2026-07-19T16:52:32Z"));
+
+		const dirty = execFileSync("git", ["status", "--porcelain"], { cwd: repo, encoding: "utf8" });
+		assert.equal(dirty.trim(), "", `the export shows in git status: ${dirty}`);
+	});
+
+	test("a .gitignore already there is left alone", () => {
+		const base = tmpDir();
+		fs.mkdirSync(base, { recursive: true });
+		fs.writeFileSync(path.join(base, ".gitignore"), "# mine\n");
+
+		createRunDir(base, new Date("2026-07-19T16:52:32Z"));
+
+		assert.equal(fs.readFileSync(path.join(base, ".gitignore"), "utf8"), "# mine\n");
 	});
 });
 

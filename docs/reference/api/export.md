@@ -49,6 +49,14 @@ Creates `<base>/<timestamp>/` and returns its path.
 The timestamp is sortable and filesystem-safe, so two runs never collide and
 `ls` shows them in order.
 
+`<base>` is given a `.gitignore` of its own, because the exports land **inside
+the repository the run works on** and git has no reason to know about them.
+Measured, both ways round: a delivery that gives its subtasks copies refuses
+to put them back, because `runs/` alone makes the tree unclean; and `/build`'s
+commit is a `git add -A`, which would sweep a run's transcripts into the
+user's history. A file already there is left alone - it is their directory
+once they have said anything about it.
+
 ## `exportBaseName`
 
 *function*

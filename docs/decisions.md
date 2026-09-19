@@ -909,6 +909,21 @@ Implemented in `src/export.ts`, wired into `spawn` and every workflow through
   `parallelism` (busy over wall).
 - Not to be confused with `pi --export <file>` (CLI, on an existing session
   file): useful when debugging, and the way to render `main.jsonl`.
+- **`runs/` gets a `.gitignore` of `*`, written once.** The exports land inside
+  the repository the run is working on, and git has no business with them.
+  Nobody had hit that here because *this* repository ignores `runs/` in its own
+  `.gitignore`: the defect only shows in somebody else's. Two ways it shows, both
+  measured in a real run. A delivery given `worktree: true` cannot put its
+  subtasks' patches back, because `land` refuses a tree that is not clean and
+  `runs/` alone makes it unclean. And `/build` commits with `git add -A`, which
+  sweeps a run's transcripts into the user's history.
+
+  Relaxing the landing was the other candidate and a test refused it: a delivery
+  lands twice, and the second time it has to recognise the work the first one
+  left, which is precisely untracked files. So the export gets out of git's way
+  instead of git being told to look away. A `.gitignore` already in `runs/` is
+  left alone - the directory is the user's the moment they have said anything
+  about it.
 
 ## Display: herdr if present, pi TUI otherwise
 
