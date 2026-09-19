@@ -33,6 +33,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`scratch`](scratch.md) | A working copy with a lifetime: made for one piece of work, and released when that work is done. | 2 |
 | [`session`](session.md) | The whole pi API lives here, and nowhere else. | 9 |
 | [`skills`](skills.md) | The skills an agent may load, and where they are looked up. | 3 |
+| [`stop`](stop.md) | The stop switch of a live run: everything at once, or one subagent of it. | 3 |
 | [`subagent`](subagent.md) | A subagent: a live session, a memory, a state. | 5 |
 | [`text`](text.md) | Reading what a model wrote: shortening it, and finding the structure in it. | 3 |
 | [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 7 |
@@ -81,6 +82,7 @@ run
 scratch
 session
 skills
+stop
 subagent
 text
 usage

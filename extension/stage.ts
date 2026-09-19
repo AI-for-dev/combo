@@ -21,6 +21,7 @@ import {
 	type Agent,
 	type EventListener,
 	type Pipeline,
+	type SpawnFn,
 	type Usage,
 } from "../src/index.ts";
 import type { BuildDeps, CommandCtx } from "./build.ts";
@@ -52,6 +53,10 @@ export type Stage = {
 	/** A copy of the repository per worker, for a pipeline step that delivers. */
 	worktree: boolean;
 	onEvent: EventListener;
+	/** The run's signal, not the command's: Escape and `/stop all` fire it. */
+	signal?: AbortSignal;
+	/** The run's `spawn`, which is what puts its subagents within reach of `/stop`. */
+	spawn?: SpawnFn;
 };
 
 /**
@@ -89,7 +94,7 @@ export function resolveTarget(name: string, forceAgent: boolean, ctx: CommandCtx
  * the output, the usage and whether it worked, and that is the same either way.
  */
 export async function runStage(target: Target, input: string, stage: Stage): Promise<Done> {
-	const { agents, ctx, deps, dir, model, onEvent } = stage;
+	const { agents, ctx, deps, dir, model, onEvent, signal, spawn } = stage;
 
 	if (target.kind === "pipeline") {
 		const done = await (deps.runPipeline ?? runPipeline)({
@@ -101,7 +106,8 @@ export async function runStage(target: Target, input: string, stage: Stage): Pro
 			verify: deps.verify ?? pipelineVerifier(target.pipeline, ctx.cwd),
 			model,
 			worktree: stage.worktree,
-			signal: ctx.signal,
+			signal,
+			spawn,
 			onEvent,
 		});
 		return { output: done.output, usage: done.usage, error: done.ok ? undefined : (done.error ?? "unknown error") };
@@ -111,7 +117,8 @@ export async function runStage(target: Target, input: string, stage: Stage): Pro
 		cwd: ctx.cwd,
 		exportDir: dir,
 		model,
-		signal: ctx.signal,
+		signal,
+		spawn,
 		onEvent,
 	});
 	return { output: result.output, usage: result.usage, error: result.ok ? undefined : (result.error ?? "unknown error") };

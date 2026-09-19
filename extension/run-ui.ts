@@ -19,14 +19,17 @@ import {
 	copyMainSession,
 	createHerdrReporter,
 	createTuiCollector,
+	stopSwitch,
 	usageReport,
 	widgetRows,
 	writeUsageReport,
 	type EventListener,
 	type Pipeline,
+	type SpawnFn,
 	type TuiSnapshot,
 	type Verify,
 } from "../src/index.ts";
+import { forgetRun, watchRun, type KeyUi } from "./stop.ts";
 
 /** Key for the footer status and the widget above the prompt. */
 export const STATUS = "combo";
@@ -44,7 +47,7 @@ export type WidgetTheme = { fg(colour: string, text: string): string };
  * Both setters are optional: the tool has no footer to write to, and a headless
  * caller has neither.
  */
-export type RunUi = {
+export type RunUi = KeyUi & {
 	theme: WidgetTheme;
 	setStatus?(key: string, text: string | undefined): void;
 	setWidget?(key: string, lines: string[] | undefined): void;
@@ -94,6 +97,16 @@ export type LiveRunOptions = {
 	/** Called on every event, after the widget: the tool streams a progress line. */
 	onChange?: (snapshot: TuiSnapshot) => void;
 	/**
+	 * The caller's own signal - pi's, when it has one.
+	 *
+	 * It is folded into {@link LiveRun.signal} rather than passed to the workflow
+	 * directly, so that a run has **one** thing to obey whether it was called off
+	 * by pi, by Escape or by `/stop all`.
+	 */
+	signal?: AbortSignal;
+	/** The `spawn` the run should use. Defaults to the real one. */
+	spawn?: SpawnFn;
+	/**
 	 * The parent session's JSONL, from `ctx.sessionManager.getSessionFile()`.
 	 *
 	 * Copied in beside the subagents' transcripts, because an export that lost
@@ -109,6 +122,10 @@ export type LiveRun = {
 	onEvent: EventListener;
 	/** The state the widget is drawn from, and the usage report is built from. */
 	collector: ReturnType<typeof createTuiCollector>;
+	/** Give the workflow this signal, not the caller's: Escape fires it too. */
+	signal: AbortSignal;
+	/** Give the workflow this `spawn`: it is what makes one subagent stoppable. */
+	spawn: SpawnFn;
 	/**
 	 * Clears the footer and the widget, and writes the run's `usage.json`.
 	 *
@@ -129,7 +146,13 @@ export function liveRun(ui: RunUi | undefined, options: LiveRunOptions = {}): Li
 		options.reporter ?? createHerdrReporter({ all: options.herdrAll || watchEverything() }),
 	);
 
-	const paint = () => ui?.setWidget?.(STATUS, paintWidget(collector.snapshot(), ui.theme));
+	const stopping = stopSwitch({ signal: options.signal, spawn: options.spawn });
+	const paint = () => ui?.setWidget?.(STATUS, paintWidget(collector.snapshot(), ui.theme, watched.selected));
+	// The terminal reads the selection from here and writes it back: a run is
+	// what a key acts on, and it is the only thing that knows when it is over.
+	const watched = { stop: stopping, snapshot: () => collector.snapshot(), repaint: paint, selected: undefined as string | undefined };
+	watchRun(watched, ui);
+
 	collector.onChange(() => {
 		paint();
 		options.onChange?.(collector.snapshot());
@@ -142,7 +165,10 @@ export function liveRun(ui: RunUi | undefined, options: LiveRunOptions = {}): Li
 	return {
 		onEvent,
 		collector,
+		signal: stopping.signal,
+		spawn: stopping.spawn,
 		stop(exportDir, wallMs) {
+			forgetRun(watched);
 			if (tick) clearInterval(tick);
 			ui?.setStatus?.(STATUS, undefined);
 			// The widget lives only while the work does: the summary is one line
@@ -174,11 +200,12 @@ export function writeRunReport(dir: string, snapshot: TuiSnapshot, wallMs: numbe
  * Paints the dots that sit above the prompt.
  *
  * The lines themselves come from `widgetRows`, which knows nothing about
- * colour; this only applies the theme. Keeping the two apart is what lets the
- * layout be tested without a terminal.
+ * colour; this only applies the theme, and marks the selected row. Keeping the
+ * two apart is what lets the layout be tested without a terminal - a selection
+ * is a fact about this terminal, and lives no deeper than the paint.
  */
-export function paintWidget(snapshot: TuiSnapshot, theme: WidgetTheme): string[] {
-	return widgetRows(snapshot).map((row) => {
+export function paintWidget(snapshot: TuiSnapshot, theme: WidgetTheme, selected?: string): string[] {
+	const lines = widgetRows(snapshot).map((row) => {
 		// A delegated subagent sits under the one that asked for it, live and in
 		// the table alike: the tree is what the run costs, so it is what it looks
 		// like while it runs.
@@ -187,11 +214,28 @@ export function paintWidget(snapshot: TuiSnapshot, theme: WidgetTheme): string[]
 
 		const colour =
 			row.status === "failed" ? "error" : row.status === "done" ? "success" : row.status === "blocked" ? "warning" : "accent";
-		const dot = theme.fg(colour, row.icon);
+		// Marked only while it could still be stopped: a pointer left on a row
+		// that has finished offers something that is no longer there.
+		const marked = row.id === selected && row.status !== "done";
+		const dot = marked ? theme.fg("accent", "▸") : theme.fg(colour, row.icon);
+		const id = theme.fg(marked ? "accent" : "toolTitle", row.id);
 		// The id carries the weight; the activity is deliberately quiet.
-		return `${indent}${dot} ${theme.fg("toolTitle", row.id)}  ${theme.fg("muted", row.activity)}`;
+		return `${indent}${dot} ${id}  ${theme.fg("muted", row.activity)}`;
 	});
+
+	if (snapshot.done < snapshot.total) lines.push(theme.fg("muted", HINT));
+	return lines;
 }
+
+/**
+ * What a reader can do about the run they are watching.
+ *
+ * Spelled out under the dots rather than left to a `--help`: a key nobody knows
+ * about is a key nobody presses, and this one exists for the moment where the
+ * run has gone wrong and reading documentation is the last thing on anyone's
+ * mind. `esc` is pi's own interrupt, so it is not ours to rename.
+ */
+const HINT = "esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one";
 
 /**
  * The check a pipeline names, as a port. Absent means the pipeline names none.

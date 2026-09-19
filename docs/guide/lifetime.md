@@ -69,8 +69,33 @@ try {
 of a workflow is already the "export what was done" path, interruptions
 included. See [Export](export.md).
 
+## Stopping is not closing
+
+`subagent.stop()` cuts the turn in flight short and makes every later `ask`
+fail at once with `"stopped"`. It changes nothing about ownership: the session
+is still there, still exportable, and still owed the `close()` its opener
+promised it. A stopped subagent inside a workflow is therefore closed by the
+same `finally` as any other.
+
+A whole run has a `signal` for that, but a signal cannot single one branch out -
+it is shared, and a combinator hands out no handles. `stopSwitch` is the pair
+that can: give the workflow its `signal` and its `spawn`, and stop what you like
+from outside.
+
+```typescript
+const stop = stopSwitch({ signal: ctx.signal });
+const running = fanOut({ agent: scout, tasks, spawn: stop.spawn, signal: stop.signal });
+
+stop.one("scout#2");   // that branch fails with "stopped", the others carry on
+stop.all();            // the turns in flight, and the ones not started yet
+```
+
+This is what `esc`, `ctrl+del` and `/stop` are wired to in the pi extension -
+see [Display](display.md#stopping-what-you-are-watching).
+
 ## Reference
 
 - [`subagent`](../reference/api/subagent.md) - `spawn`, `Subagent`, `SpawnOptions`.
 - [`run`](../reference/api/run.md) - the disposable form, where the lifetime is forced to `"task"`.
+- [`stop`](../reference/api/stop.md) - `stopSwitch`, the run's two halves.
 - [`agent`](../reference/api/agent.md) - `Lifetime`.

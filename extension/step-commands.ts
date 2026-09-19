@@ -146,7 +146,7 @@ export async function runStep(args: string, ctx: CommandCtx, deps: StepDeps = {}
 	const dir = path.join(relay.dir, `${relay.steps.length + 1}-${exportBaseName(id)}`);
 	const input = chainInput(instruction, previous);
 
-	const live = liveRun(ctx.ui, { tickMs: deps.tickMs });
+	const live = liveRun(ctx.ui, { tickMs: deps.tickMs, signal: ctx.signal });
 	ctx.ui.setStatus(STATUS, `running ${id}…`);
 
 	const startedAt = performance.now();
@@ -160,6 +160,8 @@ export async function runStep(args: string, ctx: CommandCtx, deps: StepDeps = {}
 			model: flags.model,
 			worktree: flags.worktree === "true",
 			onEvent: live.onEvent,
+			signal: live.signal,
+			spawn: live.spawn,
 		});
 	} finally {
 		live.stop(dir, performance.now() - startedAt);

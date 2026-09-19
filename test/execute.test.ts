@@ -20,6 +20,7 @@ import type { Details } from "../extension/execute.ts";
 import { SUBAGENT_TOOL } from "../src/delegate.ts";
 import { callTool } from "./fixtures/call-tool.ts";
 import { fakeSpawn, offeredTools, testAgent } from "./fixtures/fake-subagent.ts";
+import { waitFor } from "./fixtures/wait-for.ts";
 
 const scout = testAgent("scout");
 const coder = testAgent("coder");
@@ -47,6 +48,18 @@ function fakeUi() {
 /** The deps every test shares: no disk, no network, no timer. */
 function deps(over: Record<string, unknown> = {}) {
 	return { loadAgents: () => agents, tickMs: 0, ...over };
+}
+
+/** A terminal whose keys the test presses itself. */
+function fakeKeys() {
+	let handler: ((data: string) => { consume?: boolean } | undefined) | undefined;
+	return {
+		ui: { onTerminalInput: (next: typeof handler) => ((handler = next), () => void (handler = undefined)) },
+		press: (data: string) => handler?.(data),
+		get listening() {
+			return handler !== undefined;
+		},
+	};
 }
 
 describe("inferMode", () => {
@@ -438,6 +451,29 @@ describe("executeSubagent", () => {
 		const fake = fakeSpawn();
 		const output = await executeSubagent({ agent: "scout", task: "find the auth code" }, deps({ spawn: fake.spawn }));
 		assert.equal(output.details.subagents[0]?.task, "find the auth code");
+	});
+
+	test("escape reaches the subagents the model spawned", async () => {
+		// The wiring this asserts on is the whole feature: a key pi hands to the
+		// extension, a run that registered itself, and a `spawn` the switch went
+		// through. Any one of the three missing leaves the dots turning.
+		const fake = fakeSpawn(() => ({ delayMs: 500 }));
+		const keys = fakeKeys();
+		const pending = executeSubagent(
+			{ mode: "parallel", agent: "scout", tasks: ["a", "b"] },
+			deps({ spawn: fake.spawn, ui: { ...fakeUi().ui, ...keys.ui } }),
+		);
+
+		await waitFor(() => fake.spawned.length === 2);
+		keys.press("\x1b");
+		const output = await pending;
+
+		assert.match(say(output), /## scout \(failed\)/);
+		assert.ok(
+			output.details.subagents.every((subagent) => subagent.ok === false),
+			"every branch stops, not only the one that happened to be first",
+		);
+		assert.equal(keys.listening, false, "and the run gives the key back to pi on its way out");
 	});
 });
 

@@ -37,6 +37,16 @@ Each argument is one command line, optionally followed by `||idle||cap` in
 seconds: how long a silence means the step is over, and how long to wait
 regardless. The defaults suit a listing; a step that spawns subagents wants a
 longer pair.
+
+An argument of the form `key:<name>` presses a key instead of typing a line,
+which is the only way to check what stops a run:
+
+    python3 scripts/drive-pi.py \\
+        "/run explore where is the wall time measured||3||20" \\
+        "key:ctrl+down||2||4" "key:ctrl+delete||3||10" "key:escape||3||15"
+
+A run keeps repainting, so silence never comes while it works: give those steps
+a cap, and read what the frames say.
 """
 
 from __future__ import annotations
@@ -58,6 +68,15 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # Escape sequences, and the carriage returns a redraw leaves behind.
 ANSI = re.compile(rb"\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b[()][A-Z0-9]|\x1b[=>]|\r")
+
+# What `key:<name>` sends. A key is how a run is interrupted, and an interrupt
+# is the one thing a line of text cannot express.
+KEYS = {
+    "escape": b"\x1b",
+    "ctrl+up": b"\x1b[1;5A",
+    "ctrl+down": b"\x1b[1;5B",
+    "ctrl+delete": b"\x1b[3;5~",
+}
 
 # The widget's dimmed row, repainted four times a second while a subagent works.
 # Hundreds of copies of it bury the one frame worth reading.
@@ -111,6 +130,13 @@ class Pi:
     def send(self, line: str) -> None:
         os.write(self.master, line.encode() + b"\r")
 
+    def press(self, key: str) -> None:
+        """One keystroke, with no carriage return after it."""
+        try:
+            os.write(self.master, KEYS[key])
+        except KeyError:
+            raise SystemExit(f"unknown key `{key}`: say one of {', '.join(KEYS)}")
+
     def close(self) -> None:
         # Twice: the first interrupt clears the prompt, the second exits.
         for _ in range(2):
@@ -129,7 +155,11 @@ class Pi:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("commands", nargs="+", help="a command line, optionally `||idle||cap` in seconds")
+    parser.add_argument(
+        "commands",
+        nargs="+",
+        help=f"a command line, or `key:<{'|'.join(KEYS)}>`, optionally `||idle||cap` in seconds",
+    )
     parser.add_argument("--model", default="ilaas/gemma-4-31b", help="what every subagent runs on")
     parser.add_argument("--extension", default="extension/index.ts", help="the extension to load")
     parser.add_argument("--cwd", default=str(ROOT), help="where pi runs, and where runs/ lands")
@@ -154,7 +184,10 @@ def main() -> None:
             command, _, rest = spec.partition("||")
             idle, _, cap = rest.partition("||")
             print(f"\n=== {command} ===", flush=True)
-            pi.send(command)
+            if command.startswith("key:"):
+                pi.press(command[len("key:") :])
+            else:
+                pi.send(command)
             time.sleep(0.4)
             painted = pi.read_until_idle(float(idle or args.idle), float(cap or args.cap))
             print(readable(painted, args.raw), flush=True)

@@ -137,6 +137,16 @@ export type Subagent = {
 	/** Runs one turn of work. Never throws on a model failure - returns `ok: false`. */
 	ask(task: string, options?: AskOptions): Promise<Result>;
 	/**
+	 * Stops this subagent, for good: the turn in flight is cut short, and any
+	 * later `ask` fails at once with `"stopped"`.
+	 *
+	 * One-way and idempotent, because that is what a person pressing a key
+	 * means. It is **not** `close()`: the session is still there, so the
+	 * transcript of what it did before it was stopped is still exportable, and
+	 * whoever opened it still owes it a `close()`.
+	 */
+	stop(): void;
+	/**
 	 * Writes this subagent's transcript into `dir` - HTML and JSONL, pi's own.
 	 *
 	 * Callable at any moment while the subagent lives, not only at the end: an
@@ -184,6 +194,9 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 	// and a duration must never go backwards.
 	const spawnedAt = performance.now();
 	const usage: Usage = emptyUsage();
+	// This subagent's own stop switch, apart from the caller's signal: stopping
+	// one branch must not touch the ones beside it.
+	const stopper = new AbortController();
 	let closed = false;
 	let asking = false;
 	/**
@@ -249,25 +262,30 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 			const startedAt = performance.now();
 			const startIndex = session.messages.length;
 
-			// One signal to watch, whether it comes from the caller, the deadline,
-			// or both. The timeout is created here so it starts with the turn.
+			// One signal to watch, whether it comes from this subagent's own stop
+			// switch, from the caller, or from the deadline. The timeout is created
+			// here so it starts with the turn.
 			const timeout = askOptions.timeoutMs ? AbortSignal.timeout(askOptions.timeoutMs) : undefined;
-			const signal = combineSignals(askOptions.signal, timeout);
+			const signal = combineSignals(stopper.signal, askOptions.signal, timeout);
+
+			// A signal that has *already* aborted never fires again, so a listener
+			// added now would never run: the turn has to be refused outright, or a
+			// stopped subagent would go on to do a whole turn of work.
+			let error: string | undefined = signal.aborted ? "aborted" : undefined;
 
 			// The listener is removed in the `finally`: a signal shared across
 			// several `ask` calls would otherwise accumulate listeners.
 			const onAbort = () => void session.abort();
-			signal?.addEventListener("abort", onAbort, { once: true });
+			signal.addEventListener("abort", onAbort, { once: true });
 
 			bus.emit({ type: "status", id, status: "working", task });
 
-			let error: string | undefined;
 			try {
-				await session.prompt(task);
+				if (!error) await session.prompt(task);
 			} catch (cause) {
 				error = cause instanceof Error ? cause.message : String(cause);
 			} finally {
-				signal?.removeEventListener("abort", onAbort);
+				signal.removeEventListener("abort", onAbort);
 				asking = false;
 			}
 
@@ -292,11 +310,13 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 			// last assistant message's stopReason.
 			error ??= stopError(messages);
 
-			// Both look like an abort from pi's side. Say which one it was: a
-			// deadline that expired and a caller that changed its mind call for
-			// very different reactions. The caller's own signal wins - it is the
-			// more specific cause.
-			if (error && timeout?.aborted && !askOptions.signal?.aborted) {
+			// All three look like an abort from pi's side. Say which one it was: a
+			// deadline that expired, a caller that changed its mind and a person who
+			// pressed a key call for very different reactions. The most specific
+			// cause wins, and a person asking is as specific as it gets.
+			if (error && stopper.signal.aborted) {
+				error = "stopped";
+			} else if (error && timeout?.aborted && !askOptions.signal?.aborted) {
 				error = `timed out after ${askOptions.timeoutMs}ms`;
 			}
 
@@ -308,6 +328,10 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 			bus.emit({ type: "usage", id, usage: turn });
 			bus.emit({ type: "status", id, status: error ? "blocked" : "idle" });
 			return result;
+		},
+
+		stop() {
+			stopper.abort();
 		},
 
 		async export(dir = options.exportDir) {
@@ -351,16 +375,16 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 }
 
 /**
- * Merges the caller's signal with the deadline, if there is one.
+ * Merges the stop switch with the caller's signal and the deadline, when there
+ * are any.
  *
- * Returns the single signal when only one is present, so no needless
- * `AbortSignal.any` wrapper is created on the common path.
+ * Returns `first` itself when it is alone, so no needless `AbortSignal.any`
+ * wrapper is created on the common path.
  */
-function combineSignals(...signals: (AbortSignal | undefined)[]): AbortSignal | undefined {
-	const present = signals.filter((signal): signal is AbortSignal => signal !== undefined);
-	if (present.length === 0) return undefined;
-	if (present.length === 1) return present[0];
-	return AbortSignal.any(present);
+function combineSignals(first: AbortSignal, ...rest: (AbortSignal | undefined)[]): AbortSignal {
+	const present = rest.filter((signal): signal is AbortSignal => signal !== undefined);
+	if (present.length === 0) return first;
+	return AbortSignal.any([first, ...present]);
 }
 
 /** Reads the session counters. Never lets a broken provider bring a turn down. */
