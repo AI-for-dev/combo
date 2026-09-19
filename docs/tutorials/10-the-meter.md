@@ -41,7 +41,7 @@ tool does with `export true`. Take [the explore run](02-three-scouts.md):
 	"wallMs": 63493,
 	"subagents": [
 		{
-			"id": "scout#2", "agent": "scout", "model": "ilaas/gemma-4-31b", "ok": true, "toolCalls": 5,
+			"id": "scout#2", "agent": "scout", "model": "provider/model", "ok": true, "toolCalls": 5,
 			"usage": { "wallMs": 41221, "busyMs": 41214, "turns": 1, "input": 61061, "output": 1920, "cost": 0 }
 		}
 	],
@@ -119,7 +119,7 @@ included, and `ctrl+del` stops the one it points at. On the explore pipeline:
 ```
 stop: scout#2 stopped - the other subagents are untouched
 ✗ scout#2  stopped
-  ilaas/gemma-4-31b · ↑12k ↓426 · 8.0s
+  provider/model · ↑12k ↓426 · 8.0s
 ```
 
 Be quick about it. The first attempt at that frame had `scout#3` selected, and

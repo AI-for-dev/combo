@@ -30,7 +30,7 @@ Ask the session the question the hard way:
 It greps, reads, reads again, answers. Look at the status line:
 
 ```
-↑80k ↓1.8k 18.4%/128k (auto)                          gemma-4-31b • medium
+↑80k ↓1.8k 18.4%/128k (auto)                       provider/model • medium
 ```
 
 One question, and a fifth of the window is gone for the rest of the session.
@@ -129,7 +129,7 @@ Then the model answers you from the report, in a dozen lines. And the status
 line:
 
 ```
-↑10k ↓94 8.3%/128k (auto)                             gemma-4-31b • medium
+↑10k ↓94 8.3%/128k (auto)                          provider/model • medium
 ```
 
 Same question, same model, same answer in substance. 18.4% against 8.3%, and

@@ -80,7 +80,7 @@ stays readable in its own file.
 It never opened the skill. Nothing was loaded eagerly: pi put the skill's
 name, its description and its path in the system prompt, and left the model to
 `read` the file when the task matched. pi's own documentation says models do
-not always do this, and on `ilaas/gemma-4-31b` this one did not. The list you
+not always do this, and the small open-weight model here did not. The list you
 wrote was one line away and it went straight to the tests.
 
 So the definition has to send it there. Add a sentence to the prompt body:

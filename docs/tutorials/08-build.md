@@ -60,7 +60,7 @@ In a throwaway clone:
 ```
 
 The interviewer reads the repository first, then asks. This is the first card
-it drew, on `ilaas/gemma-4-31b`, after reading the code for half a minute:
+it drew, on a small open-weight model, after reading the code for half a minute:
 
 ```
 [Separator preference]
@@ -142,11 +142,11 @@ The last line of a run that went through reads:
 
 **When a check is configured, its verdict is final.** No approval anywhere in
 that chain turns a failing check into a success, and the run says
-`check FAILED, NOT approved` in those words when it does. Measured on a run against `ilaas/qwen-3.6-35b-instruct`:
-the pair converged, the check caught a failing test, the auditor named the fix,
-the fix ran, the check ran again, and the run ended `NOT approved` rather than
-shipping something broken. That last part is the machinery working, on a
-worker that could not.
+`check FAILED, NOT approved` in those words when it does. Measured on a run
+against a small open-weight model: the pair converged, the check caught a
+failing test, the auditor named the fix, the fix ran, the check ran again, and
+the run ended `NOT approved` rather than shipping something broken. That last
+part is the machinery working, on a worker that could not.
 
 ## The second stop
 

@@ -126,7 +126,7 @@ to that step alone:
 
 ```
 /step --model anthropic/claude-opus-5 planner three steps at most, no refactor
-/step --model ilaas/qwen-3.6-35b-instruct coder
+/step --model <provider/small-model> coder
 /step --model anthropic/claude-sonnet-5 reviewer
 ```
 

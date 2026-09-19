@@ -10,10 +10,10 @@ once properly.
 
 ## The knob
 
-Every subagent so far ran on `ilaas/gemma-4-31b` because the pi that typed
-these pages was started with `--model` and nothing overrode it. That is the
-last resort in a chain of overrides, and the chain is worth knowing because
-comparing models requires the model to be an **argument**:
+Every subagent so far ran on the one model the pi that typed these pages was
+started with, because nothing overrode it. That is the last resort in a chain of
+overrides, and the chain is worth knowing because comparing models requires the
+model to be an **argument**:
 
 1. `--model` on `/run`, `/build` or `/step`, or `model` on the `subagent` tool.
    Every subagent of that call, whatever its file says.
@@ -35,15 +35,20 @@ measurement pins it.**
 
 ## The quick version
 
+The two compared below, `provider/model-a` and `provider/model-b`, were both
+small open-weight models of about the same size, served from the same endpoint.
+Put two your pi can reach in their place: what this page shows is the shape of
+the comparison, and the shape does not depend on which two.
+
 You have already run the first half. Now the second:
 
 ```
-/run --model ilaas/qwen-3.6-35b-instruct explore how is the wall time of a subagent measured, and where
+/run --model <provider/model-b> explore how is the wall time of a subagent measured, and where
 ```
 
 Two folders under `runs/`, two `usage.json`, one table:
 
-| | gemma-4-31b | qwen-3.6-35b-instruct |
+| | provider/model-a | provider/model-b |
 | --- | --- | --- |
 | wall | 63.5s | 16.4s |
 | busy | 98.8s | 31.8s |
@@ -53,12 +58,12 @@ Two folders under `runs/`, two `usage.json`, one table:
 | tool calls, three scouts | 3 / 5 / 6 | 5 / 8 / 5 |
 | cost | not reported | not reported |
 
-Four times faster, a sixth fewer input tokens, more tool calls. Both answers
-found the mechanism, the clock and the three places, and both got every line
-number wrong. The second wrote `~line 149-154`, with a tilde, hedging a number
-it had no way to know; the first wrote `line 163` with none. Read the two
-synthesiser reports in the two folders and you know more about these models on
-your code than a leaderboard can tell you.
+Four times faster at the same size, a sixth fewer input tokens, more tool calls.
+Both answers found the mechanism, the clock and the three places, and both got
+every line number wrong. The second wrote `~line 149-154`, with a tilde,
+hedging a number it had no way to know; the first wrote `line 163` with none.
+Read the two synthesiser reports in the two folders and you know more about
+these models on your code than a leaderboard can tell you.
 
 One run each, though. The fast model may have been lucky, the slow one may have
 hit a slow minute on a shared server. That is the limit of the quick version,
@@ -72,7 +77,7 @@ nothing, deliberately, because a harness that could be nested inside a
 workflow would be measuring itself.
 
 ```bash
-node examples/12-experiment.ts ilaas/gemma-4-31b ilaas/qwen-3.6-35b-instruct
+node examples/12-experiment.ts <provider/model-a> <provider/model-b>
 ```
 
 The example runs a coder and reviewer loop twice per model on this
@@ -82,8 +87,8 @@ the change rather than making it, and prints the table:
 ```
 | model | runs | ok | converged | iterations | usage | mean wall | mean $ |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ilaas/gemma-4-31b | 2 | 2/2 | 2/2 | 1×2 | 4 turns 252.8s ↑255k ↓27k $0.0000 | 126.4s | $0.0000 |
-| ilaas/qwen-3.6-35b-instruct | 2 | 2/2 | 2/2 | 1×1 2×1 | 6 turns 23.8s ↑43k ↓2.9k $0.0000 | 11.9s | $0.0000 |
+| provider/model-a | 2 | 2/2 | 2/2 | 1×2 | 4 turns 252.8s ↑255k ↓27k $0.0000 | 126.4s | $0.0000 |
+| provider/model-b | 2 | 2/2 | 2/2 | 1×1 2×1 | 6 turns 23.8s ↑43k ↓2.9k $0.0000 | 11.9s | $0.0000 |
 ```
 
 Both converged every time. One took ten times longer per cell and six times
@@ -106,7 +111,7 @@ Its shape is short enough to copy:
 import { experiment, experimentTable, loop, saysWord } from "combo";
 
 const report = await experiment({
-	models: ["ilaas/gemma-4-31b", "ilaas/qwen-3.6-35b-instruct"],
+	models: ["provider/model-a", "provider/model-b"],
 	repetitions: 2,
 	timeoutMs: 300_000,
 	run: async (cell) => {
@@ -154,10 +159,10 @@ The rules it keeps, each one a way a comparison learns to lie:
 runs/2026-09-19_10-46-58/
 ├── experiment.json
 ├── experiment.md
-├── ilaas-gemma-4-31b/
+├── provider-model-a/
 │   ├── rep-1/    usage.json  events.jsonl  coder-1.jsonl  reviewer-1.jsonl …
 │   └── rep-2/
-└── ilaas-qwen-3.6-35b-instruct/
+└── provider-model-b/
     └── …
 ```
 

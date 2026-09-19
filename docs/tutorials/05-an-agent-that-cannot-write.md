@@ -121,7 +121,7 @@ Now ask for the thing it cannot do:
   test/loop.test.ts and rename any test whose name overpromises
 ```
 
-This is what the session did, on `ilaas/gemma-4-31b`:
+This is what the session did, on a small open-weight model:
 
 > The subagent itself cannot edit files unless it has the edit tool. Does
 > test-reader have the edit tool? I don't know the definition of test-reader.
