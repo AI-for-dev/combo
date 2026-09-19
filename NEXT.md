@@ -2,30 +2,83 @@
 
 Written to be picked up cold. `AGENTS.md` holds the decisions and the pi API
 notes; this file holds only what has not been done yet, and the traps already
-paid for. Planned pull requests live in [plan/](plan/README.md), one file
-each, in landing order.
+paid for. Every section says what was measured rather than what was intended,
+so a number here can be checked by running the thing beside it.
 
-State: offline tests green, clean typecheck, working tree clean.
+State: offline tests green, clean typecheck.
 
 Shipped: the foundation (`Agent`, `Subagent`, `Result`, `Usage`, event bus),
-nine combinators (`chain`, `fanOut`, `loop`, `reduce`, `route`, `orchestrate`,
-`interview`, `pair`, `deliver`), four reporters (herdr, TUI, console, silent),
+ten combinators (`chain`, `fanOut`, `loop`, `reduce`, `route`, `orchestrate`,
+`interview`, `pair`, `deliver`, `swarm`), four reporters (herdr, TUI, console, silent),
 the session export, **pipelines** (a workflow written in Markdown, discovered in
-`~/.pi/agent/pipelines` and `.pi/pipelines`, run by `/build`), a generated and
-test-enforced `docs/`, and the pi extension: the `subagent` tool plus
-`/interview`, `/herdr` and `/build` (with `/build resume` and
-`/build --pipeline <name>`).
+`~/.pi/agent/pipelines` and `.pi/pipelines`), and a generated and test-enforced
+`docs/`. A subagent whose own definition asks for it **delegates in turn**, two
+levels deep unless told otherwise, with a worktree per writing child, a ledger
+in place of a stop word, and a measurement shaped like the tree it came from.
+
+Several subagents can also work **one job side by side**: an append-only board
+that stamps who posted, claims granted rather than announced, and `swarm` above
+the two. Section 10 has what running it said.
+
+The pi extension is the `subagent` tool plus `/interview`, `/build` (with
+`resume` and `--pipeline`), `/run`, `/step`, `/chain`, `/quote`, `/agents`,
+`/pipelines`, `/herdr` and `/stop`. A run can be **called off while it runs**:
+`esc` stops every subagent of it, `ctrl+↑↓` walk the list above the prompt and
+`ctrl+del` stops the selected one. What comes back is in **the language the work
+was written in**, whatever language the definitions are.
 
 All four founding requirements of `AGENTS.md` are met, and the end-to-end flow
 (question → interview → plan → worker/reviewer pairs → check → audit → commit)
 runs. What follows is judgement and polish.
 
-## 1. Judge the interactive rendering - and `/build` end to end
+## 1. Judge the interactive rendering - looked at, and acted on
 
-Nobody has looked at the TUI in interactive mode. The components build and
-render correctly in tests, but spacing, colours and density were never seen, and
-**the question card has never been looked at by a human**. That is the one thing
-no test here can do.
+The frames have been read, by machine. `scripts/drive-pi.py` types into a real
+pi through a pty and prints what it painted, which is how the widget, the
+indent under a delegating subagent, the stop keys and what `/stop` answers were
+checked. It earns its keep: it found a selection left pointing at a subagent
+that had finished, and a message claiming the run carried on when the pipeline
+step had just ended. Neither was visible to a fake.
+
+What it could not do was judge, because printing strips the escape sequences:
+spacing, colour and density were never in what it showed. `scripts/frame.py`
+replays the same log through a terminal emulator and draws the screen, so they
+are now in a picture instead. **The question card has been looked at**, on
+2026-09-19, against pi 0.85.1 at 45x120 with the subagents on
+`ilaas/gemma-4-31b`. Four things came out of it, and all four have been
+answered since.
+
+- **Option descriptions were cut mid-word.** On a 120-column terminal the card
+  showed `…by checking file modification times before r`, because pi-tui's
+  `SelectList` truncates a description to the remaining width with an *empty*
+  suffix: the cut carries no ellipsis and nothing says anything was lost. The
+  lever was the interviewer rather than the card, which goes on taking whatever
+  an agent wrote, and its definition now asks for about sixty characters.
+- **`esc` said two things at once**: `esc stops everything` above the prompt and
+  `esc build with what you have` on the card, on screen together. The card owns
+  the key while it is up.
+- **A fan-out did not read in launch order.** Three scouts drew as `scout#2,
+  scout#1, scout#3` and stayed that way. `spawn` takes the id synchronously but
+  emits the event only after `await createSession()`, because the event carries
+  `modelLabel(session)`, so rows landed in the order sessions became *ready*.
+  The counter rides on the event now and the widget inserts by it.
+- **The two standing entries read as two more answers.** `Other…` and `That's
+  enough - build it` sit in the same column and the same style as the agent's
+  own options, and `SelectList` has no separator to put between them. Decided:
+  live with it, and revisit if anyone is ever seen answering "That's enough" by
+  mistake.
+
+The density question is answered and done: seven lines for three subagents is
+not too much while they run, but the second line of a *finished* one held its
+last tool call, which nobody needs any more. A finished subagent now takes one
+line with its numbers beside the tick, so the widget shrinks to four as the
+three finish instead of holding the terminal at its widest.
+
+Looking again at the frame that came out of that change found one more, and it
+was not in the widget: pi sends a `tool_execution_start` whose `toolName` is the
+**empty string**, so a row read `path=test/tui.test.ts offset=318 limit=30` with
+no verb. Measured, one call in four on `ilaas/gpt-oss-120b`. The trap is in
+`AGENTS.md` now: `|| "?"`, never `?? "?"`.
 
 ```bash
 pi -e extension
@@ -35,20 +88,18 @@ pi -e extension
 /build --pipeline explore how usage is measured
 /build resume                               # after interrupting one
 /step explore how usage is measured         # then /step planner, /chain, /quote
+/run explore how usage is measured          # then ctrl+↑↓, ctrl+del, esc
 ```
 
-Specifically open: the widget above the prompt uses **two lines per subagent**,
-so a fan-out of three takes six lines. If that is too much, condense the dimmed
-line or keep it only for active subagents. And on the card: whether the two
-standing entries (Other…, "that's enough") read as part of the question or as
-chrome.
+Still unseen by anyone: the same frames on a real terminal, where the face and
+the theme are the user's own rather than the palette `frame.py` assumes.
 
 The step entry `/step` leaves in the transcript has the same problem: it is
 asserted on, and nobody has seen one. The line that has to read at a glance is
 the one saying the step is **not** in the conversation - if it does not, the
 next command is typed on a wrong belief about what this session knows.
 
-## 2. The pipeline is only as good as its worker
+## 2. The pipeline is only as good as its worker - answered
 
 The machinery was verified on a throwaway repository against
 `ilaas/qwen-3.6-35b-instruct`: the plan was made, the pair converged, the check
@@ -58,8 +109,39 @@ That last part is the machinery working.
 
 What it also showed: a weak worker flip-flops - it "fixed" an import by
 reverting the previous fix. Nothing in `deliver` can repair that, and no prompt
-will. Worth trying with a strong model before concluding anything about the
-shape of the pipeline.
+will.
+
+Run again on 2026-09-19 with two larger models, `examples/11-build.ts` on a
+throwaway repository, same brief both times ("add a `truncate(text, max)` helper
+that cuts on a word boundary and appends an ellipsis, with tests"):
+
+| model | what came out |
+| --- | --- |
+| `ilaas/mistral-small-4-119b` | nothing on disk, both subtasks NOT approved |
+| `ilaas/gpt-oss-120b` | delivered and approved: 11 turns, 142.6s, ↑211k ↓16k, 4 tests green |
+
+**A bigger model is not the variable; tool calling is.** Mistral made real tool
+calls for a while and then emitted `[TOOL_CALLS]ls{"path": "."}` as plain text
+in the message that ended the turn, so pi ran nothing, the subtask "finished"
+with that string as its answer, and the check passed because the tree was
+untouched. Every honest signal was there (`NOT approved` twice, "nothing changed
+on disk"), and none of them says *why*. A model whose tool calls arrive as prose
+is unusable here whatever its size, and this provider serves one.
+
+With `gpt-oss-120b` the whole flow worked: plan, pair, check, audit, fix, audit
+again, commit message written from the real diff, and the delivered tests pass
+on a clean checkout.
+
+**The one thing to decide is the auditor's word against the check's.** In that
+same run the check passed with four green tests, and the auditor then wrote
+`"Test file has a syntax error causing failure."` and raised a fix for it. The
+audit prompt had been handed the check's command and its output
+(`src/workflows/audit.ts:167`), so it contradicted evidence it was holding. A
+round was spent rewriting a file that was fine, and audit 2 approved. Nothing in
+`deliver` weighs a remark against the verification it was shown, and invariant 7
+says the check's verdict is the one our code performs. Worth a decision: either
+a failing-check claim over a passing check is dropped, or it stays and this is
+what an audit round costs.
 
 ## 3. Distributing it as a package
 
@@ -105,11 +187,60 @@ elide with `{ /* … */ }`, which is. And every "Source:" line pointed at
 that publishes `docs/` alone - they are absolute GitHub URLs now, read from
 `package.json`.
 
-What **nobody has done is look at it**. There was no SVG renderer and no browser
-on the machine it was written on, so neither the mark nor the type has been seen
-at its real size. Do that the way section 1 asks someone to look at the TUI: the
-lockup in the sidebar, the mark at favicon size in a tab, the h2 rule with its
-coloured head, and the code blocks in both themes.
+**It has been looked at**, on 2026-09-19, in Chromium 153 at 1440px, light and
+dark. Getting a browser to run took three things and none of them is obvious:
+the allowance for `playwright.download.prss.microsoft.com` (the Chrome for
+Testing path goes to `storage.googleapis.com`, still blocked, so the zip has to
+come from the other mirror by hand), sixteen shared libraries from conda-forge
+that the image does not carry, and a fontconfig with at least one font, without
+which the renderer exits silently and writes no file.
+
+The type answers its own questions. The Garamond at 1.125rem is not oversized,
+the Inter section heads hold at 13px, the lockup works in the sidebar in both
+themes, and the h2's short coloured rule is the good idea it looked like.
+
+Two defects came out of it, both now fixed: a reference page's title was drawn
+in a grey chip, because the heading reset that strips furo's code background
+covered `h2`, `h3` and `h4` and not the `h1` that every generated page has; and
+comments inside code sat at 2.94:1 against the block behind them in the light
+theme, under the 3:1 a line of text needs at all, 3.60:1 in the dark one. They
+take the palette's secondary ink now, 4.65:1 and 5.44:1.
+
+**Two others did not survive being checked, and the reason matters more than
+the findings.** I read the h3's rule as outweighing the h2's - sampled, the h2's
+is `#c9d2d9` against the h3's `#dce3e8`, and longer. I read a signature block as
+repeating the prose below it - it does not: the prose is the type's own TSDoc
+and the block holds its members', which has nowhere else to go.
+
+Both mistakes came from judging a downscaled screenshot by eye, and one of them
+survived a second look at an image that had meanwhile been overwritten by the
+fixed build. **What held up was measured**: a contrast ratio, a sampled pixel, a
+diff between two captures taken with names that could not be confused. A picture
+is what makes the question askable; it is not what answers it.
+
+Still unseen: the mark at favicon size in a real tab, which a headless browser
+has no tab for. Rendered from the SVG it does not hold at 16px - the three bars
+merge into two - and that is section 4's remaining question rather than an
+answered one.
+
+**The marks have been looked at**, on 2026-09-19: `svglib` parses an SVG into a
+reportlab drawing and reportlab writes a PDF, both pure python, and that page
+rasterises. Three things came out of it.
+
+- **The mark does not survive 16px.** In the tile at favicon size the three bars
+  merge into two and the bracket reads as a blob; the counters between the bars
+  are below a pixel. It is legible from 32px up. A favicon wants a variant with
+  fewer, thicker bars rather than the same drawing scaled down.
+- **The wordmark is much lighter than the mark.** The bars are solid blocks and
+  "combo" is set in a near-hairline geometric sans, so at lockup size the mark
+  carries the pair and the word reads as a caption under it. It holds better in
+  the dark lockup, where the letters are pale grey against the verdigris.
+- **The dark variants are right.** `combo-mark-dark` lightens the bars to pale
+  grey and keeps the verdigris bracket; the light mark dropped onto a dark
+  background loses its bars entirely, which is what the variant exists for.
+
+None of that settles the mark, which is provisional anyway - see the paragraph
+below.
 
 The type in particular is set from numbers nobody has checked by eye. The pages
 are in **EB Garamond** with **Inter** for the chrome, both served by the site
@@ -133,6 +264,225 @@ CI too. `npm test` and `npm run typecheck` still run on laptops only; the docs
 workflow regenerates the reference and diffs it, so a stale API page cannot reach
 the site, and that is all it guards.
 
+## 5. A child can be given a tool combo defines - answered
+
+The probe ran on 2026-09-17, and it passes: the delegation tree is buildable
+without any change to pi.
+
+Measured against **pi 0.85.1** (the installed CLI) and **pi 0.80.10** (this
+repository's `node_modules`), with identical results on both.
+
+The route is not the `ResourceLoader` the plan guessed at. `createAgentSession`
+takes **`customTools: ToolDefinition[]`** directly, built with pi's own
+`defineTool`, and `StaticResourceLoader` keeps returning no extensions at all.
+So the seam is one option on the call `src/session.ts` already makes, and
+`getExtensions()` is left alone.
+
+The gate holds, which was the half worth doubting. pi's `tools` allowlist covers
+custom tools as well as built-in ones:
+
+| agent's `tools:` | tool passed | result |
+| --- | --- | --- |
+| names `subagent` | yes | configured and active |
+| does not name it | yes | **absent** |
+| names `subagent` | no | absent |
+
+So an agent that does not declare the tool cannot spawn anything, and that stays
+readable in its file. Invariant 5's guarantee survives, and combo gets to gate it
+twice: by not passing the tool, and by pi's own allowlist.
+
+Registration is not invocation, so the last case was run for real: against
+`ilaas/qwen-3.6-35b-instruct`, the model called the tool and the sentinel came
+back through the transcript.
+
+## 6. What stopping a run left open
+
+`esc`, `ctrl+↑↓`, `ctrl+del` and `/stop` work, and were checked against a real
+pi. Three things around them are known and unfinished:
+
+- **`/stop` cannot be typed while a command of ours is running.** pi processes
+  no submission at all while one of its own slash commands is awaiting, so
+  during `/run`, `/build` or `/step` the keys are the only way in. That is why
+  `ctrl+del` exists beside the command. If a later pi changes that, the key
+  stays useful but the asymmetry in `docs/guide/display.md` stops being true.
+- **Two runs at once - observed, and it behaves as written.** A `subagent` tool
+  call was left working and `/run explore` typed one second into the same turn.
+  Both were live in one frame: the tool's card reading `0/1 done, 1 running`,
+  the widget above the prompt listing the pipeline's three scouts. That is what
+  `extension/stop.ts` says it does - the newest run is the one whose dots are on
+  screen - and the older run is not lost, it reports through its own card.
+  `/stop <id>` reaches either; `ctrl+↑↓` walks the newest.
+
+  Getting there took four tries, and the method is the finding: a command typed
+  after the model's turn has ended never overlaps. Type it while the turn is
+  still running (`||1||2` on the first step of `drive-pi.py`) and the two runs
+  meet.
+- **A refused turn is no longer counted.** Asking a stopped subagent returns
+  without reaching the session, and `turns` stays where it was.
+
+## 7. What the language rule left open - answered
+
+Every subagent now answers in the language of the work it was handed
+(`src/language.ts`). Three turns settle the wording, and they are what to re-run
+the day the sentence is touched: an English task answers English, a French one
+answers French, and French work inside English scaffolding answers French.
+
+The three open items were run on 2026-09-19 against `ilaas/gpt-oss-120b`, a
+second model beside the `ilaas/gemma-4-31b` everything else was measured on.
+
+- **The last two sentinels survive a French turn.** A French interview asked
+  three French questions and then answered `READY` alone, and a French delivery
+  ended on an audit whose whole output was `APPROVED`. With `LGTM`, the router's
+  agent name and the planner's JSON already measured, that is the four.
+- **A definition that names a language wins.** An agent whose prompt ends
+  "Always answer in English, whatever language the request is written in",
+  handed a French task, answered English, twice. So the rule is overridable, by
+  the file, which is where invariant 5 says what an agent does should be
+  readable.
+- **The pipeline behaves as `docs/guide/build.md` says it should.** On the
+  French brief above, the planner, the coder, the auditor and the committer all
+  answered English. That is the documented intent rather than a failure of the
+  standing sentence, and it is now measured instead of assumed. It leaves
+  invariant 12 resting on the model's judgement, though: nothing would stop a
+  committer writing a French commit message on French work, and invariant 12
+  says commit messages are English.
+
+One new thing came out of it, and it is closed. **The card's header stayed
+English while its question was French**: `[Cache type]` over "Quel type de
+stockage de cache devez-vous utiliser ?", in both runs. A header is a value a
+model writes and a user reads, not a JSON key, so `questionPrompt` names it
+alongside the questions and the options now. The keys and `READY` stay as they
+are, for the reason they always did: the parser reads the one and the loop ends
+on the other.
+
+## 8. Two concepts sharing a file - done for the extension, dropped for the pair
+
+`extension/build.ts` went from **792 lines to 351**, in two moves: the shared
+command floor (`CommandCtx`, `BuildDeps`, the roster, the pipeline chooser, the
+flag parser, `refuse`) into `extension/command.ts`, then `/interview`, the
+commit stop and `/herdr` into files of their own. The first of the two fixed a
+real dependency rather than a line count: `/agents` imported its command context
+from the build state machine. Nothing in `extension/` is over 351 lines now.
+
+**The pair split is not worth doing**, which the file above assumed it was.
+`src/workflows/pair.ts` is 350 lines of which the prompts are 50, and its
+sibling `src/workflows/audit.ts` keeps `auditPrompt` in the same file as
+`auditOnce` - splitting the pair would make the two inconsistent to save fifty
+lines. The rest of `pair.ts` is one function.
+
+If line count is the worry, the four files above it are the ones to look at:
+`src/workflows/pipeline-run.ts` (444), `src/reporters/tui.ts` (437),
+`src/subagent.ts` (427) and `src/workflows/deliver.ts` (384). None of them has
+been read with a split in mind.
+
+## 9. What fifty sessions cost, and what they already share - answered
+
+The probe ran on 2026-09-19 against **pi 0.80.10** and node 26.8.2, with the
+live half on `ilaas/gemma-4`. It was written to find out whether combo could
+host a swarm, and two of its three answers turned out to be about this
+repository rather than about that question. All three are properties of pi, and
+pi moves, so the probe is worth re-running rather than reading.
+
+**Session count is not a wall.** Fifty sessions, spawned all at once through
+`spawn` with no model pattern:
+
+| N | spawn, all at once | median | rss | per session |
+| --- | --- | --- | --- | --- |
+| 1 | 4ms | 4ms | 0.6MB | 624kB |
+| 8 | 10ms | 9ms | 0.7MB | 94kB |
+| 24 | 23ms | 21ms | 8.0MB | 343kB |
+| 50 | 47ms | 43ms | 22.8MB | 467kB |
+
+Nothing threw, closing fifty took under a millisecond, and `buildRegistry()`
+costs 5ms once rather than per spawn. This is the floor: no turn had run, so no
+session held a transcript, and a session's memory is mostly its transcript.
+
+**A shared working directory is a channel, and it opens by default.** Four
+subagents, one live turn each, run concurrently, told only to write a file, list
+their working directory and say what they see. In four directories, nothing
+crossed: each wrote its own file in its own directory, none wrote elsewhere,
+nothing stray appeared and `process.cwd()` was untouched. In **one** directory,
+every one of the four read all three other members' secrets, in the same turn,
+without being asked to look.
+
+`WorkflowOptions.cwd` is one string, so that second arm is what every combinator
+does today whenever more than one subagent writes. `scratchWorktree` per writer
+is the mitigation and the control arm shows it closes the channel. It does not
+bound a subagent that goes looking: `..`, `/tmp` and everything else `read`
+reaches are outside any worktree.
+
+**A custom tool whose name collides with a built-in replaces it, silently.**
+Offered a tool named `read`, the session configures one `read` and its
+description is ours. No warning anywhere. Nothing in combo does this today, and
+nothing should start: a tool combo defines takes a name pi does not use.
+
+Beside that, one member can hold several tools combo defines, and pi's allowlist
+still gates each one separately: declaring `board` and `subagent` gives both,
+declaring `board` alone gives `board` and not `subagent`, declaring neither
+gives neither. That extends section 5's table to the plural.
+
+Two pieces of process-wide state in pi are worth knowing about, neither of them
+a message channel on its own. `core/tools/file-mutation-queue.js` keeps a `Map`
+of mutation queues keyed by each file's realpath, shared by every session in the
+process, so two subagents editing one file are serialised through one structure
+rather than isolated from each other, and a worktree per writer gives each a
+different key. `core/resolve-config-value.js` holds a `commandResultCache` its
+own comment describes as persisting for the process lifetime, used by auth
+storage and the model registry, so the first session's shell command result is
+served to every later one.
+
+## 10. A swarm, and what running one said
+
+Several members on one job, with nothing above them dividing it: `src/board.ts`
+(append-only, `from` stamped rather than declared), `src/claims.ts` (one owner
+per thing), `src/board-tool.ts` (the `board` an agent names in its `tools:`),
+`src/workflows/swarm.ts`, `agents/member.md` and `examples/15-swarm.ts`.
+`docs/guide/swarm.md` is the page, and `docs/decisions.md` holds why each piece
+has the shape it has.
+
+Running it settled four things, none of which an offline test could reach:
+
+- **Everyone reads before anyone has posted.** Three members were each handed
+  nothing, and all three then claimed the same file. That is a property of the
+  medium rather than of the models, and it is why a claim is granted instead of
+  announced.
+- **A bound on holdings belongs in the mechanism.** "Take one thing at a time,
+  and release it before you take another", written into a member's own
+  definition, changed nothing at all: four held at once, exactly as with no
+  rule. `maxPerMember` holds it to one and costs 29% in wall time and 64% in
+  input tokens, so it is a knob rather than a default.
+- **A claim is not a permission boundary either.** In one run the member that
+  had been refused all seven keys described all seven files anyway. Claims say
+  who is doing what; the toolset and a worktree say what can be done at all.
+- **On tractable work a board earns nothing.** Three arms on one job, and the
+  cheapest was the one with nothing arbitrating. Run to run, one arm varies more
+  than the arms differ from each other.
+
+`budget.ts` was dropped rather than deferred: nothing has asked for a budget,
+and a knob nobody uses is maintenance without a user.
+
+Four things are left, and the case for each is weaker than it looks:
+
+- **A released key looks free again**, so under `maxPerMember: 1` a file
+  somebody has finished is taken and described a second time. Claims have no
+  notion of done. The run that needs one is the moment to add it, and no run
+  has yet.
+- **The report generated from the log** - who talked to whom, what was held,
+  and at which round a member first names a target another member raised. Every
+  measurement in it but the last has been done by hand three times; the last
+  needs members that talk to each other, and they stopped as soon as something
+  arbitrated.
+- **`/swarm` in the extension.** After a run from code has asked for one.
+- **A job that cannot be finished alone**, which is the only one worth doing
+  next. The investigation these mechanisms are modelled on found coordination
+  coming out of the tasks with no legitimate solution, about 93% of the traffic
+  on its board. Every run here has been on work one member could finish, which
+  is the arm that shows nothing whatever the machinery does.
+
+The **TUI says nothing about a board**: it draws subagents, and the traffic goes
+to the console reporter and to `record.ts`. Whether a widget should carry a post
+at all is undecided.
+
 ## How to verify anything here
 
 ```bash
@@ -145,11 +495,36 @@ node examples/07-reduce.ts --model ilaas/qwen-3.6-35b-instruct
 node examples/09-orchestrate.ts --model ilaas/qwen-3.6-35b-instruct
 node examples/10-interview.ts "add a cache"          # the interview, in readline
 node examples/11-build.ts <throwaway-repo> "…"       # the pipeline, minus the commit
+node examples/15-swarm.ts --model ilaas/gemma-4-31b            # three members, one board
+node examples/15-swarm.ts --model ilaas/gemma-4-31b --control  # the arm it has to beat
 pi -e extension                # interactive, to actually see the TUI
+
+python3 scripts/drive-pi.py \
+  "/run explore what does the ledger record||3||9" \
+  "key:ctrl+down||2||3" "key:ctrl+delete||3||8" "key:escape||5||30"
 ```
+
+`drive-pi.py` types into a real pi and prints the frames. A `key:<name>` step
+presses a key instead of typing a line, which is the only way to exercise what
+interrupts a run; a run repaints four times a second, so those steps end on
+their cap rather than on silence.
+
+```bash
+python3 scripts/drive-pi.py --log run.log "/interview add a cache||10||180"
+python3 scripts/frame.py run.log run.png    # the same frame, with its colours
+```
+
+`frame.py` replays the raw log through a terminal emulator and draws it, which
+is the only way to see spacing and colour. It needs `pyte` and `pillow`.
 
 Notes that save time:
 
+- **`ilaas/gpt-oss-120b` is the one to reach for when a run has to work.**
+  Measured on 2026-09-19: it planned, paired, checked, audited and wrote a commit
+  message end to end, twice, and the tests it wrote pass on a clean checkout.
+  `mistral-small-4-119b` is larger and unusable here, because it emits
+  `[TOOL_CALLS]…` as plain text in the message that ends a turn, so pi runs
+  nothing and the subtask finishes holding that string as its answer.
 - **`ilaas/*` now reports tokens, and still no cost.** Measured on 2026-08-01
   against `ilaas/qwen-3.6-35b-instruct` and `ilaas/gemma-4`: `↑28k ↓8.3k` on a
   single turn, `$0.0000` throughout. It used to report neither, so a provider's
@@ -162,11 +537,28 @@ Notes that save time:
   aggregation bug, it is what a runaway turn costs - and the reason `timeoutMs`
   has no default but belongs on anything unattended. Budget 300s per turn for
   these models; 120s fails roughly half the cells.
+- **A known flag written after the name is prose, silently.** `parseLeadingFlags`
+  reads flags only while they lead, on purpose: an unknown `--flag` in free
+  prose may simply be the text, and `/build fix the --pipeline flag` is a real
+  request. The cost was measured on 2026-09-19:
+  `/run explore where is the wall time measured --model ilaas/mistral-small-4-119b`
+  ran three scouts on gemma and one of them spent its turn grepping the
+  repository for `ilaas/mistral-small-4-119b`. Refusing a *known* name found in
+  the text would catch it and would break the `--pipeline` case above, so this
+  is a decision rather than a fix: warn and carry on, refuse, or leave it.
+- **`ilaas` serves more models than `~/.pi/agent/models.json` declares.**
+  `GET /v1/models` on 2026-09-19 listed seven, among them `gpt-oss-120b`,
+  `mistral-small-4-119b`, `mistral-medium-latest` and `llama-3.1-8b`; the file
+  named two. A model absent from the file cannot be reached by `--model`, so
+  check the endpoint before concluding a provider has nothing stronger.
 - **A run with no `--model` runs on the operator's settings, silently.** No
   shipped agent declares a `model:` (deliberately - see invariant 5), so
   `/run explore` put its four subagents on `ilaas/gemma-4-31b`, read from
   `~/.pi/agent/settings.json` and named nowhere in this repository. Pass
   `--model` for anything whose numbers you intend to compare.
+- **A subagent's working directory is not a private one.** Two subagents given
+  the same `cwd` read each other's files in one turn, measured on 2026-09-19.
+  Anything that runs several writers wants a worktree each, not a shared tree.
 - To test herdr from a plain shell, export the three variables herdr injects:
   `HERDR_ENV=1`, `HERDR_SOCKET_PATH=~/.config/herdr/herdr.sock`,
   `HERDR_PANE_ID=<a real pane>`. `herdr pane list` shows the splits appear and
@@ -185,3 +577,30 @@ Notes that save time:
 - **A green suite proves less than it looks here.** Every test injects a fake
   `SessionPort`, so nothing exercises pi's real module. Anything that only runs
   inside a real pi has to be exercised inside a real pi.
+- **An extension shortcut swallows its key, whatever the handler does.** pi
+  matches extension shortcuts *before* its own keybindings and consumes the key
+  as soon as one matches, so registering `escape` would have broken interrupt,
+  autocomplete cancellation and clearing the editor for the whole session. Keys
+  that must coexist with pi's own go through `ctx.ui.onTerminalInput`, which can
+  read a key and let it through.
+- **The site build needs an environment of its own.** `make -C docs html`
+  expects `python` on the path and sphinx installed, which a bare machine has
+  neither of. `uv venv <dir> && uv pip install --python <dir>/bin/python -r
+  docs/requirements.txt`, then `<dir>/bin/python -m sphinx -b html docs <out> -W`,
+  is the recipe that works from nothing. `npm test` catches the structural half
+  anyway - a page missing from a `toctree`, a relative link resolving to nothing
+  - so a change to `docs/` is never unguarded, but only the real build answers
+  whether it renders.
+- **`pi -e extension` from this repository does not exercise the installed pi.**
+  Measured on 2026-09-17 with the CLI at 0.85.1: an extension loaded by a path
+  inside this checkout resolved `@earendil-works/pi-coding-agent` to
+  `node_modules`, that is 0.80.10, and reported so itself. Node resolves from the
+  file's real path, and the documented install is a symlink back into the
+  checkout, so the symlink does not change it either. Running the extension in a
+  real pi is still the only way to catch a shape change, but it catches the shape
+  of whatever `npm install` put in `node_modules`. To exercise another pi, build
+  a scratch directory whose own `node_modules/@earendil-works/pi-coding-agent`
+  points at the pi you mean, copy the case into it, and import nothing from this
+  repository. This narrows the `AGENTS.md` note that says the pi that matters is
+  the one the extension runs inside; that wording deserves revisiting in
+  whichever PR next touches `buildRegistry`.
