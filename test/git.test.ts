@@ -13,6 +13,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, test } from "node:test";
 import { branchName, commitAll, createBranch, currentBranch, diff, diffStat, isRepository, status, untracked } from "../src/git.ts";
+import { gitWithInput } from "../src/git-run.ts";
 
 const scratch: string[] = [];
 
@@ -187,5 +188,18 @@ describe("branchName", () => {
 
 	test("a request with nothing usable still names a branch", () => {
 		assert.equal(branchName("!!!"), "combo/work");
+	});
+});
+
+describe("piping to git", () => {
+	test("git exiting before it has read its input is an answer, not a crash", async () => {
+		// More than a pipe holds, handed to a command that never reads it: the
+		// write cannot finish, and the EPIPE it raises has no listener of its own.
+		// It used to surface as an uncaught exception, in whichever test the
+		// scheduler happened to be running.
+		const done = await gitWithInput(repo(), ["--version"], "x".repeat(1024 * 1024));
+
+		assert.equal(done.ok, true);
+		assert.match(done.ok ? done.value : "", /git version/);
 	});
 });
