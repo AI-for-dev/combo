@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { declaresDelegate, delegateTool, MAX_DEPTH, SUBAGENT_TOOL } from "../src/delegate.ts";
 import { callTool } from "./fixtures/call-tool.ts";
-import { fakeSpawn, testAgent } from "./fixtures/fake-subagent.ts";
+import { fakeSpawn, offeredTools, testAgent } from "./fixtures/fake-subagent.ts";
 
 const scout = testAgent("scout", { description: "Reads code" });
 const splitter = testAgent("splitter", { description: "Splits reading", tools: ["read", SUBAGENT_TOOL] });
@@ -79,8 +79,8 @@ describe("how deep it goes", () => {
 
 		await callTool(tool, { agent: "splitter", tasks: ["split this"] });
 
-		const offered = fake.spawned[0]?.options.customTools;
-		assert.equal(offered?.length, 1, "it asked for children of its own");
+		const offered = offeredTools(fake.spawned[0]?.options ?? {});
+		assert.equal(offered.length, 1, "it asked for children of its own");
 
 		// That tool is at the bound, so calling it refuses rather than spawning.
 		const deeper = await callTool(offered?.[0] as never, { agent: "scout", tasks: ["go deeper"] });
@@ -95,7 +95,7 @@ describe("how deep it goes", () => {
 
 		await callTool(tool, { agent: "scout", tasks: ["just read"] });
 
-		assert.equal(fake.spawned[0]?.options.customTools, undefined);
+		assert.deepEqual(offeredTools(fake.spawned[0]?.options ?? {}), []);
 	});
 
 	test("the bound is the caller's, and one level means no delegation at all", async () => {
@@ -114,13 +114,58 @@ describe("how deep it goes", () => {
 		const tool = delegateTool({ agents: roster, spawn: fake.spawn, maxDepth: 3 });
 
 		await callTool(tool, { agent: "splitter", tasks: ["split this"] });
-		const offered = fake.spawned[0]?.options.customTools?.[0];
+		const offered = offeredTools(fake.spawned[0]?.options ?? {})[0];
 		await callTool(offered as never, { agent: "scout", tasks: ["go deeper"] });
 
 		assert.deepEqual(
 			fake.spawned.map((one) => one.agent),
 			["splitter", "scout"],
 		);
+	});
+});
+
+describe("what it costs, and whose cost it is", () => {
+	test("every child hangs under the subagent that called the tool", async () => {
+		const fake = fakeSpawn();
+		const tool = delegateTool({ agents: roster, spawn: fake.spawn, parentId: "explorer#1" });
+
+		await callTool(tool, { agent: "scout", tasks: ["read A", "read B"] });
+
+		assert.deepEqual(
+			fake.spawned.map((one) => one.options.parentId),
+			["explorer#1", "explorer#1"],
+		);
+	});
+
+	test("a grandchild hangs under the child, not under the holder", async () => {
+		const fake = fakeSpawn();
+		const tool = delegateTool({ agents: roster, spawn: fake.spawn, maxDepth: 3, parentId: "explorer#1" });
+
+		await callTool(tool, { agent: "splitter", tasks: ["split this"] });
+		// Built from the child's own id, as `spawn` minted it, and not from
+		// anything its parent could have known.
+		const child = fake.spawned[0];
+		await callTool(offeredTools(child?.options ?? {}, child?.id)[0] as never, { agent: "scout", tasks: ["deeper"] });
+
+		assert.deepEqual(
+			fake.spawned.map((one) => [one.id, one.options.parentId]),
+			[
+				["splitter#1", "explorer#1"],
+				["scout#2", "splitter#1"],
+			],
+		);
+	});
+
+	test("with nobody to hang under, the children are still spawned and still measured", async () => {
+		// A caller building the tool by hand and not passing an id gets a flat
+		// measurement, never a lost one.
+		const fake = fakeSpawn();
+		const tool = delegateTool({ agents: roster, spawn: fake.spawn });
+
+		await callTool(tool, { agent: "scout", tasks: ["read A"] });
+
+		assert.equal(fake.spawned.length, 1);
+		assert.equal(fake.spawned[0]?.options.parentId, undefined);
 	});
 });
 
@@ -152,7 +197,7 @@ describe("how wide it goes", () => {
 		const tool = delegateTool({ agents: [scout, narrow, wide], holder: wide, spawn: fake.spawn, maxDepth: 3 });
 
 		await callTool(tool, { agent: "narrow", tasks: ["split this"] });
-		const childTool = fake.spawned[0]?.options.customTools?.[0];
+		const childTool = offeredTools(fake.spawned[0]?.options ?? {})[0];
 		await callTool(childTool as never, { agent: "scout", tasks: ["a", "b", "c"] });
 
 		assert.equal(fake.maxConcurrent, 1, "the child's own file says one at a time, not its parent's three");

@@ -70,6 +70,36 @@ formatUsage(result.usage);
 
 `sumUsage` folds several together, which is how a workflow reports its total.
 
+## A delegated run is a tree
+
+A subagent that spawns children of its own is still one subagent among others:
+it has its own `Usage`, and so does each child. What links them is the id of
+whoever asked, carried on the `spawn` event and kept on the snapshot:
+
+```
+✓ explorer#1      1 turn 2.1s ↑8.0k ↓412 $0.0180
+✓   scout#1       1 turn 9.4s ↑14k ↓1.1k $0.0402
+✓   scout#2       1 turn 8.8s ↑13k ↓980 $0.0377
+total            3 turns 20.3s ↑35k ↓2.5k $0.0959
+```
+
+Two things this is built around:
+
+- **The total is the tree, never the root.** An explorer whose own turn cost
+  eighteen cents while its scouts cost eighty is a cheap agent and an expensive
+  run. `summaryTable` and `usage.json` both sum every row.
+- **The link is an id, never a name.** Two explorers running at once share a
+  name; nothing infers a parent afterwards, and a child whose parent is not in
+  the list reads as a root rather than disappearing from the total.
+
+The link reaches a tool through `SpawnOptions.customTools` in its function form:
+the id is minted by `spawn`, so a tool that will spawn children is built from it
+rather than before it.
+
+```typescript
+customTools: (parentId) => [delegateTool({ agents, holder: explorer, parentId })],
+```
+
 Comparing these numbers across models, over repeated runs, is what
 [Experiments](experiments.md) is for - same collection, one table.
 

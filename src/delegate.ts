@@ -55,6 +55,16 @@ export type DelegateOptions = Omit<WorkflowOptions, "customTools" | "lifetime"> 
 	maxDepth?: number;
 	/** The depth of whoever is being handed this tool. The first call is 1. */
 	depth?: number;
+	/**
+	 * The id of the subagent holding this tool, so its children can name it.
+	 *
+	 * Absent at the top level only when nobody could say: the holder's id is
+	 * minted by `spawn`, so a caller building this tool by hand takes it from
+	 * `SpawnOptions.customTools` in its function form. Without it the children
+	 * are still spawned and still measured - they simply read as roots, which
+	 * is a measurement that has lost a fact rather than a run that failed.
+	 */
+	parentId?: string;
 };
 
 /** Whether an agent's definition asks to be allowed children of its own. */
@@ -75,7 +85,7 @@ export function declaresDelegate(tools: readonly string[] | undefined): boolean 
  * than a thing to cause on purpose.
  */
 export function delegateTool(options: DelegateOptions): ToolDefinition {
-	const { agents, holder, maxDepth = MAX_DEPTH, depth = 1, ...shared } = options;
+	const { agents, holder, maxDepth = MAX_DEPTH, depth = 1, parentId, ...shared } = options;
 	const roster = agents.map((one) => one.name).join(", ");
 
 	return defineTool({
@@ -108,15 +118,23 @@ export function delegateTool(options: DelegateOptions): ToolDefinition {
 				...shared,
 				agent,
 				tasks,
+				// Every child of this call hangs under whoever called the tool.
+				// This is the only place the tree is built: nothing infers a
+				// parent afterwards, and nothing reads a name to guess one.
+				parentId,
 				// The delegator's own number, not the one it is delegating to: how
 				// wide a split is worth making is a fact about the agent doing the
 				// splitting. Absent, `fanOut` decides.
 				concurrency: holder?.concurrency ?? shared.concurrency,
 				// A child of a child gets the tool too, one level deeper, and only
-				// when its own definition asks for it.
+				// when its own definition asks for it. Built from the child's own
+				// id, which exists one step later than everything else here: a
+				// grandchild hangs under the child, not under this holder.
 				customTools: (child) =>
 					declaresDelegate(child.tools)
-						? [delegateTool({ ...options, holder: child, depth: depth + 1 })]
+						? (childId: string) => [
+								delegateTool({ ...options, holder: child, parentId: childId, depth: depth + 1 }),
+							]
 						: undefined,
 			});
 

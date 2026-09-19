@@ -172,7 +172,7 @@ by the caller and handed over like any other:
 ```typescript
 const answer = await run(explorer, question, {
 	cwd: repo,
-	customTools: [delegateTool({ agents, cwd: repo })],
+	customTools: (parentId) => [delegateTool({ agents, parentId, cwd: repo })],
 });
 ```
 
@@ -181,7 +181,14 @@ default: the session, a child, a grandchild. At the bound the tool refuses and
 says so, rather than being withheld and leaving a model calling something that
 is not there.
 
-`examples/14-delegation-tree.ts` is one explorer, three scouts and one answer.
+`customTools` is written as a function here for one reason: `parentId` is the id
+`spawn` is about to give this subagent, and passing it is what has the children
+measured **under** it rather than beside it. See
+[Measurements](measurements.md). A list still works, and a tool that spawns
+nothing has no use for the id.
+
+`examples/14-delegation-tree.ts` is one explorer, three scouts and one answer,
+and it prints what the tree cost.
 
 ## Writing one in Markdown
 

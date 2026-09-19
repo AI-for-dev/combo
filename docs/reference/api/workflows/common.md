@@ -119,8 +119,21 @@ export type WorkflowOptions = {
 	 * A function rather than a list, because the answer differs by agent: a
 	 * reviewer is offered the verdict tool and the worker beside it is not, and
 	 * a collector shared between two agents could not say which of them spoke.
+	 *
+	 * Returning a {@link CustomToolsFor} instead of a list defers the choice one
+	 * step further, to the moment the subagent's id exists - see
+	 * {@link SpawnOptions.customTools}. The pool passes either through untouched:
+	 * only a tool that spawns children needs the id, and nothing else should pay
+	 * for it.
 	 */
-	customTools?: (agent: Agent) => ToolDefinition[] | undefined;
+	customTools?: (agent: Agent) => ToolDefinition[] | CustomToolsFor | undefined;
+	/**
+	 * The subagent every subagent of this workflow hangs under.
+	 *
+	 * Set when a workflow is itself the work of a subagent, which today means
+	 * `delegateTool`. It is what turns a flat list of measurements into a tree.
+	 */
+	parentId?: string;
 };
 ```
 

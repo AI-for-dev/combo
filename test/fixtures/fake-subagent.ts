@@ -9,6 +9,7 @@
 import type { Agent } from "../../src/agent.ts";
 import { emptyUsage, type Usage } from "../../src/usage.ts";
 import type { Result } from "../../src/result.ts";
+import type { ToolDefinition } from "../../src/session.ts";
 import type { SpawnFn } from "../../src/workflows/common.ts";
 import type { AskOptions, SpawnOptions, Subagent } from "../../src/subagent.ts";
 
@@ -44,6 +45,17 @@ export type FakeSpawn = {
  * so a turn can act through a tool the workflow offered, and it may be async
  * because acting through one is.
  */
+/**
+ * What a spawn was offered, whichever shape the caller used.
+ *
+ * `SpawnOptions.customTools` is a list or a function of the id to come, and a
+ * test asserting on what an agent may reach does not care which.
+ */
+export function offeredTools(options: SpawnOptions, id: string = "holder#1"): ToolDefinition[] {
+	const tools = options.customTools;
+	return (typeof tools === "function" ? tools(id) : tools) ?? [];
+}
+
 export function fakeSpawn(
 	reply: (task: string, agent: Agent, options: SpawnOptions) => FakeReply | Promise<FakeReply> = () => ({}),
 ): FakeSpawn {
@@ -69,7 +81,14 @@ export function fakeSpawn(
 		let lastResult: Result | undefined;
 		if (options.onEvent) bus?.subscribe(options.onEvent);
 		const lifetime = options.lifetime ?? agent.lifetime ?? "task";
-		bus?.emit({ type: "spawn", id, agent: agent.name, lifetime, openInHerdr: options.openInHerdr ?? false });
+		bus?.emit({
+			type: "spawn",
+			id,
+			agent: agent.name,
+			lifetime,
+			openInHerdr: options.openInHerdr ?? false,
+			parentId: options.parentId,
+		});
 		bus?.emit({ type: "status", id, status: "idle" });
 
 		const subagent: Subagent = {

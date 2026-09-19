@@ -55,6 +55,16 @@ export type DelegateOptions = Omit<WorkflowOptions, "customTools" | "lifetime"> 
 	maxDepth?: number;
 	/** The depth of whoever is being handed this tool. The first call is 1. */
 	depth?: number;
+	/**
+	 * The id of the subagent holding this tool, so its children can name it.
+	 *
+	 * Absent at the top level only when nobody could say: the holder's id is
+	 * minted by `spawn`, so a caller building this tool by hand takes it from
+	 * `SpawnOptions.customTools` in its function form. Without it the children
+	 * are still spawned and still measured - they simply read as roots, which
+	 * is a measurement that has lost a fact rather than a run that failed.
+	 */
+	parentId?: string;
 };
 ```
 

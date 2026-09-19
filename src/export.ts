@@ -18,7 +18,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import type { TuiSnapshot } from "./reporters/tui.ts";
+import { treeOrder, type TuiSnapshot } from "./reporters/tui.ts";
 import type { SessionPort } from "./session.ts";
 
 /** What one subagent left on disk. Both paths are absent when nothing could be written. */
@@ -110,6 +110,16 @@ export type UsageReportEntry = {
 	task: string;
 	/** How many tools it called. The cheapest signal that a turn ran away. */
 	toolCalls: number;
+	/**
+	 * The subagent that had this one spawned. Absent on a root.
+	 *
+	 * The list stays **flat** and carries the link, rather than nesting: the
+	 * total is a sum over the whole tree either way, every reader written
+	 * against the flat shape keeps working, and a tree is one pass away for
+	 * whoever wants one. The rows are in tree order, so reading it top to bottom
+	 * already shows the children under their parent.
+	 */
+	parentId?: string;
 	/** Its {@link Usage}, flattened: time measured here, tokens as pi reported them. */
 	usage: Record<string, number | undefined>;
 };
@@ -120,7 +130,7 @@ export type UsageReport = {
 	generatedAt: string;
 	/** Wall time of the run itself, not the sum of the subagents. */
 	wallMs: number;
-	/** One entry per subagent, in the order they were spawned. */
+	/** One entry per subagent, in tree order: a child follows the parent it hangs under. */
 	subagents: UsageReportEntry[];
 	/** The sum over every subagent - failures included, because they cost too. */
 	total: Record<string, number>;
@@ -142,7 +152,7 @@ export function usageReport(snapshot: TuiSnapshot, wallMs: number, exports?: Ses
 	return {
 		generatedAt: new Date().toISOString(),
 		wallMs,
-		subagents: snapshot.subagents.map((one) => ({
+		subagents: treeOrder(snapshot.subagents).map(({ snapshot: one }) => ({
 			id: one.id,
 			agent: one.agent,
 			lifetime: one.lifetime,
@@ -152,6 +162,7 @@ export function usageReport(snapshot: TuiSnapshot, wallMs: number, exports?: Ses
 			error: one.error,
 			task: one.task,
 			toolCalls: one.tools.length,
+			parentId: one.parentId,
 			usage: { ...one.usage },
 		})),
 		total: {

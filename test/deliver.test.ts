@@ -9,7 +9,7 @@ import { APPROVAL } from "../src/workflows/pair.ts";
 import { emptyUsage } from "../src/usage.ts";
 import { VERDICT_TOOL } from "../src/verdict.ts";
 import { callTool } from "./fixtures/call-tool.ts";
-import { fakeSpawn, testAgent } from "./fixtures/fake-subagent.ts";
+import { fakeSpawn, offeredTools, testAgent } from "./fixtures/fake-subagent.ts";
 
 const planner = testAgent("planner", { description: "Splits the work" });
 const coder = testAgent("coder", { description: "Writes code" });
@@ -494,7 +494,7 @@ describe("an auditor that signs through the verdict tool", () => {
 				case "reviewer":
 					return { output: APPROVAL };
 				case "auditor": {
-					const tool = options.customTools?.[0];
+					const tool = offeredTools(options)[0];
 					assert.ok(tool, "the auditor is offered the tool it declared");
 					await callTool(tool, rounds[audit++] ?? { approved: true });
 					return { output: "prose the decision does not live in" };

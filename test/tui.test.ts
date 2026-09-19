@@ -10,18 +10,21 @@ import {
 	progressLine,
 	statusIcon,
 	summaryTable,
+	treeOrder,
 	widgetLines,
 	widgetRows,
+	type SubagentSnapshot,
 	type TuiCollector,
 } from "../src/reporters/tui.ts";
 import { emptyUsage, type Usage } from "../src/usage.ts";
 
-const spawned = (id: string): SubagentEvent => ({
+const spawned = (id: string, parentId?: string): SubagentEvent => ({
 	type: "spawn",
 	id,
 	agent: id.split("#")[0] as string,
 	lifetime: "task",
 	openInHerdr: false,
+	parentId,
 });
 
 const closed = (id: string, ok = true, usage: Partial<Usage> = {}): SubagentEvent => ({
@@ -35,6 +38,18 @@ const closed = (id: string, ok = true, usage: Partial<Usage> = {}): SubagentEven
 		error: ok ? undefined : "it broke",
 		usage: { ...emptyUsage(), ...usage },
 	},
+});
+
+/** A snapshot built by hand, for the shapes no event stream can produce. */
+const blank = (id: string): SubagentSnapshot => ({
+	id,
+	agent: id.split("#")[0] as string,
+	lifetime: "task",
+	status: "idle",
+	task: "",
+	tools: [],
+	output: "",
+	usage: emptyUsage(),
 });
 
 /** Replays a sequence into a fresh collector. */
@@ -346,7 +361,79 @@ describe("progressLine", () => {
 	});
 });
 
+describe("treeOrder", () => {
+	test("a child follows the parent it hangs under, however the spawns interleaved", () => {
+		const collector = replay(
+			spawned("explorer#1"),
+			spawned("explorer#2"),
+			spawned("scout#1", "explorer#1"),
+			spawned("scout#2", "explorer#2"),
+			spawned("scout#3", "explorer#1"),
+		);
+
+		assert.deepEqual(
+			treeOrder(collector.snapshot().subagents).map(({ snapshot, depth }) => [snapshot.id, depth]),
+			[
+				["explorer#1", 0],
+				["scout#1", 1],
+				["scout#3", 1],
+				["explorer#2", 0],
+				["scout#2", 1],
+			],
+		);
+	});
+
+	test("a grandchild hangs under the child, not under the root", () => {
+		const collector = replay(spawned("explorer#1"), spawned("splitter#1", "explorer#1"), spawned("scout#1", "splitter#1"));
+
+		assert.deepEqual(
+			treeOrder(collector.snapshot().subagents).map(({ depth }) => depth),
+			[0, 1, 2],
+		);
+	});
+
+	test("a parent nobody saw spawn leaves its child a root rather than losing it", () => {
+		// A reporter attached mid-run: the parent's spawn happened before it
+		// was listening, and a measurement that silently drops a subagent is
+		// worse than one that misplaces it.
+		const collector = replay(spawned("scout#1", "explorer#9"));
+
+		assert.deepEqual(
+			treeOrder(collector.snapshot().subagents).map(({ snapshot, depth }) => [snapshot.id, depth]),
+			[["scout#1", 0]],
+		);
+	});
+
+	test("two subagents pointing at each other are still both reported", () => {
+		const a = { ...blank("a#1"), parentId: "b#1" };
+		const b = { ...blank("b#1"), parentId: "a#1" };
+
+		assert.deepEqual(
+			treeOrder([a, b]).map(({ snapshot }) => snapshot.id),
+			["a#1", "b#1"],
+		);
+	});
+});
+
 describe("summaryTable", () => {
+	test("a delegated subagent is indented under the one that asked for it", () => {
+		const collector = replay(
+			spawned("explorer#1"),
+			spawned("scout#1", "explorer#1"),
+			closed("explorer#1", true, { turns: 1, busyMs: 100 }),
+			closed("scout#1", true, { turns: 1, busyMs: 400 }),
+		);
+
+		const lines = summaryTable(collector.snapshot(), 500);
+
+		assert.match(lines[0] as string, /^✓ explorer#1/);
+		assert.match(lines[1] as string, /^✓ {3}scout#1/, "the child is indented under it");
+		assert.match(lines[2] as string, /^total/);
+		// The tree costs what the tree costs: the parent's own turn and its
+		// child's, never one of the two.
+		assert.match(lines[2] as string, /2 turns 0\.5s/);
+	});
+
 	test("one line per subagent, a total, and the parallelism when there is any", () => {
 		const collector = replay(
 			spawned("scout#1"),

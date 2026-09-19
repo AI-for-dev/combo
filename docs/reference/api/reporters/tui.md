@@ -93,6 +93,8 @@ export type SubagentSnapshot = {
 	usage: Usage;
 	/** `provider/id` as pi resolved it, when it could. */
 	model?: string;
+	/** The subagent that had this one spawned. Absent on a root. */
+	parentId?: string;
 	/**
 	 * Monotonic instant the current turn began, while one is running.
 	 *
@@ -123,6 +125,10 @@ The end-of-workflow table: one line per subagent, total at the bottom.
 elapsed time is not the sum of the branches, and that difference is the
 whole point of the number.
 
+A delegated subagent is indented under the one that asked for it, and the
+total is still the sum of every row: what ruins a run is what the tree cost
+altogether, never what one leaf of it cost.
+
 ## `ToolCall`
 
 *type*
@@ -137,6 +143,43 @@ export type ToolCall = {
 ```
 
 A tool call as it happened, kept for the expanded view.
+
+## `treeOrder`
+
+*function*
+
+```typescript
+export function treeOrder(subagents: readonly SubagentSnapshot[]): TreeRow[] { /* … */ }
+```
+
+Spawn order, rearranged so that a child follows the parent it hangs under.
+
+The snapshot itself stays flat, and this is why: every existing reader keeps
+working, and the one that wants a tree asks for it here. A delegating run
+spawns its children after their parent anyway, so with a single root the
+order barely moves; with two parents working at once it stops interleaving
+three readers of one explorer with three of the other.
+
+**Nothing is ever dropped.** A subagent whose parent is not in the list - a
+reporter attached mid-run, a snapshot assembled by hand - reads as a root,
+and anything the walk could not reach is appended rather than lost. A
+measurement that silently omits a subagent is worse than one that misplaces
+it.
+
+## `TreeRow`
+
+*type*
+
+```typescript
+export type TreeRow = {
+	/** The subagent itself, untouched. */
+	snapshot: SubagentSnapshot;
+	/** `0` for a root, one more for each level of delegation under it. */
+	depth: number;
+};
+```
+
+One subagent, and how far under a root it sits.
 
 ## `TuiCollector`
 

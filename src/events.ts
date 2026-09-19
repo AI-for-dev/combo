@@ -30,6 +30,16 @@ export type SubagentEvent =
 			openInHerdr: boolean;
 			/** `provider/id` as pi resolved it. Absent when pi could not say. */
 			model?: string;
+			/**
+			 * The subagent that had this one spawned, when one did.
+			 *
+			 * Absent at the top level, which is what makes a root a root. It
+			 * travels on `spawn` alone: every later event about this subagent
+			 * carries its `id`, and a reporter that saw the spawn already knows
+			 * where to hang it. Sending it again would be a second copy of one
+			 * fact, and two copies drift.
+			 */
+			parentId?: string;
 	  }
 	| {
 			type: "status";
