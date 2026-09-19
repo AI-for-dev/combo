@@ -1,5 +1,7 @@
 # A scout reads twenty files so you do not have to
 
+![A scout reads twenty files so you do not have to](../_static/tutorials/01-one-scout.svg)
+
 Ask a coding agent where something lives in a repository it has never seen, and
 watch the status line. It reads a file, then another, then greps, then reads
 five more. Every one of those lands in your session's context and stays there

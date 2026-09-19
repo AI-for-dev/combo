@@ -1,5 +1,7 @@
 # Keep the session out of it
 
+![Keep the session out of it](../_static/tutorials/03-keep-the-session-out.svg)
+
 Here is a failure that is hard to see because it looks like competence. You
 ask the session to have a scout find something, then a planner to plan from
 it, then a coder to build the plan. Each report lands in the conversation, the

@@ -1,5 +1,7 @@
 # Teach it a house rule
 
+![Teach it a house rule](../_static/tutorials/06-teach-it-a-rule.svg)
+
 The test-reader from the last page knows what a test is. It does not know
 what your team means by a bad one, and neither does any model: "asserts on a
 value it set up itself" is a house rule, one of a dozen, and the list is the

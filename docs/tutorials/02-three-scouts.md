@@ -1,5 +1,7 @@
 # Three scouts, one answer
 
+![Three scouts, one answer](../_static/tutorials/02-three-scouts.svg)
+
 A question that spans a repository has three parts hiding in it: where the
 thing is implemented, how it is tested, and what the documentation claims. One
 agent answering all three reads everything, and a small one gets the first part

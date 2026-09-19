@@ -1,5 +1,7 @@
 # Watch the meter
 
+![Watch the meter](../_static/tutorials/10-the-meter.svg)
+
 Observed in the wild, on a small model: 79 calls to a tool named `run`, which
 did not exist. Each call got "unknown tool" back, and each time the model
 asked again, sending the whole context with it. Around 500k input tokens in a

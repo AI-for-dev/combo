@@ -1,5 +1,7 @@
 # Two coders, one tree
 
+![Two coders, one tree](../_static/tutorials/09-two-coders-one-tree.svg)
+
 Two coders writing into one working tree can each be right and together be
 wrong: one renames a function the other is calling, the check runs on a tree
 neither of them wrote, and the failure belongs to nobody. That was the reason

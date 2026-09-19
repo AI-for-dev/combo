@@ -1,5 +1,7 @@
 # A subagent that splits its own task
 
+![A subagent that splits its own task](../_static/tutorials/12-a-subagent-with-subagents.svg)
+
 Everything so far had you, or a file, decide how the work was split. There is
 a third case: an agent that looks at its task, decides it is too big, and
 spawns help. Whether it can is not the question. How far down that goes, who

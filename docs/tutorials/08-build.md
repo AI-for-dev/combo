@@ -1,5 +1,7 @@
 # Reading code is not running it
 
+![Reading code is not running it](../_static/tutorials/08-build.svg)
+
 A pair once wrote a helper and its tests. The reviewer approved. The auditor,
 reading the whole, approved. The test file imported `./slugify.js` for a file
 named `slugify.ts`, and the suite never loaded. Both agents had read the code.

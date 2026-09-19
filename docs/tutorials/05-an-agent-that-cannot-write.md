@@ -1,5 +1,7 @@
 # An agent that cannot do harm
 
+![An agent that cannot do harm](../_static/tutorials/05-an-agent-that-cannot-write.svg)
+
 Every agent framework has the same paragraph in its documentation: "instruct
 the agent not to modify files it was not asked to". Here is what that
 paragraph is worth. An example in this repository once gave its coder the full

@@ -1,5 +1,7 @@
 # Same work, two models
 
+![Same work, two models](../_static/tutorials/11-two-models.svg)
+
 "Which model should the coder run on" gets asked a lot, and most answers are
 benchmarks nobody ran on their own code. The honest version is small: the same
 workflow, on the same repository, on two models, with the bills side by side.

@@ -1,5 +1,7 @@
 # Two agents arguing until LGTM
 
+![Two agents arguing until LGTM](../_static/tutorials/07-until-lgtm.svg)
+
 An agent that reviews its own work approves it. Not always, and not out of
 laziness: it wrote the code with a model of what the code does, and it reads
 the code through the same model. The mistake it made is the mistake it cannot
