@@ -19,7 +19,8 @@ Reach for it when one agent is not enough: a coder and a reviewer looping until
 they agree, three scouts reading a codebase in parallel, the same workflow run
 against four models to see which one is worth its price.
 
-- **In-process subagents**, isolated and composable in TypeScript.
+- **In-process subagents**, isolated and composable in TypeScript. Their tools
+  and their skills are named in their own file, never inherited from yours.
 - An **explicit lifetime**: disposable, or persistent across a workflow. The
   caller decides, never the library.
 - A **live view** of the work, in [herdr](https://herdr.dev) if it is running and

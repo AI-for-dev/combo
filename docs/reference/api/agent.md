@@ -30,6 +30,13 @@ export type Agent = {
 	systemPrompt: string;
 	/** Allowed tools. Absent means the read-only default is applied at spawn. */
 	tools?: string[];
+	/**
+	 * Skills this agent may load, by name - an allowlist, exactly like `tools`.
+	 *
+	 * Absent means none: a subagent is offered no skill it did not ask for.
+	 * `resolveSkills` in `src/skills.ts` says where a name is looked up.
+	 */
+	skills?: string[];
 	/** Model pattern, e.g. `"anthropic/claude-sonnet-5"`. Absent means pi's default. */
 	model?: string;
 	/** Default lifetime. An explicit call always wins. */
