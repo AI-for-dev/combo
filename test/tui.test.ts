@@ -18,10 +18,13 @@ import {
 } from "../src/reporters/tui.ts";
 import { emptyUsage, type Usage } from "../src/usage.ts";
 
+let launch = 0;
+
 const spawned = (id: string, parentId?: string): SubagentEvent => ({
 	type: "spawn",
 	id,
 	agent: id.split("#")[0] as string,
+	order: ++launch,
 	lifetime: "task",
 	openInHerdr: false,
 	parentId,
@@ -67,6 +70,26 @@ describe("createTuiCollector", () => {
 			collector.snapshot().subagents.map((one) => one.id),
 			["scout#1", "coder#1", "scout#2"],
 			"a fan-out reads in launch order, not completion order",
+		);
+	});
+
+	test("launch order wins over the order the spawns arrived in", () => {
+		// Sessions come up in whatever order they come up in, and `spawn` waits
+		// for one because it carries the model. Measured in a real pi: three
+		// scouts launched together arrived 2, 1, 3.
+		const late = (id: string, order: number): SubagentEvent => ({
+			type: "spawn",
+			id,
+			agent: id.split("#")[0] as string,
+			order,
+			lifetime: "task",
+			openInHerdr: false,
+		});
+		const collector = replay(late("scout#2", 2), late("scout#1", 1), late("scout#3", 3));
+
+		assert.deepEqual(
+			collector.snapshot().subagents.map((one) => one.id),
+			["scout#1", "scout#2", "scout#3"],
 		);
 	});
 
@@ -237,6 +260,7 @@ describe("the widget above the prompt", () => {
 		type: "spawn",
 		id,
 		agent: id.split("#")[0] as string,
+		order: ++launch,
 		lifetime: "task",
 		openInHerdr: false,
 		model,

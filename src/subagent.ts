@@ -171,7 +171,7 @@ export type Subagent = {
  */
 export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<Subagent> {
 	const lifetime = options.lifetime ?? agent.lifetime ?? "task";
-	const id = nextSubagentId(agent.name);
+	const { id, order } = nextSubagentId(agent.name);
 
 	const bus = options.bus ?? createEventBus();
 	if (options.onEvent) bus.subscribe(options.onEvent);
@@ -236,6 +236,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 		agent: agent.name,
 		lifetime,
 		openInHerdr,
+		order,
 		model: modelLabel(session),
 		parentId: options.parentId,
 	});

@@ -623,6 +623,31 @@ collector lays out and never draws, the same split the rest of the display
 already keeps. A run with no delegation renders exactly as it did, which is the
 property the tests pin.
 
+## A fan-out reads in the order it was launched
+
+Three scouts launched together drew as `scout#2, scout#1, scout#3`, and stayed
+that way for the whole run. The collector kept arrival order and the comment
+above it claimed launch order, so the defect was one line of documentation away
+from being invisible.
+
+`spawn()` takes the id synchronously and emits the `spawn` event only after
+`await createSession()`, because the event carries the model pi resolved. Rows
+therefore land in the order sessions came *up*, which is a property of the
+provider and not of the run.
+
+The fix is a number on the event: `nextSubagentId` hands out the id and the
+launch order together, since they are one fact - the moment the subagent was
+asked for - and a second counter kept elsewhere would drift the day one of the
+two calls moved. The collector sorts on it and keeps it to itself: where a row
+is drawn is the display's business, and `SubagentSnapshot` stays about the
+subagent.
+
+Two alternatives were worse. Sorting by id breaks a chain, where
+`planner#1, coder#1, reviewer#1` is chronological and alphabetical order is
+nonsense. Emitting the event before the session exists means emitting it without
+the model, and the model on the spawn event is what makes a run say on its face
+what it ran on.
+
 ## What a delegated run costs is a tree
 
 A delegation with no tree-shaped measurement is a cost discovered on the

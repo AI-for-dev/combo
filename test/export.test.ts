@@ -173,7 +173,7 @@ describe("usage.json", () => {
 		const collector = createTuiCollector();
 		const feed = collector.reporter;
 
-		feed({ type: "spawn", id: "scout#1", agent: "scout", lifetime: "task", openInHerdr: false, model: "local/qwen" });
+		feed({ type: "spawn", id: "scout#1", agent: "scout", lifetime: "task", openInHerdr: false, order: 1, model: "local/qwen" });
 		feed({ type: "status", id: "scout#1", status: "working", task: "find it" });
 		feed({ type: "tool", id: "scout#1", name: "grep", args: { pattern: "x" } });
 		feed({ type: "usage", id: "scout#1", usage: { ...emptyUsage(), turns: 1, busyMs: 600, input: 1_000, output: 100, cost: 0.01 } });
@@ -189,7 +189,7 @@ describe("usage.json", () => {
 			},
 		});
 
-		feed({ type: "spawn", id: "coder#1", agent: "coder", lifetime: "workflow", openInHerdr: false });
+		feed({ type: "spawn", id: "coder#1", agent: "coder", lifetime: "workflow", openInHerdr: false, order: 1 });
 		feed({ type: "status", id: "coder#1", status: "working", task: "write it" });
 		feed({
 			type: "close",
@@ -246,8 +246,8 @@ describe("usage.json", () => {
 		const feed = collector.reporter;
 		const spent = (busyMs: number, input: number) => ({ ...emptyUsage(), turns: 1, busyMs, input });
 
-		feed({ type: "spawn", id: "explorer#1", agent: "explorer", lifetime: "task", openInHerdr: false });
-		feed({ type: "spawn", id: "scout#1", agent: "scout", lifetime: "task", openInHerdr: false, parentId: "explorer#1" });
+		feed({ type: "spawn", id: "explorer#1", agent: "explorer", lifetime: "task", openInHerdr: false, order: 1 });
+		feed({ type: "spawn", id: "scout#1", agent: "scout", lifetime: "task", openInHerdr: false, order: 2, parentId: "explorer#1" });
 		feed({
 			type: "close",
 			id: "scout#1",
@@ -281,13 +281,14 @@ describe("usage.json", () => {
 
 	test("a provider that reports nothing gives zero at every level, never an estimate", () => {
 		const collector = createTuiCollector();
-		collector.reporter({ type: "spawn", id: "explorer#1", agent: "explorer", lifetime: "task", openInHerdr: false });
+		collector.reporter({ type: "spawn", id: "explorer#1", agent: "explorer", lifetime: "task", openInHerdr: false, order: 1 });
 		collector.reporter({
 			type: "spawn",
 			id: "scout#1",
 			agent: "scout",
 			lifetime: "task",
 			openInHerdr: false,
+			order: 2,
 			parentId: "explorer#1",
 		});
 

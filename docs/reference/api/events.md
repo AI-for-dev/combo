@@ -71,6 +71,16 @@ export type SubagentEvent =
 			/** `provider/id` as pi resolved it. Absent when pi could not say. */
 			model?: string;
 			/**
+			 * Where this subagent came in the launch, counting from 1.
+			 *
+			 * The event cannot be emitted until the session exists, because it
+			 * carries the model pi resolved - and sessions come up in whatever
+			 * order they come up in. Measured: a fan-out of three drew as
+			 * `scout#2, scout#1, scout#3`. A reader that wants the order the
+			 * branches were launched in sorts on this.
+			 */
+			order: number;
+			/**
 			 * The subagent that had this one spawned, when one did.
 			 *
 			 * Absent at the top level, which is what makes a root a root. It
