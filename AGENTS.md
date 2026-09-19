@@ -149,6 +149,9 @@ reachable by forgetting an argument.
   and remove the listener after the turn.
 - A turn can **fail without throwing**: read the last assistant message's
   `stopReason`.
+- **A `tool_execution_start` can carry an empty `toolName`.** Not missing,
+  empty, so `??` never fires and the name reads as nothing at all. Anything
+  taking a name off a pi event wants `|| "?"`, not `?? "?"`.
 - Stats, context usage and exports are session methods: **call them before
   `dispose()`**, and always `dispose()` in a `finally`.
 - The system prompt goes through the `resourceLoader`, not through a
