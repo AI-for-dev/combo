@@ -110,9 +110,9 @@ export type SubagentEvent =
 	 * A member said something on the board.
 	 *
 	 * `id` is the member, as on every other event; the post carries who it was
-	 * for and what kind of thing it was. Nothing in the display reacts to it
-	 * today - it is emitted so that `record.ts` writes it down, which is what
-	 * makes the traffic of a run readable afterwards instead of reconstructed.
+	 * for and what kind of thing it was. `record.ts` writes it down, which is
+	 * what makes the traffic of a run readable afterwards instead of
+	 * reconstructed, and the console reporter prints it as it happens.
 	 */
 	| { type: "post"; id: string; post: Post }
 	/**
