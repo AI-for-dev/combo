@@ -89,7 +89,7 @@ loop has no step cap:
 await fanOut({ agent: scout, tasks, timeoutMs: 60_000 });   // per branch, not total
 ```
 
-[Workflows](workflows.md) covers all nine.
+[Workflows](workflows.md) covers all ten.
 
 ## From pi
 

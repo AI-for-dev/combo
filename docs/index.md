@@ -85,7 +85,7 @@ The central choice: disposable or persistent, and who closes what.
 :link: guide/workflows
 :link-type: doc
 
-The nine combinators, and the options they all share.
+The ten combinators, and the options they all share.
 :::
 
 :::{grid-item-card} {octicon}`checklist` Pipelines
