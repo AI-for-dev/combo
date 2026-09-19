@@ -115,6 +115,13 @@ One step at a time, with the session passive between two of them.
 
 A working copy each, so two subagents can write at once.
 :::
+
+:::{grid-item-card} {octicon}`broadcast` Swarms
+:link: guide/swarm
+:link-type: doc
+
+Several members on one job, a board between them, and nobody dividing it.
+:::
 ::::
 
 ## Watching and measuring
@@ -179,6 +186,7 @@ guide/pipelines
 guide/build
 guide/chain-by-hand
 guide/worktree
+guide/swarm
 guide/display
 guide/measurements
 guide/export

@@ -17,6 +17,7 @@ node examples/11-build.ts        # the pipeline on a throwaway repository
 node examples/12-experiment.ts   # the same loop on several models, twice each
 node examples/13-concurrent-writers.ts  # two pairs writing at once, a copy each
 node examples/14-delegation-tree.ts     # one explorer, three scouts, one answer
+node examples/15-swarm.ts               # three members, one board, nobody dividing it
 ```
 
 `11-build.ts` and `13-concurrent-writers.ts` write code, and both refuse to run
@@ -53,6 +54,18 @@ The flag takes no value, unlike `--model`: one that swallowed the word after it
 would eat the first word of the question. The report carries the delegation -
 each scout with the `parentId` of the explorer that asked for it, rows in tree
 order, and a total that is the whole tree. See [Export](../guide/export.md).
+
+## Comparing a swarm against not having one
+
+`15-swarm.ts` takes two more flags, because a swarm is worth what it beats:
+`--control` runs the same three members with no claims and one round, which is a
+fan-out, and `--hold <n>` bounds how much one member may hold at once.
+
+```bash
+node examples/15-swarm.ts --model <provider/model> --control
+```
+
+See [Swarms](../guide/swarm.md) for what three arms of it came back with.
 
 ## Watching them work
 
