@@ -53,6 +53,16 @@ files you can read in a diff.
    itself, resolved nearest first.
 
 
+**Writing code.** Agents that argue, and code that runs before anyone signs.
+
+7. [Two agents arguing until LGTM](07-until-lgtm.md) - the loop, the two
+   lifetimes, why reaching the cap is not success, and what a verdict is.
+8. [Reading code is not running it](08-build.md) - `/build`: the interview,
+   the two stops, the check whose verdict is final, the committer with no git.
+9. [Two coders, one tree](09-two-coders-one-tree.md) - why several writers
+   get a copy each, patches landed one at a time, and nothing rolled back.
+
+
 ```{toctree}
 :maxdepth: 1
 :hidden:
@@ -63,4 +73,7 @@ files you can read in a diff.
 04-write-it-down
 05-an-agent-that-cannot-write
 06-teach-it-a-rule
+07-until-lgtm
+08-build
+09-two-coders-one-tree
 ```
