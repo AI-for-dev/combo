@@ -119,7 +119,7 @@ describe("/run", () => {
 
 		assert.equal(input, "what does this repository do");
 		assert.equal(done?.ok, true);
-		assert.match(said(), /explore: 0 step\(s\)/);
+		assert.match(said(), /explore: 0 steps/);
 	});
 
 	test("--model is checked first, then reaches the pipeline run", async () => {

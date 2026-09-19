@@ -167,7 +167,7 @@ export function chainLines(relay: Relay | undefined): string[] {
 	});
 
 	const usage = chainUsage(relay);
-	lines.push(`${relay.steps.length} step(s), ${plural(usage.turns, "turn")} - exported to ${relay.dir}`);
+	lines.push(`${plural(relay.steps.length, "step")}, ${plural(usage.turns, "turn")} - exported to ${relay.dir}`);
 	return lines;
 }
 

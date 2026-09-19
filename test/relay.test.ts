@@ -133,7 +133,7 @@ describe("what the chain adds up to", () => {
 
 		assert.match(lines[0] ?? "", /^1\. scout /);
 		assert.match(lines[1] ?? "", /←scout/);
-		assert.match(lines.at(-1) ?? "", /2 step\(s\), 3 turns - exported to runs\//);
+		assert.match(lines.at(-1) ?? "", /2 steps, 3 turns - exported to runs\//);
 	});
 });
 

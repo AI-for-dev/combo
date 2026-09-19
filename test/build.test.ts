@@ -566,7 +566,7 @@ describe("/build resume", () => {
 		}));
 
 		assert.equal(interviewed, false);
-		assert.match(confirms[0] ?? "", /Carry on\? 1\/2 subtask\(s\) already approved/);
+		assert.match(confirms[0] ?? "", /Carry on\? 1\/2 subtasks already approved/);
 		assert.equal((resumed as { plan: unknown[] }).plan.length, 2, "the plan it already paid for");
 		assert.equal((resumed as { tasks: unknown[] }).tasks.length, 1);
 	});

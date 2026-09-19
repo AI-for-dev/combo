@@ -20,6 +20,7 @@ import {
 	checkPipelineAgents,
 	createRunDir,
 	loadPipelines,
+	plural,
 	runPipeline,
 	type Pipeline,
 	type PipelineCatalogue,
@@ -187,7 +188,7 @@ export async function runNamed(args: string, ctx: CommandCtx, deps: PipelineDeps
 		details: { pipeline: pipeline.name, steps: done.steps.map((step) => step.id), exportDir },
 	});
 	ctx.ui.notify(
-		`${pipeline.name}: ${done.steps.length} step(s), ${done.usage.turns} turns - exported to ${exportDir}`,
+		`${pipeline.name}: ${plural(done.steps.length, "step")}, ${plural(done.usage.turns, "turn")} - exported to ${exportDir}`,
 		"info",
 	);
 	return done;
