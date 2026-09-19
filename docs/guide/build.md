@@ -70,8 +70,10 @@ default to 2; `maxTasks` defaults to 8.
 
 ## The language of the interview
 
-The questions, the options and the specification come back in the language of
-the request. `/interview ajoute un cache` is answered in French.
+The header, the questions, the options and the specification come back in the
+language of the request. `/interview ajoute un cache` is answered in French,
+header included: it is drawn above the question on the same card, and left
+unnamed in the instruction it came back English over a French question.
 
 The specification then travels to the planner, the coder, the reviewer and the
 auditor, whose prompts are English. That is deliberate: the person correcting the

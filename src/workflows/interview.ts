@@ -31,13 +31,18 @@ export const READY = "READY";
  * for agents whose prompts are English but who take a request in any language
  * without trouble.
  *
+ * The header is named with the rest because it is drawn above the question, in
+ * the same card, by the same person's eye: measured, a French interview came
+ * back with `[Cache type]` over "Quel type de stockage ?" until the sentence
+ * said so.
+ *
  * The exceptions are not decoration. `parseQuestion` reads the JSON by its
  * **keys**, so a translated `options` is a question nobody can display; and the
  * loop ends on {@link READY}, so a model told to write French writes `PRÊT`,
  * which is an interview that never finishes.
  */
 const SPEAK_THEIR_LANGUAGE = [
-	"Write your questions, your options and the specification in the language the request above is written in.",
+	"Write your headers, your questions, your options and the specification in the language the request above is written in.",
 	`The JSON keys stay exactly as given - "header", "question", "options", "label", "description" - and ${READY} stays ${READY}.`,
 ].join("\n");
 
