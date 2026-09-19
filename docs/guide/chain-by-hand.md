@@ -96,6 +96,24 @@ Nothing a step produces reaches the model until `/quote`. That is the point, and
 it has a consequence: ask the session about the work and it will answer from a
 conversation where none of it happened.
 
+The screen has to carry that, because the next command is typed on a belief
+about it. A finished step is drawn with its own header and its body indented
+under it:
+
+```text
+◇ scout agent  1 turn  outside this conversation - /quote puts it in
+  The ledger records obligations, which are specific things that must be
+  addressed before a piece of work can be considered finished
+  (src/ledger.ts:27-38).
+  …
+```
+
+Looked at in a real pi, the first version of that header said the same thing in
+the same muted grey as the turn count, above a report drawn flush left at full
+width - which is exactly how an answer the session gave is drawn. The phrase
+carries the theme's warning colour now, and the indent makes the block read as
+an aside before a word of it is read.
+
 `/quote` is the way out, one step at a time. It arrives attributed -
 ``Result of the `planner` step of the chain, asked to: …`` - because an
 unattributed report in a user slot reads as an instruction.

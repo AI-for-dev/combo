@@ -55,10 +55,23 @@ FACES = [
 
 
 def face(given: str | None) -> str:
-	"""A monospaced font file, or a refusal that says how to give one."""
+	"""A monospaced font file that actually opens, or a refusal saying how to give one.
+
+	Existing is not enough: a font file can be present and unreadable, and what
+	comes back then is freetype's `OSError: broken file` from the middle of the
+	drawing, naming nothing. A candidate is tried by loading it.
+	"""
+	from PIL import ImageFont
+
 	for candidate in ([given] if given else []) + FACES:
-		if candidate and Path(candidate).exists():
-			return candidate
+		if not candidate or not Path(candidate).exists():
+			continue
+		try:
+			ImageFont.truetype(candidate, 12)
+		except OSError as broken:
+			print(f"skipping {candidate}: {broken}", file=sys.stderr)
+			continue
+		return candidate
 	raise SystemExit(f"no monospaced font found - pass --font <file.ttf> (tried {', '.join(FACES)})")
 
 
