@@ -72,6 +72,15 @@ describe("what the extension registers", () => {
 		assert.ok(commands.has("interview"), "/interview must be a command");
 		assert.ok(commands.get("interview")?.description, "a command with no description is invisible");
 	});
+
+	test("what is loaded can be asked for", () => {
+		// Both listings answer the same question - "why can it not find mine?" -
+		// and a listing nobody can reach answers nothing.
+		for (const name of ["agents", "pipelines"]) {
+			assert.ok(commands.has(name), `/${name} must be a command`);
+			assert.ok(commands.get(name)?.description, "a command with no description is invisible");
+		}
+	});
 });
 
 describe("the registered tool", () => {
