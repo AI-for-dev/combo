@@ -1627,6 +1627,29 @@ the list - the discipline `delegateTool` already applies to an agent name. A
 caller that cannot enumerate the work passes nothing and gets the weaker
 behaviour, which is honest rather than convenient.
 
+**How much one member may hold is a knob, and the number came from a run.** With
+nothing bounding it, one member of three took all six keys and the other two
+spent their turns being refused. Three arms, two repetitions each, same model,
+same goal:
+
+| | most held by one member | grants | mean wall | ↑input |
+| --- | --- | --- | --- | --- |
+| nothing | 3, 4 | 10.5 | 41.2s | 394k |
+| a rule in the prompt | 4, 4 | 11.0 | 43.2s | 434k |
+| `maxPerMember: 1` | 1, 1 | 14.5 | 53.3s | 646k |
+
+The middle row is the one worth keeping. "Take one thing at a time, and release
+it before you take another", written into the member's own definition, changed
+nothing at all: four held at once, exactly as with no rule. That is invariant 7
+in its own words - a prompt is not a permission boundary - measured for holdings
+rather than for tools.
+
+The bound works and the work still goes round: more grants, not fewer, because
+members cycle through take, do, release instead of sitting on everything. It is
+**not the default** because it is not free: 29% slower and 64% heavier in input
+tokens, since taking, releasing and being refused are all calls. A caller with
+no contention should not pay for it.
+
 Two smaller ones:
 
 - **Taking what you already hold is granted.** It is not contention, and a

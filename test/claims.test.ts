@@ -41,6 +41,45 @@ describe("taking", () => {
 		assert.deepEqual(claims.take("scout#1", "console.ts"), { ok: true });
 	});
 
+	test("a bound on one member holds, where telling it to take one at a time did not", () => {
+		// Measured on three members and six keys: with no bound one took
+		// everything; with the rule in its prompt instead, four at once, the same
+		// as with no rule at all.
+		const claims = createClaims({ keys: ["a", "b"], maxPerMember: 1 });
+		assert.deepEqual(claims.take("scout#1", "a"), { ok: true });
+
+		const second = claims.take("scout#1", "b");
+		assert.equal(second.ok, false);
+		assert.equal(second.ok ? undefined : second.heldBy, undefined, "nobody holds it: the bound is the member's own");
+		assert.match(second.ok ? "" : second.error, /already hold a.*release before taking another/);
+
+		assert.deepEqual(claims.take("scout#2", "b"), { ok: true }, "and it binds one member, not the board");
+	});
+
+	test("taking what you already hold is still granted at the bound", () => {
+		const claims = createClaims({ keys: ["a"], maxPerMember: 1 });
+		claims.take("scout#1", "a");
+
+		assert.deepEqual(claims.take("scout#1", "a"), { ok: true });
+	});
+
+	test("contention is reported before the bound: who has it is what a member can act on", () => {
+		const claims = createClaims({ keys: ["a", "b"], maxPerMember: 1 });
+		claims.take("scout#1", "a");
+		claims.take("scout#2", "b");
+
+		const both = claims.take("scout#2", "a");
+		assert.equal(both.ok ? undefined : both.heldBy, "scout#1", "and not `you already hold b`");
+	});
+
+	test("releasing frees the bound as well as the thing", () => {
+		const claims = createClaims({ keys: ["a", "b"], maxPerMember: 1 });
+		claims.take("scout#1", "a");
+		claims.release("scout#1", "a");
+
+		assert.deepEqual(claims.take("scout#1", "b"), { ok: true });
+	});
+
 	test("a caller that cannot list the work takes any key", () => {
 		const claims = createClaims();
 		assert.deepEqual(claims.take("scout#1", "whatever it decides to call it"), { ok: true });
