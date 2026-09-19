@@ -132,16 +132,19 @@ With `gpt-oss-120b` the whole flow worked: plan, pair, check, audit, fix, audit
 again, commit message written from the real diff, and the delivered tests pass
 on a clean checkout.
 
-**The one thing to decide is the auditor's word against the check's.** In that
-same run the check passed with four green tests, and the auditor then wrote
-`"Test file has a syntax error causing failure."` and raised a fix for it. The
-audit prompt had been handed the check's command and its output
-(`src/workflows/audit.ts:167`), so it contradicted evidence it was holding. A
-round was spent rewriting a file that was fine, and audit 2 approved. Nothing in
-`deliver` weighs a remark against the verification it was shown, and invariant 7
-says the check's verdict is the one our code performs. Worth a decision: either
-a failing-check claim over a passing check is dropped, or it stays and this is
-what an audit round costs.
+**The auditor's word against the check's is decided.** In that same run the
+check passed with four green tests, and the auditor then wrote `"Test file has a
+syntax error causing failure."` and raised a fix for it, contradicting output it
+was holding in its own prompt. A round went into rewriting a file that was fine.
+
+Dropping such a fix would mean reading the auditor's prose for claims about the
+check, where a false positive throws away a real remark, so the evidence travels
+with the work instead: every audit fix now carries the line that the check
+passes on the tree it is about to change, and the audit prompt states the
+passing case as plainly as it already stated the failing one. A worker sent
+after a failure that is not there can settle it by reading. What is **not**
+solved is the round itself - the turn is still spent, and only the rewrite is
+avoided.
 
 ## 3. Distributing it as a package
 

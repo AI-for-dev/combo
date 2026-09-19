@@ -117,6 +117,33 @@ export function fixesFrom(
 	return remarks ? [{ agent: only, task: `The audit asked for this. Address it:\n\n${remarks}` }] : [];
 }
 
+/**
+ * A fix, with the check that was standing when the auditor asked for it.
+ *
+ * Measured: the check passed with four green tests, the auditor then wrote
+ * "test file has a syntax error causing failure" and raised a fix for it, and a
+ * round was spent rewriting a file that was fine. The auditor was holding that
+ * check's output in its own prompt and contradicted it anyway, which is
+ * invariant 7 in its usual form - a prompt is not a permission boundary.
+ *
+ * Dropping the fix would need us to read the auditor's prose for a claim about
+ * the check, and a guess there throws away real remarks. So the evidence
+ * travels with the work instead: a worker sent after a failure that is not
+ * there can settle it by reading, rather than by rewriting.
+ *
+ * Only a **passing** check is attached. A failing one is what the fix is for,
+ * and the worker meets it the moment it runs the suite.
+ */
+export function withCheck(task: string, verification?: Verification): string {
+	if (!verification?.ok) return task;
+	return [
+		task,
+		"",
+		`Before you change anything: the project's check (\`${verification.command ?? "check"}\`) passes on this tree.`,
+		"If what you were asked to fix is that something fails, nothing does - say so, and change nothing.",
+	].join("\n");
+}
+
 /** `APPROVED` on a line of its own, whatever decoration the model added. */
 export function isApproved(output: string): boolean {
 	return saysWord(output, AUDIT_APPROVAL);
@@ -167,7 +194,7 @@ export function auditPrompt(
 					`The project's own check was run (\`${verification.command ?? "check"}\`) and ${verification.ok ? "passed" : "FAILED"}:`,
 					verification.output || "(no output)",
 					verification.ok
-						? ""
+						? "A passing check is evidence too. Ask for a fix because the code is wrong, not because something fails: whoever takes the fix is handed this same result and reads it before touching anything."
 						: "A failing check is not an opinion. Whatever else you find, the fixes must make it pass.",
 					"",
 				]

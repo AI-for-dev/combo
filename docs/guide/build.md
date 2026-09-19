@@ -162,6 +162,17 @@ The command runs through `execFile` with **no shell**: arguments are a list, so
 evidence the agents read and cannot argue with. The **tail** is kept rather than
 the head, because a test runner says what failed at the end.
 
+**A passing check travels with the fixes it contradicts.** Measured: the check
+passed with four green tests, the auditor wrote "test file has a syntax error
+causing failure" and raised a fix for it, and a round went into rewriting a file
+that was fine. The auditor was holding that output in its own prompt. Reading
+the auditor's prose for claims about the check and dropping those would throw
+away real remarks on a guess, so the evidence goes out with the work instead:
+every audit fix carries the line that the check passes on the tree it is about
+to change, and a worker sent after a failure that is not there can settle it by
+reading. A *failing* check is not repeated, because it is what the fix is for
+and the suite says so the moment it runs.
+
 ## The commit
 
 The committer agent has **no `bash`**. It reads the brief and the diff, and it
