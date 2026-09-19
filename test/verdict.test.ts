@@ -67,20 +67,31 @@ describe("verdictTool", () => {
 		]);
 	});
 
-	test("an id nothing is open for is refused, and the agent is told which ones are", async () => {
+	test("an id nothing is open for closes nothing, and the decision stands", async () => {
 		const verdicts = verdictTool({ knows: (id) => id === "o2", open: () => ["o2"] });
-		const answer = await call(verdicts.tool, { approved: true, resolved: [{ id: "1", how: "addressed" }] });
+		const answer = await call(verdicts.tool, {
+			approved: true,
+			resolved: [
+				{ id: "1", how: "addressed" },
+				{ id: "o2", how: "addressed" },
+			],
+		});
 
-		assert.equal(answer.isError, true);
-		assert.match(answer.content[0]?.text ?? "", /No open obligation for 1\. The ids you may close: o2\./);
-		assert.deepEqual(verdicts.take(), [], "and nothing of the call is kept");
+		assert.ok(!answer.isError, "the bookkeeping was wrong, the answer was not");
+		assert.match(answer.content[0]?.text ?? "", /Recorded: approved\./);
+		assert.match(answer.content[0]?.text ?? "", /Nothing was closed for 1.*The ids you may close: o2\./s);
+
+		const given = verdicts.take();
+		assert.equal(given[0]?.approved, true, "a decision is not lost to an id nobody raised");
+		assert.deepEqual(given[0]?.resolved, [{ id: "o2", how: "addressed", reason: undefined }], "and the real one still closed");
 	});
 
-	test("with nothing open at all, the refusal says so rather than listing nothing", async () => {
+	test("with nothing open at all, the answer says so rather than listing nothing", async () => {
 		const verdicts = verdictTool({ knows: () => false, open: () => [] });
 		const answer = await call(verdicts.tool, { approved: true, resolved: [{ id: "1", how: "addressed" }] });
 
 		assert.match(answer.content[0]?.text ?? "", /Nothing is open\./);
+		assert.equal(verdicts.take()[0]?.approved, true);
 	});
 
 	test("without a validator every id is taken on trust", async () => {

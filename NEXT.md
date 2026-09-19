@@ -146,6 +146,15 @@ after a failure that is not there can settle it by reading. What is **not**
 solved is the round itself - the turn is still spent, and only the rewrite is
 avoided.
 
+**A second thing came out of those runs.** Of seven deliveries, three ended
+`NOT approved` with no fix raised and nothing on screen saying why. One of them
+was read back from its transcript and settled it: the auditor answered
+`approved: true` with `resolved: [{ id: "coder" }]`, an id it had invented; the
+verdict tool refused the whole call; the auditor sent the same id again, was
+refused again, and gave up into prose. An id nobody raised now drops out of the
+verdict instead of taking the decision with it. The other two runs were not
+exported, so they are the same signature rather than the same confirmed cause.
+
 ## 3. Distributing it as a package
 
 Decided and done for the loading side: the extension ships `agents/` and
