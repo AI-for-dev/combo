@@ -10,7 +10,7 @@ import {
 	recordReporter,
 	silentReporter,
 } from "../src/reporters/index.ts";
-import { createHerdrReporterWith } from "../src/reporters/herdr.ts";
+import { BOARD_PANE, createHerdrReporterWith } from "../src/reporters/herdr.ts";
 import { detectHerdr, type HerdrSend } from "../src/reporters/herdr-client.ts";
 import type { SubagentEvent } from "../src/events.ts";
 import { emptyUsage } from "../src/usage.ts";
@@ -218,6 +218,65 @@ describe("herdr reporter", () => {
 		const content = fs.readFileSync(logPath, "utf8");
 		assert.match(content, /2 turns 1\.5s/);
 		await settle();
+	});
+
+	test("the members talk on a pane of their own, and each keeps its half", async () => {
+		const dir = tmpDir();
+		const { send, calls } = recorder();
+		const report = createHerdrReporterWith(send, { dir, all: true });
+
+		report(spawnEvent("member#1", false));
+		report(spawnEvent("member#2", false));
+		report({ type: "read", id: "member#2", posts: [], waiting: 0 });
+		report({
+			type: "post",
+			id: "member#1",
+			post: { id: "p1", from: "member#1", to: "member#2", kind: "ask", text: "who has console.ts?", at: 4 },
+		});
+		report({ type: "claim", id: "member#2", key: "console.ts", action: "take", ok: false, heldBy: "member#1" });
+		await settle();
+
+		const paneFor = (name: string) =>
+			calls.find((call) => call.method === "agent.start" && call.params.name === name)?.params.argv as string[] | undefined;
+
+		const board = fs.readFileSync(paneFor(BOARD_PANE)?.at(-1) as string, "utf8");
+		assert.match(board, /⇣ member#2 was handed nothing/, "the quiet half is the one a race needs");
+		assert.match(board, /✉ member#1 → member#2 \[ask\] who has console.ts\?/);
+		assert.match(board, /⚑ member#2 take console.ts → refused \(member#1\)/);
+
+		const mine = fs.readFileSync(paneFor("member#2")?.at(-1) as string, "utf8");
+		assert.match(mine, /⚑ take console.ts → refused \(member#1\)/, "its own name is in the header above");
+		assert.ok(!mine.includes("member#1 → member#2"), "what it was not part of belongs on the board");
+	});
+
+	test("nobody watching means no board pane either", async () => {
+		const { send, calls } = recorder();
+		const report = createHerdrReporterWith(send, { dir: tmpDir() });
+
+		report(spawnEvent("member#1", false));
+		report({ type: "post", id: "member#1", post: { id: "p1", from: "member#1", kind: "tell", text: "hello", at: 1 } });
+		await settle();
+
+		assert.deepEqual(calls, [], "a board pane over a run with no panes is a window nobody asked for");
+	});
+
+	test("the board closes with the last member, and releases no agent it never had", async () => {
+		const { send, calls, methods } = recorder();
+		const report = createHerdrReporterWith(send, { dir: tmpDir(), all: true });
+
+		report(spawnEvent("member#1", false));
+		report({ type: "status", id: "member#1", status: "working" });
+		report({ type: "post", id: "member#1", post: { id: "p1", from: "member#1", kind: "tell", text: "hello", at: 1 } });
+		report(closeEvent("member#1"));
+		await settle();
+
+		const closed = calls.filter((call) => call.method === "pane.close");
+		assert.equal(closed.length, 2, "the member's pane and the board's");
+		assert.equal(
+			methods().filter((method) => method === "pane.release_agent").length,
+			1,
+			"only the member ever had an agent reported on it",
+		);
 	});
 
 	test("a transport that fails never propagates: the display is not a participant", async () => {

@@ -153,6 +153,10 @@ files:
 A round cap bounds the worst case; it is not a plan. Without `--claim` there is
 nothing to be done with, so the members run their rounds and stop.
 
+`/herdr on` before it gives every member its own split and the board a pane of
+its own, which is the only view where the exchange reads as an exchange. See
+[Display](display.md).
+
 `--agent` takes any agent, and one that does not name `board` in its `tools:`
 is run anyway with a word about it: its copies cannot reach each other, which
 makes the run a fan-out, and that is the arm this whole page is measured
