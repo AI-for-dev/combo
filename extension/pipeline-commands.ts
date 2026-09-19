@@ -26,7 +26,7 @@ import {
 	type PipelineCatalogue,
 	type PipelineRunResult,
 } from "../src/index.ts";
-import { choosePipeline, loadRoster, parseLeadingFlags, refuse, switchValue, type BuildDeps, type CommandCtx } from "./build.ts";
+import { choosePipeline, loadRoster, parseLeadingFlags, refuse, switchValue, type BuildDeps, type CommandCtx } from "./command.ts";
 import { liveRun, pipelineVerifier, STATUS } from "./run-ui.ts";
 
 /**

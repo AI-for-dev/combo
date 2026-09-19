@@ -11,7 +11,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { initTheme } from "@earendil-works/pi-coding-agent";
-import type { CommandCtx } from "../extension/build.ts";
+import type { CommandCtx } from "../extension/command.ts";
 import {
 	listPipelines,
 	pipelineAnswer,
