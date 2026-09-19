@@ -106,6 +106,29 @@ export type SubagentEvent =
 	  }
 	| { type: "text"; id: string; delta: string }
 	| { type: "tool"; id: string; name: string; args: unknown }
+	/**
+	 * A member said something on the board.
+	 *
+	 * `id` is the member, as on every other event; the post carries who it was
+	 * for and what kind of thing it was. Nothing in the display reacts to it
+	 * today - it is emitted so that `record.ts` writes it down, which is what
+	 * makes the traffic of a run readable afterwards instead of reconstructed.
+	 */
+	| { type: "post"; id: string; post: Post }
+	/**
+	 * A member was handed what it had not seen.
+	 *
+	 * The posts alone say who said what, and that is the smaller half: what an
+	 * investigation asks is who *knew* what, and knowing comes from being handed
+	 * something. Measured on three members dividing one job: the claims were
+	 * spread over two seconds, so the later ones could have read the earlier,
+	 * and nothing in the record could say whether they had.
+	 *
+	 * Only the ids: the text is already in the record, under the `post` that put
+	 * it there. A read that was handed nothing is recorded too, and is the
+	 * strongest thing the record holds about what a member could not have known.
+	 */
+	| { type: "read"; id: string; posts: readonly string[]; waiting: number }
 	| { type: "usage"; id: string; usage: Usage }
 	| { type: "close"; id: string; result: Result };
 ```
