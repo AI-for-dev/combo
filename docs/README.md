@@ -39,6 +39,7 @@ docs/
     export.md           runs/<timestamp>/, HTML, JSONL, usage.json
     experiments.md      one workflow, M models, N repetitions, one table
     extension.md        the subagent tool, /interview, /build, /herdr
+  tutorials/            problem-oriented: twelve sittings in front of pi, in order
   reference/            lookup-oriented: what an export or a file does
     api/                generated from the TSDoc by `npm run docs`
     examples.md         one runnable script per shape
@@ -47,6 +48,8 @@ docs/
   _static/custom.css    the palette, the type and the devices, per selector
   _pygments.py          the code blocks, in the same two hues
   _static/logo/         the marks, and README.md for what each one is for
+  _static/tutorials/    one drawing per tutorial, from scripts/draw-tutorials.py; README.md
+                        says what each sign means
   _static/fonts/        EB Garamond and Inter, subset, with their licence
 ```
 

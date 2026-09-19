@@ -29,6 +29,10 @@ subagent, one that remembers, a workflow, and the same thing from inside pi. It 
 the only page that opens with a first example - everything here builds on it
 rather than restating it.
 
+The [tutorials](tutorials/index.md) are the other way in: twelve sittings in
+front of pi, each around one problem agents have today, each run on this
+repository with the frames it drew.
+
 :::{admonition} Where the line is drawn
 :class: important
 
@@ -54,6 +58,13 @@ reversals, with theirs.
 :link-type: doc
 
 The first subagent, the first workflow, the first build.
+:::
+
+:::{grid-item-card} {octicon}`mortar-board` Tutorials
+:link: tutorials/index
+:link-type: doc
+
+Twelve sittings in front of pi, one problem each, every one run on this repository.
 :::
 
 :::{grid-item-card} {octicon}`file-badge` Agents
@@ -173,6 +184,14 @@ guide/measurements
 guide/export
 guide/experiments
 guide/extension
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: Tutorials
+:hidden:
+
+tutorials/index
 ```
 
 ```{toctree}

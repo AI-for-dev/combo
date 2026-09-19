@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" width="640" height="220" role="img" aria-label="A document with a chain of brackets drawn on it, and the same chain running beside it">
+  <title>A document with a chain of brackets drawn on it, and the same chain running beside it</title>
+  <path d="M40 30 H190 L220 60 V190 H40 Z" fill="none" stroke="#7E8894" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.8" />
+  <path d="M190 30 V60 H220" fill="none" stroke="#7E8894" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.8" />
+  <path d="M60 80 H140" fill="none" stroke="#7E8894" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.5" />
+  <path fill="#7E8894" fill-opacity="0.7" d="M62 92 H72 V97 H64.75 V103 H72 V108 H62 Z" />
+  <rect x="80" y="98" width="60" height="4" fill="#7E8894" fill-opacity="0.5" />
+  <path fill="#7E8894" fill-opacity="0.7" d="M62 116 H72 V121 H64.75 V127 H72 V132 H62 Z" />
+  <rect x="80" y="122" width="40" height="4" fill="#7E8894" fill-opacity="0.5" />
+  <path fill="#7E8894" fill-opacity="0.7" d="M62 140 H72 V145 H64.75 V151 H72 V156 H62 Z" />
+  <rect x="80" y="146" width="60" height="4" fill="#7E8894" fill-opacity="0.5" />
+  <path d="M240 110 L290 110" fill="none" stroke="#2F958A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M282.1 114.3 L290 110 L282.1 105.7" fill="none" stroke="#2F958A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+  <path fill="#2F958A" d="M300 76 H322 V86 H305.5 V134 H322 V144 H300 Z" />
+  <path d="M336 110 L392 110" fill="none" stroke="#7E8894" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M384.1 114.3 L392 110 L384.1 105.7" fill="none" stroke="#7E8894" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  <path fill="#2F958A" d="M400 76 H422 V86 H405.5 V134 H422 V144 H400 Z" />
+  <path d="M436 110 L492 110" fill="none" stroke="#7E8894" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M484.1 114.3 L492 110 L484.1 105.7" fill="none" stroke="#7E8894" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  <path fill="#2F958A" d="M500 76 H522 V86 H505.5 V134 H522 V144 H500 Z" />
+  <rect x="536" y="107" width="64" height="6" fill="#2F958A" />
+</svg>

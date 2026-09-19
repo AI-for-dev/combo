@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" width="640" height="220" role="img" aria-label="A chain of brackets passing a line along, below an empty terminal, one dashed arrow up">
+  <title>A chain of brackets passing a line along, below an empty terminal, one dashed arrow up</title>
+  <path d="M200 20 H600 V116 H200 Z" fill="none" stroke="#7E8894" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.8" />
+  <path d="M200 36 H600" fill="none" stroke="#7E8894" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.48" />
+  <circle cx="210" cy="28" r="2.4" fill="#7E8894" fill-opacity="0.5599999999999999" />
+  <circle cx="220" cy="28" r="2.4" fill="#7E8894" fill-opacity="0.5599999999999999" />
+  <circle cx="230" cy="28" r="2.4" fill="#7E8894" fill-opacity="0.5599999999999999" />
+  <path d="M218 56 l6 6 l-6 6" fill="none" stroke="#7E8894" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.8" />
+  <path fill="#2F958A" d="M40 146 H62 V156 H45.5 V196 H62 V206 H40 Z" />
+  <rect x="74" y="171" width="90" height="6" fill="#7E8894" fill-opacity="0.55" />
+  <path d="M170 174 L210 174" fill="none" stroke="#7E8894" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M202.1 178.3 L210 174 L202.1 169.7" fill="none" stroke="#7E8894" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  <path fill="#2F958A" d="M220 146 H242 V156 H225.5 V196 H242 V206 H220 Z" />
+  <rect x="254" y="171" width="90" height="6" fill="#7E8894" fill-opacity="0.55" />
+  <path d="M350 174 L390 174" fill="none" stroke="#7E8894" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M382.1 178.3 L390 174 L382.1 169.7" fill="none" stroke="#7E8894" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  <path fill="#2F958A" d="M400 146 H422 V156 H405.5 V196 H422 V206 H400 Z" />
+  <rect x="434" y="171" width="90" height="6" fill="#7E8894" />
+  <path d="M540 168 L540 122" fill="none" stroke="#2F958A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5 5" />
+  <path d="M544.3 129.9 L540 122 L535.7 129.9" fill="none" stroke="#2F958A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

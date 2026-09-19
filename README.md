@@ -168,6 +168,8 @@ See [Extension](docs/guide/extension.md),
 ## Documentation
 
 - [Manual](docs/index.md) - agents, lifetime, workflows, pipelines, display, export, experiments.
+- [Tutorials](docs/tutorials/index.md) - twelve sittings in front of pi, one
+  problem each, every one run on this repository.
 - [API reference](docs/reference/api/index.md) - every public export, generated from the
   source and checked by the test suite.
 - [Examples](docs/reference/examples.md) - one runnable script per shape.

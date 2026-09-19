@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" width="640" height="220" role="img" aria-label="Two brackets facing each other, lines going back and forth, a check mark at the end">
+  <title>Two brackets facing each other, lines going back and forth, a check mark at the end</title>
+  <path fill="#2F958A" d="M60 40 H90 V54 H67.7 V166 H90 V180 H60 Z" />
+  <path fill="#2F958A" d="M330 40 H300 V54 H322.3 V166 H300 V180 H330 Z" />
+  <path d="M104 70 L286 70" fill="none" stroke="#7E8894" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M278.1 74.3 L286 70 L278.1 65.7" fill="none" stroke="#7E8894" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M286 100 L104 100" fill="none" stroke="#7E8894" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M111.9 95.7 L104 100 L111.9 104.3" fill="none" stroke="#7E8894" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M104 130 L286 130" fill="none" stroke="#7E8894" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M278.1 134.3 L286 130 L278.1 125.7" fill="none" stroke="#7E8894" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M104 160 L286 160" fill="none" stroke="#2F958A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M278.1 164.3 L286 160 L278.1 155.7" fill="none" stroke="#2F958A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M380 107.2 l9.799999999999999 9.799999999999999 l19.599999999999998 -22.4" fill="none" stroke="#2F958A" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M440 44 H600 V176 H440 Z" fill="none" stroke="#7E8894" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.8" />
+  <path d="M440 60 H600" fill="none" stroke="#7E8894" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.48" />
+  <circle cx="450" cy="52" r="2.4" fill="#7E8894" fill-opacity="0.5599999999999999" />
+  <circle cx="460" cy="52" r="2.4" fill="#7E8894" fill-opacity="0.5599999999999999" />
+  <circle cx="470" cy="52" r="2.4" fill="#7E8894" fill-opacity="0.5599999999999999" />
+  <path d="M458 80 l6 6 l-6 6" fill="none" stroke="#7E8894" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.8" />
+  <rect x="474" y="84" width="90" height="6" fill="#2F958A" />
+  <path d="M458 110 l6 6 l-6 6" fill="none" stroke="#7E8894" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.35" />
+</svg>
