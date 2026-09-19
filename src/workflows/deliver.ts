@@ -16,7 +16,7 @@
  */
 
 import type { Agent } from "./../agent.ts";
-import { land, type Landed } from "./../land.ts";
+import { land, landable, type Landed } from "./../land.ts";
 import { createLedger, type Ledger, type Obligation } from "./../ledger.ts";
 import { failed, type Result } from "./../result.ts";
 import { truncate } from "./../text.ts";
@@ -46,10 +46,10 @@ export type DeliverOptions = WorkflowOptions & {
 	/**
 	 * Subtasks in flight at once. Defaults to **2**, not 4.
 	 *
-	 * Without `worktree` these workers write to the same tree, and two at a time
-	 * is already the point where "independent subtasks" stops being a promise the
-	 * planner can keep. With it the limit is what a run costs rather than what the
-	 * filesystem allows, and a caller can raise it on that basis.
+	 * Two at a time is already the point where "independent subtasks" stops being
+	 * a promise the planner can keep, and a copy per pair does not change that:
+	 * what it bounds is the filesystem, not the plan. The limit is now what a run
+	 * costs rather than what the tree allows, and a caller can raise it knowingly.
 	 */
 	concurrency?: number;
 	/**
@@ -57,8 +57,19 @@ export type DeliverOptions = WorkflowOptions & {
 	 *
 	 * Every pair runs in a git worktree of `cwd`, and what they wrote is applied
 	 * to `cwd` one patch at a time with `verify` run between them, so a patch that
-	 * breaks the tree is named rather than bisected. Off by default: a delivery
-	 * that fits in one tree has no use for the machinery.
+	 * breaks the tree is named rather than bisected.
+	 *
+	 * **Defaulted from the plan**: a plan with more than one subtask gets the
+	 * copies, a plan with one does not. Left unset it is decided after planning,
+	 * which is the first moment the number is known; `true` and `false` are
+	 * obeyed as written.
+	 *
+	 * The default is that way round because a shared directory is not only a race
+	 * between two writers, it is a **channel between them**. Measured: four
+	 * subagents given one directory each read the other three's files inside a
+	 * single turn, without being asked to look. A delivery of one subtask has
+	 * nobody to leak to and stays where it was told to write, which is what
+	 * `/build` on your own repository is for.
 	 */
 	worktree?: boolean;
 	/** Rounds inside each pair. Defaults to 3. */
@@ -93,7 +104,6 @@ export type DeliverOptions = WorkflowOptions & {
 	onProgress?: (progress: BuildProgress) => void;
 };
 
-
 /** Everything a delivery produced, and the two words that say whether it counts. */
 export type DeliverResult = {
 	/** The specification the delivery worked from, as given. */
@@ -111,7 +121,7 @@ export type DeliverResult = {
 	/**
 	 * What became of the copies' patches, one entry per batch that ran.
 	 *
-	 * Empty without `worktree`. A batch that stopped on a patch names it, and
+	 * Empty when the subtasks shared the tree. A batch that stopped on a patch names it, and
 	 * `approved` is false while any of these is: work that never reached the tree
 	 * is not delivered, whatever the auditor thought of the reports.
 	 */
@@ -229,18 +239,38 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 	if (!planned.ok) return outcome([], planned.planning, false, planned.error);
 	report(planned.plan);
 
+	// Decided here because here is where the number of writers is first known.
+	// Two subagents in one directory read each other, so more than one subtask
+	// gets a copy each; one subtask writes where it was told to.
+	const isolate = worktree ?? planned.plan.length > 1;
+
+	// Isolation nobody asked for has to be possible *before* the work starts.
+	// Asked for explicitly it stays the caller's problem and fails where it
+	// always did - at the copy - but a delivery that chose this itself must not
+	// pay for two subtasks and then discover their patches cannot come home.
+	if (isolate && worktree === undefined) {
+		const ready = await landable(shared.cwd ?? process.cwd());
+		if (!ready.ok) {
+			const why = `${planned.plan.length} subtasks need a copy of the repository each, and ${ready.error}`;
+			// Both spellings, because both kinds of caller hit this: a script sets
+			// the option, and whoever typed a command has only the flag.
+			const how = "commit or stash what is there, or say worktree: false (`--worktree=false`) to let them share one tree";
+			return outcome([], planned.planning, false, `${why}. ${how}`);
+		}
+	}
+
 	const run = (step: PlannedTask) =>
-		pair({ ...shared, worker: step.agent, reviewer, input: step.task, maxRounds, worktree });
+		pair({ ...shared, worker: step.agent, reviewer, input: step.task, maxRounds, worktree: isolate });
 
 	/**
 	 * Runs the check, and first puts the copies' work back when there were any.
 	 *
 	 * One call rather than two at each of the two places a batch of pairs
-	 * finishes: without `worktree` this is the check on its own, exactly as
-	 * before, and with it the check is what `land` ran between the patches.
+	 * finishes: with nobody isolated this is the check on its own, and with the
+	 * copies it is what `land` ran between the patches.
 	 */
 	const settle = async (batch: readonly PairResult[]) => {
-		if (!worktree) {
+		if (!isolate) {
 			verification = await verify?.();
 			return;
 		}

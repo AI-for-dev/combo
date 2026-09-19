@@ -50,9 +50,11 @@ gets a five minute deadline, because pi's agent loop has no step cap and a
 person waiting cannot tell a slow turn from a stuck one.
 
 `--worktree` takes no value, unlike `--model`: a flag that swallowed the word
-after it would eat the first word of the request. It is off unless it is
-written, and `--worktree=false` says no explicitly. See
-[Worktrees](worktree.md) for what it costs and what it buys.
+after it would eat the first word of the request. Saying nothing is **not** the
+same as saying no: a delivery left to itself gives each of several subtasks a
+copy of the repository, and `--worktree=false` is how you refuse that.
+`--worktree` forces it on for a delivery of one. See [Worktrees](worktree.md)
+for what it costs and what it buys.
 
 `until` is a **whole-line match**: the loop stops when the word stands alone on
 one of the lines, whatever decoration the model put around it. A line with
@@ -99,7 +101,7 @@ and what a tree costs in [Measurements](measurements.md).
 | `/build <request>` | Interview, then the build pipeline, then the commit. |
 | `/build --pipeline <name> <request>` | The same, with a pipeline of your choosing. |
 | `/build --model <pattern> <request>` | The same, with every subagent on that model. Checked before the interview: a typo costs a second. |
-| `/build --worktree <request>` | The same, with each subtask in a copy of the repository and the work landed one patch at a time. |
+| `/build --worktree=false <request>` | The same, with the subtasks sharing one working tree rather than a copy each. |
 | `/build resume` | Carries on an interrupted build from `runs/<timestamp>/build.json`. |
 | `/agents` | Lists the agents that can be spawned, grouped by where they came from. |
 | `/pipelines` | Lists the pipelines that are loaded, and the files that do not parse. |

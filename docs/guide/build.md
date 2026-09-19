@@ -73,28 +73,39 @@ model takes a request in any language.
 
 ## Delivering in copies
 
-`worktree: true` gives each subtask a copy of the repository. The pairs write
-there, and what they wrote is applied to `cwd` one patch at a time with the
-check run between them, so a patch that breaks the tree is named rather than
-bisected.
+Each subtask gets a copy of the repository. The pairs write there, and what they
+wrote is applied to `cwd` one patch at a time with the check run between them,
+so a patch that breaks the tree is named rather than bisected.
 
 ```typescript
-const built = await deliver({ /* … */ cwd, worktree: true, verify });
+const built = await deliver({ /* … */ cwd, verify });
 built.landings;   // one entry per batch: what went in, and what stopped it
 ```
 
-From pi it is `/build --worktree <request>`, and `/run --worktree <pipeline>
-<input>` for a pipeline holding a `deliver` step. Whether two workers may share
-a tree is a fact about the machine a run happens on, so it is the caller's to
-set and not something a pipeline file declares.
+**That is the default from two subtasks up**, and not for the reason you would
+expect. Two writers in one directory are not only a race: they are a channel.
+Measured, four subagents given one directory each read the other three's files
+inside a single turn, without being asked to look. One subtask has nobody to
+leak to, so it writes where it was told - which is what `/build` on your own
+repository is for.
 
-`approved` gains a third condition with it: work that never reached the tree is
-not delivered, whatever the auditor thought of the reports.
+`worktree: true` and `worktree: false` are both obeyed as written; left unsaid,
+the delivery decides after planning, the first moment the number of writers is
+known. From pi that is `--worktree` and `--worktree=false`, on `/build`, `/run`
+and `/step`.
 
-Without the option `deliver` behaves exactly as before, and `concurrency` stays
-at 2 either way. What changes is the reason for that number: with copies the
-limit is what a run costs rather than what one working tree can take, so a
-caller can raise it on that basis.
+A delivery that chose the copies itself checks **first** that they can come
+back, and stops with the reason if not: a tree with changes already in it
+cannot take a landing, and finding that out after two subtasks have run is
+paying for work twice. Asked for explicitly, nothing is second-guessed and the
+failure lands where it always did.
+
+`approved` gains a third condition with the copies: work that never reached the
+tree is not delivered, whatever the auditor thought of the reports.
+
+`concurrency` stays at 2 either way. What changes is the reason for that number:
+with copies the limit is what a run costs rather than what one working tree can
+take, so a caller can raise it on that basis.
 
 A delivery lands twice or more: once for the planned subtasks, then once per
 round of audit fixes. Only the first meets a tree it did not write, and the

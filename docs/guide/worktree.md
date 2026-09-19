@@ -113,8 +113,10 @@ somebody else's.
 Landing adds no commit and moves no ref. What goes in stays in the working tree
 for a human to read.
 
-`deliver` does all of this for a whole delivery when it is given
-`worktree: true`: a copy per subtask, then a landing per batch of them. See
+`deliver` does all of this for a whole delivery, by default from two subtasks
+up: a copy per subtask, then a landing per batch of them. `landable()` is the
+question it asks first - whether this tree can take the patches back at all -
+because a copy whose patch cannot come home is a subtask paid for twice. See
 [Deliver a change](build.md).
 
 `examples/13-concurrent-writers.ts` runs two pairs at once on two subtasks and

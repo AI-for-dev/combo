@@ -26,7 +26,7 @@ import {
 	type PipelineCatalogue,
 	type PipelineRunResult,
 } from "../src/index.ts";
-import { choosePipeline, loadRoster, parseLeadingFlags, refuse, type BuildDeps, type CommandCtx } from "./build.ts";
+import { choosePipeline, loadRoster, parseLeadingFlags, refuse, switchValue, type BuildDeps, type CommandCtx } from "./build.ts";
 import { liveRun, pipelineVerifier, STATUS } from "./run-ui.ts";
 
 /**
@@ -129,7 +129,7 @@ export function listPipelines(ctx: CommandCtx, deps: PipelineDeps = {}): string[
 export async function runNamed(args: string, ctx: CommandCtx, deps: PipelineDeps = {}): Promise<PipelineRunResult | undefined> {
 	const { flags, rest: text } = parseLeadingFlags(args, ["model"], ["worktree"]);
 	const model = flags.model;
-	const worktree = flags.worktree === "true";
+	const worktree = switchValue(flags, "worktree");
 	const [name, ...rest] = text.split(/\s+/).filter(Boolean);
 	if (!name) {
 		return refuse(ctx, "run: say which pipeline, for example /run explore how usage is measured. /pipelines lists them", "warning");

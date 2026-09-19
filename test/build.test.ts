@@ -718,9 +718,12 @@ describe("parseBuildArgs, with a switch", () => {
 		});
 	});
 
-	test("`--worktree=false` says no, and anything else about it says yes", () => {
-		assert.equal(parseBuildArgs("--worktree=false add a cache").worktree, undefined);
+	test("`--worktree=false` is a refusal, and saying nothing is not one", () => {
+		// The three answers are distinct now: a delivery left to itself gives each
+		// of several subtasks a copy, and this is how someone says not to.
+		assert.equal(parseBuildArgs("--worktree=false add a cache").worktree, false);
 		assert.equal(parseBuildArgs("--worktree=true add a cache").worktree, true);
+		assert.equal(parseBuildArgs("add a cache").worktree, undefined);
 	});
 
 	test("without it the request is untouched, switch or not", () => {

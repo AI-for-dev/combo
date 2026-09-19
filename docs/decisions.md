@@ -411,6 +411,48 @@ per run: the patch was the only copy of the work and `PairResult.worktree` named
 something empty. A branch that turns out to hold nothing is cleared with
 `git branch -d`, which refuses any that holds something.
 
+### A shared directory is a channel, so several writers get copies by default
+
+`deliver` used to share one working tree unless somebody asked otherwise, and
+the reason given was the race: two workers writing over each other. A probe
+measured something worse. Four subagents given **one** directory, told only to
+write a file and list what they saw, each read the other three's files inside a
+single turn without being asked to look. The same four in four directories
+crossed nothing. A shared `cwd` is not a hazard the workers might hit, it is a
+channel they use.
+
+So the default flipped: with more than one subtask, every pair gets a copy.
+`worktree: true` and `worktree: false` are still obeyed exactly as written; what
+changed is what *nothing* means. A delivery of one subtask keeps writing where it
+was told - it has nobody to leak to, and `/build` on your own repository is the
+case that would be ruined by isolating it.
+
+The decision needs the plan, so it is taken after planning rather than in the
+options: the number of writers is the whole question, and it is not known before.
+
+**Choosing it also means checking it is possible, before the work.** Copies come
+home through `land`, and `land` refuses a tree that already has changes in it -
+which is the normal state of a repository somebody is working in. Discovering
+that after two subtasks have run is paying for them twice, so a delivery that
+turned isolation on by itself asks `landable()` first and stops with both ways
+out in the message. Asked for explicitly, nothing is second-guessed: the failure
+stays where it always was.
+
+The flag had to grow a third answer for any of this to survive the trip through a
+command. `--worktree` absent used to arrive as `false`, which is an answer; it
+now arrives as nothing at all, and `--worktree=false` is how a person says no.
+An option that a caller may leave unsaid must not be coerced on its way down, or
+the default is decided by the plumbing.
+
+A copy bounds writes, not reads. `..`, `/tmp` and everything else the `read` tool
+reaches are outside any worktree, and a subagent that goes looking still finds
+them. What closes is the channel that opens by accident.
+
+One thing had to be true elsewhere for any of this to work on a real
+repository: **a run's own exports are invisible to git**. They land in `runs/`
+inside the tree the delivery is about to land in, so while git counted them the
+answer to "can the patches come back" was always no.
+
 ### Patches go in one at a time, and nothing is undone
 
 Two patches that each apply cleanly on their own can still be wrong together:

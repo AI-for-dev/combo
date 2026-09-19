@@ -48,7 +48,9 @@ function cast(audits: string[] = [AUDIT_APPROVAL]) {
 describe("deliver", () => {
 	test("plans, runs each subtask as a pair, and audits the whole", async () => {
 		const fake = cast();
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "build a parser", spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "build a parser", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.equal(result.ok, true);
 		assert.equal(result.approved, true);
@@ -69,7 +71,9 @@ describe("deliver", () => {
 
 	test("the auditor is given the names it may hand a fix to", async () => {
 		const fake = cast();
-		await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn });
+		await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		const audit = fake.asks.find((ask) => ask.id.startsWith("auditor"))?.task ?? "";
 		assert.match(audit, /coder, scribe/, "an auditor that does not know the names invents one");
@@ -78,7 +82,9 @@ describe("deliver", () => {
 
 	test("the audit reads the brief and what each subtask claims, and is told to check the code", async () => {
 		const fake = cast();
-		await deliver({ planner, workers, reviewer, auditor, brief: "build a parser", spawn: fake.spawn });
+		await deliver({ planner, workers, reviewer, auditor, brief: "build a parser", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		const audit = fake.asks.find((ask) => ask.id.startsWith("auditor"))?.task ?? "";
 		assert.match(audit, /build a parser/);
@@ -89,7 +95,9 @@ describe("deliver", () => {
 
 	test("an audit that asks for fixes gets them done, then re-audits", async () => {
 		const fake = cast(["coder: the error path is missing", AUDIT_APPROVAL]);
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.equal(result.audits.length, 2);
 		assert.equal(result.audits[0]?.approved, false);
@@ -104,7 +112,9 @@ describe("deliver", () => {
 
 	test("an auditor that never approves is ok but not approved", async () => {
 		const fake = cast(["coder: again", "coder: again", "coder: again"]);
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", maxAuditRounds: 2, spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", maxAuditRounds: 2, spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.equal(result.approved, false);
 		assert.equal(result.ok, true, "every turn ran; the bar was never reached");
@@ -113,7 +123,9 @@ describe("deliver", () => {
 
 	test("an audit with nothing actionable stops the cycle instead of repeating it", async () => {
 		const fake = cast(["I am not sure this is right, honestly.", AUDIT_APPROVAL]);
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.equal(result.audits.length, 1, "asking the same question again would only cost tokens");
 		assert.equal(result.approved, false);
@@ -123,7 +135,9 @@ describe("deliver", () => {
 		// Observed for real: a check failed, the auditor explained the fix in
 		// English, named nobody, and a correct diagnosis went nowhere.
 		const fake = cast(["The quote on line 14 is not closed.", AUDIT_APPROVAL]);
-		const result = await deliver({ planner, workers: [coder], reviewer, auditor, brief: "x", spawn: fake.spawn });
+		const result = await deliver({ planner, workers: [coder], reviewer, auditor, brief: "x", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.equal(result.audits[0]?.fixes.length, 1);
 		assert.equal(result.audits[0]?.fixes[0]?.agent.name, "coder");
@@ -133,14 +147,18 @@ describe("deliver", () => {
 
 	test("with several workers a nameless refusal is still dropped: guessing owns nothing", async () => {
 		const fake = cast(["Something is wrong somewhere.", AUDIT_APPROVAL]);
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.deepEqual(result.audits[0]?.fixes, []);
 	});
 
 	test("a fix naming an unknown agent is dropped, like any other plan", async () => {
 		const fake = cast(["ghost: do magic", AUDIT_APPROVAL]);
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.deepEqual(result.audits[0]?.fixes, []);
 		assert.equal(result.audits.length, 1);
@@ -148,7 +166,9 @@ describe("deliver", () => {
 
 	test("no auditor means no audit, and nothing pretends otherwise", async () => {
 		const fake = cast();
-		const result = await deliver({ planner, workers, reviewer, brief: "x", spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, brief: "x", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.equal(result.audits.length, 0);
 		assert.equal(result.approved, true, "with nobody to sign off, the per-task reviews are the bar");
@@ -157,7 +177,9 @@ describe("deliver", () => {
 
 	test("an unplannable brief stops everything, and says why", async () => {
 		const fake = fakeSpawn(() => ({ output: "I would start by reading the code." }));
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.equal(result.ok, false);
 		assert.match(result.error ?? "", /no runnable plan/);
@@ -173,7 +195,9 @@ describe("deliver", () => {
 			if (agent.name === "scribe") return { ok: false, error: "scribe exploded" };
 			return { output: `did ${task.slice(0, 10)}` };
 		});
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.equal(result.tasks.length, 2);
 		assert.equal(result.tasks[0]?.ok, true);
@@ -191,14 +215,18 @@ describe("deliver", () => {
 			if (agent.name === "auditor") return { output: AUDIT_APPROVAL };
 			return { output: `did ${task}`, delayMs: 10 };
 		});
-		await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn });
+		await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.ok(fake.maxConcurrent <= 2, `expected at most 2 in flight, saw ${fake.maxConcurrent}`);
 	});
 
 	test("cancellation: nothing is spawned", async () => {
 		const fake = cast();
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", signal: AbortSignal.abort(), spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", signal: AbortSignal.abort(), spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.equal(fake.spawned.length, 0);
 		assert.equal(result.ok, false);
@@ -206,7 +234,9 @@ describe("deliver", () => {
 
 	test("everything opened is closed", async () => {
 		const fake = cast(["coder: fix it", AUDIT_APPROVAL]);
-		await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn });
+		await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.deepEqual(
 			fake.closed.sort(),
@@ -216,10 +246,14 @@ describe("deliver", () => {
 
 	test("lifetime: pairs are a team by default, strangers on request", async () => {
 		const team = cast();
-		await deliver({ planner, workers, reviewer, auditor, brief: "x", maxRounds: 2, spawn: team.spawn });
+		await deliver({ planner, workers, reviewer, auditor, brief: "x", maxRounds: 2, spawn: team.spawn,
+			worktree: false,
+		});
 
 		const strangers = cast();
-		await deliver({ planner, workers, reviewer, auditor, brief: "x", maxRounds: 2, lifetime: "task", spawn: strangers.spawn });
+		await deliver({ planner, workers, reviewer, auditor, brief: "x", maxRounds: 2, lifetime: "task", spawn: strangers.spawn,
+			worktree: false,
+		});
 
 		// Reviewers approve at once here, so both regimes run one round: what the
 		// lifetime changes is who the auditor and the pairs are, not the count.
@@ -235,7 +269,9 @@ describe("deliver", () => {
 
 	test("the auditor is always fresh, whatever the lifetime", async () => {
 		const fake = cast(["coder: fix it", AUDIT_APPROVAL]);
-		await deliver({ planner, workers, reviewer, auditor, brief: "x", lifetime: "workflow", spawn: fake.spawn });
+		await deliver({ planner, workers, reviewer, auditor, brief: "x", lifetime: "workflow", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		const auditors = fake.spawned.filter((entry) => entry.agent === "auditor");
 		assert.equal(auditors.length, 2, "the second audit must read the code as it is, not remember approving it");
@@ -250,7 +286,9 @@ describe("deliver", () => {
 			if (agent.name === "auditor") return { output: AUDIT_APPROVAL, usage };
 			return { output: "did it", usage };
 		});
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		// planner + (coder + reviewer) + (scribe + reviewer) + auditor
 		assert.equal(result.usage.turns, 6);
@@ -259,7 +297,9 @@ describe("deliver", () => {
 
 	test("the run settings reach every level", async () => {
 		const fake = cast();
-		await deliver({ planner, workers, reviewer, auditor, brief: "x", cwd: "/somewhere", exportDir: "/tmp/run", spawn: fake.spawn });
+		await deliver({ planner, workers, reviewer, auditor, brief: "x", cwd: "/somewhere", exportDir: "/tmp/run", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.ok(fake.spawned.every((entry) => entry.options.cwd === "/somewhere"));
 		assert.equal(fake.exported.length, fake.spawned.length);
@@ -294,7 +334,9 @@ describe("resuming", () => {
 
 	test("the plan is reused, and an approved subtask is not paid for twice", async () => {
 		const fake = cast();
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", resume: previously(), spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", resume: previously(), spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.ok(!fake.spawned.some((entry) => entry.agent === "planner"), "the plan was already paid for");
 		assert.deepEqual(
@@ -324,7 +366,9 @@ describe("resuming", () => {
 				},
 			],
 		});
-		await deliver({ planner, workers, reviewer, auditor, brief: "x", resume: unfinished, spawn: fake.spawn });
+		await deliver({ planner, workers, reviewer, auditor, brief: "x", resume: unfinished, spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.ok(fake.spawned.some((entry) => entry.agent === "coder"), "an argued-over subtask is not a finished one");
 	});
@@ -343,6 +387,7 @@ describe("resuming", () => {
 			maxAuditRounds: 2,
 			resume: withAudits,
 			spawn: fake.spawn,
+			worktree: false,
 		});
 
 		assert.equal(result.audits.length, 2, "the recorded round plus the one it had left");
@@ -360,6 +405,7 @@ describe("resuming", () => {
 			brief: "x",
 			onProgress: (progress) => reported.push({ tasks: progress.tasks.length, done: progress.done }),
 			spawn: fake.spawn,
+			worktree: false,
 		});
 
 		assert.ok(reported.length >= 3, `expected several reports, got ${reported.length}`);
@@ -380,6 +426,7 @@ describe("resuming", () => {
 				throw new Error("bookkeeping exploded");
 			},
 			spawn: fake.spawn,
+			worktree: false,
 		});
 
 		assert.equal(result.ok, true);
@@ -392,7 +439,9 @@ describe("verification", () => {
 
 	test("a passing check is evidence the auditor gets to see", async () => {
 		const fake = cast();
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", verify: passing, spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", verify: passing, spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.equal(result.verification?.ok, true);
 		assert.equal(result.approved, true);
@@ -403,7 +452,9 @@ describe("verification", () => {
 
 	test("a failing check outranks the auditor's approval", async () => {
 		const fake = cast([AUDIT_APPROVAL, AUDIT_APPROVAL]);
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", verify: failing, spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", verify: failing, spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.equal(result.approved, false, "reading code is not running it");
 		assert.equal(result.verification?.ok, false);
@@ -411,7 +462,9 @@ describe("verification", () => {
 
 	test("the auditor is told the check failed, and that it is not an opinion", async () => {
 		const fake = cast(["coder: fix the import", AUDIT_APPROVAL]);
-		await deliver({ planner, workers, reviewer, auditor, brief: "x", verify: failing, spawn: fake.spawn });
+		await deliver({ planner, workers, reviewer, auditor, brief: "x", verify: failing, spawn: fake.spawn,
+			worktree: false,
+		});
 
 		const audit = fake.asks.find((ask) => ask.id.startsWith("auditor"))?.task ?? "";
 		assert.match(audit, /FAILED/);
@@ -425,7 +478,9 @@ describe("verification", () => {
 			return { ok: attempt > 1, output: attempt > 1 ? "all good" : "boom", command: "npm test" };
 		};
 		const fake = cast(["coder: fix the import", AUDIT_APPROVAL]);
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", verify, spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", verify, spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.equal(attempt, 2, "the fixes are worth nothing until the check has seen them");
 		assert.equal(result.approved, true);
@@ -433,7 +488,9 @@ describe("verification", () => {
 
 	test("with no check configured, nothing pretends one ran", async () => {
 		const fake = cast();
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.equal(result.verification, undefined);
 		const audit = fake.asks.find((ask) => ask.id.startsWith("auditor"))?.task ?? "";
@@ -442,7 +499,9 @@ describe("verification", () => {
 
 	test("a check runs even with no auditor at all", async () => {
 		const fake = cast();
-		const result = await deliver({ planner, workers, reviewer, brief: "x", verify: failing, spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, brief: "x", verify: failing, spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.equal(result.approved, false, "the check is the bar when nobody else is watching");
 	});
@@ -511,7 +570,9 @@ describe("an auditor that signs through the verdict tool", () => {
 			{ approved: false, raised: ["coder: name the parser after what it parses"] },
 			{ approved: true, resolved: [{ id: "o1", how: "addressed" }] },
 		]);
-		const result = await deliver({ planner, workers, reviewer, auditor: judge, brief: "x", spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, auditor: judge, brief: "x", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.equal(result.approved, true);
 		assert.deepEqual(
@@ -526,7 +587,9 @@ describe("an auditor that signs through the verdict tool", () => {
 			{ approved: false, raised: ["coder: one", "scribe: two"] },
 			{ approved: true, resolved: [{ id: "o1", how: "addressed" }] },
 		]);
-		const result = await deliver({ planner, workers, reviewer, auditor: judge, brief: "x", spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, auditor: judge, brief: "x", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.equal(result.audits.at(-1)?.verdict?.approved, true, "the auditor said yes");
 		assert.equal(result.approved, false, "and `o2` was still open");
@@ -546,6 +609,7 @@ describe("an auditor that signs through the verdict tool", () => {
 			brief: "x",
 			maxAuditRounds: 1,
 			spawn: first.spawn,
+			worktree: false,
 		});
 		assert.equal(stopped.approved, false);
 		assert.equal(stopped.obligations.length, 1);
@@ -568,6 +632,7 @@ describe("an auditor that signs through the verdict tool", () => {
 				obligations: stopped.obligations,
 				done: false,
 			},
+			worktree: false,
 		});
 
 		assert.equal(carried.approved, true, "the resumed run closed the line it inherited");
@@ -587,6 +652,7 @@ describe("an auditor that signs through the verdict tool", () => {
 			brief: "x",
 			maxAuditRounds: 1,
 			spawn: fake.spawn,
+			worktree: false,
 		});
 
 		assert.equal(result.approved, false);
@@ -596,7 +662,9 @@ describe("an auditor that signs through the verdict tool", () => {
 
 	test("the auditor is shown what is still open, by id", async () => {
 		const fake = withVerdicts([{ approved: false, raised: ["coder: one"] }, { approved: false, remarks: "still no" }]);
-		await deliver({ planner, workers, reviewer, auditor: judge, brief: "x", spawn: fake.spawn });
+		await deliver({ planner, workers, reviewer, auditor: judge, brief: "x", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		const second = fake.asks.filter((ask) => ask.id.startsWith("auditor"))[1]?.task ?? "";
 		assert.match(second, /Still open, from your earlier rounds:\no1: coder: one/);
@@ -773,11 +841,67 @@ describe("delivering in copies", () => {
 		assert.equal(fs.readFileSync(path.join(dir, "note.txt"), "utf8"), "coder wrote note.txt\n");
 	});
 
-	test("without the option nothing touches git, and no landing is reported", async () => {
+	test("refused, nothing touches git and no landing is reported", async () => {
 		const fake = cast();
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn });
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn,
+			worktree: false,
+		});
 
 		assert.equal(result.approved, true);
 		assert.deepEqual(result.landings, []);
+	});
+
+	test("two subtasks get a copy each without anyone asking", async () => {
+		const dir = repo();
+		const fake = writingCast();
+
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", cwd: dir, spawn: fake.spawn });
+
+		assert.equal(result.approved, true);
+		assert.equal(result.landings.length, 1, "the copies came back, so there was a landing to report");
+		// What the option is for: neither worker could read the other's file while
+		// it worked, and both of them are in the tree afterwards.
+		assert.equal(fs.readFileSync(path.join(dir, "code.txt"), "utf8"), "coder was here\n");
+		assert.equal(fs.readFileSync(path.join(dir, "doc.txt"), "utf8"), "scribe was here\n");
+	});
+
+	test("one subtask has nobody to leak to, and writes where it was told", async () => {
+		const dir = repo();
+		const fake = fakeSpawn((task, agent, options) => {
+			if (agent.name === "planner") return { output: JSON.stringify([{ agent: "coder", task: "write the parser" }]) };
+			if (agent.name === "reviewer") return { output: APPROVAL };
+			if (agent.name === "auditor") return { output: AUDIT_APPROVAL };
+			fs.writeFileSync(path.join(options.cwd ?? ".", "code.txt"), "coder was here\n");
+			return { output: "done" };
+		});
+
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", cwd: dir, spawn: fake.spawn });
+
+		assert.deepEqual(result.landings, [], "no copy, so nothing to land");
+		assert.equal(fs.readFileSync(path.join(dir, "code.txt"), "utf8"), "coder was here\n");
+	});
+
+	test("a tree that cannot take the patches back stops the run before it is paid for", async () => {
+		const dir = repo();
+		fs.writeFileSync(path.join(dir, "kept.txt"), "somebody was already working here\n");
+		const fake = writingCast();
+
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", cwd: dir, spawn: fake.spawn });
+
+		assert.equal(result.ok, false);
+		assert.match(result.error ?? "", /2 subtasks need a copy/);
+		assert.match(result.error ?? "", /worktree: false/, "and it names the way to run anyway");
+		assert.equal(fake.asks.length, 1, "the planner, and nobody else: no subtask was paid for");
+	});
+
+	test("asked for explicitly, the same tree is the caller's problem, not a refusal", async () => {
+		const dir = repo();
+		fs.writeFileSync(path.join(dir, "kept.txt"), "somebody was already working here\n");
+		const fake = writingCast();
+
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", cwd: dir, worktree: true, spawn: fake.spawn });
+
+		assert.ok(fake.asks.length > 1, "the subtasks ran: what was asked for is not second-guessed");
+		assert.equal(result.landings[0]?.ok, false, "and the landing is where it fails, as it always did");
 	});
 });

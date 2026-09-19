@@ -22,7 +22,7 @@
 import * as path from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { checkModel, checkPipelineAgents, createRunDir, exportBaseName, plural } from "../src/index.ts";
-import { loadRoster, parseLeadingFlags, refuse, type CommandCtx } from "./build.ts";
+import { loadRoster, parseLeadingFlags, refuse, switchValue, type CommandCtx } from "./build.ts";
 import { PIPELINE_MESSAGE, type PipelineDeps } from "./pipeline-commands.ts";
 import {
 	chainInput,
@@ -158,7 +158,7 @@ export async function runStep(args: string, ctx: CommandCtx, deps: StepDeps = {}
 			deps,
 			dir,
 			model: flags.model,
-			worktree: flags.worktree === "true",
+			worktree: switchValue(flags, "worktree"),
 			onEvent: live.onEvent,
 			signal: live.signal,
 			spawn: live.spawn,

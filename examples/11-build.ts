@@ -12,6 +12,10 @@
  * It stops short of committing: it prints the message the committer wrote and
  * leaves everything in the working tree. `/build` inside pi is what performs the
  * branch and the commit, after asking.
+ *
+ * A plan of several subtasks gives each one a copy of the repository, so that
+ * throwaway tree has to be **clean** to start with: the patches come back to it
+ * one at a time. Pass `worktree: false` below to watch them share it instead.
  */
 
 import * as path from "node:path";

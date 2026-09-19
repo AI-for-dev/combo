@@ -50,8 +50,13 @@ export type Stage = {
 	dir: string;
 	/** Beats the pipeline file's model, and the agent's frontmatter. */
 	model?: string;
-	/** A copy of the repository per worker, for a pipeline step that delivers. */
-	worktree: boolean;
+	/**
+	 * A copy of the repository per worker, for a pipeline step that delivers.
+	 *
+	 * Absent means nobody said: the delivery then decides from the size of its
+	 * own plan. Passing `false` for an unsaid flag is how that decision was lost.
+	 */
+	worktree?: boolean;
 	onEvent: EventListener;
 	/** The run's signal, not the command's: Escape and `/stop all` fire it. */
 	signal?: AbortSignal;
