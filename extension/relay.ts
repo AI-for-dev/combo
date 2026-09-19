@@ -24,8 +24,8 @@ export type RelayStep = {
 	id: string;
 	/** The pipeline or agent that ran it, as it was named on the command line. */
 	name: string;
-	/** Which of the two it turned out to be. */
-	kind: "agent" | "pipeline";
+	/** What ran it: one agent, a pipeline, or several copies of one agent. */
+	kind: "agent" | "pipeline" | "swarm";
 	/** What the user typed for this step, without the output it carried in. */
 	instruction: string;
 	/** Which step's output it was handed, if any. */

@@ -1756,6 +1756,33 @@ one from a run that happened before it was written:
 `stoppedBy` is separate from `ok` and from `converged`, for the reason `loop`
 separates them: a swarm that ran out of rounds did not succeed, it stopped.
 
+## A swarm reaches pi as a step of the chain
+
+`/run` leaves its answer in the conversation, because an exploration is read and
+then asked about. A swarm's answer is not one report: it is what every member
+said plus the board they said it on, and in a real run that is a screenful. Put
+in the conversation it would be an orchestrator's brief that nobody asked for,
+so `/swarm` does what `/step` does - recorded in the relay, drawn in the
+transcript, out of the model's context until `/quote`.
+
+That reuse is the whole design of the command. The relay gained a third `kind`
+and nothing else: `/chain` lists a swarm, `/quote` brings it in, `/step --from`
+carries it on, and the entry renderer already knew how to draw a step.
+
+**`--claim` also gives the run something to be finished by.** With things named,
+the swarm stops once each of them has been reported on, rather than spending
+every round it was allowed. Measured in a real pi, three members and three
+files: 3 rounds and 9 turns with the cap alone, 1 round and 3 turns with the
+condition, and three of the first run's six posts described a file another
+member had already described. A round cap bounds the worst case; it is not a
+plan. With nothing named there is nothing to be done with, and the rounds are
+all there is.
+
+**An agent that does not name `board` is run anyway**, with a word saying its
+copies cannot reach each other. That is a fan-out, which is precisely the arm a
+swarm has to be compared against, and refusing it would remove the control from
+the one place someone can try it in a second.
+
 ## The public surface: one entry point, grouped as it is learnt
 
 `src/index.ts` is the only door - the examples and the extension import from it,

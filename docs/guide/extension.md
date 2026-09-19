@@ -108,6 +108,7 @@ and what a tree costs in [Measurements](measurements.md).
 | `/pipelines` | Lists the pipelines that are loaded, and the files that do not parse. |
 | `/run [--model <pattern>] [--worktree] <name> <input>` | Runs a pipeline with no interview and no commit stop; its answer lands in the conversation. |
 | `/step [--from <id>] [--model <pattern>] [--agent] <name> <instruction>` | Runs one agent or pipeline on the previous step's output. Drawn, and kept out of this session's context. |
+| `/swarm [--members <n>] [--claim a,b] [--hold <n>] [--rounds <n>] [--agent <name>] [--model <pattern>] <goal>` | Several copies of one agent on one job, with a board between them. Drawn as a step of the chain, like `/step`. |
 | `/chain`, `/chain reset` | The steps walked so far; or drop them and start a new chain. |
 | `/quote [id]` | Put one step of the chain into the conversation, attributed. |
 | `/stop [<id>\|all]` | Stops the selected subagent, one named by id, or the whole run. `esc` and `ctrl+del` do the same from the keyboard. |

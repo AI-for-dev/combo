@@ -46,8 +46,8 @@ export const STEP_ENTRY = "chain-step";
 export type StepEntry = {
 	/** The step's id in the chain, which is also what `--from` takes. */
 	id: string;
-	/** Which of the two ran it. */
-	kind: "agent" | "pipeline";
+	/** What ran it: one agent, a pipeline, or a swarm of one agent's copies. */
+	kind: "agent" | "pipeline" | "swarm";
 	/** The step whose output it was handed, when it was handed one. */
 	from?: string;
 	/** What it produced, in full - this is a transcript entry, not a summary. */

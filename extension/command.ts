@@ -27,6 +27,7 @@ import {
 	runPipeline,
 	saveBuildState,
 	status,
+	swarm,
 	untracked,
 	type Agent,
 	type Pipeline,
@@ -50,6 +51,8 @@ export type BuildDeps = {
 	runPipeline?: typeof runPipeline;
 	/** Runs one throwaway agent: `/build` uses it for the commit message. */
 	run?: typeof run;
+	/** Puts several copies of one agent on one job: `/swarm`'s whole of the work. */
+	swarm?: typeof swarm;
 	/** Every git call, so a test never touches a repository it did not make. */
 	git?: {
 		isRepository: typeof isRepository;
