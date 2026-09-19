@@ -225,6 +225,14 @@ export {
 } from "./ledger.ts";
 export { boardTool, declaresBoard, BOARD_TOOL, type BoardToolOptions } from "./board-tool.ts";
 export {
+	createClaims,
+	heldList,
+	type Claims,
+	type ClaimsOptions,
+	type Holding,
+	type TakeOutcome,
+} from "./claims.ts";
+export {
 	boardLines,
 	createBoard,
 	type Board,

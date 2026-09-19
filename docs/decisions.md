@@ -1605,6 +1605,54 @@ being handed something, so being handed something is an event: `read` carries
 the ids delivered and how many were left waiting. The empty read is recorded
 too, being the only thing that settles what a member could not have known.
 
+## A claim is granted, never announced
+
+A board lets a member say what it is taking, and that turned out not to be
+enough in the first run that recorded reading. Three members read within 123ms
+of each other, each was handed nothing because nobody had posted yet, and all
+three then claimed the same file. Announcing into a medium that was empty when
+you looked is a race, and no prompt repairs a race.
+
+So `claims.ts` arbitrates: first to ask holds it, and everyone else is refused
+and told who holds it. The refusal is the useful half: "`src/parser.ts` is held
+by scout#3 - ask scout#3, or take something else" turns contention into somebody
+to talk to, where a silent loss turns it into two members doing one job.
+
+**The keys are a list, not free text**, and that is the part the same run
+argued for: one file came back as `console.ts`, `src/reporters/console.ts` and
+`I will handle src/reporters/console.ts`. A lease keyed on what a model writes
+would have granted all three and arbitrated nothing. A caller that knows what
+there is to claim passes the list, and a key that is not on it is refused with
+the list - the discipline `delegateTool` already applies to an agent name. A
+caller that cannot enumerate the work passes nothing and gets the weaker
+behaviour, which is honest rather than convenient.
+
+Two smaller ones:
+
+- **Taking what you already hold is granted.** It is not contention, and a
+  member told "you cannot have it, you have it" learns nothing from being
+  refused.
+- **`releaseAll(member)` returns the keys it let go**, because a member that
+  dies holding claims leaves work nobody will do and nobody can take. The run
+  says which ones rather than leaving a reader to notice the gap.
+
+The same three members, the same job, with `take` on the tool:
+
+```
+   +693ms member#3 take console.ts -> granted
+  +1063ms member#2 take console.ts -> refused (member#3)
+  +1675ms member#2 take herdr.ts   -> granted
+  +3081ms member#1 take console.ts -> refused (member#3)
+  +3711ms member#1 take record.ts  -> granted
+```
+
+All three went for the same file again, which is the point: the models did not
+change, the medium did. Both refusals were absorbed on the next call, inside the
+same turn, and three different files were described in half the wall time of the
+run that collided. Nobody posted and nobody read: arbitration made the
+announcing half unnecessary for this job, which is worth knowing before anything
+is built on the assumption that members talk.
+
 ## The public surface: one entry point, grouped as it is learnt
 
 `src/index.ts` is the only door - the examples and the extension import from it,
