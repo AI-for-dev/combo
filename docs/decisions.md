@@ -667,6 +667,13 @@ it is used.
   `convertToLlm` turns a custom message into the **user** role. Hence the
   framing line naming the pipeline: unattributed findings in a user slot read as
   an instruction.
+- **`/agents` answers the same question `/pipelines` does**, for the roster, and
+  it is grouped by source rather than sorted by name because the question behind
+  it is nearly always a scope: the agent is *there*, and the call that could not
+  find it was loading somewhere else. A source that contributed nothing still
+  names the directory it read, since "where do I put mine" is the other half of
+  the same question. Its first run against this repository found `explorer`
+  shipped with no symlink into `.pi/agents/`, which a test now pins.
 - **`/pipelines` is there because the error message was not enough.** A pipeline
   of one repository is invisible from another - by design - and the failure
   reported where pipelines live without saying what had been loaded, with no way

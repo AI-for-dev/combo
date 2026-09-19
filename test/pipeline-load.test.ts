@@ -136,6 +136,17 @@ describe("the pipelines this repository ships", () => {
 			loadPipelinesFromDir(path.join(root, "pipelines")).pipelines.map((one) => one.name).sort(),
 		);
 	});
+
+	// The same check for agents. Without it a definition ships with no symlink,
+	// which is how `explorer` came to read as built in while every other agent
+	// of this repository read as the repository's.
+	test("so are the agents", () => {
+		const names = (dir: string) =>
+			loadAgentsFromDir(path.join(root, dir), "project")
+				.map((one) => one.name)
+				.sort();
+		assert.deepEqual(names(path.join(".pi", "agents")), names("agents"));
+	});
 });
 
 describe("precedence between the three sources", () => {

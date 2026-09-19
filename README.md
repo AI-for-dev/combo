@@ -140,6 +140,7 @@ pi install ./extension   # permanently, via settings
 ```
 > /build add a slugify helper with tests
 > use subagent to review src/usage.ts with coder then reviewer, looping until LGTM
+> /agents        # who can be spawned here, and from which directory
 ```
 
 While the subagents work, a dot per subagent sits above the prompt with its

@@ -83,6 +83,30 @@ the cause.
 Agents are rediscovered on every call, so editing a `.md` file is enough to
 reload it.
 
+## Seeing what you have
+
+```
+/agents
+```
+
+```
+project · /repo/.pi/agents
+  scout        Locates the code relevant to a question and reports where it lives
+user · /home/you/.pi/agent/agents
+  (none)
+builtin · /repo/agents
+  coder        Implements a change, and applies review remarks across iterations
+  reviewer     Reviews code and returns at most five actionable remarks
+
+A project agent needs scope "project" or "both" from the subagent tool. /run and /build load all three.
+```
+
+Grouped by where each definition came from, most specific first, because that is
+half of what is being asked: an agent nobody can find is usually one whose scope
+is not the one being loaded. A source that turned up nothing still names the
+directory it looked in, which is where yours would go. A name defined twice
+appears once, under the source that won it.
+
 ## Tools, and why a prompt is not a boundary
 
 A subagent that must not write must not *have* `write` and `edit`. Asking it

@@ -21,6 +21,7 @@ import {
 import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { collapsedLine, formatToolCall, formatUsage, statusIcon, summaryTable, truncate } from "../src/index.ts";
+import registerAgentCommands from "./agents-command.ts";
 import registerCommands from "./build.ts";
 import registerPipelineCommands, { PIPELINE_MESSAGE } from "./pipeline-commands.ts";
 import { executeSubagent, inferMode, type Details, type Params } from "./execute.ts";
@@ -83,6 +84,7 @@ export default function (pi: ExtensionAPI) {
 	// terminal question by question, which a model's turn cannot.
 	registerCommands(pi);
 	registerPipelineCommands(pi);
+	registerAgentCommands(pi);
 
 	// A finished pipeline leaves its answer in the conversation. Drawn as its own
 	// block, because pi hands custom messages to the model as *user* messages,

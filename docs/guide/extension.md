@@ -78,6 +78,7 @@ What the run looks like while it happens is covered in [Display](display.md).
 | `/build --model <pattern> <request>` | The same, with every subagent on that model. Checked before the interview: a typo costs a second. |
 | `/build --worktree <request>` | The same, with each subtask in a copy of the repository and the work landed one patch at a time. |
 | `/build resume` | Carries on an interrupted build from `runs/<timestamp>/build.json`. |
+| `/agents` | Lists the agents that can be spawned, grouped by where they came from. |
 | `/pipelines` | Lists the pipelines that are loaded, and the files that do not parse. |
 | `/run [--model <pattern>] [--worktree] <name> <input>` | Runs a pipeline with no interview and no commit stop; its answer lands in the conversation. |
 | `/herdr on\|off` | Give every subagent its own herdr split for this session. |
