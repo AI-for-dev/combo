@@ -47,8 +47,10 @@ class Combo(Style):
 
     styles = {
         Text: "#232B33",
-        Comment: "#7E8894",
-        Comment.Preproc: "#5D6873",
+        # The secondary ink, not a paler grey of its own: measured against the
+        # block behind it, `#7E8894` came to 2.94:1, under the 3:1 a line of text
+        # needs at all. This is 4.65:1, and it is a colour the palette already has.
+        Comment: "#5D6873",
         Keyword: "bold #232B33",
         Keyword.Constant: "#1B655E",
         Name: "#232B33",
@@ -81,8 +83,8 @@ class ComboDark(Style):
 
     styles = {
         Text: "#C9D3DB",
-        Comment: "#74808C",
-        Comment.Preproc: "#93A0AC",
+        # 3.60:1 before, which clears the floor and not the bar; this is 5.44:1.
+        Comment: "#93A0AC",
         Keyword: "bold #C9D3DB",
         Keyword.Constant: "#4FB8AC",
         Name: "#C9D3DB",
