@@ -34,6 +34,7 @@ pi -e extension
 /build add a slugify helper with tests      # in a throwaway repository
 /build --pipeline explore how usage is measured
 /build resume                               # after interrupting one
+/step explore how usage is measured         # then /step planner, /chain, /quote
 ```
 
 Specifically open: the widget above the prompt uses **two lines per subagent**,
@@ -41,6 +42,11 @@ so a fan-out of three takes six lines. If that is too much, condense the dimmed
 line or keep it only for active subagents. And on the card: whether the two
 standing entries (Other…, "that's enough") read as part of the question or as
 chrome.
+
+The step entry `/step` leaves in the transcript has the same problem: it is
+asserted on, and nobody has seen one. The line that has to read at a glance is
+the one saying the step is **not** in the conversation - if it does not, the
+next command is typed on a wrong belief about what this session knows.
 
 ## 2. The pipeline is only as good as its worker
 

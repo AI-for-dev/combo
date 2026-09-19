@@ -54,6 +54,12 @@ export function gitWithInput(cwd: string, args: string[], input: string): Promis
 			if (cause) resolve({ ok: false, error: (stderr || cause.message).trim() });
 			else resolve({ ok: true, value: stdout });
 		});
+		// git may exit before it has read all of it - `apply` rejecting a patch on
+		// the first hunk is the ordinary case - and writing to a pipe nobody is
+		// reading raises EPIPE asynchronously, with nothing listening. The exit
+		// status already says what happened, so a broken pipe is not a second
+		// answer; swallowing it here is what keeps the failure a `GitResult`.
+		child.stdin?.on("error", () => {});
 		child.stdin?.end(input.endsWith("\n") ? input : `${input}\n`);
 	});
 }

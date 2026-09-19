@@ -120,7 +120,7 @@ export {
 	type TreeRow,
 	type WidgetRow,
 } from "./reporters/index.ts";
-export { saysWord, truncate } from "./text.ts";
+export { plural, saysWord, truncate } from "./text.ts";
 
 // ── Measuring a run: transcripts on disk, and the matrix above them ──────────
 

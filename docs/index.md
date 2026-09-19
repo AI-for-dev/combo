@@ -91,6 +91,13 @@ A workflow written in Markdown, next to your agents.
 Interview, plan, pair, check, audit, commit.
 :::
 
+:::{grid-item-card} {octicon}`arrow-right` Walk a chain by hand
+:link: guide/chain-by-hand
+:link-type: doc
+
+One step at a time, with the session passive between two of them.
+:::
+
 :::{grid-item-card} {octicon}`repo-forked` Worktrees
 :link: guide/worktree
 :link-type: doc
@@ -159,6 +166,7 @@ guide/lifetime
 guide/workflows
 guide/pipelines
 guide/build
+guide/chain-by-hand
 guide/worktree
 guide/display
 guide/measurements

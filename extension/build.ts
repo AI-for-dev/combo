@@ -44,6 +44,7 @@ import {
 	loadAgents,
 	loadPipelines,
 	missingAgents,
+	plural,
 	run,
 	runPipeline,
 	status,
@@ -440,7 +441,7 @@ async function confirmBrief(started: StartingPoint, ctx: CommandCtx): Promise<bo
 	const resume = started.resume;
 	const kept = resume?.tasks.filter((task) => task.approved).length ?? 0;
 	return await ctx.ui.confirm(
-		resume ? `Carry on? ${kept}/${resume.plan.length} subtask(s) already approved` : "Build this?",
+		resume ? `Carry on? ${kept}/${plural(resume.plan.length, "subtask")} already approved` : "Build this?",
 		firstLines(started.brief, 12),
 	);
 }
@@ -521,7 +522,7 @@ function deliveryWiring(
 function report(done: PipelineRunResult, built: DeliverResult | undefined, exportDir: string, ctx: CommandCtx): void {
 	if (!built) {
 		ctx.ui.notify(
-			`${done.steps.length} step(s), ${done.ok ? "all ran" : `stopped: ${done.error}`} - exported to ${exportDir}`,
+			`${plural(done.steps.length, "step")}, ${done.ok ? "all ran" : `stopped: ${done.error}`} - exported to ${exportDir}`,
 			done.ok ? "info" : "warning",
 		);
 		return;
@@ -534,7 +535,7 @@ function report(done: PipelineRunResult, built: DeliverResult | undefined, expor
 		ctx.ui.notify("build: `/build resume` carries this on, keeping the approved subtasks", "info");
 	}
 	ctx.ui.notify(
-		`${built.tasks.length} subtask(s), ${built.audits.length} audit(s)${check}, ${built.approved ? "approved" : "NOT approved"} - exported to ${exportDir}`,
+		`${plural(built.tasks.length, "subtask")}, ${plural(built.audits.length, "audit")}${check}, ${built.approved ? "approved" : "NOT approved"} - exported to ${exportDir}`,
 		built.approved ? "info" : "warning",
 	);
 }
@@ -765,7 +766,7 @@ export async function runInterview(
 	// their decision, not ours.
 	ctx.ui.setEditorText(brief);
 	ctx.ui.notify(
-		`brief ready: ${result.answers.length} answer(s), ${result.usage.turns} turns${result.submitted ? ", submitted early" : ""}`,
+		`brief ready: ${plural(result.answers.length, "answer")}, ${plural(result.usage.turns, "turn")}${result.submitted ? ", submitted early" : ""}`,
 		"info",
 	);
 

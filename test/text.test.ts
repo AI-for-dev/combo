@@ -9,7 +9,7 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { firstLine, jsonObjects, saysWord, scalar, truncate } from "../src/text.ts";
+import { firstLine, jsonObjects, plural, saysWord, scalar, truncate } from "../src/text.ts";
 
 describe("truncate", () => {
 	test("flattens whitespace and keeps the text under max", () => {
@@ -73,5 +73,13 @@ describe("jsonObjects", () => {
 		assert.deepEqual([...jsonObjects('{nope} {"a":1}')], [{ a: 1 }]);
 		assert.deepEqual([...jsonObjects("no braces here")], []);
 		assert.deepEqual([...jsonObjects('{"unclosed": 1')], [], "an unbalanced tail yields nothing");
+	});
+});
+
+describe("plural", () => {
+	test("one takes the singular, everything else the plural", () => {
+		assert.equal(plural(1, "turn"), "1 turn");
+		assert.equal(plural(2, "turn"), "2 turns");
+		assert.equal(plural(0, "turn"), "0 turns");
 	});
 });

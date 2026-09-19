@@ -61,6 +61,29 @@ production, and every display assertion passes on nothing.
 What a fake still cannot prove is that pi's own module has not changed shape. A
 real pi run stays the only check for that - see [Extension](guide/extension.md).
 
+### Driving a real pi
+
+A slash command's output exists only in the TUI: `ctx.ui.notify` writes to pi's
+own surface, so `pi -p "/agents"` exits 0 having printed nothing, and
+`--mode json` shows one session event. `scripts/drive-pi.py` opens a pty, so pi
+believes it is talking to a terminal, types the commands and prints the frames:
+
+```bash
+python3 scripts/drive-pi.py --model ilaas/gemma-4-31b \
+    "/step scout where the wall time is measured||25||300" "/chain" "/quote"
+```
+
+Each argument is a command line, optionally followed by `||idle||cap` in
+seconds - a step that spawns subagents needs a longer silence than a listing
+before it counts as finished.
+
+**It scrapes a terminal, and it is not a test.** It never runs in `npm test`,
+because where a step ends is decided by a stretch of silence and therefore by
+model latency. Run it by hand before claiming a change to the extension works.
+It is how `/share` was found to collide with one of pi's built-in slash
+commands - the fake `pi` the tests hand the extension has no built-ins to
+collide with, so nothing offline could have said so.
+
 ## Documentation
 
 Documentation is part of the deliverable, not a follow-up task.

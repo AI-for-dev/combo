@@ -14,6 +14,7 @@ import { initTheme } from "@earendil-works/pi-coding-agent";
 import type { Component } from "@earendil-works/pi-tui";
 import extension from "../extension/index.ts";
 import { PIPELINE_MESSAGE } from "../extension/pipeline-commands.ts";
+import { STEP_ENTRY } from "../extension/step-commands.ts";
 import { emptyUsage } from "../src/usage.ts";
 import type { SubagentSnapshot } from "../src/reporters/tui.ts";
 import { testTheme } from "./fixtures/theme.ts";
@@ -26,16 +27,18 @@ function registered() {
 	let tool: any;
 	const commands = new Map<string, any>();
 	const messageRenderers = new Map<string, any>();
+	const entryRenderers = new Map<string, any>();
 	extension({
 		registerTool: (definition: unknown) => void (tool = definition),
 		registerCommand: (name: string, options: unknown) => void commands.set(name, options),
 		registerMessageRenderer: (customType: string, renderer: unknown) => void messageRenderers.set(customType, renderer),
+		registerEntryRenderer: (customType: string, renderer: unknown) => void entryRenderers.set(customType, renderer),
 	} as never);
 	assert.ok(tool, "the extension must register a tool");
-	return { tool, commands, messageRenderers };
+	return { tool, commands, messageRenderers, entryRenderers };
 }
 
-const { tool, commands, messageRenderers } = registered();
+const { tool, commands, messageRenderers, entryRenderers } = registered();
 const theme = testTheme();
 
 /** A render context with nothing cached, as on the first frame. */
@@ -71,6 +74,15 @@ describe("what the extension registers", () => {
 		// A tool runs inside a model turn, where nobody can answer a question.
 		assert.ok(commands.has("interview"), "/interview must be a command");
 		assert.ok(commands.get("interview")?.description, "a command with no description is invisible");
+	});
+
+	test("a chain can be walked by hand", () => {
+		// Three commands, because the main session must be able to stay passive:
+		// run a step, see the chain, and quote one on purpose.
+		for (const name of ["step", "chain", "quote"]) {
+			assert.ok(commands.has(name), `/${name} must be a command`);
+			assert.ok(commands.get(name)?.description, "a command with no description is invisible");
+		}
 	});
 
 	test("what is loaded can be asked for", () => {
@@ -257,5 +269,30 @@ describe("the message a finished pipeline leaves in the conversation", () => {
 		// A renderer that throws makes pi fall back silently, so the shapes that
 		// can reach it - an older session, a hand-written entry - must all render.
 		assert.doesNotThrow(() => render({ customType: PIPELINE_MESSAGE, content: "bare", display: true }));
+	});
+});
+
+describe("the step entry renderer", () => {
+	const render = (entry: Record<string, unknown>) => {
+		const renderer = entryRenderers.get(STEP_ENTRY);
+		assert.ok(renderer, "a step must not fall back to pi's default rendering");
+		return (renderer(entry, { expanded: false }, theme) as Component).render(80).join("\n");
+	};
+
+	test("names the step, what it carried, and says it is not in the conversation", () => {
+		const drawn = render({
+			customType: STEP_ENTRY,
+			data: { id: "plan", kind: "agent", from: "look", output: "# Plan\n\nThree steps.", turns: 2, dir: "runs/x/2-plan" },
+		});
+
+		assert.match(drawn, /plan/);
+		assert.match(drawn, /←look/);
+		assert.match(drawn, /2 turns/);
+		assert.match(drawn, /not in this conversation/, "the one thing that must be readable at a glance");
+		assert.match(drawn, /Three steps\./);
+	});
+
+	test("data it did not write does not make it throw", () => {
+		assert.doesNotThrow(() => render({ customType: STEP_ENTRY, data: { id: "look", kind: "pipeline", output: "", turns: 0, dir: "" } }));
 	});
 });

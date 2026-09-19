@@ -158,7 +158,7 @@ connection or a closed terminal costs nothing that was already paid for.
 
 ```
 /build resume
-> Carry on? 2/3 subtask(s) already approved
+> Carry on? 2/3 subtasks already approved
 ```
 
 What survives, and why:

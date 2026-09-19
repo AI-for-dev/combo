@@ -104,12 +104,19 @@ and what a tree costs in [Measurements](measurements.md).
 | `/agents` | Lists the agents that can be spawned, grouped by where they came from. |
 | `/pipelines` | Lists the pipelines that are loaded, and the files that do not parse. |
 | `/run [--model <pattern>] [--worktree] <name> <input>` | Runs a pipeline with no interview and no commit stop; its answer lands in the conversation. |
+| `/step [--from <id>] [--model <pattern>] [--agent] <name> <instruction>` | Runs one agent or pipeline on the previous step's output. Drawn, and kept out of this session's context. |
+| `/chain`, `/chain reset` | The steps walked so far; or drop them and start a new chain. |
+| `/quote [id]` | Put one step of the chain into the conversation, attributed. |
 | `/herdr on\|off` | Give every subagent its own herdr split for this session. |
 
 `/interview` and `/build` are commands rather than tools because a question card
 owns the terminal until it is answered, and nobody can answer a question asked
 inside a model's turn. See [Deliver a change](build.md) and
 [Pipelines](pipelines.md).
+
+`/step` is the other way of running a pipeline's worth of work: one stage per
+command, with this session kept out of it until you say otherwise. See
+[Walk a chain by hand](chain-by-hand.md).
 
 **The extension brings its own agents and pipelines**, so it works the moment it
 is loaded rather than only inside a repository where the definitions were copied
@@ -166,4 +173,5 @@ one way.
 
 - [Display](display.md) - the widget, the tool row, herdr splits.
 - [Deliver a change](build.md) - what `/build` actually does.
+- [Walk a chain by hand](chain-by-hand.md) - `/step`, `/chain` and `/quote`.
 - [API reference](../reference/api/index.md) - the library the extension calls.

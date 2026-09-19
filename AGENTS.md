@@ -18,6 +18,7 @@ npm test        # node --test 'test/*.test.ts' - offline, no network, ever
 npm run typecheck
 npm run docs    # regenerate docs/reference/api/ - required after any signature change
 pi -e extension # load the extension in a real pi (the only check fakes cannot do)
+python3 scripts/drive-pi.py "/agents"   # the same, hands-free: it types and reads back
 ```
 
 Node >= 23.6 runs TypeScript natively. No build step. `erasableSyntaxOnly` is on:

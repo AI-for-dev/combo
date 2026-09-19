@@ -755,6 +755,55 @@ it is used.
   `liveRun` in `extension/run-ui.ts`: two call sites, two timers and two ways of
   clearing a widget is exactly how the one nobody is watching that day drifts.
 
+## A chain walked by hand
+
+`/run explore …` put its answer in the conversation, and the session picked it
+up and started orchestrating: every later command was chosen against a
+conclusion the main window had already drawn. That is the documented behaviour
+of `/run` working exactly as decided - an exploration is read and then asked
+about - and it is the wrong default for the other use, where the main window is
+a console and the chain is `explorer → planner → coder → reviewer` advanced one
+step at a time. So a knob, not a reversal: `/step`, `/chain`, `/quote`.
+
+- **The output goes to a relay, not to the conversation.** `appendEntry` draws
+  the step in the transcript and keeps it out of the model's context, and the
+  text waits in module state for the next command. `/quote` is the single door
+  into the conversation, taken on purpose, with the same framing `/run` uses -
+  pi turns a custom message into a **user** message, and an unattributed report
+  in that slot reads as an instruction.
+- **A `Result` crosses, never a context.** Which is the lifetime rule already:
+  persistent subagents do not share history, you pass `Result`s. Each `/step`
+  opens a subagent and closes it, so there is no live session to own between two
+  commands and nothing to leak if pi is quit in the middle. Carrying a
+  conversation would also have made `--model` per step meaningless.
+- **A step is handed `stepInput`, the same three sections a pipeline's steps
+  get.** A chain walked by hand and the same chain written down then send the
+  model byte-for-byte the same thing, which is the only way the two can be
+  compared. A first step carries nothing and is passed through verbatim, as
+  `/run` passes its request: a lone instruction under a `## Request` heading is
+  noise.
+- **A step may be a pipeline or an agent**, resolved in that order, because
+  `explore` - a fan-out and a synthesis - is a perfectly good stage of a chain
+  and so is a lone `planner`. A name held by both runs the pipeline and says so,
+  and `--agent` is there so that the collision is not a dead end. A name held by
+  neither is one message, not two listings.
+- **A failed step leaves the chain untouched.** It produced no material, and
+  recording it would hand the next agent an error message as its input. The
+  export stays on disk and the same command can be retried on another model,
+  which is the whole reason a step is typed rather than walked.
+- **One folder for the chain, one subfolder per step.** A chain walked by hand
+  is still a run, and leaves the same trace as one walked by `/run`. What
+  `/chain` totals is the sum of the steps' own wall time, not the age of the
+  chain: most of a hand-walked chain is spent waiting for a human, and counting
+  that as work would be an estimate.
+- **`/quote` and not `/share`**, which is what it was called until a real pi
+  said so at startup: `share` is one of pi's own twenty-three built-in slash
+  commands, and an extension command of that name is dropped from its own
+  autocomplete. No test here could have caught it - the fake `pi` a test hands
+  the extension has no built-ins to collide with. `quote` is also the better
+  word: what lands in the conversation is a quotation, attributed and read as
+  one.
+
 ## Measurements: time and tokens per subagent
 
 Nothing is estimated, nothing is recomputed by hand: pi already exposes the
