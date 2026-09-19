@@ -206,7 +206,7 @@ registered as commands.
 
 ## Reference
 
-- [`workflows/interview`](../reference/api/workflows/interview.md), [`workflows/pair`](../reference/api/workflows/pair.md), [`workflows/deliver`](../reference/api/workflows/deliver.md)
+- [`workflows/interview`](../reference/api/workflows/interview.md), [`workflows/pair`](../reference/api/workflows/pair.md), [`workflows/deliver`](../reference/api/workflows/deliver.md), [`workflows/audit`](../reference/api/workflows/audit.md)
 - [`ask`](../reference/api/ask.md) - `AskUser`, `Question`, `Answer`, `scriptedAsk`.
 - [`verify`](../reference/api/verify.md) - `Verify`, `commandVerifier`.
 - [`git`](../reference/api/git.md) - the git a pipeline may do.

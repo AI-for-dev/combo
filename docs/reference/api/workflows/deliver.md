@@ -9,71 +9,15 @@ Source: [`src/workflows/deliver.ts`](https://github.com/AI-for-dev/combo/blob/ma
 Plan the split, run each subtask as a worker↔reviewer {@link pair}, then have
 one auditor read the whole thing and send back what still needs fixing. It is
 the composition the rest of this library was built for, and it adds exactly
-one idea of its own: **the audit**.
+one idea of its own: **the audit**, which lives next door in `audit.ts` -
+here it is a loop over rounds, a ledger and a check.
 
-Why an audit on top of per-task reviews: a reviewer sees one subtask and
-approves it in good faith. Nobody sees the seams - two subtasks that each did
-half the job, or the same helper written twice under two names. That is what
-the auditor reads for, and it is the reason it gets the whole brief rather
-than a task.
-
-And why a {@link Verify} on top of the audit: in a real run a pair wrote a
+Why a {@link Verify} on top of the audit: in a real run a pair wrote a
 helper with its tests, the reviewer approved and the auditor approved, while
 the test file imported `./slugify.js` for a file named `slugify.ts` - the
 suite never even loaded. Reading code is not running it. When a verification
 is given, **its verdict is final**: no amount of approval makes a failing
 check a success.
-
-## `AUDIT_APPROVAL`
-
-*const*
-
-```typescript
-export const AUDIT_APPROVAL = "APPROVED";
-```
-
-The word the auditor says when the whole thing holds together.
-
-## `auditPrompt`
-
-*function*
-
-```typescript
-export function auditPrompt(
-	brief: string,
-	tasks: readonly PairResult[],
-	round: number,
-	maxAuditRounds: number,
-	verification?: Verification,
-	workers: readonly Agent[] = [],
-	options: AuditPromptOptions = {},
-): string { /* … */ }
-```
-
-What the auditor reads: the brief, what each subtask claims, and what is owed.
-
-## `AuditRound`
-
-*type*
-
-```typescript
-export type AuditRound = {
-	/** The auditor's turn, in full. It is the evidence behind `approved`. */
-	review: Result;
-	/** What the auditor declared through the verdict tool, when it holds one. */
-	verdict?: Verdict;
-	/** The check as it stood when this audit ran, when there is one. */
-	verification?: Verification;
-	/** Whether this round signed off. A failing check makes it `false` whatever the prose. */
-	approved: boolean;
-	/** The fixes the auditor asked for, as it named them. */
-	fixes: PlannedTask[];
-	/** What came back from those fixes. */
-	results: PairResult[];
-};
-```
-
-One pass of the audit cycle: what was said, what it cost, what was fixed.
 
 ## `deliver`
 

@@ -38,9 +38,10 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 7 |
 | [`verdict`](verdict.md) | A verdict given as a tool call, rather than recovered from prose. | 7 |
 | [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 4 |
+| [`workflows/audit`](workflows/audit.md) | The audit: one agent reads the whole of a delivery, and says what is left. | 4 |
 | [`workflows/chain`](workflows/chain.md) | `chain`: 1 → 1 → 1. The output of step *n* is the input of step *n+1*. | 2 |
 | [`workflows/common`](workflows/common.md) | What every combinator shares: the same options, the same defaults, and the same way of honouring lifetime. | 4 |
-| [`workflows/deliver`](workflows/deliver.md) | `deliver`: a brief in, work done and audited out. | 6 |
+| [`workflows/deliver`](workflows/deliver.md) | `deliver`: a brief in, work done and audited out. | 3 |
 | [`workflows/fan-out`](workflows/fan-out.md) | `fanOut`: 1 → N. N subtasks in parallel, with bounded concurrency. | 4 |
 | [`workflows/interview`](workflows/interview.md) | `interview`: a conversation with the *user*, ending in a brief. | 8 |
 | [`workflows/loop`](workflows/loop.md) | `loop`: 1 → 1, repeated until a criterion is met. | 4 |
@@ -85,6 +86,7 @@ text
 usage
 verdict
 verify
+workflows/audit
 workflows/chain
 workflows/common
 workflows/deliver

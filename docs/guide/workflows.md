@@ -279,5 +279,5 @@ sequential, use `chain`.
 
 - [`workflows/chain`](../reference/api/workflows/chain.md), [`fan-out`](../reference/api/workflows/fan-out.md), [`loop`](../reference/api/workflows/loop.md), [`reduce`](../reference/api/workflows/reduce.md)
 - [`workflows/route`](../reference/api/workflows/route.md), [`orchestrate`](../reference/api/workflows/orchestrate.md), [`plan`](../reference/api/workflows/plan.md)
-- [`workflows/pair`](../reference/api/workflows/pair.md), [`interview`](../reference/api/workflows/interview.md), [`deliver`](../reference/api/workflows/deliver.md)
+- [`workflows/pair`](../reference/api/workflows/pair.md), [`interview`](../reference/api/workflows/interview.md), [`deliver`](../reference/api/workflows/deliver.md), [`audit`](../reference/api/workflows/audit.md)
 - [`workflows/common`](../reference/api/workflows/common.md) - `WorkflowOptions`, `SubagentPool`, `mapConcurrent`.

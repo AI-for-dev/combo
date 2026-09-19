@@ -17,7 +17,7 @@ import type { Agent } from "./agent.ts";
 import type { Obligation } from "./ledger.ts";
 import type { Result } from "./result.ts";
 import { emptyUsage, type Usage } from "./usage.ts";
-import type { AuditRound } from "./workflows/deliver.ts";
+import type { AuditRound } from "./workflows/audit.ts";
 import type { PairResult } from "./workflows/pair.ts";
 import type { PlannedTask } from "./workflows/plan.ts";
 import type { Verification } from "./verify.ts";
