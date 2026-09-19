@@ -46,7 +46,7 @@ runs one per model, which is what an [experiment](../guide/experiments.md) is.
 transcript and a `usage.json` into `runs/<timestamp>/`:
 
 ```bash
-node examples/14-delegation-tree.ts --model ilaas/gemma-4-31b --export "how do the reporters differ?"
+node examples/14-delegation-tree.ts --model <provider/model> --export "how do the reporters differ?"
 ```
 
 The flag takes no value, unlike `--model`: one that swallowed the word after it

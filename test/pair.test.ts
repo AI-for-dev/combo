@@ -338,8 +338,8 @@ describe("pair, when the reviewer names an id nothing is open for", () => {
 			const tool = offeredTools(options)[0];
 			assert.ok(tool);
 
-			// What `ilaas/gemma-4-31b` did in a real run: an id in a format it
-			// invented, for a line nothing had raised.
+			// What a small open-weight model did in a real run: an id in a format
+			// it invented, for a line nothing had raised.
 			const refused = await callTool(tool, { approved: true, resolved: [{ id: "1", how: "addressed" }] });
 			seen.push(refused.content[0]?.text ?? "");
 

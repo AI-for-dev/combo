@@ -395,7 +395,7 @@ export function elapsedMs(snapshot: SubagentSnapshot, now = performance.now()): 
 	return snapshot.usage.busyMs;
 }
 
-/** `ilaas/qwen-3.6-35b-instruct · ↑12k ↓209 · 12.4s` */
+/** `provider/model · ↑12k ↓209 · 12.4s` */
 export function detailLine(snapshot: SubagentSnapshot, now?: number): string {
 	const parts: string[] = [];
 	if (snapshot.model) parts.push(snapshot.model);

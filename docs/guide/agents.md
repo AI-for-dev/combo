@@ -214,11 +214,11 @@ question used to come back in English, translated by nobody's decision. The rule
 points at the material rather than at the prompt around it, which is what makes
 it hold when a workflow wraps a French request in English scaffolding - a review,
 a plan, an audit - and it names no language itself, because an example in a
-standing instruction is read as the target. Measured on `ilaas/gemma-4-31b`: an
-English task answers English, a French one answers French, `/step scout` and the
-whole `explore` pipeline answer in French, and a reviewer handed a French goal
-answers in French while the router still answers an agent name and the planner
-still answers JSON.
+standing instruction is read as the target. Measured on a small open-weight
+model: an English task answers English and a French one answers French;
+`/step scout` and the whole `explore` pipeline answer in French, and a reviewer
+handed a French goal answers in French while the router still answers an agent
+name and the planner still answers JSON.
 
 What a word must not do is move. A model writing French writes `PRÊT` for
 `READY` and `RAS` for `LGTM`, which is a loop that never ends and a review nobody

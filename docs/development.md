@@ -69,7 +69,7 @@ own surface, so `pi -p "/agents"` exits 0 having printed nothing, and
 believes it is talking to a terminal, types the commands and prints the frames:
 
 ```bash
-python3 scripts/drive-pi.py --model ilaas/gemma-4-31b \
+python3 scripts/drive-pi.py --model <provider/model> \
     "/step scout where the wall time is measured||25||300" "/chain" "/quote"
 ```
 
@@ -86,7 +86,7 @@ collide with, so nothing offline could have said so.
 
 Its `--model` is pi's own model, and not the subagents': a command spawns them
 on the `--model` **it** was given, and on pi's settings when it was given none.
-A frame showing `mistral` in the status bar and `gemma` under every subagent is
+A frame showing one model in the status bar and another under every subagent is
 not a bug, it is those two knobs being set apart.
 
 ### Looking at a frame

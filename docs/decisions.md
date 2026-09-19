@@ -316,11 +316,10 @@ judgement deterministic, which is the only part of it that was ever ours.
 
 ### Finished is a ledger, not an opinion
 
-Measured on the run that shipped the verdict tool: against
-`ilaas/qwen-3.6-35b-instruct` the reviewer called `verdict` correctly and
-approved a function that computes `a - b` while claiming to add. A clean channel
-does nothing about a wrong judgement, so `approved` stops being what the
-reviewer said.
+Measured on the run that shipped the verdict tool: the reviewer called `verdict`
+correctly and approved a function that computes `a - b` while claiming to add. A
+clean channel does nothing about a wrong judgement, so `approved` stops being
+what the reviewer said.
 
 Everything a reviewer raises becomes an **obligation** in `src/ledger.ts`, with
 an id combo assigns and that never changes. Finished means the reviewer has
@@ -346,12 +345,12 @@ Closures are applied before anything new is raised, so a round cannot raise and
 close the same obligation in one call.
 
 An id the ledger has nothing open for is refused by the **tool**, not silently
-by the ledger afterwards. Measured against `ilaas/gemma-4-31b`: an auditor with
-an empty ledger sent `resolved: [{ id: "1" }]`, inventing both the line and the
-id format. The ledger refused it and the outcome was right, but nothing said so
-anywhere a reader would look. Refusing in the tool tells the agent which ids it
-may close and lets it call again inside the same turn, which is the only moment
-it can still repair the mistake.
+by the ledger afterwards. Measured with a small open-weight model: an auditor
+with an empty ledger sent `resolved: [{ id: "1" }]`, inventing both the line and
+the id format. The ledger refused it and the outcome was right, but nothing said
+so anywhere a reader would look. Refusing in the tool tells the agent which ids
+it may close and lets it call again inside the same turn, which is the only
+moment it can still repair the mistake.
 
 A boolean could only ever say that the work stopped. A ledger says which lines
 are open and since which round, which is the difference between a pair making
@@ -1359,8 +1358,9 @@ Points to watch:
   `stopReason` (`"error"`, `"aborted"`).
 - **Not every provider reports tokens.** Several return a `usage` that is already
   zero at the source; `getSessionStats()` then sums zeros. We display `0`, we
-  never estimate it. (Verified: `local/*` reports tokens, `opencode-go/*` and
-  `ilaas/*` do not.)
+  never estimate it. And what a provider reports changes: one that reported
+  nothing at all now reports tokens, so a provider's counters are worth
+  re-measuring rather than reading off a list.
 - `session.subscribe(…)` is the source of every `SubagentEvent`:
   `message_update`/`text_delta`, `tool_execution_start`, `turn_end`,
   `agent_end`. Never log directly from the core.
@@ -1425,12 +1425,13 @@ without ever thinking about the question - which a line added to the nine
 definitions here would not.
 
 **It points at the work, not at the prompt.** The first wording said "the
-language of the task you are given", and measured on `ilaas/gemma-4-31b` that
-loses the case worth having: a reviewer whose French goal is wrapped in English
-scaffolding ("Review this work.", "It was asked to:") answered in English,
-because most of the task really was English. Naming the material instead - the
-request, the specification, the report of another agent - and saying outright
-that these instructions never decide it, turned the same run French.
+language of the task you are given", and measured on a small open-weight model
+that loses the case worth having: a reviewer whose French goal is wrapped in
+English scaffolding ("Review this work.", "It was asked to:") answered in
+English, because most of the task really was English. Naming the material
+instead - the request, the specification, the report of another agent - and
+saying outright that these instructions never decide it, turned the same run
+French.
 
 **And it names no language.** The wording that fixed the reviewer did it with an
 example: *if the work you were handed is in French, answer in French*. The next
@@ -1458,8 +1459,8 @@ name its exemptions exactly, and it pays the most for losing them.
 
 For a long time the model was the one thing invariant 5 did not cover, and it
 was measured: agents with no `model:` ran on the operator's
-`~/.pi/agent/settings.json` defaults (`cerebras/gemma-4-31b`, 402s inside a
-session started with `--provider test-ilaas`, `thinkingLevel: high` nobody
+`~/.pi/agent/settings.json` defaults (a model the caller had never named, 402s
+inside a session started with a different provider, `thinkingLevel: high` nobody
 asked for), while the caller's `--provider`/`--model` never reached a
 subagent. An experiment that pinned its repository with a tag while leaving
 the model floating was measuring the operator.
@@ -1488,9 +1489,9 @@ nothing about.
 
 The cost is real and worth stating, because it is invisible: **a run with no
 `--model` measures the operator.** Verified on 2026-08-01 - `/run explore` with
-nothing specified put all four subagents on `ilaas/gemma-4-31b`, a model named
-nowhere in this repository, read from `~/.pi/agent/settings.json`. An earlier run
-picked up a `thinkingLevel: high` nobody asked for the same way.
+nothing specified put all four subagents on a model named nowhere in this
+repository, read from `~/.pi/agent/settings.json`. An earlier run picked up a
+`thinkingLevel: high` nobody asked for the same way.
 
 Which is why the fix is a habit, not a file: **anything whose numbers will be
 compared names its model.** `experiment()` takes `models` and refuses to guess,

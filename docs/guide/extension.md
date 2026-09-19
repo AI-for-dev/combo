@@ -37,10 +37,11 @@ one moment "what was actually sent" is the only question worth asking, and it
 used to leave nothing to read. The failure names the folder.
 
 The interview is watched the way the pipeline is: a row per subagent, with what
-it is reading. Measured on this repository against `ilaas/gemma-4-31b`, its first
-turn is 35 seconds and seven file reads, and the whole interview 57 seconds over
-three turns. Without the row that first turn is half a minute of a status line
-that does not move, which is indistinguishable from a turn that has hung.
+it is reading. Measured on this repository against a small open-weight model,
+its first turn is 35 seconds and seven file reads, and the whole interview 57
+seconds over three turns. Without the row that first turn is half a minute of a
+status line that does not move, which is indistinguishable from a turn that has
+hung.
 
 **`--model` covers the interview too**, and `--questions` caps how many it asks.
 The interviewer reads the repository between questions rather than asking what
