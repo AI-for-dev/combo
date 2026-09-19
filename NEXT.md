@@ -507,11 +507,25 @@ The **TUI says nothing about a board**: it draws subagents, and the traffic goes
 to the console reporter and to `record.ts`. Whether a widget should carry a post
 at all is undecided.
 
+**A swarm in herdr opened nothing, and had never opened anything.** Reported
+from the window, on `/herdr on` followed by `/swarm --members 3`. The cause was
+not in the swarm: `agent.start` took an `argv` and opened a pane under herdr
+0.7.3, and under 0.9.0 it takes a `kind` and a `pane_id` and starts a recognised
+agent in a pane that already exists, so every request combo had ever sent was
+refused. A reporter must never throw, so the refusal was swallowed and each call
+after it was skipped by design - no pane, no error, no clue, for every command
+and not only this one. Opening one is now `pane.split` for the pane,
+`pane.rename` for the name on it, `pane.send_input` for the `tail`, and
+`node scripts/check-herdr.ts` holds all six of our calls to
+`herdr api schema --json`. Measured after: four panes for three members and a
+board, streaming, and none left behind.
+
 ## How to verify anything here
 
 ```bash
 npm test                       # offline, no network
 npm run typecheck
+node scripts/check-herdr.ts    # our herdr calls, against herdr's own schema
 
 node examples/03-fan-out.ts --model ilaas/qwen-3.6-35b-instruct
 node examples/06-export.ts --model ilaas/qwen-3.6-35b-instruct

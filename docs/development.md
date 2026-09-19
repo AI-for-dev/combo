@@ -89,6 +89,24 @@ on the `--model` **it** was given, and on pi's settings when it was given none.
 A frame showing one model in the status bar and another under every subagent is
 not a bug, it is those two knobs being set apart.
 
+### Asking herdr what it accepts
+
+herdr moves the same way, and it moved once under us: `agent.start` used to
+take an `argv` and open a pane, protocol 22 gave it a `kind` and a `pane_id`,
+and every request combo sent was refused. A reporter never throws, so nothing
+said so, and the whole suite stayed green over a `/herdr on` that opened
+nothing.
+
+```bash
+node scripts/check-herdr.ts
+```
+
+It runs the reporter through a subagent's whole life against a recording
+transport, then holds every request it made to `herdr api schema --json`. It
+needs the `herdr` binary rather than a herdr session, so it runs from anywhere,
+and because it validates what the code sends rather than a copy of it, it cannot
+drift from the code the way example payloads would.
+
 ### Looking at a frame
 
 Printed frames have their escape sequences stripped, which answers what pi said

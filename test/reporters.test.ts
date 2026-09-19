@@ -14,6 +14,7 @@ import { BOARD_PANE, createHerdrReporterWith } from "../src/reporters/herdr.ts";
 import { detectHerdr, type HerdrSend } from "../src/reporters/herdr-client.ts";
 import type { SubagentEvent } from "../src/events.ts";
 import { emptyUsage } from "../src/usage.ts";
+import { withoutHerdr } from "./fixtures/no-herdr.ts";
 
 const tmpDirs: string[] = [];
 after(() => {
@@ -49,16 +50,26 @@ const closeEvent = (id: string): SubagentEvent => ({
  *
  * `paneId` is not a defaulted parameter on purpose: passing `undefined` to a
  * default would silently restore the default, which is exactly the case the
- * "no pane id" test needs to exercise.
+ * "no pane id" test needs to exercise. Each split gets its own id, because a
+ * run opens several and a shared one would hide who was being talked to.
  */
-function recorder(paneId: string | null = "w1:p9") {
+function recorder(paneId: string | null = "w1:p") {
 	const calls: { method: string; params: Record<string, unknown> }[] = [];
+	let opened = 0;
 	const send: HerdrSend = async (method, params) => {
 		calls.push({ method, params });
-		if (method !== "agent.start") return { result: {} };
-		return paneId === null ? { result: { agent: {} } } : { result: { agent: { pane_id: paneId } } };
+		if (method !== "pane.split") return { result: {} };
+		return paneId === null ? { result: { pane: {} } } : { result: { pane: { pane_id: `${paneId}${++opened}` } } };
 	};
-	return { send, calls, methods: () => calls.map((call) => call.method) };
+
+	/** The file the pane named `label` was told to follow. */
+	const logOf = (label: string) => {
+		const pane = calls.find((call) => call.method === "pane.rename" && call.params.label === label)?.params.pane_id;
+		const run = calls.find((call) => call.method === "pane.send_input" && call.params.pane_id === pane);
+		return /'(.+)'/.exec(String(run?.params.text ?? ""))?.[1] as string;
+	};
+
+	return { send, calls, logOf, methods: () => calls.map((call) => call.method) };
 }
 
 /** Lets the reporter's fire-and-forget promises settle. */
@@ -88,18 +99,25 @@ describe("detectHerdr", () => {
 describe("herdr reporter", () => {
 	test("opens a split per subagent that asked for one", async () => {
 		const { send, calls } = recorder();
-		const report = createHerdrReporterWith(send, { dir: tmpDir() });
+		const report = createHerdrReporterWith(send, { dir: tmpDir(), pane: "w1:p1" });
 
 		report(spawnEvent("scout#1", true));
 		await settle();
 
-		assert.equal(calls.length, 1);
-		assert.equal(calls[0]?.method, "agent.start");
-		assert.equal(calls[0]?.params.name, "scout#1");
-		assert.equal(calls[0]?.params.split, "right");
+		assert.deepEqual(
+			calls.map((call) => call.method),
+			["pane.split", "pane.rename", "pane.send_input"],
+			"herdr opens a pane at a prompt: the command is typed into it afterwards",
+		);
+		assert.equal(calls[0]?.params.direction, "right");
 		assert.equal(calls[0]?.params.focus, false);
-		const argv = calls[0]?.params.argv as string[];
-		assert.equal(argv[0], "tail", "the pane displays a stream we write, it does not host the subagent");
+		assert.equal(calls[0]?.params.target_pane_id, "w1:p1", "beside ours, never beside whatever is focused");
+		assert.equal(calls[1]?.params.label, "scout#1");
+		assert.match(
+			String(calls[2]?.params.text),
+			/^exec tail -n \+1 -f '/,
+			"the pane displays a stream we write, it does not host the subagent",
+		);
 	});
 
 	test("a subagent without openInHerdr produces no request at all", async () => {
@@ -129,7 +147,9 @@ describe("herdr reporter", () => {
 		await settle();
 
 		assert.deepEqual(methods(), [
-			"agent.start",
+			"pane.split",
+			"pane.rename",
+			"pane.send_input",
 			"pane.report_agent",
 			"pane.report_agent",
 			"pane.release_agent",
@@ -185,7 +205,7 @@ describe("herdr reporter", () => {
 
 	test("tool calls and text land in the file the pane tails", async () => {
 		const dir = tmpDir();
-		const { send, calls } = recorder();
+		const { send, logOf } = recorder();
 		const report = createHerdrReporterWith(send, { dir });
 
 		report(spawnEvent("scout#1", true));
@@ -193,8 +213,7 @@ describe("herdr reporter", () => {
 		report({ type: "text", id: "scout#1", delta: "found it" });
 		await settle();
 
-		const logPath = (calls[0]?.params.argv as string[]).at(-1) as string;
-		const content = fs.readFileSync(logPath, "utf8");
+		const content = fs.readFileSync(logOf("scout#1"), "utf8");
 		assert.match(content, /scout#1/);
 		assert.match(content, /\$ grep pattern=spawn/);
 		assert.match(content, /found it/);
@@ -202,12 +221,12 @@ describe("herdr reporter", () => {
 
 	test("the final usage line is written before the pane closes", async () => {
 		const dir = tmpDir();
-		const { send, calls } = recorder();
+		const { send, logOf } = recorder();
 		const report = createHerdrReporterWith(send, { dir });
 
 		report(spawnEvent("scout#1", true));
 		await settle();
-		const logPath = (calls[0]?.params.argv as string[]).at(-1) as string;
+		const logPath = logOf("scout#1");
 
 		report({
 			type: "close",
@@ -222,7 +241,7 @@ describe("herdr reporter", () => {
 
 	test("the members talk on a pane of their own, and each keeps its half", async () => {
 		const dir = tmpDir();
-		const { send, calls } = recorder();
+		const { send, logOf } = recorder();
 		const report = createHerdrReporterWith(send, { dir, all: true });
 
 		report(spawnEvent("member#1", false));
@@ -236,15 +255,12 @@ describe("herdr reporter", () => {
 		report({ type: "claim", id: "member#2", key: "console.ts", action: "take", ok: false, heldBy: "member#1" });
 		await settle();
 
-		const paneFor = (name: string) =>
-			calls.find((call) => call.method === "agent.start" && call.params.name === name)?.params.argv as string[] | undefined;
-
-		const board = fs.readFileSync(paneFor(BOARD_PANE)?.at(-1) as string, "utf8");
+		const board = fs.readFileSync(logOf(BOARD_PANE), "utf8");
 		assert.match(board, /⇣ member#2 was handed nothing/, "the quiet half is the one a race needs");
 		assert.match(board, /✉ member#1 → member#2 \[ask\] who has console.ts\?/);
 		assert.match(board, /⚑ member#2 take console.ts → refused \(member#1\)/);
 
-		const mine = fs.readFileSync(paneFor("member#2")?.at(-1) as string, "utf8");
+		const mine = fs.readFileSync(logOf("member#2"), "utf8");
 		assert.match(mine, /⚑ take console.ts → refused \(member#1\)/, "its own name is in the header above");
 		assert.ok(!mine.includes("member#1 → member#2"), "what it was not part of belongs on the board");
 	});
@@ -302,7 +318,7 @@ describe("herdr reporter", () => {
 		report({ type: "status", id: "scout#1", status: "working" });
 		await settle();
 
-		assert.deepEqual(methods(), ["agent.start"], "no pane id, nothing to report on");
+		assert.deepEqual(methods(), ["pane.split"], "no pane id, nothing to name, run on or report on");
 	});
 
 	test("several subagents get independent splits", async () => {
@@ -314,8 +330,12 @@ describe("herdr reporter", () => {
 		await settle();
 
 		assert.deepEqual(
-			calls.filter((call) => call.method === "agent.start").map((call) => call.params.name),
-			["scout#1", "scout#2"],
+			calls.filter((call) => call.method === "pane.rename").map((call) => call.params),
+			[
+				{ pane_id: "w1:p1", label: "scout#1" },
+				{ pane_id: "w1:p2", label: "scout#2" },
+			],
+			"one pane each, named after the subagent it shows",
 		);
 	});
 
@@ -331,14 +351,13 @@ describe("herdr reporter", () => {
 
 describe("autoReporter", () => {
 	test("falls back silently when herdr is absent", () => {
-		// The test process has no HERDR_* variables, which is exactly the case.
-		const report = autoReporter();
+		const report = withoutHerdr(() => autoReporter());
 		assert.doesNotThrow(() => report(spawnEvent("scout#1", true)));
 	});
 
 	test("uses the fallback it was given", () => {
 		const seen: string[] = [];
-		const report = autoReporter({ fallback: (event) => seen.push(event.type) });
+		const report = withoutHerdr(() => autoReporter({ fallback: (event) => seen.push(event.type) }));
 
 		report(spawnEvent("scout#1", true));
 		assert.deepEqual(seen, ["spawn"]);
@@ -351,7 +370,7 @@ describe("watching every subagent", () => {
 		const reporter = createHerdrReporterWith(send, { dir: tmpDir(), all: true });
 
 		reporter(spawnEvent("scout#1", false));
-		assert.equal(calls.filter((call) => call.method === "agent.start").length, 1);
+		assert.equal(calls.filter((call) => call.method === "pane.split").length, 1);
 	});
 
 	test("without it, opt-in still governs - a fan-out must not carpet the screen", () => {
@@ -360,7 +379,7 @@ describe("watching every subagent", () => {
 
 		reporter(spawnEvent("scout#1", false));
 		reporter(spawnEvent("scout#2", true));
-		assert.equal(calls.filter((call) => call.method === "agent.start").length, 1);
+		assert.equal(calls.filter((call) => call.method === "pane.split").length, 1);
 	});
 
 	test("watching everything is off unless it is asked for", () => {
@@ -370,7 +389,7 @@ describe("watching every subagent", () => {
 
 		const on = recorder();
 		createHerdrReporterWith(on.send, { dir: tmpDir(), all: true })(spawnEvent("scout#1", false));
-		assert.ok(on.calls.some((call) => call.method === "agent.start"));
+		assert.ok(on.calls.some((call) => call.method === "pane.split"));
 	});
 });
 

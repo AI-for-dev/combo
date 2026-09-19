@@ -1,10 +1,14 @@
 /**
  * Detection and transport for herdr's socket API. Nothing else lives here.
  *
- * Ported from the integration herdr installs into pi itself
- * (`~/.pi/agent/extensions/herdr-agent-state.ts`, `HERDR_INTEGRATION_ID=pi`):
- * that file is the reference implementation, proven against this exact server,
+ * Reporting agent state is ported from the integration herdr installs into pi
+ * itself (`~/.pi/agent/extensions/herdr-agent-state.ts`,
+ * `HERDR_INTEGRATION_ID=pi`): that file is proven against this exact server,
  * and there is no reason to invent a second dialect.
+ *
+ * Opening a pane is not in it - the integration only ever reports on the pane
+ * it was launched in - so those calls answer to `herdr api schema --json`
+ * alone, and `scripts/check-herdr.ts` is what holds them to it.
  */
 
 import { createConnection } from "node:net";
@@ -109,8 +113,8 @@ function parse(chunk: Buffer): unknown {
 	}
 }
 
-/** Pulls the pane id out of an `agent.start` response, if there is one. */
+/** Pulls the pane id out of a `pane.split` response, if there is one. */
 export function paneIdOf(response: unknown): string | undefined {
-	const agent = (response as { result?: { agent?: { pane_id?: unknown } } })?.result?.agent;
-	return typeof agent?.pane_id === "string" ? agent.pane_id : undefined;
+	const pane = (response as { result?: { pane?: { pane_id?: unknown } } })?.result?.pane;
+	return typeof pane?.pane_id === "string" ? pane.pane_id : undefined;
 }
