@@ -27,6 +27,7 @@ The Markdown body is the system prompt, used verbatim.
 | `name` | yes | How every caller refers to the agent. |
 | `description` | yes | One line on what it is for. Also what `route` and `orchestrate` read to decide who does the work. |
 | `tools` | no | Allowed tools. Absent means read-only: `read`, `grep`, `find`, `ls`. |
+| `concurrency` | no | How many subagents it runs at once when it delegates. Only read for an agent that names `subagent`. |
 | `model` | no | A pattern such as `anthropic/claude-sonnet-5`. A caller's `model` argument beats it; absent everywhere means pi's default - see below. |
 | `lifetime` | no | Default [lifetime](lifetime.md). An explicit argument always wins. |
 | `openInHerdr` | no | Default for "give this agent its own herdr split". See [Display](display.md). |
@@ -110,7 +111,25 @@ a call rather than as a word in its prose.
 
 `subagent` is combo's too, and an agent that names it can split its task across
 children of its own. Two levels deep by default, and the roster it may reach is
-the caller's to pass. See [Design decisions](../decisions.md); `agents/explorer.md`
+the caller's to pass.
+
+**How wide it splits is the agent's own**, declared as `concurrency:` in its
+frontmatter:
+
+```markdown
+---
+name: explorer
+description: Answers a question by splitting the reading across scouts
+tools: read, grep, find, ls, subagent
+concurrency: 3
+---
+```
+
+That number belongs in the file rather than at the call site because it follows
+from how the agent was told to think: an explorer asked for two to four tasks
+wants three of them in flight, and saying so once beats saying it everywhere it
+is used. A count that is not a positive whole number is ignored, since
+`concurrency: 0` would mean an agent that delegates to nobody. See [Design decisions](../decisions.md); `agents/explorer.md`
 is the one shipped agent that asks for it.
 
 The allowlist covers these exactly as it covers pi's own, which is what keeps

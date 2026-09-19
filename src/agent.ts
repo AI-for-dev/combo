@@ -9,7 +9,7 @@
 import * as path from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import { BUILTIN_AGENTS_DIR } from "./builtin.ts";
-import { asBoolean, asString, findProjectDir, readMarkdownDir } from "./markdown.ts";
+import { asBoolean, asCount, asString, findProjectDir, readMarkdownDir } from "./markdown.ts";
 
 /**
  * Lifetime of a subagent - the central choice of this library.
@@ -55,6 +55,15 @@ export type Agent = {
 	/** Default lifetime. An explicit call always wins. */
 	lifetime?: Lifetime;
 	/**
+	 * How many subagents this agent runs at once when it delegates.
+	 *
+	 * Only meaningful for an agent whose `tools:` names `subagent`. It is the
+	 * agent's own business rather than the caller's: how wide a split is worth
+	 * making depends on how the agent was told to think about its task, which is
+	 * what its definition says.
+	 */
+	concurrency?: number;
+	/**
 	 * Default for "give this agent its own herdr split". An explicit call wins.
 	 *
 	 * Declaring it here is often what you want: a scout is worth watching every
@@ -87,7 +96,6 @@ export function parseAgent(content: string, filePath: string, source: AgentSourc
 		.filter(Boolean);
 
 	const lifetime = asString(frontmatter.lifetime);
-
 	return {
 		name,
 		description,
@@ -95,6 +103,7 @@ export function parseAgent(content: string, filePath: string, source: AgentSourc
 		tools: tools && tools.length > 0 ? tools : undefined,
 		model: asString(frontmatter.model),
 		lifetime: lifetime && LIFETIMES.includes(lifetime) ? (lifetime as Lifetime) : undefined,
+		concurrency: asCount(frontmatter.concurrency),
 		openInHerdr: asBoolean(frontmatter.openInHerdr),
 		source,
 		filePath,
