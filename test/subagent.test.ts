@@ -199,6 +199,9 @@ describe("ask", () => {
 		assert.equal(result.ok, false);
 		assert.equal(result.error, "stopped");
 		assert.deepEqual(session.prompts, ["a"], "the refused turn must never reach the session");
+		// And a turn nothing was sent for is not a turn: the one that ran is.
+		assert.equal(result.usage.turns, 0);
+		assert.equal(subagent.usage.turns, 1);
 	});
 
 	test("stopping one subagent leaves the next spawn alone", async () => {

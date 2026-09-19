@@ -50,6 +50,10 @@ On a `"task"` subagent the two times are nearly equal. On a `"workflow"` one, th
   ratio of the two is the real parallelism, and that is what is worth seeing.
 - **A failure counts.** A subagent that crashed after 12k tokens cost 12k tokens.
   Its `Usage` is filled in even when `ok` is false.
+- **A refused turn does not.** Asking a subagent that has been stopped returns
+  at once without reaching the session: the `Result` is a failure with
+  `turns: 0`. A run called off halfway reports the turns it ran, not the ones it
+  was about to.
 - **Never estimate tokens by counting characters.** If the provider does not
   report them, the field is `0` and we say so - and what a provider reports
   changes under you: one measured here reported no tokens at all, reports them
