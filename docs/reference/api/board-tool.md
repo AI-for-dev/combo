@@ -16,10 +16,12 @@ whole reason this file exists rather than the board being handed round: a
 `from` a model can write is a `from` a model can borrow, and a medium where
 anybody can post as anybody is not a record of anything.
 
-Every post also goes onto the event bus, so a reporter sees the traffic as it
-happens and `record.ts` writes it down beside everything else. That file is
-the social history of a run, with our timestamps rather than reconstructed
-ones, and it is the only reason a board is worth building at all.
+Both halves go onto the event bus, so a reporter sees the traffic as it
+happens and `record.ts` writes it down beside everything else. **Reading is
+announced as well as posting**, and that is not symmetry for its own sake:
+the posts say who said what, and an investigation of a run asks who *knew*
+what. Knowing comes from being handed something, so being handed something is
+an event.
 
 ## `BOARD_TOOL`
 

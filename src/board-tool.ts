@@ -11,10 +11,12 @@
  * `from` a model can write is a `from` a model can borrow, and a medium where
  * anybody can post as anybody is not a record of anything.
  *
- * Every post also goes onto the event bus, so a reporter sees the traffic as it
- * happens and `record.ts` writes it down beside everything else. That file is
- * the social history of a run, with our timestamps rather than reconstructed
- * ones, and it is the only reason a board is worth building at all.
+ * Both halves go onto the event bus, so a reporter sees the traffic as it
+ * happens and `record.ts` writes it down beside everything else. **Reading is
+ * announced as well as posting**, and that is not symmetry for its own sake:
+ * the posts say who said what, and an investigation of a run asks who *knew*
+ * what. Knowing comes from being handed something, so being handed something is
+ * an event.
  */
 
 import { Type } from "typebox";
@@ -118,14 +120,18 @@ export function boardTool(options: BoardToolOptions): ToolDefinition {
 	function read(): string {
 		const reading = board.since(from, cursor);
 		const page = reading.posts.slice(0, PAGE);
-		const more = reading.posts.length - page.length;
+		const waiting = reading.posts.length - page.length;
 
 		// Past what was handed over, never past what was merely looked at: a post
 		// left for the next page must still be there when the member asks again.
 		cursor = page.at(-1)?.id ?? reading.cursor;
 
+		// Every read, the empty ones included: "it looked and there was nothing"
+		// is the only thing that settles what a member could not have known.
+		bus?.emit({ type: "read", id: from, posts: page.map((one) => one.id), waiting });
+
 		if (page.length === 0) return "Nothing new on the board.";
-		return more > 0 ? `${boardLines(page)}\n\n(${more} more waiting - read again.)` : boardLines(page);
+		return waiting > 0 ? `${boardLines(page)}\n\n(${waiting} more waiting - read again.)` : boardLines(page);
 	}
 }
 

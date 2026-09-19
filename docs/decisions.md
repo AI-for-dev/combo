@@ -1596,6 +1596,15 @@ Three smaller things, each one a fork that could have gone the other way:
   its context, and the point of the cursor is to spend as little of that as
   possible.
 
+**Reading is announced as loudly as posting**, and that came out of running it
+rather than out of designing it. Three members dividing one job posted their
+claims 1.5, 3.1 and 3.5 seconds in, so the later two could have read the earlier
+ones before choosing - and nothing in the record said whether they had. Posts
+answer who said what. An investigation asks who *knew* what, knowing comes from
+being handed something, so being handed something is an event: `read` carries
+the ids delivered and how many were left waiting. The empty read is recorded
+too, being the only thing that settles what a member could not have known.
+
 ## The public surface: one entry point, grouped as it is learnt
 
 `src/index.ts` is the only door - the examples and the extension import from it,

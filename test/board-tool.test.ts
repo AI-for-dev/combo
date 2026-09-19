@@ -129,12 +129,52 @@ describe("the record", () => {
 		const tool = boardTool({ board: createBoard(), from: "scout#1", bus });
 
 		await callTool(tool, { action: "post", kind: "claim", text: "taking the parser" });
-		await callTool(tool, { action: "read" });
 
-		assert.equal(seen.length, 1, "reading is not traffic");
+		assert.equal(seen.length, 1);
 		assert.equal(seen[0]?.type, "post");
 		assert.equal((seen[0] as { id: string }).id, "scout#1");
 		assert.equal((seen[0] as { post: Post }).post.text, "taking the parser");
+	});
+
+	test("being handed something is announced too: the record answers who knew what", async () => {
+		const board = createBoard();
+		board.post("scout#2", { kind: "tell", text: "the parser is in src/pipeline.ts" });
+		const bus = createEventBus();
+		const seen: SubagentEvent[] = [];
+		bus.subscribe((event) => seen.push(event));
+		const tool = boardTool({ board, from: "scout#1", bus });
+
+		await callTool(tool, { action: "read" });
+
+		assert.deepEqual(seen, [{ type: "read", id: "scout#1", posts: ["p1"], waiting: 0 }]);
+	});
+
+	test("a read that was handed nothing is recorded, and says so", async () => {
+		// The strongest thing the record holds about what a member could not have
+		// known is that it looked and there was nothing there.
+		const bus = createEventBus();
+		const seen: SubagentEvent[] = [];
+		bus.subscribe((event) => seen.push(event));
+		const tool = boardTool({ board: createBoard(), from: "scout#1", bus });
+
+		await callTool(tool, { action: "read" });
+
+		assert.deepEqual(seen, [{ type: "read", id: "scout#1", posts: [], waiting: 0 }]);
+	});
+
+	test("a read says how much was left behind, so a member falling behind shows", async () => {
+		const board = createBoard();
+		for (let n = 0; n < 30; n++) board.post("scout#2", { kind: "tell", text: `post ${n}` });
+		const bus = createEventBus();
+		const seen: SubagentEvent[] = [];
+		bus.subscribe((event) => seen.push(event));
+		const tool = boardTool({ board, from: "scout#1", bus });
+
+		await callTool(tool, { action: "read" });
+
+		const read = seen[0] as { posts: readonly string[]; waiting: number };
+		assert.equal(read.posts.length, 25);
+		assert.equal(read.waiting, 5);
 	});
 
 	test("a refused post is not announced", async () => {
