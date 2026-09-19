@@ -16,12 +16,21 @@ writeUsageReport(dir, usageReport(collector.snapshot(), performance.now() - star
 ```
 
 ```
-runs/2026-07-19_17-16-48/
-├── scout-1.html   scout-1.jsonl
-├── scout-2.html   scout-2.jsonl
-├── main.jsonl
-└── usage.json
+runs/
+├── .gitignore                    written once: git has no business with these
+└── 2026-07-19_17-16-48/
+    ├── scout-1.html   scout-1.jsonl
+    ├── scout-2.html   scout-2.jsonl
+    ├── main.jsonl
+    └── usage.json
 ```
+
+The `.gitignore` holds `*`, and it is there because the exports land **inside
+the repository the run worked on**. Both halves of that were measured rather
+than imagined: a delivery that gives its subtasks copies of the repository
+cannot put them back while `runs/` alone makes the tree unclean, and `/build`
+ends in a `git add -A`, which would have swept a run's transcripts into
+somebody's history. A `.gitignore` already in `runs/` is left alone.
 
 ## What is in there, and what is not
 
