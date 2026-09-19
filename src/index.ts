@@ -67,14 +67,8 @@ export {
 	type InterviewOptions,
 	type InterviewResult,
 } from "./workflows/interview.ts";
-export {
-	auditPrompt,
-	AUDIT_APPROVAL,
-	deliver,
-	type AuditRound,
-	type DeliverOptions,
-	type DeliverResult,
-} from "./workflows/deliver.ts";
+export { deliver, type DeliverOptions, type DeliverResult } from "./workflows/deliver.ts";
+export { auditPrompt, AUDIT_APPROVAL, type AuditPromptOptions, type AuditRound } from "./workflows/audit.ts";
 
 // ── Watching a run: reporters, and the state they collect ────────────────────
 

@@ -106,7 +106,7 @@ src/                the library
   ask.ts verify.ts git.ts resume.ts     the ports that touch the world
   pipeline.ts pipeline-load.ts builtin.ts
   workflows/        chain fan-out loop reduce route orchestrate
-                    interview pair deliver pipeline-run, common.ts
+                    interview pair deliver audit pipeline-run, common.ts
   reporters/        herdr, tui (collects and formats, draws nothing), console,
                     silent, record (the event stream on disk)
 extension/          the pi extension: tool, commands, renderers, UI
