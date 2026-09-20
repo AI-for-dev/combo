@@ -20,7 +20,8 @@ import { asBoolean, asCount, asList, asString, findProjectDir, readMarkdownDir }
  */
 export type Lifetime = "task" | "workflow" | "session";
 
-const LIFETIMES: readonly string[] = ["task", "workflow", "session"];
+/** Every {@link Lifetime}, for whoever validates one - the tool's schema names them from here. */
+export const LIFETIMES = ["task", "workflow", "session"] as const satisfies readonly Lifetime[];
 
 /**
  * Where an agent definition came from.
@@ -105,7 +106,7 @@ export function parseAgent(content: string, filePath: string, source: AgentSourc
 		tools: asList(frontmatter.tools),
 		skills: asList(frontmatter.skills),
 		model: asString(frontmatter.model),
-		lifetime: lifetime && LIFETIMES.includes(lifetime) ? (lifetime as Lifetime) : undefined,
+		lifetime: lifetime && (LIFETIMES as readonly string[]).includes(lifetime) ? (lifetime as Lifetime) : undefined,
 		concurrency: asCount(frontmatter.concurrency),
 		openInHerdr: asBoolean(frontmatter.openInHerdr),
 		source,

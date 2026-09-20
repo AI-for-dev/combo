@@ -67,9 +67,9 @@ describe("the cycle", () => {
 		const result = await run({ spawn: fake.spawn });
 
 		assert.equal(result.approved, true);
-		assert.equal(result.rounds.length, 1);
-		assert.equal(result.tasks.length, 2);
-		assert.equal(result.rounds[0]?.review.output, AUDIT_APPROVAL);
+		assert.equal(result.progress.audits.length, 1);
+		assert.equal(result.progress.tasks.length, 2);
+		assert.equal(result.progress.audits[0]?.review.output, AUDIT_APPROVAL);
 	});
 
 	test("what the auditor asks for is fixed, and the next round reads the fixes", async () => {
@@ -78,11 +78,11 @@ describe("the cycle", () => {
 		const result = await run({ spawn: fake.spawn, fix });
 
 		assert.deepEqual(asked[0]?.map((one) => `${one.agent.name}: ${one.task}`), ["coder: the error path is missing"]);
-		assert.equal(result.rounds.length, 2);
-		assert.equal(result.rounds[0]?.approved, false);
-		assert.deepEqual(result.rounds[0]?.fixes.map((one) => one.task), ["the error path is missing"], "the fixes are kept as the auditor named them, without the check attached");
-		assert.equal(result.rounds[0]?.results.length, 1);
-		assert.equal(result.tasks.length, 3, "the fix joins what is audited");
+		assert.equal(result.progress.audits.length, 2);
+		assert.equal(result.progress.audits[0]?.approved, false);
+		assert.deepEqual(result.progress.audits[0]?.fixes.map((one) => one.task), ["the error path is missing"], "the fixes are kept as the auditor named them, without the check attached");
+		assert.equal(result.progress.audits[0]?.results.length, 1);
+		assert.equal(result.progress.tasks.length, 3, "the fix joins what is audited");
 		assert.match(fake.asks[1]?.task ?? "", /fixed: the error path is missing/, "and the second audit reads it");
 		assert.equal(result.approved, true);
 	});
@@ -92,14 +92,14 @@ describe("the cycle", () => {
 		const result = await run({ spawn: fake.spawn, maxAuditRounds: 2 });
 
 		assert.equal(result.approved, false);
-		assert.equal(result.rounds.length, 2);
+		assert.equal(result.progress.audits.length, 2);
 	});
 
 	test("nothing actionable and nothing closed stops the cycle instead of repeating it", async () => {
 		const fake = saying(["I am not sure this is right, honestly.", AUDIT_APPROVAL]);
 		const result = await run({ spawn: fake.spawn });
 
-		assert.equal(result.rounds.length, 1, "asking the same question again would only cost tokens");
+		assert.equal(result.progress.audits.length, 1, "asking the same question again would only cost tokens");
 		assert.equal(result.approved, false);
 	});
 
@@ -114,9 +114,9 @@ describe("the cycle", () => {
 	test("rounds a previous run recorded are not spent again", async () => {
 		const fake = saying([AUDIT_APPROVAL]);
 		const spent = { review: { agent: "auditor", output: "coder: again", messages: [], usage: emptyUsage(), ok: true }, approved: false, fixes: [], results: [] };
-		const result = await run({ spawn: fake.spawn, maxAuditRounds: 2, resume: { rounds: [spent], obligations: [] } });
+		const result = await run({ spawn: fake.spawn, maxAuditRounds: 2, resume: { audits: [spent], obligations: [] } });
 
-		assert.equal(result.rounds.length, 2, "the recorded round plus the one it had left");
+		assert.equal(result.progress.audits.length, 2, "the recorded round plus the one it had left");
 		assert.equal(fake.spawned.length, 1);
 		assert.match(fake.asks[0]?.task ?? "", /round 2/);
 		assert.equal(result.steps.length, 2, "read as one Result, the cycle's trail counts the round it inherited");
@@ -131,14 +131,14 @@ describe("the cycle", () => {
 		const result = await run({ spawn: fake.spawn, signal: controller.signal });
 
 		assert.equal(fake.spawned.length, 0);
-		assert.deepEqual(result.rounds, []);
+		assert.deepEqual(result.progress.audits, []);
 		assert.equal(result.approved, false);
 	});
 
 	test("every round is reported as it ends, with the cycle as it stands", async () => {
 		const fake = saying(["coder: fix it", AUDIT_APPROVAL]);
 		const seen: number[] = [];
-		await run({ spawn: fake.spawn, onRound: (progress) => void seen.push(progress.rounds.length) });
+		await run({ spawn: fake.spawn, onRound: (progress) => void seen.push(progress.audits.length) });
 		assert.deepEqual(seen, [1, 2]);
 	});
 });
@@ -150,24 +150,24 @@ describe("what the auditor asks for", () => {
 		const fake = saying(["The quote on line 14 is not closed.", AUDIT_APPROVAL]);
 		const result = await run({ spawn: fake.spawn, workers: [coder] });
 
-		assert.equal(result.rounds[0]?.fixes.length, 1);
-		assert.equal(result.rounds[0]?.fixes[0]?.agent.name, "coder");
-		assert.match(result.rounds[0]?.fixes[0]?.task ?? "", /quote on line 14/);
+		assert.equal(result.progress.audits[0]?.fixes.length, 1);
+		assert.equal(result.progress.audits[0]?.fixes[0]?.agent.name, "coder");
+		assert.match(result.progress.audits[0]?.fixes[0]?.task ?? "", /quote on line 14/);
 		assert.equal(result.approved, true, "and the second audit saw the fix");
 	});
 
 	test("with several workers a nameless refusal is dropped: guessing owns nothing", async () => {
 		const fake = saying(["Something is wrong somewhere.", AUDIT_APPROVAL]);
 		const result = await run({ spawn: fake.spawn });
-		assert.deepEqual(result.rounds[0]?.fixes, []);
+		assert.deepEqual(result.progress.audits[0]?.fixes, []);
 	});
 
 	test("a fix naming an unknown agent is dropped, like any other plan", async () => {
 		const fake = saying(["ghost: do magic", AUDIT_APPROVAL]);
 		const result = await run({ spawn: fake.spawn });
 
-		assert.deepEqual(result.rounds[0]?.fixes, []);
-		assert.equal(result.rounds.length, 1);
+		assert.deepEqual(result.progress.audits[0]?.fixes, []);
+		assert.equal(result.progress.audits.length, 1);
 	});
 });
 
@@ -177,7 +177,7 @@ describe("the check", () => {
 		const result = await run({ spawn: fake.spawn, verification: failing });
 
 		assert.equal(result.approved, false, "reading code is not running it");
-		assert.equal(result.rounds.length, 1, "and with nothing asked for, another identical audit would only cost tokens");
+		assert.equal(result.progress.audits.length, 1, "and with nothing asked for, another identical audit would only cost tokens");
 	});
 
 	test("the auditor is told the check failed, and that it is not an opinion", async () => {
@@ -194,7 +194,7 @@ describe("the check", () => {
 		const result = await run({ spawn: fake.spawn, verification: failing, fix });
 
 		assert.match(fake.asks[1]?.task ?? "", /passed/);
-		assert.equal(result.verification?.ok, true);
+		assert.equal(result.progress.verification?.ok, true);
 		assert.equal(result.approved, true);
 	});
 
@@ -239,10 +239,10 @@ describe("an auditor that signs through the verdict tool", () => {
 
 		assert.equal(result.approved, true);
 		assert.deepEqual(
-			result.obligations.map((one) => [one.id, one.text, one.closed?.at]),
+			result.progress.obligations.map((one) => [one.id, one.text, one.closed?.at]),
 			[["o1", "coder: name the parser after what it parses", 2]],
 		);
-		assert.deepEqual(result.rounds[0]?.fixes.map((fix) => fix.agent.name), ["coder"]);
+		assert.deepEqual(result.progress.audits[0]?.fixes.map((fix) => fix.agent.name), ["coder"]);
 	});
 
 	test("an id the auditor invented does not cost it the approval", async () => {
@@ -250,19 +250,7 @@ describe("an auditor that signs through the verdict tool", () => {
 		const result = await run({ spawn: fake.spawn, auditor: judge });
 
 		assert.equal(result.approved, true);
-		assert.deepEqual(result.obligations, [], "and nothing was closed that was never open");
-	});
-
-	test("a yes over an open obligation does not approve", async () => {
-		const fake = withVerdicts([
-			{ approved: false, raised: ["coder: one", "scribe: two"] },
-			{ approved: true, resolved: [{ id: "o1", how: "addressed" }] },
-		]);
-		const result = await run({ spawn: fake.spawn, auditor: judge });
-
-		assert.equal(result.rounds.at(-1)?.verdict?.approved, true, "the auditor said yes");
-		assert.equal(result.approved, false, "and o2 was still open");
-		assert.deepEqual(result.obligations.filter((one) => !one.closed).map((one) => one.id), ["o2"]);
+		assert.deepEqual(result.progress.obligations, [], "and nothing was closed that was never open");
 	});
 
 	test("a refusal that raises nothing sends nobody anywhere", async () => {
@@ -273,7 +261,7 @@ describe("an auditor that signs through the verdict tool", () => {
 		const result = await run({ spawn: fake.spawn, auditor: judge, maxAuditRounds: 1, fix });
 
 		assert.equal(result.approved, false);
-		assert.deepEqual(result.rounds[0]?.fixes, [], "what it wants done goes in `raised`, and it raised nothing");
+		assert.deepEqual(result.progress.audits[0]?.fixes, [], "what it wants done goes in `raised`, and it raised nothing");
 		assert.deepEqual(asked, []);
 	});
 
@@ -287,9 +275,9 @@ describe("an auditor that signs through the verdict tool", () => {
 	test("an obligation a previous run left open is still open, and keeps its id", async () => {
 		const carried: Obligation[] = [{ id: "o1", openedBy: "auditor", text: "coder: one", openedAt: 1 }];
 		const fake = withVerdicts([{ approved: true, resolved: [{ id: "o1", how: "addressed" }] }]);
-		const result = await run({ spawn: fake.spawn, auditor: judge, resume: { rounds: [], obligations: carried } });
+		const result = await run({ spawn: fake.spawn, auditor: judge, resume: { audits: [], obligations: carried } });
 
 		assert.equal(result.approved, true, "the resumed cycle closed the line it inherited");
-		assert.deepEqual(result.obligations.map((one) => one.id), ["o1"], "and raised no duplicate of it");
+		assert.deepEqual(result.progress.obligations.map((one) => one.id), ["o1"], "and raised no duplicate of it");
 	});
 });

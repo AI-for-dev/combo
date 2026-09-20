@@ -88,8 +88,8 @@ export type PipelineRunOptions = WorkflowOptions & {
 	delivery?: {
 		/** Whatever was already paid for on a previous life of this step, if anything. */
 		resume?: (stepId: string) => BuildProgress | undefined;
-		/** Called after the plan, after each subtask and after each audit. */
-		onProgress?: (stepId: string, progress: BuildProgress) => void;
+		/** Called after the plan, after each subtask and after each audit, and told when the step is over. */
+		onProgress?: (stepId: string, progress: BuildProgress, done: boolean) => void;
 	};
 };
 ```

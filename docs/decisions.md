@@ -256,6 +256,88 @@ in task order and `steps` is what the contract calls them. `InterviewResult.brie
 survives beside `output` for the same reason. Two aliases were judged cheaper
 than a rename through every caller and every page.
 
+### One shape for where a build stands
+
+"What a delivery has done so far" was spelled four ways: `AuditProgress` from
+the audit cycle, `BuildProgress` for the hook and the resume, `BuildState` on
+disk, and `DeliverResult` at the end. `deliver` held a fifth in four `let`s,
+filled by a `take()` that copied the audit's progress field by field so that
+`report()` could rebuild a `BuildProgress` and `outcome()` a `DeliverResult`.
+The disk had drifted from the rest: a saved audit kept the review's text, its
+`ok`, `approved` and the fixes, and dropped the verdict, the check as it stood
+and what the fixes produced, so a resumed cycle read a thinner history than the
+one it had lived; and the review came back as a `Result` with `agent:
+"auditor"` written in, whatever the auditor was called.
+
+`BuildProgress` is now `AuditProgress & { plan }`, defined by `deliver`, which
+is the workflow that reports it - `resume.ts` imports it rather than the other
+way round. `DeliverResult` is that progress as it ended, plus what only the end
+can say: the brief, the planning turn, the landings, `approved`, and the
+`Result` reading. `deliver` keeps one `progress` and moves it forward by spread:
+the plan once made, the tasks and the check once settled, and after every
+audit round whatever the cycle reports - which is why `AuditResult` now carries
+its cycle under `progress`, the same shape every round reported, so a caller
+absorbs the end of the cycle in the same spread as its rounds. `take()` and the
+four variables are gone.
+
+`done` left the progress. A build's progress does not know whether the build is
+over; the moment it is reported does. So `onProgress(progress, done)` says both,
+`toBuildState` takes `done` with the rest of what the state says about the
+build, and a `resume` no longer carries a `done` nobody read. `notify` grew
+variadic for it, which costs the bus nothing.
+
+The saved round keeps what the live round has: the auditor's name, the review's
+usage and error, its verdict, the check that stood, and the fixes' results as
+saved tasks. `BUILD_STATE_VERSION` is 2, because that is what the version is
+for: an older file is refused whole rather than read into a shape it does not
+fill. The two conversions are written once each, `saveTask` and `loadTask`,
+shared by the subtasks and the fixes. What a state still drops is the trail -
+messages, turns, the review a pair kept, the working copy - and the test that
+proves it is now an identity: a full progress through `toBuildState` and back
+is itself, less that trail.
+
+### The record states its own terms
+
+The record joined the verdict to the ledger, and both callers still did the
+same three things around it. They built it alike, reading `declaresVerdict` off
+the agent and wrapping `saysWord` in a one-line predicate each, with its own
+constant. They wrote the same ternary to offer the tool - `record.tool ? … :
+…`, cast included - one to the reviewer alone, one to the auditor. And they
+handed `byTool` and `open` back out to their prompt, where `reviewPrompt` and
+`auditPrompt` each rendered "Still open, from your earlier rounds:" over
+`openList` and the same fork between calling the tool and answering the word
+alone. `auditPrompt` had grown to seven positional parameters carrying it.
+The record was deep on reading a round and shallow on asking for one, which is
+why its interface exposed `byTool`, `open` and `tool` raw.
+
+`reviewRecord(reviewer, { word, approved?, restored? })` now takes the agent
+and the word. Whether it decides by tool is read off the agent here, and a
+caller's own `approved` stands in for the tool and the word alike, because the
+caller's rule is the nearer one. Two things it renders itself. `terms()` is
+what every round ends on: the open lines by id, then the instruction - a call
+to the tool, with the `resolved` sentence when anything is owed, or the word
+alone. `offer(others)` is what goes through `customTools`: the tool to this
+reviewer and nobody else, `others` to everyone else, `others` untouched when
+the reviewer decides in prose. The prompts take `terms` as a string, so they
+stay functions of data: `reviewPrompt(goal, work, round, terms)` and
+`auditPrompt({ brief, tasks, round, maxAuditRounds, verification, workers,
+terms, byTool })`, the latter keeping `byTool` because the fix lines go where
+the decision goes.
+
+Two changes of behaviour rode along, both towards the rule that an agent gets
+what its file names. A pair whose reviewer held the tool offered its worker
+nothing, dropping whatever the caller had passed in `customTools`; and the
+audit's pool dropped the caller's `customTools` whatever the auditor held. Both
+now pass `others` through. The prose instruction reads "Answer WORD alone when
+you have nothing left to ask for" for the auditor as for the reviewer; what
+differed between them was wording, not meaning.
+
+The rules of the ledger are asserted once, in `test/review.test.ts`, where the
+terms and the offer are too. The pair's "an obligation a round does not name
+stays open" and the audit's "a yes over an open obligation does not approve"
+each proved a record rule through a workflow, and are gone; what the two
+workflows still assert is that the terms reach their prompt.
+
 ## Workflows to cover
 
 | Workflow | Shape | Semantics | Status |
@@ -1721,6 +1803,43 @@ thrown work still throws after the clean-up, the footer and the widget are
 cleared whatever happened, `usage.json` lands in the folder given - and the two
 commands that each proved the widget goes when the run ends lost those tests.
 Their own tests say what each command decides.
+
+### The tool and the committer stand on it too
+
+The floor was built for five commands and two launch sites stayed beside it.
+The `subagent` tool opened its own `liveRun`, kept its own clock and wrote its
+own `finally`, because it varies four things about the view - a second
+reporter, `herdrAll`, the parent session's file, a progress line streamed on
+every change - and `watched` let none of them through. And `/build`'s committer
+ran through `deps.run` with `ctx.signal`, which the section above says is
+`undefined` during a command: the one subagent of a build that neither `esc`
+nor `/stop` could reach, with no dots to say it was working. Its footer status
+was set and cleared by hand around it.
+
+`Watched` takes `live`, the slice of `LiveRunOptions` a caller may vary, and
+`status` became optional because the tool has no footer to write to; who stands
+on the floor is a `Watcher`, a `ui` and a `signal`, which pi's command context
+and the tool's deps both are. The live run keeps the clock - `elapsedMs()`, and
+`stop(dir)` no longer takes a wall time it was handed - so the tool reads the
+run's time off the view it ran under rather than keeping a second one. The
+committer runs under `watched` with the run's `signal`, `spawn` and `onEvent`,
+which is what puts it within reach of `/stop` and on the widget.
+
+The tool's arguments were declared twice: a typebox `Schema` in `index.ts` for
+pi, and a hand-kept `Params` in `execute.ts` for the code, each with its own
+description of the same twenty-one fields. `Schema` lives in `execute.ts` and
+`Params` is `Static<typeof Schema>`. Three of its fields are `enum`s now -
+`mode`, `lifetime`, `scope` - so what the code accepts is what the model is
+told: `asLifetime` silently took `"session"`, which the description never
+named, and `asScope` took anything and fell back in silence; pi refuses what
+the schema does not name, and the two validators are gone. What the model
+sends is `extension/params.ts`, what the tool does stays `execute.ts`, and the
+`switch` over the mode is `perform()`, apart from the wiring: the one file was
+mixing three things at 345 lines.
+
+The tool's widget test went the way the commands' did: the floor's contract is
+asserted once, and the tool's tests say what the tool decides. The committer
+has the test it was owed - the run's signal, not pi's.
 
 ### The relay owns the entry a step leaves
 

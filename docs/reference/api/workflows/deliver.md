@@ -20,6 +20,25 @@ suite never even loaded. Reading code is not running it. When a verification
 is given, **its verdict is final**: no amount of approval makes a failing
 check a success.
 
+## `BuildProgress`
+
+*type*
+
+```typescript
+export type BuildProgress = AuditProgress & {
+	/** The subtasks, with their agents resolved. Reused on resume, never made again. */
+	plan: PlannedTask[];
+};
+```
+
+Where a build stands: what `deliver` reports as it goes, and what it accepts
+to start again from.
+
+The audit cycle's own progress, plus the plan it works from. One shape for
+the three moments it is read at - reported after every unit of work, saved
+by whoever runs the build, handed back on resume - so nothing is copied
+between them field by field, and a saved build carries what a live one does.
+
 ## `deliver`
 
 *function*
@@ -109,13 +128,14 @@ export type DeliverOptions = WorkflowOptions & {
 	 */
 	resume?: BuildProgress;
 	/**
-	 * Called after the plan, after the subtasks and after every audit round.
+	 * Called after the plan, after the subtasks and after every audit round,
+	 * with where the build stands and whether it has reached its end.
 	 *
 	 * This is what makes a build resumable at all: the caller writes it down. It
 	 * is a reporting hook, so it must not throw - a listener that does is
 	 * swallowed, like everywhere else here.
 	 */
-	onProgress?: (progress: BuildProgress) => void;
+	onProgress?: (progress: BuildProgress, done: boolean) => void;
 };
 ```
 
@@ -126,19 +146,12 @@ The cast of a delivery, and every cap that keeps it affordable.
 *type*
 
 ```typescript
-export type DeliverResult = WorkflowResult & {
+export type DeliverResult = WorkflowResult &
+	BuildProgress & {
 	/** The specification the delivery worked from, as given. */
 	brief: string;
-	/** The subtasks, after validation against the roster. */
-	plan: PlannedTask[];
 	/** The planner's own turn. Kept whatever happened next. */
 	planning: Result;
-	/** One per planned subtask, in plan order. */
-	tasks: PairResult[];
-	/** The audit rounds that ran, in order. Empty when no auditor was given. */
-	audits: AuditRound[];
-	/** The last verification, when one was configured. */
-	verification?: Verification;
 	/**
 	 * What became of the copies' patches, one entry per batch that ran.
 	 *
@@ -147,14 +160,6 @@ export type DeliverResult = WorkflowResult & {
 	 * is not delivered, whatever the auditor thought of the reports.
 	 */
 	landings: readonly Landed[];
-	/**
-	 * What the auditor raised across the rounds, and what became of each.
-	 *
-	 * Empty when the auditor holds no verdict tool. A run that stopped short says
-	 * here which lines are open and since which round, which is what
-	 * `approved: false` on its own has never been able to say.
-	 */
-	obligations: readonly Obligation[];
 	/**
 	 * Whether the work passed the bar: the auditor signed off, **nothing it
 	 * raised is still open**, and the check passed. `true` with neither an
@@ -166,8 +171,9 @@ export type DeliverResult = WorkflowResult & {
 
 Everything a delivery produced, and the two words that say whether it counts.
 
-As a `Result`: the planner's turn, with every subtask's output labelled
-where its own would be. `steps` is what the delivery paid for - the planning,
-every subtask as a pair's result, every audit's review - and `usage` is their
-sum over the run, fixes included since the audit puts them among the tasks.
-`ok` says every turn ran and nothing about quality: read `approved`.
+The build's progress as it ended, plus what only the end can say. As a
+`Result`: the planner's turn, with every subtask's output labelled where its
+own would be. `steps` is what the delivery paid for - the planning, every
+subtask as a pair's result, every audit's review - and `usage` is their sum
+over the run, fixes included since the audit puts them among the tasks. `ok`
+says every turn ran and nothing about quality: read `approved`.

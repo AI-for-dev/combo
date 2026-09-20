@@ -11,7 +11,9 @@ call, and a list of things that must happen, which `ledger.ts` keeps - and
 they are only ever read together: a round closes what it addressed, raises
 what it found, and is approved when the reviewer said yes *and* nothing is
 left open. This is the one place that joins them. A workflow asks the record
-one question per round and never touches the tool or the list itself.
+one question per round and never touches the tool or the list itself - and
+the record says how it is to be asked: what is still owed, and how the
+decision is read, in the same words for every reviewer.
 
 ## `ProseApproval`
 
@@ -28,7 +30,7 @@ Reads an approval out of prose, for a reviewer that holds no tool.
 *function*
 
 ```typescript
-export function reviewRecord(reviewer: string, options: ReviewRecordOptions): ReviewRecord { /* … */ }
+export function reviewRecord(reviewer: Agent, options: ReviewRecordOptions): ReviewRecord { /* … */ }
 ```
 
 Builds the record for one reviewer, named as the ledger will name it.
@@ -45,14 +47,27 @@ inside the same turn - the only moment it can still repair the mistake.
 
 ```typescript
 export type ReviewRecord = {
-	/** Offered to the reviewer through `customTools`. Absent when it decides in prose. */
-	readonly tool?: ToolDefinition;
 	/** Whether the reviewer decides through the tool. */
 	readonly byTool: boolean;
 	/** Still owed, in the order raised. What a round is asked about. */
 	readonly open: readonly Obligation[];
 	/** Everything raised, open and closed, in the order raised. */
 	readonly all: readonly Obligation[];
+	/**
+	 * What the reviewer is told at the end of every round: what it still owes,
+	 * by id, and how its decision is read - a call to the tool, or the word
+	 * alone. Written here once, so a pair and an audit ask in the same words.
+	 */
+	terms(): string;
+	/**
+	 * The tools to offer through `customTools`: the verdict tool to this
+	 * reviewer and to nobody else, `others` to everybody else.
+	 *
+	 * Only the reviewer, because two agents writing into one collector would
+	 * make their answers indistinguishable, and pi's allowlist would refuse it
+	 * anyway. A reviewer that decides in prose changes nothing: `others` stands.
+	 */
+	offer(others?: WorkflowOptions["customTools"]): WorkflowOptions["customTools"];
 	/**
 	 * Closes a round: reads what the reviewer decided, writes it into the list,
 	 * and says what the round amounted to.
@@ -67,7 +82,7 @@ export type ReviewRecord = {
 };
 ```
 
-One reviewer's record: the tool it decides with, and the list it is held to.
+One reviewer's record: how it is asked, what it decides with, and the list it is held to.
 
 ## `ReviewRecordOptions`
 
@@ -76,15 +91,20 @@ One reviewer's record: the tool it decides with, and the list it is held to.
 ```typescript
 export type ReviewRecordOptions = {
 	/**
-	 * Whether the reviewer decides through the `verdict` tool.
+	 * The word the reviewer says alone when it decides in prose.
 	 *
-	 * Decided by the caller rather than read off the agent here, because a
-	 * workflow may have a rule of its own - `pair` lets a caller's own
-	 * `approved` predicate stand in for the tool, whatever the agent declares.
+	 * Named in the terms it is asked on and read off its answer by the same
+	 * record, so the two cannot drift apart.
 	 */
-	byTool: boolean;
-	/** How a round is read when it is not by tool. Ignored when it is. */
-	inProse: ProseApproval;
+	word: string;
+	/**
+	 * A caller's own reading of the prose.
+	 *
+	 * It stands in for the word **and** for the tool: a reviewer whose
+	 * definition names `verdict` still decides in prose when the caller says
+	 * how, because the caller's rule is the nearer one.
+	 */
+	approved?: ProseApproval;
 	/** Obligations a previous run recorded, for a resumed one to carry on. */
 	restored?: readonly Obligation[];
 };

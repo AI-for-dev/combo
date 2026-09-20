@@ -12,13 +12,11 @@
  */
 
 import type { Agent } from "./../agent.ts";
-import type { ToolDefinition } from "./../session.ts";
-import { openList, type Obligation } from "./../ledger.ts";
+import type { Obligation } from "./../ledger.ts";
 import { scratchWorktree, type Scratch } from "./../scratch.ts";
 import { failed, type Result } from "./../result.ts";
 import { reviewRecord } from "./../review.ts";
-import { saysWord } from "./../text.ts";
-import { declaresVerdict, type Verdict } from "./../verdict.ts";
+import type { Verdict } from "./../verdict.ts";
 import type { WorkflowOptions } from "./options.ts";
 import { SubagentPool } from "./pool.ts";
 import { Trail } from "./trail.ts";
@@ -133,13 +131,9 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 	const maxRounds = options.maxRounds ?? 3;
 	if (maxRounds < 1) throw new Error(`pair: \`maxRounds\` must be at least 1, got ${maxRounds}`);
 
-	// The reviewer decides through a tool when its definition asks for one, and a
-	// caller's own predicate stands in for it. Built here rather than per round,
-	// so a reviewer kept across rounds keeps its own record.
-	const record = reviewRecord(reviewer.name, {
-		byTool: !options.approved && declaresVerdict(reviewer.tools),
-		inProse: options.approved ?? approvedByDefault,
-	});
+	// Built here rather than per round, so a reviewer kept across rounds keeps
+	// its own record.
+	const record = reviewRecord(reviewer, { word: APPROVAL, approved: options.approved });
 
 	// Opened before the pool, which cannot exist until the working copy does:
 	// the time a copy takes to make is part of what the pair took.
@@ -181,16 +175,12 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 	// before: a caller that builds its options by merging hands us
 	// `lifetime: undefined` for an option nobody set, and an explicit `undefined`
 	// spread over a default silently wins.
-	//
-	// Only the reviewer is offered the verdict tool. The worker writing into the
-	// same collector would make the two agents' answers indistinguishable, and
-	// pi's allowlist would refuse it anyway.
 	const pool = new SubagentPool(
 		{
 			...options,
 			cwd: scratch?.path ?? options.cwd,
 			lifetime: options.lifetime ?? "workflow",
-			customTools: record.tool ? (agent) => (agent.name === reviewer.name ? [record.tool as ToolDefinition] : undefined) : options.customTools,
+			customTools: record.offer(options.customTools),
 		},
 		trail,
 	);
@@ -207,7 +197,7 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 			work = await pool.turn(worker, task);
 			if (!work.ok) break;
 
-			review = await pool.turn(reviewer, reviewPrompt(input, work.output, round, { byTool: record.byTool, open: record.open }));
+			review = await pool.turn(reviewer, reviewPrompt(input, work.output, round, record.terms()));
 			if (!review.ok) break;
 
 			const decided = await record.close(review, round);
@@ -247,23 +237,12 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 	return { ...result, ok: false, error: result.error ? `${result.error}\n${stranded}` : stranded };
 }
 
-/** `LGTM` on a line of its own, whatever decoration the model put around it. */
-function approvedByDefault(review: Result): boolean {
-	return saysWord(review.output, APPROVAL);
-}
-
-/** How the reviewer is asked to answer, and what it still owes. */
-export type ReviewPromptOptions = {
-	/** Whether the reviewer decides through the `verdict` tool. */
-	byTool?: boolean;
-	/** Obligations still open, which it is asked to answer for by id. */
-	open?: readonly Obligation[];
-};
-
-/** What the reviewer is asked: the goal, what was done, and what is still owed. */
-export function reviewPrompt(goal: string, work: string, round: number, options: ReviewPromptOptions = {}): string {
-	const owed = options.open ?? [];
-	const parts = [
+/**
+ * What the reviewer is asked: the goal, what was done, and the terms it answers
+ * on - what it still owes and how its decision is read, as its record states them.
+ */
+export function reviewPrompt(goal: string, work: string, round: number, terms: string): string {
+	return [
 		round === 1 ? "Review this work." : `Review this work again - this is round ${round}.`,
 		"",
 		"It was asked to:",
@@ -272,23 +251,9 @@ export function reviewPrompt(goal: string, work: string, round: number, options:
 		"What was done:",
 		work.trim(),
 		"",
-	];
-
-	if (owed.length) parts.push("Still open, from your earlier rounds:", openList(owed), "");
-	parts.push("Read the code itself rather than trusting the summary.");
-
-	if (!options.byTool) {
-		parts.push(`Answer ${APPROVAL} alone when you have nothing left to ask for.`);
-		return parts.join("\n");
-	}
-
-	parts.push("End by calling the `verdict` tool: that call is what is read as your decision.");
-	if (owed.length) {
-		parts.push(
-			"Name in `resolved` every id above you are done with. One you leave out stays open, and the work is not finished while anything is.",
-		);
-	}
-	return parts.join("\n");
+		"Read the code itself rather than trusting the summary.",
+		terms,
+	].join("\n");
 }
 
 /** What the worker gets back: the remarks, and how much room is left. */

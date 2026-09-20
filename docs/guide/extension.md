@@ -207,11 +207,12 @@ suite. It is now covered offline.
 
 **One live-run path.** The dots above the prompt, the repaint timer, the herdr
 reporter, the clean-up and `usage.json` are `liveRun()` in
-`extension/run-ui.ts` - one implementation, used by the `subagent` tool,
-`/build` and `/run`. They must look identical while they run, and three call
-sites with three timers is exactly how the one nobody is watching that day
-drifts. It reaches for neither the tool nor the commands, so the dependency runs
-one way.
+`extension/run-ui.ts` - one implementation, reached only through `watched()`,
+which the five commands, the `subagent` tool and `/build`'s committer all stand
+on. They must look identical while they run, and several call sites with
+several timers is exactly how the one nobody is watching that day drifts. The
+view keeps the run's clock, so a run's wall time is measured once, where the
+run is watched.
 
 ## Reference
 

@@ -18,7 +18,6 @@ import {
 	type Theme,
 } from "@earendil-works/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
-import { Type } from "typebox";
 import {
 	formatToolCall,
 	formatUsage,
@@ -43,65 +42,11 @@ import { STEP_ENTRY, type StepEntry } from "./relay.ts";
 import registerStepCommands from "./step-commands.ts";
 import registerSwarmCommand from "./swarm-command.ts";
 import registerStopCommand from "./stop.ts";
-import { executeSubagent, inferMode, type Details, type Params } from "./execute.ts";
+import { executeSubagent, type Details } from "./execute.ts";
+import { inferMode, Schema, type Params } from "./params.ts";
 
 /** How many tool lines the collapsed view shows before it starts eliding. */
 const COLLAPSED_TOOLS = 3;
-
-const Schema = Type.Object({
-	mode: Type.Optional(
-		Type.String({
-			description: 'One of "single", "chain", "parallel", "loop". Inferred from the other fields when omitted.',
-		}),
-	),
-	agent: Type.Optional(Type.String({ description: "Agent name, for single and parallel modes." })),
-	task: Type.Optional(Type.String({ description: "The task, for single and chain and loop modes." })),
-	tasks: Type.Optional(Type.Array(Type.String(), { description: "Independent tasks to run in parallel." })),
-	steps: Type.Optional(Type.Array(Type.String(), { description: "Agent names to run in order, for chain and loop." })),
-	lifetime: Type.Optional(
-		Type.String({
-			description: '"task" (default, fresh each time) or "workflow" (subagents remember previous turns).',
-		}),
-	),
-	model: Type.Optional(
-		Type.String({
-			description: 'Model for every subagent of this call, e.g. "anthropic/claude-sonnet-5". Beats agent frontmatter.',
-		}),
-	),
-	concurrency: Type.Optional(Type.Number({ description: "Parallel branches at once. Default 4." })),
-	until: Type.Optional(
-		Type.String({
-			description:
-				'Loop stops when the last output says this word alone on a line, e.g. "LGTM". A line with anything else on it does not count.',
-		}),
-	),
-	maxIterations: Type.Optional(Type.Number({ description: "Loop iteration cap. Default 5." })),
-	maxTasks: Type.Optional(Type.Number({ description: "Most subtasks an orchestrate plan may contain. Default 8." })),
-	maxDepth: Type.Optional(
-		Type.Number({
-			description: `How deep a subagent may delegate in turn. Default ${MAX_DEPTH}: a child and a grandchild.`,
-		}),
-	),
-	candidates: Type.Optional(
-		Type.Array(Type.String(), {
-			description: "Agent names the router may pick from, or the planner may delegate to.",
-		}),
-	),
-	timeoutMs: Type.Optional(Type.Number({ description: "Deadline per turn. No default; set it for long tasks." })),
-	openInHerdr: Type.Optional(Type.Boolean({ description: "Give each subagent its own herdr split." })),
-	scope: Type.Optional(Type.String({ description: '"user" (default), "project" or "both".' })),
-	reduceWith: Type.Optional(
-		Type.String({ description: "Agent that synthesises the parallel results into one answer (reduce mode)." }),
-	),
-	herdrAll: Type.Optional(
-		Type.Boolean({ description: "Give every subagent of this call its own herdr split, not only the ones that asked." }),
-	),
-	export: Type.Optional(
-		Type.Boolean({
-			description: "Write every subagent's transcript and a usage.json into runs/<timestamp>/.",
-		}),
-	),
-});
 
 export default function (pi: PiApi) {
 	// The interactive flows are commands, not tools: an interview owns the

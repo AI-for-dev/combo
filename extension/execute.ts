@@ -30,43 +30,18 @@ import {
 	type Agent,
 	type AgentScope,
 	type EventListener,
-	type Lifetime,
 	type Result,
 	type SpawnFn,
 	type SubagentSnapshot,
+	type WorkflowOptions,
 } from "../src/index.ts";
+import { watched } from "./command.ts";
+import { inferMode, type Mode, type Params } from "./params.ts";
 import type { RunUi } from "./pi.ts";
-import { liveRun } from "./run-ui.ts";
-
-/** The arguments the model sends. Every field optional: the mode is inferred. */
-export type Params = {
-	mode?: string;
-	agent?: string;
-	task?: string;
-	tasks?: string[];
-	steps?: string[];
-	lifetime?: string;
-	/** Model pattern for every subagent of this call. Beats agent frontmatter. */
-	model?: string;
-	concurrency?: number;
-	until?: string;
-	maxIterations?: number;
-	maxTasks?: number;
-	/** How deep delegation may go, for an agent whose definition asks for it. */
-	maxDepth?: number;
-	timeoutMs?: number;
-	openInHerdr?: boolean;
-	/** Give **every** subagent of this call a split, not only the ones that asked. */
-	herdrAll?: boolean;
-	scope?: string;
-	export?: boolean;
-	reduceWith?: string;
-	candidates?: string[];
-};
 
 /** What `renderResult` needs, and nothing the LLM has to read. */
 export type Details = {
-	mode: string;
+	mode: Mode;
 	subagents: SubagentSnapshot[];
 	wallMs: number;
 	converged?: boolean;
@@ -126,160 +101,141 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 	// `builtin: true`: the agents shipped with this extension are always in the
 	// roster, at the lowest priority - one of the user's own, or the
 	// repository's, replaces any of them by name.
-	const agents = (deps.loadAgents ?? loadAgentsFromDisk)({ cwd: deps.cwd, scope: asScope(params.scope), builtin: true });
+	const agents = (deps.loadAgents ?? loadAgentsFromDisk)({ cwd: deps.cwd, scope: params.scope, builtin: true });
 	const mode = inferMode(params);
-
-	// The same dots, timer and report `/build` and `/run` get. Streaming the
-	// progress line is the one thing only the tool does: the row redraws as the
-	// subagents work, rather than sitting on an opaque spinner until the end.
-	const live = liveRun(deps.ui, {
-		tickMs: deps.tickMs,
-		reporter: deps.reporter,
-		herdrAll: params.herdrAll,
-		mainSessionFile: deps.mainSessionFile,
-		signal: deps.signal,
-		spawn: deps.spawn,
-		onChange: (snapshot) =>
-			deps.onUpdate?.({ content: [{ type: "text", text: progressLine(snapshot) }], details: undefined }),
-	});
-	const picture = live.picture;
 
 	// The directory is created up front: subagents export themselves as they
 	// close, so it has to exist before the first one finishes.
 	const exportDir = params.export ? (deps.runDir ?? createRunDir)() : undefined;
 
-	// What every subagent of this call runs on. The children of a delegating one
-	// get the same, minus the lifetime: a delegated child is disposable.
-	//
-	// The signal and the spawn are the run's, not the caller's: that is what puts
-	// every subagent of this call - delegated children included - within reach of
-	// Escape and of `/stop`.
-	const inherited = {
-		exportDir,
-		signal: live.signal,
-		timeoutMs: params.timeoutMs,
-		openInHerdr: params.openInHerdr,
-		model: params.model,
-		cwd: deps.cwd,
-		spawn: live.spawn,
-		onEvent: live.onEvent,
-	};
-
-	const shared = {
-		...inherited,
-		lifetime: asLifetime(params.lifetime),
-		// Delegation is enabled by the definition, never by this call: an agent
-		// whose `tools:` names `subagent` is handed one, anybody else is offered
-		// nothing. The roster it may reach is this call's, and the bound is
-		// `maxDepth`.
-		customTools: (agent: Agent) =>
-			declaresDelegate(agent.tools)
-				? (id: string) => [delegateTool({ ...inherited, agents, holder: agent, parentId: id, maxDepth: params.maxDepth })]
-				: undefined,
-	};
-
-	const startedAt = performance.now();
-	let results: Result[] = [];
-	let converged: boolean | undefined;
-	let iterations: number | undefined;
-	let decision: string | undefined;
-
-	// The widget must go even when the workflow throws - an unknown agent name,
-	// for one - or a dead row of dots sits above the prompt forever.
-	try {
-		switch (mode) {
-			case "parallel": {
-				const tasks = params.tasks ?? [];
-				const outcome = await fanOut({ ...shared, agent: pick(agents, params.agent), tasks, concurrency: params.concurrency });
-				results = outcome.results;
-				break;
-			}
-			case "chain": {
-				const outcome = await chain({ ...shared, steps: stepsOf(agents, params.steps), input: params.task ?? "" });
-				results = outcome.steps;
-				break;
-			}
-			case "loop": {
-				const needle = params.until;
-				const outcome = await loop({
-					...shared,
-					steps: stepsOf(agents, params.steps),
-					input: params.task ?? "",
-					until: needle ? (step) => saysWord(step.output, needle) : undefined,
-					maxIterations: params.maxIterations,
-				});
-				results = outcome.steps;
-				converged = outcome.converged;
-				iterations = outcome.iterations;
-				break;
-			}
-			case "route": {
-				const outcome = await route({
-					...shared,
-					router: pick(agents, params.agent),
-					destinations: stepsOf(agents, params.candidates, "candidates"),
-					input: params.task ?? "",
-				});
-				results = [outcome];
-				decision = outcome.destination?.name;
-				break;
-			}
-			case "orchestrate": {
-				const outcome = await orchestrate({
-					...shared,
-					planner: pick(agents, params.agent),
-					workers: stepsOf(agents, params.candidates, "candidates"),
-					input: params.task ?? "",
-					concurrency: params.concurrency,
-					maxTasks: params.maxTasks,
-					reduceWith: params.reduceWith ? pick(agents, params.reduceWith, "reduceWith") : undefined,
-				});
-				// The plan is what a reader wants to see: who was asked what.
-				decision = outcome.plan.map((step) => `${step.agent.name}: ${step.task}`).join("; ");
-				// The synthesis alone when there is one, every subtask otherwise,
-				// and the orchestration's own word when nothing ran.
-				results = outcome.answer ? [outcome.answer] : outcome.results.length > 0 ? outcome.results : [outcome];
-				break;
-			}
-			case "reduce": {
-				const branches = await fanOut({
-					...shared,
-					agent: pick(agents, params.agent),
-					tasks: params.tasks ?? [],
-					concurrency: params.concurrency,
-				});
-				const answer = await reduce({
-					...shared,
-					agent: pick(agents, params.reduceWith, "reduceWith"),
-					results: branches.results,
-					input: params.task ?? "Synthesise these results into a single answer.",
-				});
-				// Only the synthesis goes to the model: handing it the branches as
-				// well would undo the very context saving the reduction is for.
-				results = [answer];
-				break;
-			}
-			default: {
-				const outcome = await fanOut({ ...shared, agent: pick(agents, params.agent), tasks: [params.task ?? ""] });
-				results = outcome.results;
-				break;
-			}
-		}
-	} finally {
-		// In the `finally` on purpose: a run that was cancelled, or that died on
-		// an unknown agent, still has work worth keeping. The subagents' own
-		// transcripts landed as they closed; `stop` adds what only we produce.
-		live.stop(exportDir, performance.now() - startedAt);
-	}
-
-	const wallMs = performance.now() - startedAt;
-	const snapshot = picture.snapshot();
+	// The same floor `/build` and `/run` stand on: the dots, the timer, the
+	// `finally` and `usage.json`. Streaming the progress line is the one thing
+	// only the tool does: the row redraws as the subagents work, rather than
+	// sitting on an opaque spinner until the end.
+	const ran = await watched(deps, { tickMs: deps.tickMs }, {
+		dir: exportDir,
+		live: {
+			reporter: deps.reporter,
+			herdrAll: params.herdrAll,
+			mainSessionFile: deps.mainSessionFile,
+			spawn: deps.spawn,
+			onChange: (snapshot) => deps.onUpdate?.({ content: [{ type: "text", text: progressLine(snapshot) }], details: undefined }),
+		},
+		work: async (live) => {
+			// What every subagent of this call runs on. The children of a
+			// delegating one get the same, minus the lifetime: a delegated child
+			// is disposable.
+			//
+			// The signal and the spawn are the run's, not the caller's: that is
+			// what puts every subagent of this call - delegated children included
+			// - within reach of Escape and of `/stop`.
+			const inherited = {
+				exportDir,
+				signal: live.signal,
+				timeoutMs: params.timeoutMs,
+				openInHerdr: params.openInHerdr,
+				model: params.model,
+				cwd: deps.cwd,
+				spawn: live.spawn,
+				onEvent: live.onEvent,
+			};
+			const shared: WorkflowOptions = {
+				...inherited,
+				lifetime: params.lifetime,
+				// Delegation is enabled by the definition, never by this call: an
+				// agent whose `tools:` names `subagent` is handed one, anybody else
+				// is offered nothing. The roster it may reach is this call's, and
+				// the bound is `maxDepth`.
+				customTools: (agent: Agent) =>
+					declaresDelegate(agent.tools)
+						? (id: string) => [delegateTool({ ...inherited, agents, holder: agent, parentId: id, maxDepth: params.maxDepth })]
+						: undefined,
+			};
+			const outcome = await perform(mode, params, agents, shared);
+			return { ...outcome, snapshot: live.picture.snapshot(), wallMs: live.elapsedMs() };
+		},
+	});
 
 	return {
 		// What the model reads: the outputs, not the chrome.
-		content: [{ type: "text", text: textForModel(results, converged, iterations) }],
-		details: { mode, subagents: snapshot.subagents, wallMs, converged, iterations, decision, exportDir },
+		content: [{ type: "text", text: textForModel(ran.results, ran.converged, ran.iterations) }],
+		details: { mode, subagents: ran.snapshot.subagents, wallMs: ran.wallMs, converged: ran.converged, iterations: ran.iterations, decision: ran.decision, exportDir },
 	};
+}
+
+/** What one mode produced: the results the model reads, and what the row says about how it went. */
+type Performed = Pick<Details, "converged" | "iterations" | "decision"> & { results: Result[] };
+
+/** Runs the combinator a mode names, with the arguments the model gave it. */
+async function perform(mode: Mode, params: Params, agents: Agent[], shared: WorkflowOptions): Promise<Performed> {
+	switch (mode) {
+		case "parallel": {
+			const outcome = await fanOut({ ...shared, agent: pick(agents, params.agent), tasks: params.tasks ?? [], concurrency: params.concurrency });
+			return { results: outcome.results };
+		}
+		case "chain": {
+			const outcome = await chain({ ...shared, steps: stepsOf(agents, params.steps), input: params.task ?? "" });
+			return { results: outcome.steps };
+		}
+		case "loop": {
+			const needle = params.until;
+			const outcome = await loop({
+				...shared,
+				steps: stepsOf(agents, params.steps),
+				input: params.task ?? "",
+				until: needle ? (step) => saysWord(step.output, needle) : undefined,
+				maxIterations: params.maxIterations,
+			});
+			return { results: outcome.steps, converged: outcome.converged, iterations: outcome.iterations };
+		}
+		case "route": {
+			const outcome = await route({
+				...shared,
+				router: pick(agents, params.agent),
+				destinations: stepsOf(agents, params.candidates, "candidates"),
+				input: params.task ?? "",
+			});
+			return { results: [outcome], decision: outcome.destination?.name };
+		}
+		case "orchestrate": {
+			const outcome = await orchestrate({
+				...shared,
+				planner: pick(agents, params.agent),
+				workers: stepsOf(agents, params.candidates, "candidates"),
+				input: params.task ?? "",
+				concurrency: params.concurrency,
+				maxTasks: params.maxTasks,
+				reduceWith: params.reduceWith ? pick(agents, params.reduceWith, "reduceWith") : undefined,
+			});
+			// The plan is what a reader wants to see: who was asked what.
+			const decision = outcome.plan.map((step) => `${step.agent.name}: ${step.task}`).join("; ");
+			// The synthesis alone when there is one, every subtask otherwise,
+			// and the orchestration's own word when nothing ran.
+			const results = outcome.answer ? [outcome.answer] : outcome.results.length > 0 ? outcome.results : [outcome];
+			return { results, decision };
+		}
+		case "reduce": {
+			const branches = await fanOut({
+				...shared,
+				agent: pick(agents, params.agent),
+				tasks: params.tasks ?? [],
+				concurrency: params.concurrency,
+			});
+			const answer = await reduce({
+				...shared,
+				agent: pick(agents, params.reduceWith, "reduceWith"),
+				results: branches.results,
+				input: params.task ?? "Synthesise these results into a single answer.",
+			});
+			// Only the synthesis goes to the model: handing it the branches as
+			// well would undo the very context saving the reduction is for.
+			return { results: [answer] };
+		}
+		case "single": {
+			const outcome = await fanOut({ ...shared, agent: pick(agents, params.agent), tasks: [params.task ?? ""] });
+			return { results: outcome.results };
+		}
+	}
 }
 
 /** What the model gets back: the outputs, plainly labelled. */
@@ -295,17 +251,6 @@ export function textForModel(results: Result[], converged?: boolean, iterations?
 	return parts.join("\n\n");
 }
 
-/** Infers the mode from what was actually provided. */
-export function inferMode(params: Params): string {
-	if (params.mode) return params.mode;
-	if (params.candidates) return "route";
-	if (params.reduceWith) return "reduce";
-	if (params.until || params.maxIterations) return "loop";
-	if (params.steps?.length) return "chain";
-	if (params.tasks?.length) return "parallel";
-	return "single";
-}
-
 /** `field` names the argument that was missing: an error is read by a model too. */
 function pick(agents: Agent[], name: string | undefined, field = "agent"): Agent {
 	if (!name) throw new Error(`subagent: \`${field}\` is required for this mode`);
@@ -317,10 +262,3 @@ function stepsOf(agents: Agent[], names: string[] | undefined, field = "steps"):
 	return names.map((name) => findAgent(agents, name));
 }
 
-function asLifetime(value: string | undefined): Lifetime | undefined {
-	return value === "task" || value === "workflow" || value === "session" ? value : undefined;
-}
-
-function asScope(value: string | undefined): AgentScope | undefined {
-	return value === "user" || value === "project" || value === "both" ? value : undefined;
-}

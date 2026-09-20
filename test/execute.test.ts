@@ -13,7 +13,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, test } from "node:test";
-import { executeSubagent, inferMode, textForModel } from "../extension/execute.ts";
+import { executeSubagent, textForModel } from "../extension/execute.ts";
+import { inferMode } from "../extension/params.ts";
 import { paintWidget, STATUS } from "../extension/run-ui.ts";
 import type { SubagentEvent } from "../src/events.ts";
 import type { Details } from "../extension/execute.ts";
@@ -213,14 +214,8 @@ describe("executeSubagent", () => {
 		);
 		// `builtin: true` is not part of the scope question and is never optional:
 		// without it the tool only works where the definitions were copied by hand.
+		// A scope the schema does not name never reaches this far: pi refuses it.
 		assert.deepEqual(seen, [{ cwd: undefined, scope: "both", builtin: true }]);
-
-		await executeSubagent({ agent: "scout", task: "x", scope: "nonsense" }, deps({ spawn: fake.spawn, loadAgents: recordScope }));
-		assert.deepEqual(
-			seen[1],
-			{ cwd: undefined, scope: undefined, builtin: true },
-			"an unknown scope falls back to the default, and the built-ins stay",
-		);
 	});
 
 	test("an unknown agent is a caller error, and still clears the widget", async () => {
@@ -252,19 +247,6 @@ describe("executeSubagent", () => {
 
 		assert.equal(fake.asks.length, 0, "an aborted signal must stop the turns");
 		assert.match(say(output), /## scout \(failed\)\naborted/);
-	});
-
-	test("the widget is painted while working and removed when the work ends", async () => {
-		const { widgets, ui } = fakeUi();
-		const fake = fakeSpawn();
-		await executeSubagent({ agent: "scout", task: "x" }, deps({ spawn: fake.spawn, ui }));
-
-		assert.ok(widgets.length > 1, "the widget is repainted as events arrive");
-		assert.ok(
-			widgets.some((lines) => lines?.some((line) => line.includes("scout#1"))),
-			"the dots name the subagents",
-		);
-		assert.equal(widgets.at(-1), undefined, "the widget disappears as soon as the work ends");
 	});
 
 	test("progress is streamed, not held back until the end", async () => {

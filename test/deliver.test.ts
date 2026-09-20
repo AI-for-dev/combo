@@ -289,7 +289,6 @@ describe("resuming", () => {
 		],
 		audits: [],
 		obligations: [],
-		done: false,
 		...over,
 	});
 
@@ -343,7 +342,7 @@ describe("resuming", () => {
 			reviewer,
 			auditor,
 			brief: "x",
-			onProgress: (progress) => reported.push({ tasks: progress.tasks.length, done: progress.done }),
+			onProgress: (progress, done) => reported.push({ tasks: progress.tasks.length, done }),
 			spawn: fake.spawn,
 			worktree: false,
 		});
@@ -437,10 +436,13 @@ describe("verification", () => {
 });
 
 describe("auditPrompt", () => {
+	const ask = (over: Partial<Parameters<typeof auditPrompt>[0]> = {}) =>
+		auditPrompt({ brief: "x", tasks: [], round: 1, maxAuditRounds: 2, workers: [], terms: "", byTool: false, ...over });
+
 	test("says plainly what a failed or unapproved subtask is", () => {
-		const prompt = auditPrompt(
-			"the brief",
-			[
+		const prompt = ask({
+			brief: "the brief",
+			tasks: [
 				{ agent: "coder", input: "write it", output: "done", ok: true, approved: true, rounds: 1, steps: [], usage: {} as never, messages: [], obligations: [] },
 				{
 					agent: "scribe",
@@ -456,24 +458,22 @@ describe("auditPrompt", () => {
 					obligations: [],
 				},
 			],
-			1,
-			2,
-		);
+		});
 
 		assert.match(prompt, /coder \(reviewed and approved\)/);
 		assert.match(prompt, /scribe \(failed: boom\)/);
 	});
 
 	test("a passing check is put to the auditor as evidence, not as a note", () => {
-		const prompt = auditPrompt("x", [], 1, 2, { ok: true, output: "12 tests passed", command: "npm test" });
+		const prompt = ask({ verification: { ok: true, output: "12 tests passed", command: "npm test" } });
 
 		assert.match(prompt, /passing check is evidence/);
 		assert.match(prompt, /handed this same result/, "which is what makes the sentence true");
 	});
 
 	test("the last audit says so, so it does not open a debate it cannot finish", () => {
-		assert.match(auditPrompt("x", [], 2, 2), /last audit/);
-		assert.ok(!auditPrompt("x", [], 1, 2).includes("last audit"));
+		assert.match(ask({ round: 2 }), /last audit/);
+		assert.ok(!ask({ round: 1 }).includes("last audit"));
 	});
 });
 
@@ -532,7 +532,6 @@ describe("an auditor that signs through the verdict tool", () => {
 				tasks: [],
 				audits: [],
 				obligations: stopped.obligations,
-				done: false,
 			},
 			worktree: false,
 		});

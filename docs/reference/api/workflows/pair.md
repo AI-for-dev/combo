@@ -157,28 +157,3 @@ export function remarksPrompt(review: string, remaining: number): string { /* â€
 ```
 
 What the worker gets back: the remarks, and how much room is left.
-
-## `reviewPrompt`
-
-*function*
-
-```typescript
-export function reviewPrompt(goal: string, work: string, round: number, options: ReviewPromptOptions = {}): string { /* â€¦ */ }
-```
-
-What the reviewer is asked: the goal, what was done, and what is still owed.
-
-## `ReviewPromptOptions`
-
-*type*
-
-```typescript
-export type ReviewPromptOptions = {
-	/** Whether the reviewer decides through the `verdict` tool. */
-	byTool?: boolean;
-	/** Obligations still open, which it is asked to answer for by id. */
-	open?: readonly Obligation[];
-};
-```
-
-How the reviewer is asked to answer, and what it still owes.

@@ -8,7 +8,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 
 | Module | What it is for | Exports |
 | --- | --- | --- |
-| [`agent`](agent.md) | An agent is *content*: a system prompt, a model, a set of tools. It is declared as Markdown + frontmatter, following the pi convention. | 8 |
+| [`agent`](agent.md) | An agent is *content*: a system prompt, a model, a set of tools. It is declared as Markdown + frontmatter, following the pi convention. | 9 |
 | [`agreement`](agreement.md) | When a board has agreed: who voted for what, and whether they all say one thing. | 3 |
 | [`announced`](announced.md) | A board and a set of claims that say what they do, on the event bus. | 2 |
 | [`ask`](ask.md) | Asking the *user* a question - the one place a workflow may block on a human. | 5 |
@@ -38,7 +38,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`reporters/tree`](reporters/tree.md) | A run as a tree: a delegated subagent drawn under the one that asked for it. | 1 |
 | [`reporters/tui`](reporters/tui.md) | Formatting for the pi TUI, with no pi-tui in sight. | 8 |
 | [`result`](result.md) | `Result`: the single contract shared by everything else. | 4 |
-| [`resume`](resume.md) | Saving a build so it can be picked up again. | 10 |
+| [`resume`](resume.md) | Saving a build so it can be picked up again. | 9 |
 | [`review`](review.md) | The review record: what one reviewer decided, and what it is still owed. | 5 |
 | [`run`](run.md) | `run()`: the disposable form. Spawn, ask, close. | 2 |
 | [`scratch`](scratch.md) | A working copy with a lifetime: made for one piece of work, and released when that work is done. | 2 |
@@ -53,13 +53,13 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`workflows/audit`](workflows/audit.md) | The audit: one agent reads the whole of a delivery, and says what is left. | 9 |
 | [`workflows/chain`](workflows/chain.md) | `chain`: 1 → 1 → 1. The output of step *n* is the input of step *n+1*. | 2 |
 | [`workflows/concurrent`](workflows/concurrent.md) | Running several things at once, but not all of them: a subtask is a session, and N sessions opening together is the bill nobody meant to pay. | 1 |
-| [`workflows/deliver`](workflows/deliver.md) | `deliver`: a brief in, work done and audited out. | 3 |
+| [`workflows/deliver`](workflows/deliver.md) | `deliver`: a brief in, work done and audited out. | 4 |
 | [`workflows/fan-out`](workflows/fan-out.md) | `fanOut`: 1 → N. N subtasks in parallel, with bounded concurrency. | 4 |
 | [`workflows/interview`](workflows/interview.md) | `interview`: a conversation with the *user*, ending in a brief. | 8 |
 | [`workflows/loop`](workflows/loop.md) | `loop`: 1 → 1, repeated until a criterion is met. | 4 |
 | [`workflows/options`](workflows/options.md) | What every combinator shares: the same options, under the same names, with the same defaults. | 2 |
 | [`workflows/orchestrate`](workflows/orchestrate.md) | `orchestrate`: 1 → ?. An agent *decides* the split, then the split runs. | 3 |
-| [`workflows/pair`](workflows/pair.md) | `pair`: one worker, one reviewer, talking until the work is accepted. | 7 |
+| [`workflows/pair`](workflows/pair.md) | `pair`: one worker, one reviewer, talking until the work is accepted. | 5 |
 | [`workflows/pipeline-run`](workflows/pipeline-run.md) | Running a pipeline: the piece `pipeline.ts` describes and deliberately leaves to someone else. | 6 |
 | [`workflows/plan`](workflows/plan.md) | Reading a plan an agent wrote: the prompt, the parser, the validation. | 6 |
 | [`workflows/pool`](workflows/pool.md) | The pool: where a workflow's turns are played. | 3 |

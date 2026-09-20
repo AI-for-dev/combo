@@ -9,10 +9,9 @@
  */
 
 import { branchName, type Agent } from "../src/index.ts";
-import { firstLines, refuse } from "./command.ts";
+import { firstLines, refuse, watched } from "./command.ts";
 import type { CommandCtx } from "./pi.ts";
 import type { Deps } from "./deps.ts";
-import { STATUS } from "./run-ui.ts";
 
 /**
  * The last step: a message written by an agent, a commit performed by us.
@@ -39,17 +38,21 @@ export async function submit(
 	const [stat, patch, added] = await Promise.all([git.diffStat(ctx.cwd), git.diff(ctx.cwd), git.untracked(ctx.cwd)]);
 	const summary = [stat.ok ? stat.value.trim() : "", added.length ? `new files:\n${added.join("\n")}` : ""].filter(Boolean).join("\n\n");
 
-	ctx.ui.setStatus(STATUS, "writing the commit message…");
-	let message: string;
-	try {
-		const written = await deps.run(committer, commitPrompt(brief, patch.ok ? patch.value : "", added), {
-			cwd: ctx.cwd,
-			signal: ctx.signal,
-		});
-		message = written.ok ? written.output.trim() : "";
-	} finally {
-		ctx.ui.setStatus(STATUS, undefined);
-	}
+	// On the floor with everything else `/build` spawns: the run's signal and
+	// spawn put the committer within reach of esc and `/stop`, and its dots
+	// above the prompt say it is working.
+	const written = await watched(ctx, deps, {
+		status: "writing the commit message…",
+		dir: undefined,
+		work: (live) =>
+			deps.run(committer, commitPrompt(brief, patch.ok ? patch.value : "", added), {
+				cwd: ctx.cwd,
+				signal: live.signal,
+				spawn: live.spawn,
+				onEvent: live.onEvent,
+			}),
+	});
+	const message = written.ok ? written.output.trim() : "";
 
 	if (!message) {
 		refuse(ctx, "build: no commit message was produced - the work is still in the working tree", "warning");
