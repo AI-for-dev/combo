@@ -7,6 +7,7 @@ import { checked, watched } from "../extension/command.ts";
 import { REAL_GIT, resolved } from "../extension/deps.ts";
 import { loadAgents, runPipeline } from "../src/index.ts";
 import { fakeCtx } from "./fixtures/command-ctx.ts";
+import { fakeSpawn, testAgent } from "./fixtures/fake-subagent.ts";
 
 const runs = mkdtempSync(join(tmpdir(), "combo-command-"));
 after(() => rmSync(runs, { recursive: true, force: true }));
@@ -114,6 +115,28 @@ describe("watched", () => {
 				assert.equal(typeof live.onEvent, "function");
 			},
 		});
+	});
+
+	test("what a caller varies about the view is passed through: its spawn is the one the run wraps", async () => {
+		const { ctx } = fakeCtx();
+		const fake = fakeSpawn();
+
+		await watched(ctx, { tickMs: 0 }, {
+			dir: undefined,
+			live: { spawn: fake.spawn },
+			work: async (live) => {
+				const subagent = await live.spawn(testAgent("scout"), {});
+				await subagent.close();
+			},
+		});
+
+		assert.deepEqual(fake.spawned.map((one) => one.agent), ["scout"]);
+	});
+
+	test("with no status, the footer is left alone", async () => {
+		const { ctx, statuses } = fakeCtx();
+		await watched(ctx, { tickMs: 0 }, { dir: undefined, work: async () => undefined });
+		assert.deepEqual(statuses.filter((one) => one !== undefined), []);
 	});
 
 	test("writes usage.json into the folder it was given, with the time it measured", async () => {
