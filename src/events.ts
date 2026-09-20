@@ -133,19 +133,28 @@ export function createEventBus(): EventBus {
 
 	return {
 		emit(event) {
-			for (const listener of listeners) {
-				try {
-					listener(event);
-				} catch {
-					// a reporter's problem is never the workflow's problem
-				}
-			}
+			for (const listener of listeners) notify(listener, event);
 		},
 		subscribe(listener) {
 			listeners.add(listener);
 			return () => listeners.delete(listener);
 		},
 	};
+}
+
+/**
+ * Calls a listener and swallows what it throws.
+ *
+ * The bus does this for every reporter; a progress hook a workflow calls by
+ * hand is an observer too, and gets the same treatment - a caller's
+ * bookkeeping that fails must not take the run down with it.
+ */
+export function notify<T>(listener: ((value: T) => void) | undefined, value: T): void {
+	try {
+		listener?.(value);
+	} catch {
+		// an observer's problem is never the workflow's problem
+	}
 }
 
 /**

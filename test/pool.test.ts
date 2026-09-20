@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { SubagentPool } from "../src/workflows/pool.ts";
+import { Trail } from "../src/workflows/trail.ts";
 import { fakeSpawn, testAgent } from "./fixtures/fake-subagent.ts";
 
 const coder = testAgent("coder");
@@ -41,6 +42,37 @@ describe("SubagentPool", () => {
 
 			assert.equal(fake.spawned.length, 0);
 			assert.deepEqual({ ok: result.ok, agent: result.agent, error: result.error }, { ok: false, agent: "coder", error: "aborted" });
+		});
+
+		test("every turn is on the trail, and what they cost is summed there", async () => {
+			const fake = fakeSpawn(() => ({ usage: { input: 100 } }));
+			const pool = new SubagentPool({ spawn: fake.spawn });
+
+			const first = await pool.turn(coder, "a");
+			const second = await pool.turn(reviewer, "b");
+
+			assert.deepEqual(pool.trail.steps, [first, second]);
+			assert.equal(pool.trail.usage().input, 200);
+			assert.equal(pool.trail.usage().turns, 2);
+		});
+
+		test("a refused turn is a step on the trail too: a run that was called off says so", async () => {
+			const pool = new SubagentPool({ spawn: fakeSpawn().spawn, signal: AbortSignal.abort() });
+
+			await pool.turn(coder, "x");
+
+			assert.equal(pool.trail.steps.length, 1);
+			assert.equal(pool.trail.broken()?.error, "aborted");
+		});
+
+		test("records into the trail it is given, so a caller's clock can start before the pool", async () => {
+			const trail = new Trail();
+			const pool = new SubagentPool({ spawn: fakeSpawn().spawn }, trail);
+
+			await pool.turn(coder, "a");
+
+			assert.equal(pool.trail, trail);
+			assert.equal(trail.steps.length, 1);
 		});
 
 		test("gives the subagent back even when the turn throws", async () => {
@@ -154,6 +186,32 @@ describe("SubagentPool", () => {
 
 			await pool.closeAll();
 			assert.deepEqual(fake.closed, ["coder#1"]);
+		});
+
+		test("a held subagent's turns are on the trail like any other", async () => {
+			const fake = fakeSpawn(() => ({ usage: { input: 50 } }));
+			const pool = new SubagentPool({ spawn: fake.spawn });
+
+			const held = await pool.hold(coder);
+			await held.ask("first");
+			await held.ask("second");
+
+			assert.equal(pool.trail.steps.length, 2);
+			assert.equal(pool.trail.usage().input, 100);
+			await pool.closeAll();
+		});
+
+		test("an already-aborted signal is refused before the spawn, and every ask says so", async () => {
+			const fake = fakeSpawn();
+			const pool = new SubagentPool({ spawn: fake.spawn, signal: AbortSignal.abort() });
+
+			const held = await pool.hold(coder, { key: "coder@2" });
+			const answer = await held.ask("x");
+
+			assert.equal(fake.spawned.length, 0);
+			assert.equal(held.id, "coder@2", "addressed by its key, since no subagent exists to be named after");
+			assert.deepEqual({ ok: answer.ok, agent: answer.agent, error: answer.error }, { ok: false, agent: "coder", error: "aborted" });
+			assert.equal(pool.trail.broken(), answer);
 		});
 
 		test("two holds of one agent under different keys are two subagents", async () => {

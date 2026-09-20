@@ -8,10 +8,11 @@
 
 import type { Agent } from "./../agent.ts";
 import type { Result } from "./../result.ts";
-import { sumUsage, type Usage } from "./../usage.ts";
+import type { Usage } from "./../usage.ts";
 import { fanOut } from "./fan-out.ts";
 import { makePlan, type PlannedTask, type PlanOptions } from "./plan.ts";
 import { reduce } from "./reduce.ts";
+import { Trail } from "./trail.ts";
 
 /** {@link PlanOptions}, plus how the planned subtasks are run and folded. */
 export type OrchestrateOptions = PlanOptions & {
@@ -52,20 +53,20 @@ export async function orchestrate(options: OrchestrateOptions): Promise<Orchestr
 	// this way means a new common option reaches them without a line of code
 	// here, and this combinator's own options never leak into them.
 	const { planner, workers, input, concurrency, maxTasks, reduceWith, parse, format, ...shared } = options;
-	const startedAt = performance.now();
+	// Three workflows, three pools, one trail: the planner's turn, every branch
+	// and the synthesis are what this orchestration cost.
+	const trail = new Trail();
 
 	const done = (planning: Result, plan: PlannedTask[], results: Result[], answer?: Result, error?: string): OrchestrateResult => {
-		const usages = [planning.usage, ...results.map((result) => result.usage)];
-		if (answer) usages.push(answer.usage);
-		const failedStep = [...results, answer].find((result) => result && !result.ok);
+		const broken = trail.broken();
 		return {
 			plan,
 			planning,
 			results,
 			answer,
-			usage: sumUsage(usages, performance.now() - startedAt),
-			ok: !error && planning.ok && plan.length > 0 && !failedStep,
-			error: error ?? failedStep?.error ?? planning.error,
+			usage: trail.usage(),
+			ok: !error && !broken,
+			error: error ?? broken?.error,
 		};
 	};
 
@@ -73,6 +74,7 @@ export async function orchestrate(options: OrchestrateOptions): Promise<Orchestr
 	// validated: an unknown agent name or an oversized plan costs one turn, not
 	// twenty sessions.
 	const planned = await makePlan(options);
+	trail.record(planned.planning);
 	if (!planned.ok) return done(planned.planning, [], [], undefined, planned.error);
 
 	const { results } = await fanOut({
@@ -81,9 +83,10 @@ export async function orchestrate(options: OrchestrateOptions): Promise<Orchestr
 		agents: planned.plan.map((step) => step.agent),
 		tasks: planned.plan.map((step) => step.task),
 	});
+	for (const result of results) trail.record(result);
 
 	if (!reduceWith) return done(planned.planning, planned.plan, results);
 
-	const answer = await reduce({ ...shared, agent: reduceWith, results, input });
+	const answer = trail.record(await reduce({ ...shared, agent: reduceWith, results, input }));
 	return done(planned.planning, planned.plan, results, answer);
 }

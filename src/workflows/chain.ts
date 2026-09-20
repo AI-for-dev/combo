@@ -36,7 +36,6 @@ export async function chain(options: ChainOptions): Promise<WorkflowResult> {
 	if (steps.length === 0) throw new Error("chain: `steps` is empty");
 
 	const pool = new SubagentPool(options);
-	const results: Result[] = [];
 	let current = input;
 	let last: Result | undefined;
 
@@ -45,7 +44,6 @@ export async function chain(options: ChainOptions): Promise<WorkflowResult> {
 			// Keyed by name: in "workflow" lifetime, the same agent appearing
 			// twice is the *same* subagent, with its memory intact.
 			last = await pool.turn(agent, current);
-			results.push(last);
 			if (!last.ok) break;
 			current = last.output;
 		}
@@ -54,5 +52,5 @@ export async function chain(options: ChainOptions): Promise<WorkflowResult> {
 	}
 
 	// `last` is always set here: `steps` is non-empty and every branch assigns it.
-	return { ...(last as Result), steps: results };
+	return { ...(last as Result), steps: pool.trail.steps };
 }

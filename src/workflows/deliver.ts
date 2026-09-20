@@ -17,6 +17,7 @@
  */
 
 import type { Agent } from "./../agent.ts";
+import { notify } from "./../events.ts";
 import type { Landed } from "./../land.ts";
 import type { Obligation } from "./../ledger.ts";
 import type { Result } from "./../result.ts";
@@ -190,15 +191,9 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 	let tree: Settling | undefined;
 	const landings = (): readonly Landed[] => tree?.landings ?? [];
 
-	// A reporting hook is an observer: a listener that throws must not take the
-	// build down, exactly like a reporter on the event bus.
-	const report = (plan: PlannedTask[], done = false) => {
-		try {
-			onProgress?.({ plan, tasks: [...tasks], audits: [...audits], obligations, verification, done });
-		} catch {
-			// a caller's bookkeeping problem is not the workflow's problem
-		}
-	};
+	// A reporting hook is an observer, like a reporter on the event bus.
+	const report = (plan: PlannedTask[], done = false) =>
+		notify(onProgress, { plan, tasks: [...tasks], audits: [...audits], obligations, verification, done });
 
 	const outcome = (plan: PlannedTask[], planning: Result, signedOff: boolean, error?: string): DeliverResult => {
 		// The fixes are in `tasks` already, so a round's own cost is its review.
