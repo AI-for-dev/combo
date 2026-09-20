@@ -11,7 +11,7 @@ import { emptyUsage, type Usage } from "../../src/usage.ts";
 import type { Result } from "../../src/result.ts";
 import type { ToolDefinition } from "../../src/session.ts";
 import type { SpawnFn } from "../../src/workflows/options.ts";
-import type { AskOptions, SpawnOptions, Subagent } from "../../src/subagent.ts";
+import { toolsOffered, type AskOptions, type SpawnOptions, type Subagent } from "../../src/subagent.ts";
 
 export type FakeReply = {
 	/** Output of this turn. Defaults to echoing the task. */
@@ -45,15 +45,9 @@ export type FakeSpawn = {
  * so a turn can act through a tool the workflow offered, and it may be async
  * because acting through one is.
  */
-/**
- * What a spawn was offered, whichever shape the caller used.
- *
- * `SpawnOptions.customTools` is a list or a function of the id to come, and a
- * test asserting on what an agent may reach does not care which.
- */
+/** What a spawn was offered, whichever shape the caller used - the library's own reading of it. */
 export function offeredTools(options: SpawnOptions, id: string = "holder#1"): ToolDefinition[] {
-	const tools = options.customTools;
-	return (typeof tools === "function" ? tools(id) : tools) ?? [];
+	return toolsOffered(options.customTools, id);
 }
 
 export function fakeSpawn(

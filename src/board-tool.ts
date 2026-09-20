@@ -26,6 +26,7 @@ import { Type } from "typebox";
 import { boardLines, type Board, type PostKind } from "./board.ts";
 import type { Claims } from "./claims.ts";
 import { defineTool, type ToolDefinition } from "./session.ts";
+import { declares, refuse, said } from "./tool.ts";
 
 /** The name an agent writes in its `tools:` to be allowed on the board. */
 export const BOARD_TOOL = "board";
@@ -66,7 +67,7 @@ export type BoardToolOptions = {
 
 /** Whether an agent's definition asks to be allowed on the board. */
 export function declaresBoard(tools: readonly string[] | undefined): boolean {
-	return tools?.includes(BOARD_TOOL) ?? false;
+	return declares(tools, BOARD_TOOL);
 }
 
 /**
@@ -166,14 +167,4 @@ export function boardTool(options: BoardToolOptions): ToolDefinition {
 		if (posts.length === 0) return "Nothing new on the board.";
 		return waiting > 0 ? `${boardLines(posts)}\n\n(${waiting} more waiting - read again.)` : boardLines(posts);
 	}
-}
-
-/** An answer the model reads as an answer. */
-function said(text: string) {
-	return { content: [{ type: "text" as const, text }], details: undefined };
-}
-
-/** A refusal the model can act on, rather than a failure it has to guess at. */
-function refuse(text: string) {
-	return { content: [{ type: "text" as const, text }], details: undefined, isError: true };
 }

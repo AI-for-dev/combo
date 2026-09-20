@@ -8,6 +8,7 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
+import { BOARD_TOOL } from "../src/board-tool.ts";
 import { createBoard } from "../src/board.ts";
 import { createClaims } from "../src/claims.ts";
 import { swarm, task } from "../src/workflows/swarm.ts";
@@ -115,6 +116,24 @@ describe("a round", () => {
 		assert.equal(done.converged, true);
 		assert.equal(done.stoppedBy, "until");
 		assert.equal(done.rounds, 1, "and it stopped at the round that reached it");
+	});
+});
+
+describe("what a member is offered", () => {
+	test("the board beside whatever the caller offered, in either shape the caller wrote it", async () => {
+		const asList = fakeSpawn();
+		await swarm({ members: [{ agent: member, count: 1 }], goal: "do it", rounds: 1, spawn: asList.spawn, customTools: () => [{ name: "hammer" } as never] });
+		assert.deepEqual(offeredTools(asList.spawned[0]!.options, "member#1").map((tool) => tool.name), ["hammer", BOARD_TOOL]);
+
+		const asFunction = fakeSpawn();
+		await swarm({
+			members: [{ agent: member, count: 1 }],
+			goal: "do it",
+			rounds: 1,
+			spawn: asFunction.spawn,
+			customTools: () => (id: string) => [{ name: `hammer-for-${id}` } as never],
+		});
+		assert.deepEqual(offeredTools(asFunction.spawned[0]!.options, "member#1").map((tool) => tool.name), ["hammer-for-member#1", BOARD_TOOL]);
 	});
 });
 

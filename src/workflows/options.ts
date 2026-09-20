@@ -9,10 +9,39 @@
 import type { Agent, Lifetime } from "./../agent.ts";
 import type { EventBus, EventListener } from "./../events.ts";
 import type { ToolDefinition } from "./../session.ts";
-import type { CustomToolsFor, SpawnOptions, Subagent } from "./../subagent.ts";
+import { toolsOffered, type CustomToolsFor, type SpawnOptions, type Subagent } from "./../subagent.ts";
 
 /** The spawn function a combinator uses. Injection point for tests. */
 export type SpawnFn = (agent: Agent, options: SpawnOptions) => Promise<Subagent>;
+
+/**
+ * What a workflow offers each of its agents beyond their own tools.
+ *
+ * A function of the agent, because the answer differs by agent: a reviewer is
+ * offered the verdict tool and the worker beside it is not. What it answers is
+ * {@link SpawnOptions.customTools}: a list, or a function of the id to come
+ * when a tool needs to know who holds it.
+ */
+export type ToolOffer = (agent: Agent) => ToolDefinition[] | CustomToolsFor | undefined;
+
+/**
+ * Two offers as one: what `first` offers an agent, then what `second` does.
+ *
+ * Whichever shape either answers in, the sum is asked for the id, because a
+ * list spread beside a function is how a swarm handed its members the board
+ * and would have thrown on a caller's offer written the other way.
+ */
+export function offerBoth(first: ToolOffer | undefined, second: ToolOffer | undefined): ToolOffer | undefined {
+	if (!first) return second;
+	if (!second) return first;
+	return (agent) => {
+		const a = first(agent);
+		const b = second(agent);
+		if (a === undefined) return b;
+		if (b === undefined) return a;
+		return (id) => [...toolsOffered(a, id), ...toolsOffered(b, id)];
+	};
+}
 
 /** Options common to every workflow - same names, same defaults, everywhere. */
 export type WorkflowOptions = {
@@ -71,7 +100,7 @@ export type WorkflowOptions = {
 	 * only a tool that spawns children needs the id, and nothing else should pay
 	 * for it.
 	 */
-	customTools?: (agent: Agent) => ToolDefinition[] | CustomToolsFor | undefined;
+	customTools?: ToolOffer;
 	/**
 	 * The subagent every subagent of this workflow hangs under.
 	 *

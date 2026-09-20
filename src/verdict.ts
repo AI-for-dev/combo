@@ -18,6 +18,7 @@
 
 import { Type } from "typebox";
 import { defineTool, type ToolDefinition } from "./session.ts";
+import { declares, refuse, said } from "./tool.ts";
 
 /** The name an agent writes in its `tools:` to be given the tool. */
 export const VERDICT_TOOL = "verdict";
@@ -126,13 +127,7 @@ export function verdictTool(options: VerdictToolOptions = {}): VerdictTool {
 			// A refusal that says nothing cannot be acted on, and the agent is the
 			// only one who can repair it - so it is told, and gets to call again.
 			if (!params.approved && !remarks && !(params.raised ?? []).length) {
-				return {
-					content: [
-						{ type: "text" as const, text: "A verdict of `approved: false` needs remarks, or something raised. Call again with them." },
-					],
-					details: undefined,
-					isError: true,
-				};
+				return refuse("A verdict of `approved: false` needs remarks, or something raised. Call again with them.");
 			}
 
 			// A `how` the schema allows but the type does not is dropped rather than
@@ -157,23 +152,17 @@ export function verdictTool(options: VerdictToolOptions = {}): VerdictTool {
 			given.push({ approved: params.approved, remarks, resolved: known, raised });
 
 			const recorded = params.approved ? "Recorded: approved." : "Recorded: not approved.";
-			if (unknown.length === 0) return { content: [{ type: "text" as const, text: recorded }], details: undefined };
+			if (unknown.length === 0) return said(recorded);
 
 			// Said rather than hidden, and in the same breath as the decision: the
 			// agent learns its bookkeeping was wrong without learning that its
 			// answer was thrown away.
 			const open = options.open?.() ?? [];
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: `${recorded} Nothing was closed for ${unknown.join(", ")}: no obligation has that id. ${
-							open.length ? `The ids you may close: ${open.join(", ")}.` : "Nothing is open."
-						}`,
-					},
-				],
-				details: undefined,
-			};
+			return said(
+				`${recorded} Nothing was closed for ${unknown.join(", ")}: no obligation has that id. ${
+					open.length ? `The ids you may close: ${open.join(", ")}.` : "Nothing is open."
+				}`,
+			);
 		},
 	});
 
@@ -185,5 +174,5 @@ export function verdictTool(options: VerdictToolOptions = {}): VerdictTool {
 
 /** Whether an agent's definition asks for the tool. */
 export function declaresVerdict(tools: readonly string[] | undefined): boolean {
-	return tools?.includes(VERDICT_TOOL) ?? false;
+	return declares(tools, VERDICT_TOOL);
 }

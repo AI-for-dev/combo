@@ -240,7 +240,9 @@ is not there.
 `spawn` is about to give this subagent, and passing it is what has the children
 measured **under** it rather than beside it. See
 [Measurements](measurements.md). A list still works, and a tool that spawns
-nothing has no use for the id.
+nothing has no use for the id. A workflow that adds a tool of its own beside
+whatever its caller offered composes the two with `offerBoth`, whichever shape
+either was written in: that is how `swarm` hands every member the board.
 
 `examples/14-delegation-tree.ts` is one explorer, three scouts and one answer,
 and it prints what the tree cost.
