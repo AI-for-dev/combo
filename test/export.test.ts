@@ -215,6 +215,8 @@ describe("usage.json", () => {
 		assert.equal(report.total.input, 1_500, "the failed branch spent its tokens too");
 		assert.equal(report.total.busyMs, 1_000);
 		assert.equal(report.wallMs, 700, "wall time is the run's, never the sum of the branches");
+		assert.equal(report.total.wallMs, 700, "and the total carries the same clock, so it reads as one Usage");
+		assert.equal(report.total.contextTokens, undefined, "contexts of distinct sessions do not add up");
 	});
 
 	test("reports the parallelism achieved, which is the point of the two clocks", () => {

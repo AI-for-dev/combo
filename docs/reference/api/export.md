@@ -129,8 +129,8 @@ export type UsageReport = {
 	wallMs: number;
 	/** One entry per subagent, in tree order: a child follows the parent it hangs under. */
 	subagents: UsageReportEntry[];
-	/** The sum over every subagent - failures included, because they cost too. */
-	total: Record<string, number>;
+	/** The sum over every subagent - failures included, because they cost too. Its `wallMs` is the run's. */
+	total: UsageTotal;
 	/** Busy time over wall time: the parallelism actually achieved. */
 	parallelism: number;
 	/** Where each transcript landed, and why one is missing when it is. */
@@ -174,12 +174,27 @@ export type UsageReportEntry = {
 	 * already shows the children under their parent.
 	 */
 	parentId?: string;
-	/** Its {@link Usage}, flattened: time measured here, tokens as pi reported them. */
-	usage: Record<string, number | undefined>;
+	/** Its {@link Usage}: time measured here, tokens as pi reported them. */
+	usage: Usage;
 };
 ```
 
 One subagent's line in `usage.json`.
+
+## `UsageTotal`
+
+*type*
+
+```typescript
+export type UsageTotal = Usage & {
+	/** Subagents in the run, failures included. */
+	subagents: number;
+	/** Those that ended with `ok: false`. Counted apart: `2/3 done` hides a crash. */
+	failed: number;
+};
+```
+
+The sum over a whole run, and how many subagents it was spread over.
 
 ## `writeUsageReport`
 

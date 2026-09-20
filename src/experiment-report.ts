@@ -16,7 +16,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { ExperimentOutcome } from "./experiment.ts";
-import { formatUsage, type Usage } from "./usage.ts";
+import type { UsageTotal } from "./export.ts";
+import { formatUsage, sumUsage, type Usage } from "./usage.ts";
 
 /** One cell of the matrix: one model, one repetition, once it has run. */
 export type ExperimentRun = {
@@ -35,7 +36,7 @@ export type ExperimentRun = {
 	/** Wall time of this cell alone, measured around the callback. */
 	wallMs: number;
 	/** The cell's `usage.json` total - what the whole workflow spent. */
-	usage: Record<string, number>;
+	usage: UsageTotal;
 };
 
 /** Everything one model did, across its repetitions. */
@@ -50,10 +51,8 @@ export type ExperimentModelSummary = {
 	failed: number;
 	/** Per outcome flag, how many cells reported each value. `ok` and `error` excluded. */
 	flags: Record<string, Record<string, number>>;
-	/** Summed wall time over the cells. The mean is a display derivative. */
-	wallMs: number;
-	/** Summed usage over the cells, key by key. */
-	total: Record<string, number>;
+	/** Summed usage over the cells. Its `wallMs` is the cells' summed wall time; a mean is a display derivative. */
+	total: Usage;
 };
 
 /** The whole `experiment.json` document. */
@@ -107,9 +106,9 @@ export function experimentTable(report: ExperimentReport): string[] {
 				String(summary.runs),
 				`${summary.ok}/${summary.runs}`,
 				...flags.map((key) => formatFlag(summary.flags[key], summary.runs)),
-				formatUsage(asUsage(summary)),
-				`${(summary.wallMs / summary.runs / 1000).toFixed(1)}s`,
-				`$${((summary.total.cost ?? 0) / summary.runs).toFixed(4)}`,
+				formatUsage(summary.total),
+				`${(summary.total.wallMs / summary.runs / 1000).toFixed(1)}s`,
+				`$${(summary.total.cost / summary.runs).toFixed(4)}`,
 			]),
 		);
 	}
@@ -157,13 +156,15 @@ function summarise(model: string, runs: readonly ExperimentRun[]): ExperimentMod
 		ok: mine.filter((one) => one.ok).length,
 		failed: mine.filter((one) => !one.ok).length,
 		flags: {},
-		wallMs: 0,
-		total: {},
+		// The cells ran one after another, so their wall times add up - unlike a
+		// fan-out's, which is why `sumUsage` takes the wall time from outside.
+		total: sumUsage(
+			mine.map((one) => one.usage),
+			mine.reduce((sum, one) => sum + one.wallMs, 0),
+		),
 	};
 
 	for (const one of mine) {
-		summary.wallMs += one.wallMs;
-		for (const [key, value] of Object.entries(one.usage)) summary.total[key] = (summary.total[key] ?? 0) + value;
 		for (const [key, value] of flagsOf(one.outcome)) {
 			const counts = (summary.flags[key] ??= {});
 			counts[value] = (counts[value] ?? 0) + 1;
@@ -200,21 +201,6 @@ function formatFlag(counts: Record<string, number> | undefined, runs: number): s
 		.sort()
 		.map((key) => `${key}×${counts[key]}`)
 		.join(" ");
-}
-
-/** A summed record back into a {@link Usage}, so the existing formatting applies. */
-function asUsage(summary: ExperimentModelSummary): Usage {
-	const total = summary.total;
-	return {
-		wallMs: summary.wallMs,
-		busyMs: total.busyMs ?? 0,
-		turns: total.turns ?? 0,
-		input: total.input ?? 0,
-		output: total.output ?? 0,
-		cacheRead: total.cacheRead ?? 0,
-		cacheWrite: total.cacheWrite ?? 0,
-		cost: total.cost ?? 0,
-	};
 }
 
 function row(cells: readonly string[]): string {

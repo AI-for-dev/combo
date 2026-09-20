@@ -24,7 +24,7 @@ import {
 	type SessionPort,
 	type ToolDefinition,
 } from "./session.ts";
-import { deltaUsage, emptyUsage, snapshotUsage, type Usage } from "./usage.ts";
+import { accumulate, deltaUsage, emptyUsage, snapshotUsage, type Usage } from "./usage.ts";
 
 /**
  * Tools built once the subagent's id is known.
@@ -194,7 +194,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 	// Monotonic clock: `Date.now()` jumps when the system clock is adjusted,
 	// and a duration must never go backwards.
 	const spawnedAt = performance.now();
-	const usage: Usage = emptyUsage();
+	let usage: Usage = emptyUsage();
 	// This subagent's own stop switch, apart from the caller's signal: stopping
 	// one branch must not touch the ones beside it.
 	const stopper = new AbortController();
@@ -322,14 +322,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 			// kind of number invariant 9 forbids - one nobody measured.
 			turn.turns = reached ? 1 : 0;
 
-			usage.busyMs += busyMs;
-			usage.turns += turn.turns;
-			usage.input += turn.input;
-			usage.output += turn.output;
-			usage.cacheRead += turn.cacheRead;
-			usage.cacheWrite += turn.cacheWrite;
-			usage.cost += turn.cost;
-			usage.contextTokens = turn.contextTokens;
+			usage = accumulate(usage, turn);
 
 			const messages = session.messages.slice(startIndex);
 			// A turn can also fail without throwing: pi reports it through the
