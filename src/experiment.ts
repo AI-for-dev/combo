@@ -25,9 +25,9 @@ import {
 	type ExperimentReport,
 	type ExperimentRun,
 } from "./experiment-report.ts";
-import { createRunDir, exportBaseName, usageReport, writeUsageReport } from "./export.ts";
+import { createRunDir, exportBaseName } from "./export.ts";
 import type { EventListener } from "./events.ts";
-import { combineReporters, createRunPicture, recordReporter } from "./reporters/index.ts";
+import { measuredRun } from "./measured.ts";
 import { abortError } from "./result.ts";
 import { mapConcurrent } from "./workflows/concurrent.ts";
 import type { SpawnFn, WorkflowOptions } from "./workflows/options.ts";
@@ -147,7 +147,10 @@ async function runCell(
 	const dir = path.join(root, exportBaseName(model), `rep-${repetition}`);
 	fs.mkdirSync(dir, { recursive: true });
 
-	const picture = createRunPicture();
+	// A cell is a measured run with a recorder beside. The recorder is not
+	// optional: a cell whose stream was not kept is a cell that can only ever be
+	// re-run, and a matrix is expensive.
+	const run = measuredRun({ dir, record: true, listeners: [options.onEvent] });
 	const cell: ExperimentCell = {
 		model,
 		repetition,
@@ -159,17 +162,10 @@ async function runCell(
 			timeoutMs: options.timeoutMs,
 			cwd: options.cwd,
 			spawn: options.spawn,
-			// The recorder is not optional: a cell whose stream was not kept is a
-			// cell that can only ever be re-run, and a matrix is expensive.
-			onEvent: combineReporters(
-				picture.reporter,
-				recordReporter(path.join(dir, "events.jsonl")),
-				options.onEvent,
-			),
+			onEvent: run.onEvent,
 		},
 	};
 
-	const startedAt = performance.now();
 	let outcome: ExperimentOutcome;
 	try {
 		outcome = await options.run(cell);
@@ -178,11 +174,8 @@ async function runCell(
 		// crashed: the other cells still have something to say.
 		outcome = { ok: false, error: cause instanceof Error ? cause.message : String(cause) };
 	}
-	const wallMs = performance.now() - startedAt;
 
-	const usage = usageReport(picture.snapshot(), wallMs);
-	writeUsageReport(dir, usage);
-
+	const usage = run.finish();
 	return {
 		model,
 		repetition,
@@ -190,7 +183,7 @@ async function runCell(
 		ok: outcome.ok,
 		error: outcome.error,
 		outcome,
-		wallMs,
+		wallMs: usage.wallMs,
 		usage: usage.total,
 	};
 }

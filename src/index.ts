@@ -164,6 +164,7 @@ export {
 	type UsageReportEntry,
 	type UsageTotal,
 } from "./export.ts";
+export { measuredRun, type MeasuredRun, type MeasuredRunOptions } from "./measured.ts";
 export {
 	experiment,
 	type ExperimentCell,

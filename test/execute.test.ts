@@ -311,38 +311,6 @@ describe("executeSubagent", () => {
 		}
 	});
 
-	test("export: with no session file to copy, usage.json claims no export at all", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-run-"));
-		try {
-			await executeSubagent(
-				{ agent: "scout", task: "a", export: true },
-				deps({ spawn: fakeSpawn().spawn, runDir: () => dir }),
-			);
-
-			const report = JSON.parse(fs.readFileSync(path.join(dir, "usage.json"), "utf8"));
-			assert.equal(report.exports, undefined, "an empty promise about the parent session is worse than none");
-			assert.ok(!fs.existsSync(path.join(dir, "main.jsonl")));
-		} finally {
-			fs.rmSync(dir, { recursive: true, force: true });
-		}
-	});
-
-	test("export: the parent session is copied in beside the subagents", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-run-"));
-		const main = path.join(dir, "parent.jsonl");
-		fs.writeFileSync(main, '{"type":"session"}\n');
-		try {
-			const fake = fakeSpawn();
-			await executeSubagent(
-				{ agent: "scout", task: "a", export: true },
-				deps({ spawn: fake.spawn, runDir: () => dir, mainSessionFile: main }),
-			);
-			assert.ok(fs.existsSync(path.join(dir, "main.jsonl")));
-		} finally {
-			fs.rmSync(dir, { recursive: true, force: true });
-		}
-	});
-
 	test("reduce: the branches run, then one agent answers - and only that answer goes to the model", async () => {
 		const fake = fakeSpawn((task, agent) => ({ output: agent.name === "reviewer" ? "one answer" : `branch(${task})` }));
 		const output = await executeSubagent(

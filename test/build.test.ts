@@ -16,7 +16,7 @@ import { toggleHerdr } from "../extension/herdr-command.ts";
 import { runInterview } from "../extension/interview-command.ts";
 import type { CommandDeps } from "../extension/deps.ts";
 import { parsePipeline } from "../src/pipeline.ts";
-import { watchEverything, watchEverythingIs } from "../extension/run-ui.ts";
+import { watchEverything, watchEverythingIs } from "../extension/herdr-switch.ts";
 import { BUILD_STATE_VERSION, type BuildState } from "../src/resume.ts";
 import type { DeliverResult } from "../src/workflows/deliver.ts";
 import type { PipelineRunResult } from "../src/workflows/pipeline-run.ts";
