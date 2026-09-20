@@ -235,7 +235,7 @@ describe("/run", () => {
 		);
 
 		assert.equal(ran, false);
-		assert.match(said(), /run: \.pi\/pipelines\/explore\.md does not parse: no steps/);
+		assert.match(said(), /Pipeline "explore" \(\.pi\/pipelines\/explore\.md\) does not parse: no steps/);
 	});
 
 	test("an unknown name stops before anything is spawned", async () => {

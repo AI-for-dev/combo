@@ -8,7 +8,7 @@
  * command does inside it stays in its own file.
  */
 
-import { commandVerifier, loadAgents, findPipeline, type Agent, type Pipeline, type Verify } from "../src/index.ts";
+import { commandVerifier, findPipeline, loadAgents, loadPipelines, type Agent, type Pipeline, type PipelineCatalogue, type Verify } from "../src/index.ts";
 import type { CommandDeps, Deps } from "./deps.ts";
 import type { CommandCtx } from "./pi.ts";
 import { liveRun, STATUS, type LiveRun } from "./run-ui.ts";
@@ -25,6 +25,11 @@ import { liveRun, STATUS, type LiveRun } from "./run-ui.ts";
  */
 export function loadRoster(ctx: CommandCtx, deps: Pick<Deps, "loadAgents"> = { loadAgents }): Agent[] {
 	return deps.loadAgents({ cwd: ctx.cwd, scope: "both", builtin: true });
+}
+
+/** The pipelines every command runs with, on the same terms as the roster, for the same reason. */
+export function loadCatalogue(ctx: CommandCtx, deps: Pick<Deps, "loadPipelines"> = { loadPipelines }): PipelineCatalogue {
+	return deps.loadPipelines({ cwd: ctx.cwd, scope: "both", builtin: true });
 }
 
 /** Notifies and returns `undefined` - the shape every refusal in these commands has. */
@@ -78,26 +83,16 @@ export async function watched<T>(ctx: CommandCtx, deps: Pick<CommandDeps, "tickM
 }
 
 /**
- * The pipeline this build runs, or a thrown explanation.
+ * The pipeline a command runs, or a thrown explanation.
  *
- * With no `--pipeline`, it is the one named `build`: the package ships one, and
- * a `build.md` of your own replaces it by having the same name. There is
+ * With no name, it is the one called `build`: the package ships one, and a
+ * `build.md` of your own replaces it by having the same name. There is
  * therefore exactly **one** default, and it is a file you can read and copy -
  * a second one written in TypeScript would differ from it within two changes.
- *
- * A **broken** file is refused rather than silently replaced: a `build.md`
- * sitting there and quietly not being used is exactly the failure
- * `findPipeline` exists to make loud. `command` only names the caller in that
- * message - `/run` refuses a broken file for the same reason `/build` does.
+ * A broken file is refused rather than silently replaced, by the lookup itself.
  */
-export function choosePipeline(wanted: string | undefined, ctx: CommandCtx, deps: Pick<Deps, "loadPipelines">, command = "build"): Pipeline {
-	const catalogue = deps.loadPipelines({ cwd: ctx.cwd, scope: "both", builtin: true });
-	const name = wanted ?? "build";
-
-	const broken = catalogue.broken.find((one) => one.name === name);
-	if (broken) throw new Error(`${command}: ${broken.filePath} does not parse: ${broken.error}`);
-
-	return findPipeline(catalogue, name);
+export function choosePipeline(wanted: string | undefined, ctx: CommandCtx, deps: Pick<Deps, "loadPipelines">): Pipeline {
+	return findPipeline(loadCatalogue(ctx, deps), wanted ?? "build");
 }
 
 /** The first `n` lines, for a dialog that must stay readable. */

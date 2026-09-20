@@ -98,18 +98,28 @@ export function loadPipelinesFromDir(dir: string): PipelineCatalogue {
 }
 
 /**
- * Looks up a pipeline by name, or throws.
+ * The pipeline `name` names, or `undefined` when none does.
  *
- * A name that matches a **broken** file reports why it is broken, rather than
- * claiming it does not exist. Getting "unknown pipeline: build" for a
- * `build.md` you are looking at is the kind of message that costs an hour.
+ * A name that matches a **broken** file throws instead of answering nothing:
+ * refused, never silently replaced. Getting "unknown pipeline: build" for a
+ * `build.md` you are looking at is the kind of message that costs an hour, and
+ * a caller that falls back to something else on `undefined` must not fall back
+ * past a file that is right there and does not parse. The one rule, written
+ * once, for every lookup.
  */
-export function findPipeline(catalogue: PipelineCatalogue, name: string): Pipeline {
+export function lookupPipeline(catalogue: PipelineCatalogue, name: string): Pipeline | undefined {
 	const pipeline = catalogue.pipelines.find((candidate) => candidate.name === name);
 	if (pipeline) return pipeline;
 
 	const broken = catalogue.broken.find((candidate) => candidate.name === name);
 	if (broken) throw new Error(`Pipeline "${name}" (${broken.filePath}) does not parse: ${broken.error}`);
+	return undefined;
+}
+
+/** Looks up a pipeline by name, or throws - an unknown name is an error here, with what there is instead. */
+export function findPipeline(catalogue: PipelineCatalogue, name: string): Pipeline {
+	const pipeline = lookupPipeline(catalogue, name);
+	if (pipeline) return pipeline;
 
 	if (catalogue.pipelines.length === 0) {
 		throw new Error(

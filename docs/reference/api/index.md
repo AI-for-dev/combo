@@ -25,7 +25,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`language`](language.md) | The language a subagent answers in: the one it was asked in. | 4 |
 | [`ledger`](ledger.md) | What is left to do, as a list nobody can lose track of. | 6 |
 | [`mirror`](mirror.md) | The mirror: a live subagent's session, on a unix socket. | 7 |
-| [`pipeline-load`](pipeline-load.md) | Finding the pipelines a user wrote, wherever they put them. | 6 |
+| [`pipeline-load`](pipeline-load.md) | Finding the pipelines a user wrote, wherever they put them. | 7 |
 | [`pipeline`](pipeline.md) | A pipeline is *data*: an ordered list of combinator calls, declared as YAML frontmatter + Markdown, following the same convention as an agent. | 5 |
 | [`reporters/console`](reporters/console.md) | A plain console reporter: one line per event that matters. | 2 |
 | [`reporters/herdr-client`](reporters/herdr-client.md) | Detection and transport for herdr's socket API. Nothing else lives here. | 4 |

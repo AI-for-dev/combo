@@ -435,7 +435,7 @@ describe("/build and its pipeline", () => {
 		}));
 
 		assert.equal(ran, false, "a file sitting right there must not be quietly ignored");
-		assert.match(said(), /build\.md does not parse/);
+		assert.match(said(), /Pipeline "build" \(.*build\.md\) does not parse/);
 	});
 
 	test("an unknown --pipeline stops before the interview, not after it", async () => {

@@ -16,7 +16,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, test } from "node:test";
 import { loadAgentsFromDir } from "../src/agent.ts";
-import { findPipeline, loadPipelines, loadPipelinesFromDir } from "../src/pipeline-load.ts";
+import { findPipeline, loadPipelines, loadPipelinesFromDir, lookupPipeline } from "../src/pipeline-load.ts";
 import { checkPipelineAgents } from "../src/workflows/pipeline-run.ts";
 
 const scratch: string[] = [];
@@ -174,6 +174,19 @@ describe("precedence between the three sources", () => {
 
 		const withBuiltin = loadPipelines({ scope: "project", cwd: os.tmpdir(), builtin: true });
 		assert.ok(withBuiltin.pipelines.some((one) => one.name === "build"));
+	});
+});
+
+describe("lookupPipeline", () => {
+	test("the pipeline of that name, or undefined when none has it", () => {
+		const catalogue = loadPipelinesFromDir(tmpDir({ "anything.md": GOOD }));
+		assert.equal(lookupPipeline(catalogue, "build")?.name, "build");
+		assert.equal(lookupPipeline(catalogue, "ship"), undefined, "absent is an answer a caller may act on");
+	});
+
+	test("a broken file of that name is refused, never fallen past", () => {
+		const catalogue = loadPipelinesFromDir(tmpDir({ "build.md": "---\nname: build\n---\n" }));
+		assert.throws(() => lookupPipeline(catalogue, "build"), /Pipeline "build" \(.*build\.md\) does not parse: .*non-empty "steps"/);
 	});
 });
 
