@@ -220,6 +220,16 @@ model: an English task answers English and a French one answers French;
 handed a French goal answers in French while the router still answers an agent
 name and the planner still answers JSON.
 
+**The same rule closes every turn**, in one sentence, because the English a
+subagent reads is not only in its prompt. A combinator frames the work - which
+round this is, what is new on the board, what is still free to take - and that
+framing arrives in the same message as the task, which weighs far more than
+anything standing behind it. Measured on `ilaas/gpt-oss-120b`, a French question
+put to a swarm of two over two rounds, counting the board posts that came back
+in French: 5 of 19 with the standing rule alone, 62 of 89 with the closing line
+as well. `ask()` adds it, so no combinator has to remember to, and what the
+event stream reports stays the task the caller wrote.
+
 What a word must not do is move. A model writing French writes `PRÊT` for
 `READY` and `RAS` for `LGTM`, which is a loop that never ends and a review nobody
 can parse. The instruction exempts by shape rather than by list - a word you were
