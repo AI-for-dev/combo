@@ -17,4 +17,17 @@ describe("joinOutputs", () => {
 	test("nothing in, nothing out", () => {
 		assert.equal(joinOutputs([]), "");
 	});
+
+	test("an empty output is said to be empty, not left as a heading over nothing", () => {
+		assert.equal(joinOutputs([said("scout", "   ")]), "## scout\n\n(no output)");
+	});
+
+	test("numbered, so a reader can name a branch when several share an agent", () => {
+		assert.equal(joinOutputs([said("scout", "a"), said("scout", "b")], { numbered: true }), "## 1. scout\n\na\n\n## 2. scout\n\nb");
+	});
+
+	test("the note beside the heading is the caller's to say", () => {
+		const note = (one: Result) => (one.ok ? "reviewed" : "failed");
+		assert.equal(joinOutputs([said("coder", "done"), failed("scribe", "boom")], { note }), "## coder (reviewed)\n\ndone\n\n## scribe (failed)\n\nboom");
+	});
 });

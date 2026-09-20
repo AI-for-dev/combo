@@ -34,6 +34,19 @@ on a run before it was written down:
   left by a member that has closed are work nobody will do and nobody can
   take.
 
+## `membersOutput`
+
+*function*
+
+```typescript
+export function membersOutput(members: readonly SwarmMember[]): string { /* … */ }
+```
+
+What every member last said, under the name it posted under.
+
+The id and not the agent, because three copies of one agent share the name
+and a reader finds a member on the board by its id.
+
 ## `MemberSpec`
 
 *type*

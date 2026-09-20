@@ -32,8 +32,8 @@ describe("delegateTool", () => {
 		const answer = await callTool(tool, { agent: "scout", tasks: ["find A", "find B"] });
 
 		assert.notEqual(answer.isError, true);
-		assert.match(answer.content[0]?.text ?? "", /## 1\. scout\nsaw find A/);
-		assert.match(answer.content[0]?.text ?? "", /## 2\. scout\nsaw find B/);
+		assert.match(answer.content[0]?.text ?? "", /## 1\. scout\n\nsaw find A/);
+		assert.match(answer.content[0]?.text ?? "", /## 2\. scout\n\nsaw find B/);
 		assert.equal(fake.spawned.length, 2, "one branch per task");
 	});
 
@@ -43,7 +43,7 @@ describe("delegateTool", () => {
 
 		const answer = await callTool(tool, { agent: "scout", tasks: ["find A", "find B"] });
 
-		assert.match(answer.content[0]?.text ?? "", /## 2\. scout \(failed\)\nprovider exploded/);
+		assert.match(answer.content[0]?.text ?? "", /## 2\. scout \(failed\)\n\nprovider exploded/);
 	});
 
 	test("a name nobody on the roster answers to is refused, and the roster is named", async () => {

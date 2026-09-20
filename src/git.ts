@@ -18,6 +18,7 @@
  */
 
 import { git, gitWithInput, type GitResult } from "./git-run.ts";
+import { head } from "./text.ts";
 
 export type { GitResult };
 
@@ -66,11 +67,7 @@ export async function diffStat(cwd: string): Promise<GitResult<string>> {
 export async function diff(cwd: string, maxBytes = 60_000): Promise<GitResult<string>> {
 	const result = await git(cwd, ["diff", "HEAD"]);
 	if (!result.ok) return result;
-	const text = result.value;
-	return {
-		ok: true,
-		value: text.length > maxBytes ? `${text.slice(0, maxBytes)}\n\n[diff truncated at ${maxBytes} bytes]` : text,
-	};
+	return { ok: true, value: head(result.value, maxBytes, "diff") };
 }
 
 /** Untracked files, which `git diff` does not show but `git add -A` will commit. */

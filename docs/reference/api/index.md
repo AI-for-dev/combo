@@ -37,7 +37,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`reporters/silent`](reporters/silent.md) | The no-op reporter. | 1 |
 | [`reporters/tree`](reporters/tree.md) | A run as a tree: a delegated subagent drawn under the one that asked for it. | 1 |
 | [`reporters/tui`](reporters/tui.md) | Formatting for the pi TUI, with no pi-tui in sight. | 8 |
-| [`result`](result.md) | `Result`: the single contract shared by everything else. | 4 |
+| [`result`](result.md) | `Result`: the single contract shared by everything else. | 6 |
 | [`resume`](resume.md) | Saving a build so it can be picked up again. | 9 |
 | [`review`](review.md) | The review record: what one reviewer decided, and what it is still owed. | 5 |
 | [`run`](run.md) | `run()`: the disposable form. Spawn, ask, close. | 2 |
@@ -46,7 +46,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`skills`](skills.md) | The skills an agent may load, and where they are looked up. | 3 |
 | [`stop`](stop.md) | The stop switch of a live run: everything at once, or one subagent of it. | 3 |
 | [`subagent`](subagent.md) | A subagent: a live session, a memory, a state. | 5 |
-| [`text`](text.md) | Reading what a model wrote: shortening it, and finding the structure in it. | 3 |
+| [`text`](text.md) | Reading what a model wrote, and cutting what it is handed: shortening text, and finding the structure in it. | 5 |
 | [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 8 |
 | [`verdict`](verdict.md) | A verdict given as a tool call, rather than recovered from prose. | 6 |
 | [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 4 |
@@ -66,7 +66,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`workflows/reduce`](workflows/reduce.md) | `reduce`: N → 1. One agent synthesises the results of a fan-out. | 3 |
 | [`workflows/route`](workflows/route.md) | `route`: 1 → 1. A classifier agent picks who should do the work. | 5 |
 | [`workflows/settle`](workflows/settle.md) | How a delivery's work reaches its tree. | 3 |
-| [`workflows/swarm`](workflows/swarm.md) | Several members on one job, for as many rounds as you allow. | 7 |
+| [`workflows/swarm`](workflows/swarm.md) | Several members on one job, for as many rounds as you allow. | 8 |
 | [`workflows/trail`](workflows/trail.md) | The trail: every result a workflow produced so far, over its own clock. | 1 |
 | [`worktree`](worktree.md) | Working copies, so two agents can write at once without writing over each other. | 6 |
 

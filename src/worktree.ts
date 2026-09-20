@@ -18,6 +18,7 @@
  */
 
 import { git, type GitResult } from "./git-run.ts";
+import { head } from "./text.ts";
 
 /** One working copy, as git reports it. */
 export type Worktree = {
@@ -89,11 +90,7 @@ export async function worktreePatch(worktree: string, base: string, maxBytes = 2
 	const result = await git(worktree, ["diff", "--binary", base]);
 	if (!result.ok) return result;
 
-	const text = result.value;
-	return {
-		ok: true,
-		value: text.length > maxBytes ? `${text.slice(0, maxBytes)}\n\n[patch truncated at ${maxBytes} bytes]` : text,
-	};
+	return { ok: true, value: head(result.value, maxBytes, "patch") };
 }
 
 /**

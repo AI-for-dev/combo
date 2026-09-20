@@ -246,7 +246,7 @@ describe("executeSubagent", () => {
 		);
 
 		assert.equal(fake.asks.length, 0, "an aborted signal must stop the turns");
-		assert.match(say(output), /## scout \(failed\)\naborted/);
+		assert.match(say(output), /## scout \(failed\)\n\naborted/);
 	});
 
 	test("progress is streamed, not held back until the end", async () => {
@@ -357,7 +357,7 @@ describe("executeSubagent", () => {
 		assert.match(fake.asks[2]?.task ?? "", /what is going on\?/, "the question leads the reducer's prompt");
 		assert.match(fake.asks[2]?.task ?? "", /branch\(a\)/, "the branches are the evidence");
 
-		assert.equal(say(output), "## reviewer\none answer", "the branches must not be replayed into the caller's context");
+		assert.equal(say(output), "## reviewer\n\none answer", "the branches must not be replayed into the caller's context");
 		assert.equal(output.details.mode, "reduce");
 		assert.equal(output.details.subagents.length, 3, "the row still shows every subagent that ran");
 	});
@@ -579,7 +579,7 @@ describe("textForModel", () => {
 			{ agent: "scout", output: "found it", messages: [], usage: {} as never, ok: true },
 			{ agent: "coder", output: "", messages: [], usage: {} as never, ok: false, error: "boom" },
 		]);
-		assert.match(text, /## scout\nfound it/);
-		assert.match(text, /## coder \(failed\)\nboom/);
+		assert.match(text, /## scout\n\nfound it/);
+		assert.match(text, /## coder \(failed\)\n\nboom/);
 	});
 });
