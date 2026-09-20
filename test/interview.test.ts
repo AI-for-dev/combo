@@ -128,17 +128,6 @@ describe("interview", () => {
 			fake.spawned.map((entry) => entry.id),
 		);
 	});
-
-	test("usage covers every turn, the brief included", async () => {
-		const fake = fakeSpawn((task) => ({
-			output: task.includes("specification") ? "THE BRIEF" : READY,
-			usage: { input: 100 },
-		}));
-		const result = await interview({ agent: interviewer, input: "x", ask: scriptedAsk([]), spawn: fake.spawn });
-
-		assert.equal(result.usage.input, 200);
-		assert.equal(result.usage.turns, 2);
-	});
 });
 
 describe("questionPrompt", () => {

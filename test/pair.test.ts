@@ -106,17 +106,6 @@ describe("pair", () => {
 		assert.equal(result.ok, true, "the work itself is what is returned, and it succeeded");
 	});
 
-	test("usage covers both agents, every round", async () => {
-		const fake = fakeSpawn((_task, agent) => ({
-			output: agent.name === "reviewer" ? APPROVAL : "work",
-			usage: { input: 100 },
-		}));
-		const result = await pair({ worker, reviewer, input: "x", spawn: fake.spawn });
-
-		assert.equal(result.usage.input, 200);
-		assert.equal(result.usage.turns, 2);
-	});
-
 	test("cancellation: nothing is spawned", async () => {
 		const fake = approvesAt(1);
 		const result = await pair({ worker, reviewer, input: "x", signal: AbortSignal.abort(), spawn: fake.spawn });

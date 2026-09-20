@@ -43,6 +43,7 @@ export { accumulate, compact, deltaUsage, emptyUsage, formatUsage, snapshotUsage
 export { mapConcurrent } from "./workflows/concurrent.ts";
 export { type SpawnFn, type WorkflowOptions } from "./workflows/options.ts";
 export { SubagentPool, type Held, type TurnOptions } from "./workflows/pool.ts";
+export { Trail } from "./workflows/trail.ts";
 export { chain, type ChainOptions } from "./workflows/chain.ts";
 export { aggregate, fanOut, type FanOutOptions, type FanOutResult } from "./workflows/fan-out.ts";
 export {

@@ -37,7 +37,7 @@ import { boardLines, createBoard, type Board, type Post } from "./../board.ts";
 import { createClaims, type Claims } from "./../claims.ts";
 import { busFor } from "./../events.ts";
 import { failed, type Result } from "./../result.ts";
-import { sumUsage, type Usage } from "./../usage.ts";
+import type { Usage } from "./../usage.ts";
 import { mapConcurrent } from "./concurrent.ts";
 import type { WorkflowOptions } from "./options.ts";
 import { type Held, SubagentPool } from "./pool.ts";
@@ -139,7 +139,6 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 	if (roster.length === 0) throw new Error("swarm: give it at least one member");
 
 	const concurrency = Math.max(1, options.concurrency ?? 4);
-	const startedAt = performance.now();
 	// The members and the board report on one stream, and the pool would open a
 	// second one of its own if it were handed `onEvent` again.
 	const bus = busFor(options);
@@ -161,7 +160,6 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 		],
 	});
 
-	const steps: Result[] = [];
 	let converged = false;
 	let stoppedBy: SwarmEnd = "rounds";
 	let ran = 0;
@@ -170,7 +168,7 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 	try {
 		// Everyone at once, bounded: the ids have to exist before anybody can be
 		// addressed, and a member spawned in round two would arrive after the work
-		// was divided.
+		// was divided. A swarm already called off holds nobody: the pool refuses.
 		members = await mapConcurrent(roster, concurrency, async (agent, index) => ({
 			...(await pool.hold(agent, { key: `${agent.name}@${index}` })),
 			agent,
@@ -195,7 +193,6 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 				const reading = board.since(member.id, member.cursor);
 				member.cursor = reading.cursor;
 				member.result = await member.ask(task(goal, round, reading.posts, claims));
-				steps.push(member.result);
 			});
 
 			if (until?.(board)) {
@@ -212,7 +209,7 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 	// nobody will do and nobody can take.
 	const held = claims.open();
 	const released = new Set(members.flatMap((one) => claims.releaseAll(one.id)));
-	const broke = members.find((one) => one.result && !one.result.ok);
+	const broken = pool.trail.broken();
 
 	return {
 		members: members.map((one) => ({
@@ -223,14 +220,12 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 		posts: board.all(),
 		claims: held.map((one) => ({ ...one, released: released.has(one.key) })),
 		rounds: ran,
-		usage: sumUsage(
-			steps.map((step) => step.usage),
-			performance.now() - startedAt,
-		),
+		usage: pool.trail.usage(),
 		converged,
 		stoppedBy,
+		// Every member, not every turn: one that was never asked failed the swarm too.
 		ok: members.length > 0 && members.every((one) => one.result?.ok === true),
-		...(broke?.result?.error ? { error: broke.result.error } : {}),
+		...(broken?.error ? { error: broken.error } : {}),
 	};
 }
 

@@ -52,7 +52,6 @@ export async function fanOut(options: FanOutOptions): Promise<FanOutResult> {
 	const agents = resolveAgents(options);
 
 	const pool = new SubagentPool(options);
-	const startedAt = performance.now();
 	let stopped = false;
 
 	let results: Result[] = [];
@@ -70,7 +69,7 @@ export async function fanOut(options: FanOutOptions): Promise<FanOutResult> {
 		await pool.closeAll();
 	}
 
-	return { results, usage: aggregate(results, performance.now() - startedAt) };
+	return { results, usage: pool.trail.usage() };
 }
 
 /**

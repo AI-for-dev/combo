@@ -82,7 +82,8 @@ Three functions do the arithmetic, and nothing else does:
   than a sum.
 - `sumUsage(parts, wallMs)` is several subagents together, which is how a
   workflow reports its total; the wall time comes from outside because a
-  fan-out's is not the sum of its branches.
+  fan-out's is not the sum of its branches. A workflow gets both from its
+  pool's `trail`, which records every turn and keeps the clock.
 
 `usage.json` writes a `Usage` per subagent and one for the whole run, with the
 subagent count beside it, so what the file holds is the type above and nothing

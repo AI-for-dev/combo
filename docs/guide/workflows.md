@@ -287,7 +287,26 @@ instead so two branches never meet.
 
 `hold` is for a conversation: it hands back an `id` and an `ask` for several
 turns in a row, and the subagent lives until `closeAll` whatever the lifetime.
-`interview` holds its interviewer, `swarm` holds its members.
+`interview` holds its interviewer, `swarm` holds its members. A hold is refused
+the way a turn is when the signal is already aborted: nothing is spawned, and
+every `ask` of it answers `aborted`.
+
+`pool.trail` is what the turns add up to: every turn played, refusals included,
+in `steps`; their usage summed over the pool's own clock in `usage()`; the first
+that failed in `broken()`. A combinator reports from there rather than keeping a
+list and a clock of its own:
+
+```typescript
+	} finally {
+		await pool.closeAll();
+	}
+	return { ...last, steps: pool.trail.steps, usage: pool.trail.usage() };
+```
+
+A workflow whose clock must start before its pool can exist, or that composes
+other workflows and has no pool, opens a `Trail` itself and records on it: the
+pool takes one as its second argument, and `record` hands back what it was
+given so a step is recorded where it is made.
 
 `closeAll` goes in a `finally`. Whoever opens, closes, cancellation included.
 
@@ -354,4 +373,5 @@ sequential, use `chain`.
 - [`workflows/pair`](../reference/api/workflows/pair.md), [`interview`](../reference/api/workflows/interview.md), [`deliver`](../reference/api/workflows/deliver.md), [`audit`](../reference/api/workflows/audit.md)
 - [`workflows/options`](../reference/api/workflows/options.md) - `WorkflowOptions`, what every combinator takes.
 - [`workflows/pool`](../reference/api/workflows/pool.md) - `SubagentPool`, where a workflow's turns are played.
+- [`workflows/trail`](../reference/api/workflows/trail.md) - `Trail`, what the turns add up to.
 - [`workflows/concurrent`](../reference/api/workflows/concurrent.md) - `mapConcurrent`.

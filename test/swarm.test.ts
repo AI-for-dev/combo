@@ -75,6 +75,17 @@ describe("a round", () => {
 		assert.equal(fake.asks.length, 2, "nobody is asked a second time");
 	});
 
+	test("cancellation: a swarm already called off holds nobody, and says what stopped it", async () => {
+		const fake = fakeSpawn();
+		const done = await swarm({ members: [{ agent: member, count: 3 }], goal: "do it", rounds: 2, signal: AbortSignal.abort(), spawn: fake.spawn });
+
+		assert.equal(fake.spawned.length, 0);
+		assert.equal(done.stoppedBy, "signal");
+		assert.equal(done.rounds, 0);
+		assert.equal(done.ok, false);
+		assert.equal(done.members.length, 3, "the roster is reported, nobody on it was asked");
+	});
+
 	test("`until` ends it, and that is the only thing that counts as converged", async () => {
 		const board = createBoard();
 		const fake = fakeSpawn((_task, _agent, options) => {

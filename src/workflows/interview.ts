@@ -13,9 +13,9 @@
 
 import type { Agent } from "./../agent.ts";
 import type { Answer, AskUser, Choice, Question } from "./../ask.ts";
-import { failed, type Result } from "./../result.ts";
+import type { Result } from "./../result.ts";
 import { jsonObjects, saysWord } from "./../text.ts";
-import { sumUsage, type Usage } from "./../usage.ts";
+import type { Usage } from "./../usage.ts";
 import type { WorkflowOptions } from "./options.ts";
 import { SubagentPool } from "./pool.ts";
 
@@ -100,47 +100,35 @@ export type InterviewResult = {
  * an interrogation nobody finished.
  */
 export async function interview(options: InterviewOptions): Promise<InterviewResult> {
-	const { agent, input, ask, signal } = options;
+	const { agent, input, ask } = options;
 	const maxQuestions = options.maxQuestions ?? 6;
 	const parse = options.parse ?? parseQuestion;
 
-	const steps: Result[] = [];
 	const answers: Answer[] = [];
-	const startedAt = performance.now();
 	let submitted = false;
-
-	const outcome = (brief: string, ok: boolean, error?: string): InterviewResult => ({
-		brief,
-		answers,
-		steps,
-		submitted,
-		usage: sumUsage(
-			steps.map((step) => step.usage),
-			performance.now() - startedAt,
-		),
-		ok,
-		error,
-	});
-
-	// A held subagent is spawned before it is asked anything, so an interview
-	// already called off is refused here rather than by its first turn.
-	if (signal?.aborted) {
-		steps.push(failed(agent.name, "aborted"));
-		return outcome("", false, "aborted");
-	}
 
 	// An interview is a conversation: the interviewer keeps its memory unless
 	// the caller insists otherwise. After the spread, not before - see `pair`:
 	// an explicit `undefined` from a merging caller must not read as a choice.
 	const pool = new SubagentPool({ ...options, lifetime: options.lifetime ?? "workflow" });
+	const outcome = (brief: string, ok: boolean, error?: string): InterviewResult => ({
+		brief,
+		answers,
+		steps: pool.trail.steps,
+		submitted,
+		usage: pool.trail.usage(),
+		ok,
+		error,
+	});
+
 	try {
-		// Held, not turned: the interviewer has to remember what it asked.
+		// Held, not turned: the interviewer has to remember what it asked. An
+		// interview already called off is refused by the hold, before any spawn.
 		const interviewer = await pool.hold(agent);
 		let turn = questionPrompt(input, maxQuestions);
 
 		for (let asked = 0; asked < maxQuestions; asked++) {
 			const result = await interviewer.ask(turn);
-			steps.push(result);
 			if (!result.ok) return outcome("", false, result.error);
 
 			if (isReady(result.output)) break;
@@ -163,7 +151,6 @@ export async function interview(options: InterviewOptions): Promise<InterviewRes
 		}
 
 		const final = await interviewer.ask(briefPrompt(input, answers));
-		steps.push(final);
 		return final.ok ? outcome(final.output, true) : outcome("", false, final.error);
 	} finally {
 		await pool.closeAll();

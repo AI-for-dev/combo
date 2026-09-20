@@ -82,7 +82,6 @@ export async function loop(options: LoopOptions): Promise<LoopResult> {
 	if (maxIterations < 1) throw new Error(`loop: \`maxIterations\` must be at least 1, got ${maxIterations}`);
 
 	const pool = new SubagentPool(options);
-	const all: Result[] = [];
 	let current = input;
 	let last: Result | undefined;
 	let iterations = 0;
@@ -97,7 +96,6 @@ export async function loop(options: LoopOptions): Promise<LoopResult> {
 				// Keyed by name, not by iteration: in "workflow" lifetime the
 				// reviewer of iteration 3 is the one that reviewed iteration 1.
 				last = await pool.turn(agent, current);
-				all.push(last);
 				if (!last.ok) {
 					broken = true;
 					break;
@@ -122,5 +120,5 @@ export async function loop(options: LoopOptions): Promise<LoopResult> {
 	}
 
 	// `last` is always set: `steps` is non-empty and `maxIterations` is at least 1.
-	return { ...(last as Result), steps: all, iterations, converged };
+	return { ...(last as Result), steps: pool.trail.steps, iterations, converged };
 }

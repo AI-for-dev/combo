@@ -18,10 +18,10 @@ import { scratchWorktree, type Scratch } from "./../scratch.ts";
 import { failed, type Result } from "./../result.ts";
 import { reviewRecord } from "./../review.ts";
 import { saysWord } from "./../text.ts";
-import { sumUsage } from "./../usage.ts";
 import { declaresVerdict, type Verdict } from "./../verdict.ts";
 import type { WorkflowOptions } from "./options.ts";
 import { SubagentPool } from "./pool.ts";
+import { Trail } from "./trail.ts";
 
 /** The word a reviewer that holds no verdict tool says when it is satisfied. */
 export const APPROVAL = "LGTM";
@@ -141,8 +141,9 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 		inProse: options.approved ?? approvedByDefault,
 	});
 
-	const steps: Result[] = [];
-	const startedAt = performance.now();
+	// Opened before the pool, which cannot exist until the working copy does:
+	// the time a copy takes to make is part of what the pair took.
+	const trail = new Trail();
 	let verdict: Verdict | undefined;
 	let scratch: Scratch | undefined;
 	let patch: string | undefined;
@@ -151,11 +152,8 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 	const outcome = (work: Result, review: Result | undefined, rounds: number, approved: boolean): PairResult => ({
 		...work,
 		input,
-		usage: sumUsage(
-			steps.map((step) => step.usage),
-			performance.now() - startedAt,
-		),
-		steps,
+		usage: trail.usage(),
+		steps: trail.steps,
 		review,
 		rounds,
 		approved,
@@ -167,22 +165,14 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 
 	// The pool would answer this on the first turn; checking here spares making
 	// a working copy for a pair that will never run in it.
-	if (signal?.aborted) {
-		const aborted = failed(worker.name, "aborted");
-		steps.push(aborted);
-		return outcome(aborted, undefined, 0, false);
-	}
+	if (signal?.aborted) return outcome(trail.record(failed(worker.name, "aborted")), undefined, 0, false);
 
 	// Both agents share the copy: a reviewer reading anywhere else would be
 	// reading the code the worker did not touch. One that could not be made stops
 	// the pair, rather than quietly writing into the tree it was meant to spare.
 	if (options.worktree) {
 		const made = await scratchWorktree(options.cwd ?? process.cwd(), input);
-		if (!made.ok) {
-			const stopped = failed(worker.name, `no working copy: ${made.error}`);
-			steps.push(stopped);
-			return outcome(stopped, undefined, 0, false);
-		}
+		if (!made.ok) return outcome(trail.record(failed(worker.name, `no working copy: ${made.error}`)), undefined, 0, false);
 		scratch = made.value;
 	}
 
@@ -195,12 +185,15 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 	// Only the reviewer is offered the verdict tool. The worker writing into the
 	// same collector would make the two agents' answers indistinguishable, and
 	// pi's allowlist would refuse it anyway.
-	const pool = new SubagentPool({
-		...options,
-		cwd: scratch?.path ?? options.cwd,
-		lifetime: options.lifetime ?? "workflow",
-		customTools: record.tool ? (agent) => (agent.name === reviewer.name ? [record.tool as ToolDefinition] : undefined) : options.customTools,
-	});
+	const pool = new SubagentPool(
+		{
+			...options,
+			cwd: scratch?.path ?? options.cwd,
+			lifetime: options.lifetime ?? "workflow",
+			customTools: record.tool ? (agent) => (agent.name === reviewer.name ? [record.tool as ToolDefinition] : undefined) : options.customTools,
+		},
+		trail,
+	);
 	let work: Result | undefined;
 	let review: Result | undefined;
 	let rounds = 0;
@@ -212,11 +205,9 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 			rounds = round;
 
 			work = await pool.turn(worker, task);
-			steps.push(work);
 			if (!work.ok) break;
 
 			review = await pool.turn(reviewer, reviewPrompt(input, work.output, round, { byTool: record.byTool, open: record.open }));
-			steps.push(review);
 			if (!review.ok) break;
 
 			const decided = await record.close(review, round);
