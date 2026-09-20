@@ -547,6 +547,7 @@ describe("paintWidget", () => {
 			tools: [],
 			output: "",
 			parentId,
+			depth: parentId ? 1 : 0,
 			usage: { wallMs: 0, busyMs: 0, turns: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
 		});
 		const usage = { wallMs: 0, busyMs: 0, turns: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
@@ -572,6 +573,7 @@ describe("paintWidget", () => {
 						task: "x",
 						tools: [],
 						output: "",
+						depth: 0,
 						usage: { wallMs: 0, busyMs: 0, turns: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
 					},
 				],

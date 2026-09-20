@@ -62,7 +62,7 @@ export function groupAgents(agents: Agent[], cwd: string): AgentGroup[] {
  * The listing, as lines.
  *
  * Kept away from the terminal so it can be asserted on directly, the same split
- * as `/pipelines` and the TUI collector.
+ * as `/pipelines` and the run picture.
  */
 export function agentLines(agents: Agent[], cwd: string): string[] {
 	const groups = groupAgents(agents, cwd);

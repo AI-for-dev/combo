@@ -16,7 +16,7 @@ import extension from "../extension/index.ts";
 import { PIPELINE_MESSAGE } from "../extension/pipeline-commands.ts";
 import { STEP_ENTRY } from "../extension/step-commands.ts";
 import { emptyUsage } from "../src/usage.ts";
-import type { SubagentSnapshot } from "../src/reporters/tui.ts";
+import type { SubagentSnapshot } from "../src/reporters/picture.ts";
 import { testTheme } from "./fixtures/theme.ts";
 
 // `getMarkdownTheme()` and `keyHint()` read process-wide state.
@@ -56,6 +56,7 @@ const subagent = (over: Partial<SubagentSnapshot> = {}): SubagentSnapshot => ({
 	],
 	output: "It is resolved in `spawn()`.\n\n- explicit argument wins\n- then the frontmatter",
 	usage: { ...emptyUsage(), turns: 1, busyMs: 1_500, input: 12_000, output: 209 },
+	depth: 0,
 	ok: true,
 	...over,
 });
@@ -187,7 +188,7 @@ describe("renderResult", () => {
 		const tree = result({
 			subagents: [
 				subagent({ id: "explorer#1", agent: "explorer" }),
-				subagent({ id: "scout#1", parentId: "explorer#1" }),
+				subagent({ id: "scout#1", parentId: "explorer#1", depth: 1 }),
 			],
 		});
 

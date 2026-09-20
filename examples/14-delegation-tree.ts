@@ -18,7 +18,7 @@
 
 import {
 	combineReporters,
-	createTuiCollector,
+	createRunPicture,
 	delegateTool,
 	run,
 	summaryTable,
@@ -30,8 +30,8 @@ import { agent, agents, consoleReporter, exportDir, positional, repoRoot } from 
 const question = positional.join(" ") || "How is a subagent's usage measured, and what is never estimated?";
 
 const explorer = agent("explorer");
-const collector = createTuiCollector();
-const onEvent = combineReporters(consoleReporter(), collector.reporter);
+const picture = createRunPicture();
+const onEvent = combineReporters(consoleReporter(), picture.reporter);
 
 const started = performance.now();
 const result = await run(explorer, question, {
@@ -60,7 +60,7 @@ const wallMs = performance.now() - started;
 console.log(`\n──── the answer ────\n${result.output}`);
 if (!result.ok) console.log(`\nfailed: ${result.error}`);
 
-console.log(`\n──── what it cost ────\n${summaryTable(collector.snapshot(), wallMs).join("\n")}`);
+console.log(`\n──── what it cost ────\n${summaryTable(picture.snapshot(), wallMs).join("\n")}`);
 if (exportDir) {
-	console.log(`\n${writeUsageReport(exportDir, usageReport(collector.snapshot(), wallMs))}`);
+	console.log(`\n${writeUsageReport(exportDir, usageReport(picture.snapshot(), wallMs))}`);
 }

@@ -4,13 +4,12 @@
 
 Source: [`src/reporters/tui.ts`](https://github.com/AI-for-dev/combo/blob/main/src/reporters/tui.ts)
 
-State and formatting for the pi TUI, with no pi-tui in sight.
+Formatting for the pi TUI, with no pi-tui in sight.
 
-The split matters: this file **collects** what happened, the extension
-**draws** it. Collection is pure, so it is tested by inspecting a snapshot -
-never by scraping a terminal rendering, which is the rule for every reporter
-here. It also means the same state feeds a future web view or an export
-without touching a component.
+This file turns a {@link RunSnapshot} into strings and rows; the extension
+draws them. Nothing here holds state - the picture is `picture.ts`, folded
+once for every reader - so a line is tested by calling the function that
+makes it, never by scraping a terminal.
 
 ## `collapsedLine`
 
@@ -21,22 +20,6 @@ export function collapsedLine(snapshot: SubagentSnapshot, width = 60): string { 
 ```
 
 One compact line per subagent: `⏳ scout#1  find auth code  → grep`.
-
-## `createTuiCollector`
-
-*function*
-
-```typescript
-export function createTuiCollector(): TuiCollector { /* … */ }
-```
-
-Collects subagent events into a renderable snapshot.
-
-A fan-out reads top to bottom in the order the branches were launched, not in
-the order they finish and not in the order their sessions came up. The last
-one is why this sorts rather than trusting arrival: `spawn` cannot be emitted
-before the session exists, since it carries the model pi resolved, and three
-scouts launched together drew as `scout#2, scout#1, scout#3`.
 
 ## `formatToolCall`
 
@@ -57,7 +40,7 @@ rather than dumping raw JSON at them.
 *function*
 
 ```typescript
-export function progressLine(snapshot: TuiSnapshot): string { /* … */ }
+export function progressLine(snapshot: RunSnapshot): string { /* … */ }
 ```
 
 `2/3 done, 1 running` - what a parallel run looks like while it runs.
@@ -72,165 +55,23 @@ export function statusIcon(snapshot: SubagentSnapshot): string { /* … */ }
 
 `⏳` while it works, `✓` when it succeeded, `✗` when it did not.
 
-## `SubagentSnapshot`
-
-*type*
-
-```typescript
-export type SubagentSnapshot = {
-	/** The subagent, e.g. `scout#1`. Unique for the life of the process. */
-	id: string;
-	/** The agent it came from. Several subagents may share one agent. */
-	agent: string;
-	/** The lifetime it is running with - the row says whether it will remember. */
-	lifetime: string;
-	/** What it is doing right now. `"done"` covers success and failure alike. */
-	status: SubagentStatus;
-	/** The task it was given. Empty until the first `ask`. */
-	task: string;
-	/** Every tool call so far, in order. The last one is what the collapsed row shows. */
-	tools: ToolCall[];
-	/** Assistant text, accumulated from the deltas. */
-	output: string;
-	/** Cumulative since spawn - for a persistent subagent, that is several turns. */
-	usage: Usage;
-	/** `provider/id` as pi resolved it, when it could. */
-	model?: string;
-	/** The subagent that had this one spawned. Absent on a root. */
-	parentId?: string;
-	/**
-	 * Monotonic instant the current turn began, while one is running.
-	 *
-	 * `usage.busyMs` only lands when the turn ends, so without this the widget
-	 * would read `0.0s` for the whole wait and then jump straight to the total.
-	 */
-	startedAt?: number;
-	/** Whether its last turn succeeded. Absent until it has finished one. */
-	ok?: boolean;
-	/** The failure, when there was one - shown on the row rather than swallowed. */
-	error?: string;
-};
-```
-
-Everything known about one subagent, at one instant.
-
 ## `summaryTable`
 
 *function*
 
 ```typescript
-export function summaryTable(snapshot: TuiSnapshot, wallMs: number): string[] { /* … */ }
+export function summaryTable(snapshot: RunSnapshot, wallMs: number): string[] { /* … */ }
 ```
 
 The end-of-workflow table: one line per subagent, total at the bottom.
 
-`wallMs` is passed in because the collector cannot know it: on a fan-out the
+`wallMs` is passed in because a snapshot cannot know it: on a fan-out the
 elapsed time is not the sum of the branches, and that difference is the
 whole point of the number.
 
 A delegated subagent is indented under the one that asked for it, and the
 total is still the sum of every row: what ruins a run is what the tree cost
 altogether, never what one leaf of it cost.
-
-## `ToolCall`
-
-*type*
-
-```typescript
-export type ToolCall = {
-	/** The tool pi ran, e.g. `read` or `bash`. */
-	name: string;
-	/** Its arguments, untouched: the expanded view formats them, we only keep them. */
-	args: unknown;
-};
-```
-
-A tool call as it happened, kept for the expanded view.
-
-## `treeOrder`
-
-*function*
-
-```typescript
-export function treeOrder(subagents: readonly SubagentSnapshot[]): TreeRow[] { /* … */ }
-```
-
-Spawn order, rearranged so that a child follows the parent it hangs under.
-
-The snapshot itself stays flat, and this is why: every existing reader keeps
-working, and the one that wants a tree asks for it here. A delegating run
-spawns its children after their parent anyway, so with a single root the
-order barely moves; with two parents working at once it stops interleaving
-three readers of one explorer with three of the other.
-
-**Nothing is ever dropped.** A subagent whose parent is not in the list - a
-reporter attached mid-run, a snapshot assembled by hand - reads as a root,
-and anything the walk could not reach is appended rather than lost. A
-measurement that silently omits a subagent is worse than one that misplaces
-it.
-
-## `TreeRow`
-
-*type*
-
-```typescript
-export type TreeRow = {
-	/** The subagent itself, untouched. */
-	snapshot: SubagentSnapshot;
-	/** `0` for a root, one more for each level of delegation under it. */
-	depth: number;
-};
-```
-
-One subagent, and how far under a root it sits.
-
-## `TuiCollector`
-
-*type*
-
-```typescript
-export type TuiCollector = {
-	/** Subscribe this to the event bus. */
-	reporter: EventListener;
-	/** The current picture. Cheap enough to call on every frame. */
-	snapshot(): TuiSnapshot;
-	/** Called on every event, so the extension knows when to `invalidate()`. */
-	onChange(listener: () => void): void;
-	/**
-	 * Records the task a subagent was given.
-	 *
-	 * The core does not emit it: a task belongs to an `ask`, not to a subagent,
-	 * and a persistent one gets several. The caller knows which task it just
-	 * handed over, so it tells us.
-	 */
-	setTask(id: string, task: string): void;
-};
-```
-
-The live state behind the TUI: subscribe it, then read it on every frame.
-
-## `TuiSnapshot`
-
-*type*
-
-```typescript
-export type TuiSnapshot = {
-	/** In spawn order, so a fan-out reads top to bottom as it was launched. */
-	subagents: SubagentSnapshot[];
-	/** Finished, whatever the outcome. */
-	done: number;
-	/** Currently working. */
-	running: number;
-	/** Finished with `ok: false`. Counted apart: `2/3 done` hides a crash. */
-	failed: number;
-	/** Spawned so far, which is what `done` and `running` are counted against. */
-	total: number;
-	/** Sum over every subagent. `wallMs` is filled in by the caller. */
-	usage: Usage;
-};
-```
-
-The whole picture: every subagent, plus what it adds up to.
 
 ## `WidgetRow`
 
@@ -268,7 +109,7 @@ instead, which says *what* each line is.
 *function*
 
 ```typescript
-export function widgetRows(snapshot: TuiSnapshot): WidgetRow[] { /* … */ }
+export function widgetRows(snapshot: RunSnapshot): WidgetRow[] { /* … */ }
 ```
 
 The widget, as rows that say what they are.

@@ -18,15 +18,16 @@ import {
 	commandVerifier,
 	copyMainSession,
 	createHerdrReporter,
-	createTuiCollector,
+	createRunPicture,
 	stopSwitch,
 	usageReport,
 	widgetRows,
 	writeUsageReport,
 	type EventListener,
 	type Pipeline,
+	type RunPicture,
+	type RunSnapshot,
 	type SpawnFn,
-	type TuiSnapshot,
 	type Verify,
 } from "../src/index.ts";
 import { forgetRun, watchRun, type KeyUi } from "./stop.ts";
@@ -85,7 +86,7 @@ export type LiveRunOptions = {
 	 */
 	tickMs?: number;
 	/**
-	 * A second observer beside the collector.
+	 * A second observer beside the picture.
 	 *
 	 * Defaults to the herdr reporter, which is `undefined` unless pi itself runs
 	 * inside herdr. Injected so the wiring is testable offline - a herdr reporter
@@ -95,7 +96,7 @@ export type LiveRunOptions = {
 	/** Give every subagent of this run a split, not only the ones that asked. */
 	herdrAll?: boolean;
 	/** Called on every event, after the widget: the tool streams a progress line. */
-	onChange?: (snapshot: TuiSnapshot) => void;
+	onChange?: (snapshot: RunSnapshot) => void;
 	/**
 	 * The caller's own signal - pi's, when it has one.
 	 *
@@ -118,10 +119,10 @@ export type LiveRunOptions = {
 
 /** A live view of a run, and the one call that takes it down. */
 export type LiveRun = {
-	/** Subscribe this to the workflow: the TUI collector and herdr, composed. */
+	/** Subscribe this to the workflow: the TUI picture and herdr, composed. */
 	onEvent: EventListener;
 	/** The state the widget is drawn from, and the usage report is built from. */
-	collector: ReturnType<typeof createTuiCollector>;
+	picture: RunPicture;
 	/** Give the workflow this signal, not the caller's: Escape fires it too. */
 	signal: AbortSignal;
 	/** Give the workflow this `spawn`: it is what makes one subagent stoppable. */
@@ -138,24 +139,24 @@ export type LiveRun = {
 
 /** Starts painting a run. `ui` is absent for a headless caller: nothing is drawn. */
 export function liveRun(ui: RunUi | undefined, options: LiveRunOptions = {}): LiveRun {
-	const collector = createTuiCollector();
+	const picture = createRunPicture();
 	const onEvent = combineReporters(
-		collector.reporter,
+		picture.reporter,
 		// `herdrAll` belongs to the reporter, not to the spawn: whether a pane
 		// opens is a display decision, and the workflow runs identically either way.
 		options.reporter ?? createHerdrReporter({ all: options.herdrAll || watchEverything() }),
 	);
 
 	const stopping = stopSwitch({ signal: options.signal, spawn: options.spawn });
-	const paint = () => ui?.setWidget?.(STATUS, paintWidget(collector.snapshot(), ui.theme, watched.selected));
+	const paint = () => ui?.setWidget?.(STATUS, paintWidget(picture.snapshot(), ui.theme, watched.selected));
 	// The terminal reads the selection from here and writes it back: a run is
 	// what a key acts on, and it is the only thing that knows when it is over.
-	const watched = { stop: stopping, snapshot: () => collector.snapshot(), repaint: paint, selected: undefined as string | undefined };
+	const watched = { stop: stopping, snapshot: () => picture.snapshot(), repaint: paint, selected: undefined as string | undefined };
 	watchRun(watched, ui);
 
-	collector.onChange(() => {
+	picture.onChange(() => {
 		paint();
-		options.onChange?.(collector.snapshot());
+		options.onChange?.(picture.snapshot());
 	});
 
 	const tickMs = options.tickMs ?? TICK_MS;
@@ -164,7 +165,7 @@ export function liveRun(ui: RunUi | undefined, options: LiveRunOptions = {}): Li
 
 	return {
 		onEvent,
-		collector,
+		picture,
 		signal: stopping.signal,
 		spawn: stopping.spawn,
 		stop(exportDir, wallMs) {
@@ -175,7 +176,7 @@ export function liveRun(ui: RunUi | undefined, options: LiveRunOptions = {}): Li
 			// up, in the tool row, and nothing should pile up above the prompt
 			// between two requests.
 			ui?.setWidget?.(STATUS, undefined);
-			if (exportDir) writeRunReport(exportDir, collector.snapshot(), wallMs, options.mainSessionFile);
+			if (exportDir) writeRunReport(exportDir, picture.snapshot(), wallMs, options.mainSessionFile);
 		},
 	};
 }
@@ -187,7 +188,7 @@ export function liveRun(ui: RunUi | undefined, options: LiveRunOptions = {}): Li
  * Swallows its own failures - a full disk must not turn a finished workflow into
  * an error the model has to reason about.
  */
-export function writeRunReport(dir: string, snapshot: TuiSnapshot, wallMs: number, mainSessionFile?: string): void {
+export function writeRunReport(dir: string, snapshot: RunSnapshot, wallMs: number, mainSessionFile?: string): void {
 	try {
 		const main = mainSessionFile ? [copyMainSession(mainSessionFile, dir)] : undefined;
 		writeUsageReport(dir, usageReport(snapshot, wallMs, main));
@@ -204,7 +205,7 @@ export function writeRunReport(dir: string, snapshot: TuiSnapshot, wallMs: numbe
  * two apart is what lets the layout be tested without a terminal - a selection
  * is a fact about this terminal, and lives no deeper than the paint.
  */
-export function paintWidget(snapshot: TuiSnapshot, theme: WidgetTheme, selected?: string): string[] {
+export function paintWidget(snapshot: RunSnapshot, theme: WidgetTheme, selected?: string): string[] {
 	const lines = widgetRows(snapshot).map((row) => {
 		// A delegated subagent sits under the one that asked for it, live and in
 		// the table alike: the tree is what the run costs, so it is what it looks

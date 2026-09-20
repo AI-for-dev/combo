@@ -48,7 +48,7 @@ Feeds one event stream to several reporters.
 
 `onEvent` takes a single listener, so watching in two places at once - the pi
 TUI *and* herdr - needs composing. Absent entries are dropped, which is what
-makes `combineReporters(collector, createHerdrReporter())` read well:
+makes `combineReporters(picture.reporter, createHerdrReporter())` read well:
 `createHerdrReporter` returns `undefined` outside herdr.
 
 One reporter throwing does not stop the others; that guarantee belongs to the

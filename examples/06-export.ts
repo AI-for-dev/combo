@@ -13,15 +13,15 @@
  * queued.
  */
 
-import { createRunDir, createTuiCollector, combineReporters, fanOut, usageReport, writeUsageReport } from "../src/index.ts";
+import { createRunDir, createRunPicture, combineReporters, fanOut, usageReport, writeUsageReport } from "../src/index.ts";
 import { agent, consoleReporter, repoRoot, show } from "./shared.ts";
 
 // Created up front: subagents export themselves as they close.
 const dir = createRunDir();
 
-// The collector is what usage.json is built from - the same state the TUI
+// The picture is what usage.json is built from - the same state the TUI
 // draws. One stream, several observers.
-const collector = createTuiCollector();
+const picture = createRunPicture();
 
 const startedAt = performance.now();
 const { results } = await fanOut({
@@ -33,14 +33,14 @@ const { results } = await fanOut({
 	concurrency: 2,
 	cwd: repoRoot,
 	exportDir: dir,
-	onEvent: combineReporters(collector.reporter, consoleReporter()),
+	onEvent: combineReporters(picture.reporter, consoleReporter()),
 });
 
 for (const [index, result] of results.entries()) {
 	show(`branch ${index + 1}${result.ok ? "" : " (failed)"}`, result.ok ? result.output : (result.error ?? "unknown"));
 }
 
-const report = usageReport(collector.snapshot(), performance.now() - startedAt);
+const report = usageReport(picture.snapshot(), performance.now() - startedAt);
 writeUsageReport(dir, report);
 
 console.log(`exported to ${dir}`);

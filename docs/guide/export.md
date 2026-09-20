@@ -5,14 +5,14 @@ closes. Two formats, both produced by pi itself: a readable HTML page and a
 replayable JSONL. We render neither.
 
 ```typescript
-import { createRunDir, createTuiCollector, fanOut, usageReport, writeUsageReport } from "combo";
+import { createRunDir, createRunPicture, fanOut, usageReport, writeUsageReport } from "combo";
 
 const dir = createRunDir();               // runs/<timestamp>/
-const collector = createTuiCollector();
+const picture = createRunPicture();
 
 const startedAt = performance.now();
-await fanOut({ agent: scout, tasks, exportDir: dir, onEvent: collector.reporter });
-writeUsageReport(dir, usageReport(collector.snapshot(), performance.now() - startedAt));
+await fanOut({ agent: scout, tasks, exportDir: dir, onEvent: picture.reporter });
+writeUsageReport(dir, usageReport(picture.snapshot(), performance.now() - startedAt));
 ```
 
 ```
