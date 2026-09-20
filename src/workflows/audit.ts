@@ -11,16 +11,18 @@
  * it is now, not remember how it was talked into approving the first time. What
  * carries between rounds is the ledger, never a context.
  *
- * This file holds the round and the prompt behind it. Composing the rounds into
- * a delivery - plan, pairs, check, fixes - is `deliver.ts`.
+ * This file holds the cycle: the rounds, the record of what the auditor asked
+ * for, and the prompt behind each round. How a fix reaches the tree is the
+ * caller's - `deliver.ts` hands it a function for that.
  */
 
 import type { Agent } from "./../agent.ts";
 import { openList, type Obligation } from "./../ledger.ts";
 import type { Result } from "./../result.ts";
+import { reviewRecord } from "./../review.ts";
 import type { ToolDefinition } from "./../session.ts";
 import { saysWord } from "./../text.ts";
-import type { Verdict } from "./../verdict.ts";
+import { declaresVerdict, type Verdict } from "./../verdict.ts";
 import type { Verification } from "./../verify.ts";
 import type { WorkflowOptions } from "./options.ts";
 import { SubagentPool } from "./pool.ts";
@@ -46,37 +48,135 @@ export type AuditRound = {
 	results: PairResult[];
 };
 
-/** One round's cast, and everything it is asked to account for. */
+/** How a fix the auditor asked for reached the tree, and what the tree is now. */
+export type Fixed = {
+	/** One per fix, as the caller ran them. */
+	results: PairResult[];
+	/** The check as it stands after them, when one ran. */
+	verification?: Verification;
+};
+
+/** The cycle as it stands: what a caller saves after every round. */
+export type AuditProgress = {
+	/** Every round so far, the ones a previous run recorded first. */
+	rounds: readonly AuditRound[];
+	/** What was audited last: the subtasks, then every fix that came back. */
+	tasks: readonly PairResult[];
+	/** What the auditor raised across the rounds, and what became of each. */
+	obligations: readonly Obligation[];
+	/** The check as it last stood, when one ran. */
+	verification?: Verification;
+};
+
+/** The cycle, ended: signed off, or not. */
+export type AuditResult = AuditProgress & {
+	/**
+	 * Whether the last round signed off with nothing owed and no failing check
+	 * standing. Reaching the cap is not approval, and neither is a yes over a
+	 * check that fails.
+	 */
+	approved: boolean;
+};
+
+/** Who audits, what, and how what it asks for gets done. */
 export type AuditOptions = WorkflowOptions & {
+	/** Reads the whole and says what is left. A fresh one every round. */
 	auditor: Agent;
 	/** Who the auditor may hand a fix to. It has to know their names. */
 	workers: readonly Agent[];
+	/** The specification the work is audited against. */
 	brief: string;
+	/** What is audited: every subtask as it stands when the cycle opens. */
 	tasks: readonly PairResult[];
+	/** The check as it stood when the cycle opens, when one ran. */
 	verification?: Verification;
-	round: number;
-	maxAuditRounds: number;
-	/** Obligations still open, which this round is asked to answer for by id. */
-	open: readonly Obligation[];
-	/** Offered when the auditor declares it. The collector outlives this turn. */
-	verdictTool?: ToolDefinition;
+	/** Audit → fix → re-audit cycles. Defaults to 2. */
+	maxAuditRounds?: number;
+	/** What a previous run already spent and raised. Resuming continues the cycle, it does not restart it. */
+	resume?: Pick<AuditProgress, "rounds" | "obligations">;
+	/**
+	 * Runs the fixes the auditor asked for, and says what the tree is afterwards.
+	 *
+	 * The audit says what must change and reads the check that stood after it;
+	 * how the work reaches the tree - a pair, a copy of the repository, a landing
+	 * - is the caller's, and stays out of here.
+	 */
+	fix: (fixes: readonly PlannedTask[]) => Promise<Fixed>;
+	/** After every round. A reporting hook: one that throws is swallowed. */
+	onRound?: (progress: AuditProgress) => void;
 };
 
-/** One audit turn, on its own throwaway subagent. */
-export async function auditOnce(options: AuditOptions): Promise<Result> {
-	const { auditor, workers, brief, tasks, verification, round, maxAuditRounds, open, verdictTool: tool, ...shared } =
-		options;
+/**
+ * Audits the work as a whole, round after round, until it holds together.
+ *
+ * Each round is one throwaway auditor reading the brief, every report and the
+ * check, then deciding - through the `verdict` tool when its definition names
+ * it, in prose otherwise. What it asks for is run through `fix`, with the check
+ * that stood when it asked attached, and the next round reads the fixes too.
+ *
+ * Two things end the cycle before the cap: a yes with nothing owed and no
+ * failing check standing; or a round that asked for nothing and closed nothing,
+ * because another identical audit would only cost tokens. A yes over a failing
+ * check keeps going while rounds are left - the check is the one voice here that
+ * cannot be talked round.
+ */
+export async function audit(options: AuditOptions): Promise<AuditResult> {
+	const { auditor, workers, brief, resume, fix, onRound, ...shared } = options;
+	const maxAuditRounds = options.maxAuditRounds ?? 2;
+	const rounds: AuditRound[] = [...(resume?.rounds ?? [])];
+	let tasks: readonly PairResult[] = options.tasks;
+	let verification = options.verification;
 
-	// A fresh auditor every round on purpose: the second audit must read the
-	// code as it is now, not remember how it was talked into approving. The
-	// ledger is what carries between rounds instead.
-	const pool = new SubagentPool({ ...shared, lifetime: "task", customTools: tool ? () => [tool] : undefined });
+	// Built once for the cycle although every round gets a fresh auditor: the
+	// record is what carries between rounds, never a context.
+	const record = reviewRecord(auditor.name, {
+		byTool: declaresVerdict(auditor.tools),
+		inProse: (review) => isApproved(review.output),
+		restored: resume?.obligations,
+	});
+	const progress = (): AuditProgress => ({ rounds, tasks, obligations: record.all, verification });
+	const report = () => {
+		try {
+			onRound?.(progress());
+		} catch {
+			// a caller's bookkeeping problem is not the workflow's problem
+		}
+	};
+
+	// `"task"` whatever the caller runs with: the second audit must read the code
+	// as it is now, not remember how it was talked into approving the first time.
+	const pool = new SubagentPool({ ...shared, lifetime: "task", customTools: record.tool ? () => [record.tool as ToolDefinition] : undefined });
 	try {
-		const prompt = auditPrompt(brief, tasks, round, maxAuditRounds, verification, workers, { open, byTool: !!tool });
-		return await pool.turn(auditor, prompt);
+		// A resumed run has already spent the rounds it recorded.
+		for (let round = rounds.length + 1; round <= maxAuditRounds; round++) {
+			if (shared.signal?.aborted) break;
+
+			const prompt = auditPrompt(brief, tasks, round, maxAuditRounds, verification, workers, { open: record.open, byTool: record.byTool });
+			const review = await pool.turn(auditor, prompt);
+			const { verdict, approved, raised } = await record.close(review, round);
+
+			// The auditor names who fixes what, in the plan convention: one parser,
+			// one vocabulary. A name it invented is dropped, like anywhere else.
+			const fixes = approved || !review.ok ? [] : fixesFrom(review, workers, raised, record.byTool);
+			// The check goes out with the fix, not only with the audit that asked
+			// for it: `withCheck` says what that is worth.
+			const fixed = fixes.length > 0 ? await fix(fixes.map((one) => ({ ...one, task: withCheck(one.task, verification) }))) : undefined;
+
+			rounds.push({ review, verdict, verification, approved, fixes, results: fixed?.results ?? [] });
+			if (fixed) {
+				tasks = [...tasks, ...fixed.results];
+				verification = fixed.verification;
+			}
+			report();
+
+			if (approved && verification?.ok !== false) return { ...progress(), approved: true };
+			if (!fixed && !(verdict?.resolved.length ?? 0)) break;
+		}
 	} finally {
 		await pool.closeAll();
 	}
+
+	return { ...progress(), approved: false };
 }
 
 /**

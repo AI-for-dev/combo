@@ -16,8 +16,30 @@ One round is one throwaway subagent: the second audit must read the code as
 it is now, not remember how it was talked into approving the first time. What
 carries between rounds is the ledger, never a context.
 
-This file holds the round and the prompt behind it. Composing the rounds into
-a delivery - plan, pairs, check, fixes - is `deliver.ts`.
+This file holds the cycle: the rounds, the record of what the auditor asked
+for, and the prompt behind each round. How a fix reaches the tree is the
+caller's - `deliver.ts` hands it a function for that.
+
+## `audit`
+
+*function*
+
+```typescript
+export async function audit(options: AuditOptions): Promise<AuditResult> { /* … */ }
+```
+
+Audits the work as a whole, round after round, until it holds together.
+
+Each round is one throwaway auditor reading the brief, every report and the
+check, then deciding - through the `verdict` tool when its definition names
+it, in prose otherwise. What it asks for is run through `fix`, with the check
+that stood when it asked attached, and the next round reads the fixes too.
+
+Two things end the cycle before the cap: a yes with nothing owed and no
+failing check standing; or a round that asked for nothing and closed nothing,
+because another identical audit would only cost tokens. A yes over a failing
+check keeps going while rounds are left - the check is the one voice here that
+cannot be talked round.
 
 ## `AUDIT_APPROVAL`
 
@@ -28,6 +50,60 @@ export const AUDIT_APPROVAL = "APPROVED";
 ```
 
 The word the auditor says when the whole thing holds together.
+
+## `AuditOptions`
+
+*type*
+
+```typescript
+export type AuditOptions = WorkflowOptions & {
+	/** Reads the whole and says what is left. A fresh one every round. */
+	auditor: Agent;
+	/** Who the auditor may hand a fix to. It has to know their names. */
+	workers: readonly Agent[];
+	/** The specification the work is audited against. */
+	brief: string;
+	/** What is audited: every subtask as it stands when the cycle opens. */
+	tasks: readonly PairResult[];
+	/** The check as it stood when the cycle opens, when one ran. */
+	verification?: Verification;
+	/** Audit → fix → re-audit cycles. Defaults to 2. */
+	maxAuditRounds?: number;
+	/** What a previous run already spent and raised. Resuming continues the cycle, it does not restart it. */
+	resume?: Pick<AuditProgress, "rounds" | "obligations">;
+	/**
+	 * Runs the fixes the auditor asked for, and says what the tree is afterwards.
+	 *
+	 * The audit says what must change and reads the check that stood after it;
+	 * how the work reaches the tree - a pair, a copy of the repository, a landing
+	 * - is the caller's, and stays out of here.
+	 */
+	fix: (fixes: readonly PlannedTask[]) => Promise<Fixed>;
+	/** After every round. A reporting hook: one that throws is swallowed. */
+	onRound?: (progress: AuditProgress) => void;
+};
+```
+
+Who audits, what, and how what it asks for gets done.
+
+## `AuditProgress`
+
+*type*
+
+```typescript
+export type AuditProgress = {
+	/** Every round so far, the ones a previous run recorded first. */
+	rounds: readonly AuditRound[];
+	/** What was audited last: the subtasks, then every fix that came back. */
+	tasks: readonly PairResult[];
+	/** What the auditor raised across the rounds, and what became of each. */
+	obligations: readonly Obligation[];
+	/** The check as it last stood, when one ran. */
+	verification?: Verification;
+};
+```
+
+The cycle as it stands: what a caller saves after every round.
 
 ## `auditPrompt`
 
@@ -62,6 +138,23 @@ export type AuditPromptOptions = {
 
 How the auditor is asked to answer, and what it still owes.
 
+## `AuditResult`
+
+*type*
+
+```typescript
+export type AuditResult = AuditProgress & {
+	/**
+	 * Whether the last round signed off with nothing owed and no failing check
+	 * standing. Reaching the cap is not approval, and neither is a yes over a
+	 * check that fails.
+	 */
+	approved: boolean;
+};
+```
+
+The cycle, ended: signed off, or not.
+
 ## `AuditRound`
 
 *type*
@@ -84,3 +177,18 @@ export type AuditRound = {
 ```
 
 One pass of the audit cycle: what was said, what it cost, what was fixed.
+
+## `Fixed`
+
+*type*
+
+```typescript
+export type Fixed = {
+	/** One per fix, as the caller ran them. */
+	results: PairResult[];
+	/** The check as it stands after them, when one ran. */
+	verification?: Verification;
+};
+```
+
+How a fix the auditor asked for reached the tree, and what the tree is now.

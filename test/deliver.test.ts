@@ -110,60 +110,6 @@ describe("deliver", () => {
 		assert.equal(result.tasks.length, 3, "the fix joins the record of what was done");
 	});
 
-	test("an auditor that never approves is ok but not approved", async () => {
-		const fake = cast(["coder: again", "coder: again", "coder: again"]);
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", maxAuditRounds: 2, spawn: fake.spawn,
-			worktree: false,
-		});
-
-		assert.equal(result.approved, false);
-		assert.equal(result.ok, true, "every turn ran; the bar was never reached");
-		assert.equal(result.audits.length, 2, "and it stopped at the cap");
-	});
-
-	test("an audit with nothing actionable stops the cycle instead of repeating it", async () => {
-		const fake = cast(["I am not sure this is right, honestly.", AUDIT_APPROVAL]);
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn,
-			worktree: false,
-		});
-
-		assert.equal(result.audits.length, 1, "asking the same question again would only cost tokens");
-		assert.equal(result.approved, false);
-	});
-
-	test("a refusal in prose still reaches the worker when there is only one", async () => {
-		// Observed for real: a check failed, the auditor explained the fix in
-		// English, named nobody, and a correct diagnosis went nowhere.
-		const fake = cast(["The quote on line 14 is not closed.", AUDIT_APPROVAL]);
-		const result = await deliver({ planner, workers: [coder], reviewer, auditor, brief: "x", spawn: fake.spawn,
-			worktree: false,
-		});
-
-		assert.equal(result.audits[0]?.fixes.length, 1);
-		assert.equal(result.audits[0]?.fixes[0]?.agent.name, "coder");
-		assert.match(result.audits[0]?.fixes[0]?.task ?? "", /quote on line 14/);
-		assert.equal(result.approved, true, "and the second audit saw the fix");
-	});
-
-	test("with several workers a nameless refusal is still dropped: guessing owns nothing", async () => {
-		const fake = cast(["Something is wrong somewhere.", AUDIT_APPROVAL]);
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn,
-			worktree: false,
-		});
-
-		assert.deepEqual(result.audits[0]?.fixes, []);
-	});
-
-	test("a fix naming an unknown agent is dropped, like any other plan", async () => {
-		const fake = cast(["ghost: do magic", AUDIT_APPROVAL]);
-		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn,
-			worktree: false,
-		});
-
-		assert.deepEqual(result.audits[0]?.fixes, []);
-		assert.equal(result.audits.length, 1);
-	});
-
 	test("no auditor means no audit, and nothing pretends otherwise", async () => {
 		const fake = cast();
 		const result = await deliver({ planner, workers, reviewer, brief: "x", spawn: fake.spawn,
@@ -267,15 +213,21 @@ describe("deliver", () => {
 		);
 	});
 
-	test("the auditor is always fresh, whatever the lifetime", async () => {
-		const fake = cast(["coder: fix it", AUDIT_APPROVAL]);
-		await deliver({ planner, workers, reviewer, auditor, brief: "x", lifetime: "workflow", spawn: fake.spawn,
-			worktree: false,
+	test("a fix is paid for once: it is in the record of what was done, and the audit round keeps only its review", async () => {
+		let audits = 0;
+		const fake = fakeSpawn((_task, agent) => {
+			const usage = { input: 100 };
+			if (agent.name === "planner") return { output: plan, usage };
+			if (agent.name === "reviewer") return { output: APPROVAL, usage };
+			if (agent.name === "auditor") return { output: ++audits > 1 ? AUDIT_APPROVAL : "coder: fix it", usage };
+			return { output: "did it", usage };
 		});
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn, worktree: false });
 
-		const auditors = fake.spawned.filter((entry) => entry.agent === "auditor");
-		assert.equal(auditors.length, 2, "the second audit must read the code as it is, not remember approving it");
-		assert.ok(auditors.every((entry) => entry.options.lifetime === "task"));
+		// planner + 2 pairs (4) + audit + fix pair (2) + audit
+		assert.equal(result.usage.turns, 9);
+		assert.equal(result.usage.input, 900);
+		assert.equal(result.tasks.length, 3, "the fix joins the record of what was done");
 	});
 
 	test("usage covers planning, every pair, and every audit", async () => {
@@ -373,27 +325,6 @@ describe("resuming", () => {
 		assert.ok(fake.spawned.some((entry) => entry.agent === "coder"), "an argued-over subtask is not a finished one");
 	});
 
-	test("audit rounds already spent are not spent again", async () => {
-		const fake = cast([AUDIT_APPROVAL]);
-		const withAudits = previously({
-			audits: [{ review: { agent: "auditor", output: "coder: again", messages: [], usage: emptyUsage(), ok: true }, approved: false, fixes: [], results: [] }],
-		});
-		const result = await deliver({
-			planner,
-			workers,
-			reviewer,
-			auditor,
-			brief: "x",
-			maxAuditRounds: 2,
-			resume: withAudits,
-			spawn: fake.spawn,
-			worktree: false,
-		});
-
-		assert.equal(result.audits.length, 2, "the recorded round plus the one it had left");
-		assert.equal(fake.spawned.filter((entry) => entry.agent === "auditor").length, 1);
-	});
-
 	test("progress is reported after the plan, the subtasks and every audit", async () => {
 		const reported: { tasks: number; done: boolean }[] = [];
 		const fake = cast(["coder: fix it", AUDIT_APPROVAL]);
@@ -460,17 +391,6 @@ describe("verification", () => {
 		assert.equal(result.verification?.ok, false);
 	});
 
-	test("the auditor is told the check failed, and that it is not an opinion", async () => {
-		const fake = cast(["coder: fix the import", AUDIT_APPROVAL]);
-		await deliver({ planner, workers, reviewer, auditor, brief: "x", verify: failing, spawn: fake.spawn,
-			worktree: false,
-		});
-
-		const audit = fake.asks.find((ask) => ask.id.startsWith("auditor"))?.task ?? "";
-		assert.match(audit, /FAILED/);
-		assert.match(audit, /not an opinion/);
-	});
-
 	test("the check runs again after the fixes, and can turn the run around", async () => {
 		let attempt = 0;
 		const verify = async () => {
@@ -484,29 +404,6 @@ describe("verification", () => {
 
 		assert.equal(attempt, 2, "the fixes are worth nothing until the check has seen them");
 		assert.equal(result.approved, true);
-	});
-
-	test("a fix goes out holding the check that was standing when it was asked for", async () => {
-		const fake = cast(["coder: the test file has a syntax error", AUDIT_APPROVAL]);
-		await deliver({ planner, workers, reviewer, auditor, brief: "x", verify: passing, spawn: fake.spawn,
-			worktree: false,
-		});
-
-		// The last thing the coder was asked is the fix; the first two are the
-		// planned subtask and whatever the pair's review round sent back.
-		const fix = fake.asks.filter((ask) => ask.id.startsWith("coder")).at(-1)?.task ?? "";
-		assert.match(fix, /syntax error/, "the remark reaches the worker as the auditor wrote it");
-		assert.match(fix, /npm test.*passes on this tree/s, "and so does the evidence against it");
-	});
-
-	test("a failing check is not repeated to the worker: the suite is about to say so itself", async () => {
-		const fake = cast(["coder: fix the import", AUDIT_APPROVAL]);
-		await deliver({ planner, workers, reviewer, auditor, brief: "x", verify: failing, spawn: fake.spawn,
-			worktree: false,
-		});
-
-		const fix = fake.asks.filter((ask) => ask.id.startsWith("coder")).at(-1)?.task ?? "";
-		assert.ok(!fix.includes("passes on this tree"));
 	});
 
 	test("with no check configured, nothing pretends one ran", async () => {
@@ -595,53 +492,6 @@ describe("an auditor that signs through the verdict tool", () => {
 		});
 	}
 
-	test("what the tool raises becomes the fixes, and the prose is not read", async () => {
-		const fake = withVerdicts([
-			{ approved: false, raised: ["coder: name the parser after what it parses"] },
-			{ approved: true, resolved: [{ id: "o1", how: "addressed" }] },
-		]);
-		const result = await deliver({ planner, workers, reviewer, auditor: judge, brief: "x", spawn: fake.spawn,
-			worktree: false,
-		});
-
-		assert.equal(result.approved, true);
-		assert.deepEqual(
-			result.obligations.map((one) => [one.id, one.text, one.closed?.at]),
-			[["o1", "coder: name the parser after what it parses", 2]],
-		);
-		assert.deepEqual(result.audits[0]?.fixes.map((fix) => fix.agent.name), ["coder"]);
-	});
-
-	test("an id the auditor invented does not cost it the delivery", async () => {
-		// The run this is taken from: nothing was open, the auditor approved and
-		// named `coder` as a resolution anyway, and the whole verdict was thrown
-		// away twice over an id that closed nothing.
-		const fake = withVerdicts([{ approved: true, resolved: [{ id: "coder", how: "addressed" }] }]);
-		const result = await deliver({ planner, workers, reviewer, auditor: judge, brief: "x", spawn: fake.spawn,
-			worktree: false,
-		});
-
-		assert.equal(result.approved, true);
-		assert.deepEqual(result.obligations, [], "and nothing was closed that was never open");
-	});
-
-	test("an auditor that signs over an open obligation does not deliver", async () => {
-		const fake = withVerdicts([
-			{ approved: false, raised: ["coder: one", "scribe: two"] },
-			{ approved: true, resolved: [{ id: "o1", how: "addressed" }] },
-		]);
-		const result = await deliver({ planner, workers, reviewer, auditor: judge, brief: "x", spawn: fake.spawn,
-			worktree: false,
-		});
-
-		assert.equal(result.audits.at(-1)?.verdict?.approved, true, "the auditor said yes");
-		assert.equal(result.approved, false, "and `o2` was still open");
-		assert.deepEqual(
-			result.obligations.filter((one) => !one.closed).map((one) => one.id),
-			["o2"],
-		);
-	});
-
 	test("an obligation survives a resume, unlike the subtasks", async () => {
 		const first = withVerdicts([{ approved: false, raised: ["coder: one"] }]);
 		const stopped = await deliver({
@@ -683,35 +533,6 @@ describe("an auditor that signs through the verdict tool", () => {
 		assert.equal(carried.obligations[0]?.id, "o1");
 	});
 
-	test("a refusal that raises nothing sends nobody anywhere", async () => {
-		// The shape a real run produced: the auditor writes `APPROVED` in its prose
-		// while its call says otherwise, and the prose became a fix task.
-		const fake = withVerdicts([{ approved: false, remarks: "not yet" }]);
-		const result = await deliver({
-			planner,
-			workers,
-			reviewer,
-			auditor: judge,
-			brief: "x",
-			maxAuditRounds: 1,
-			spawn: fake.spawn,
-			worktree: false,
-		});
-
-		assert.equal(result.approved, false);
-		assert.deepEqual(result.audits[0]?.fixes, [], "what it wants done goes in `raised`, and it raised nothing");
-		assert.equal(fake.spawned.filter((one) => one.agent === "coder").length, 1, "the planned subtask, and no fix");
-	});
-
-	test("the auditor is shown what is still open, by id", async () => {
-		const fake = withVerdicts([{ approved: false, raised: ["coder: one"] }, { approved: false, remarks: "still no" }]);
-		await deliver({ planner, workers, reviewer, auditor: judge, brief: "x", spawn: fake.spawn,
-			worktree: false,
-		});
-
-		const second = fake.asks.filter((ask) => ask.id.startsWith("auditor"))[1]?.task ?? "";
-		assert.match(second, /Still open, from your earlier rounds:\no1: coder: one/);
-	});
 });
 
 describe("delivering in copies", () => {

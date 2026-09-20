@@ -1635,6 +1635,37 @@ check it would carry already happens at the assignment. The one cast left is in
 the test that drives a registered handler with the fake, standing in for the
 members pi has and the extension never reads.
 
+### The audit cycle is the audit's
+
+`auditOnce` took ten fields and did three things: a pool, a prompt, a turn.
+Everything that made a round of audit a cycle - asking, closing the round in
+the record, deriving the fixes and attaching the standing check to each, running
+them, settling the tree, deciding whether another round was worth paying for -
+was fifty lines of `deliver.ts`, and twenty of `deliver`'s tests were about
+those lines and nothing else in a delivery. The two pure helpers the cycle used,
+`fixesFrom` and `withCheck`, were tested; the caller that had to call them in the
+right order with the right check was not, on its own.
+
+`audit(options)` in `audit.ts` is the cycle. It builds the review record with
+what a previous run raised, spawns a fresh auditor per round whatever the caller
+runs with, reads the verdict, derives and dresses the fixes, and applies the two
+rules that end a cycle early: a yes with nothing owed and no failing check
+standing, or a round that asked for nothing and closed nothing. What it does not
+know is how a fix reaches the tree. It is handed `fix(fixes)`, which runs them
+and says what the check is afterwards, and `deliver` hands it the one that runs
+a pair and settles the copies - which keeps everything about working copies in
+`deliver`, where the next decision moves it. `deliver` reads as plan, work,
+audit, settle.
+
+The move surfaced a double count. A fix's result was appended to `tasks` so the
+next auditor would read it, and the delivery's usage summed `tasks` and then
+every round's `results` again. A delivery with a fix reported the fix's tokens
+twice, and the one usage test had no fix in it. The total is planning, the tasks
+as audited last - fixes included, once - and each round's review.
+
+`auditOnce` is not exported any more: one turn without a record or a stopping
+rule is not an audit in this repository's sense, and it had one caller.
+
 ## Asking the user, and touching the world
 
 Two ports, one rule: **the agents produce text, our code performs the act.**

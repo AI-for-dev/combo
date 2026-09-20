@@ -50,7 +50,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 8 |
 | [`verdict`](verdict.md) | A verdict given as a tool call, rather than recovered from prose. | 6 |
 | [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 4 |
-| [`workflows/audit`](workflows/audit.md) | The audit: one agent reads the whole of a delivery, and says what is left. | 4 |
+| [`workflows/audit`](workflows/audit.md) | The audit: one agent reads the whole of a delivery, and says what is left. | 9 |
 | [`workflows/chain`](workflows/chain.md) | `chain`: 1 → 1 → 1. The output of step *n* is the input of step *n+1*. | 2 |
 | [`workflows/concurrent`](workflows/concurrent.md) | Running several things at once, but not all of them: a subtask is a session, and N sessions opening together is the bill nobody meant to pay. | 1 |
 | [`workflows/deliver`](workflows/deliver.md) | `deliver`: a brief in, work done and audited out. | 3 |
