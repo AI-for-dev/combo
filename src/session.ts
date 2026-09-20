@@ -112,6 +112,66 @@ export type SessionEvent =
 	| { type: "turn_end" }
 	| { type: string };
 
+/** What a streamed event means to a listener: a piece of the answer, or a tool being called. */
+export type Streamed = { type: "text"; delta: string } | { type: "tool"; name: string; args: unknown };
+
+/**
+ * Reads a streamed session event, or nothing when it is one a listener has
+ * no use for.
+ *
+ * The casts are here because they cannot be anywhere else: the union above
+ * keeps a `{ type: string }` member so that pi's own listener type satisfies
+ * the port, and that member is what stops `event.type === …` from narrowing.
+ * A call pi cannot name arrives with an **empty** name rather than none, so
+ * `??` never fires and the name would read as nothing at all - `|| "?"`.
+ */
+export function streamed(event: SessionEvent): Streamed | undefined {
+	if (event.type === "message_update") {
+		const inner = (event as { assistantMessageEvent?: { type: string; delta?: string } }).assistantMessageEvent;
+		return inner?.type === "text_delta" && inner.delta ? { type: "text", delta: inner.delta } : undefined;
+	}
+	if (event.type === "tool_execution_start") {
+		const call = event as { toolName?: string; args?: unknown };
+		return { type: "tool", name: call.toolName?.trim() || "?", args: call.args };
+	}
+	return undefined;
+}
+
+/** What the last turn of a transcript said, and how it ended. */
+export type TurnReading = {
+	/** The text parts of the last assistant message, joined and trimmed. `""` when there is none. */
+	text: string;
+	/** Set when that message ended on a failing `stopReason`: a turn can fail without throwing. */
+	error?: string;
+};
+
+/**
+ * Reads the last assistant message of a transcript: its text, and whether the
+ * turn it ended failed.
+ *
+ * pi's message shape - the role, the content parts, `stopReason`,
+ * `errorMessage` - is read here and nowhere else. Three places used to know
+ * it: two readers in `subagent.ts` and the fake session that had to reproduce
+ * what they read, which is one more than the invariant names.
+ */
+export function lastTurn(messages: readonly AgentMessage[]): TurnReading {
+	for (let i = messages.length - 1; i >= 0; i--) {
+		const message = messages[i] as { role?: string; content?: unknown; stopReason?: string; errorMessage?: string };
+		if (message?.role !== "assistant") continue;
+		const text = Array.isArray(message.content)
+			? message.content
+					.filter((part): part is { type: "text"; text: string } => (part as { type?: string })?.type === "text")
+					.map((part) => part.text)
+					.join("")
+					.trim()
+			: "";
+		if (message.stopReason === "error") return { text, error: message.errorMessage ?? "model error" };
+		if (message.stopReason === "aborted") return { text, error: "aborted" };
+		return { text };
+	}
+	return { text: "" };
+}
+
 /** Tools of an exploration agent: read, never write. This is the default. */
 export const READ_ONLY_TOOLS = ["read", "grep", "find", "ls"] as const;
 
