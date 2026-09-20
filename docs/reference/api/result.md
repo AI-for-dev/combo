@@ -10,6 +10,16 @@ A subagent returns a `Result`. A workflow returns a `Result` (or an array
 of them). Workflows compose because they all speak this language - that is
 the whole of what makes them composable.
 
+## `abortError`
+
+*function*
+
+```typescript
+export function abortError(signal: AbortSignal | undefined): string | undefined { /* … */ }
+```
+
+Turns an abort into the same failure a combinator returns for it.
+
 ## `failed`
 
 *function*

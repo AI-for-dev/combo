@@ -37,8 +37,9 @@ import { createClaims, type Claims } from "./../claims.ts";
 import { busFor } from "./../events.ts";
 import { failed, type Result } from "./../result.ts";
 import { sumUsage, type Usage } from "./../usage.ts";
-import type { Subagent } from "./../subagent.ts";
-import { mapConcurrent, SubagentPool, type WorkflowOptions } from "./common.ts";
+import { mapConcurrent } from "./concurrent.ts";
+import type { WorkflowOptions } from "./options.ts";
+import { type Held, SubagentPool } from "./pool.ts";
 
 /** How many of one agent stand on the board. A swarm of one is a run. */
 export type MemberSpec = {
@@ -122,7 +123,7 @@ export type SwarmResult = {
  * claims of whoever is gone are released before the result is built.
  */
 export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
-	const { goal, signal, timeoutMs, until } = options;
+	const { goal, signal, until } = options;
 	const rounds = options.rounds ?? 3;
 	const lifetime = options.lifetime ?? "workflow";
 	if (rounds < 1) throw new Error(`swarm: \`rounds\` must be at least 1, got ${rounds}`);
@@ -166,10 +167,10 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 		// Everyone at once, bounded: the ids have to exist before anybody can be
 		// addressed, and a member spawned in round two would arrive after the work
 		// was divided.
-		members = await mapConcurrent(roster, concurrency, async (agent, index) => {
-			const subagent = await pool.acquire(agent, `${agent.name}@${index}`);
-			return { id: subagent.id, agent, ask: subagent.ask.bind(subagent) };
-		});
+		members = await mapConcurrent(roster, concurrency, async (agent, index) => ({
+			...(await pool.hold(agent, { key: `${agent.name}@${index}` })),
+			agent,
+		}));
 
 		for (let round = 1; round <= rounds; round++) {
 			if (signal?.aborted) {
@@ -189,7 +190,7 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 			await mapConcurrent(asking, concurrency, async (member) => {
 				const reading = board.since(member.id, member.cursor);
 				member.cursor = reading.cursor;
-				member.result = await member.ask(task(goal, round, reading.posts, claims), { signal, timeoutMs });
+				member.result = await member.ask(task(goal, round, reading.posts, claims));
 				steps.push(member.result);
 			});
 
@@ -230,10 +231,8 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 }
 
 /** A member, while the swarm runs: who it is, where it has read to, what it last said. */
-type Member = {
-	id: string;
+type Member = Held & {
 	agent: Agent;
-	ask: Subagent["ask"];
 	cursor?: string;
 	result?: Result;
 };

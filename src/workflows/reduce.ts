@@ -3,8 +3,9 @@
  */
 
 import type { Agent } from "./../agent.ts";
-import { failed, type Result, type WorkflowResult } from "./../result.ts";
-import { SubagentPool, type WorkflowOptions } from "./common.ts";
+import type { Result, WorkflowResult } from "./../result.ts";
+import type { WorkflowOptions } from "./options.ts";
+import { SubagentPool } from "./pool.ts";
 
 /** The synthesiser, the branches it folds, and the instruction that frames them. */
 export type ReduceOptions = WorkflowOptions & {
@@ -43,26 +44,16 @@ export type ReduceOptions = WorkflowOptions & {
  * caller may already be threading through a larger workflow.
  */
 export async function reduce(options: ReduceOptions): Promise<WorkflowResult> {
-	const { agent, results, input, signal, timeoutMs } = options;
+	const { agent, results, input } = options;
 	if (results.length === 0) throw new Error("reduce: `results` is empty - there is nothing to synthesise");
 
 	const branches = results.slice();
 	const format = options.format ?? formatBranches;
 
-	if (signal?.aborted) {
-		const aborted = failed(agent.name, "aborted");
-		return { ...aborted, steps: [...branches, aborted] };
-	}
-
 	const pool = new SubagentPool(options);
 	let synthesis: Result;
 	try {
-		const subagent = await pool.acquire(agent, agent.name);
-		try {
-			synthesis = await subagent.ask(format(branches, input), { signal, timeoutMs });
-		} finally {
-			await pool.release(subagent);
-		}
+		synthesis = await pool.turn(agent, format(branches, input));
 	} finally {
 		await pool.closeAll();
 	}

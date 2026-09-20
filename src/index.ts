@@ -35,12 +35,14 @@ export {
 export { run, type RunOptions } from "./run.ts";
 export { spawn, type AskOptions, type CustomToolsFor, type SpawnOptions, type Subagent } from "./subagent.ts";
 export { stopSwitch, type StopSwitch, type StopSwitchOptions } from "./stop.ts";
-export { failed, type Result, type WorkflowResult } from "./result.ts";
+export { abortError, failed, type Result, type WorkflowResult } from "./result.ts";
 export { compact, deltaUsage, emptyUsage, formatUsage, snapshotUsage, sumUsage, type Usage } from "./usage.ts";
 
 // ── The combinators, and the options every one of them shares ────────────────
 
-export { mapConcurrent, SubagentPool, type SpawnFn, type WorkflowOptions } from "./workflows/common.ts";
+export { mapConcurrent } from "./workflows/concurrent.ts";
+export { type SpawnFn, type WorkflowOptions } from "./workflows/options.ts";
+export { SubagentPool, type Held, type TurnOptions } from "./workflows/pool.ts";
 export { chain, type ChainOptions } from "./workflows/chain.ts";
 export { aggregate, fanOut, type FanOutOptions, type FanOutResult } from "./workflows/fan-out.ts";
 export {

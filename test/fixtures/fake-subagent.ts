@@ -10,7 +10,7 @@ import type { Agent } from "../../src/agent.ts";
 import { emptyUsage, type Usage } from "../../src/usage.ts";
 import type { Result } from "../../src/result.ts";
 import type { ToolDefinition } from "../../src/session.ts";
-import type { SpawnFn } from "../../src/workflows/common.ts";
+import type { SpawnFn } from "../../src/workflows/options.ts";
 import type { AskOptions, SpawnOptions, Subagent } from "../../src/subagent.ts";
 
 export type FakeReply = {

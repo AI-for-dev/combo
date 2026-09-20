@@ -13,7 +13,7 @@
  */
 
 import { spawn as defaultSpawn, type Subagent } from "./subagent.ts";
-import type { SpawnFn } from "./workflows/common.ts";
+import type { SpawnFn } from "./workflows/options.ts";
 
 /** What a caller varies. Both default to the real thing. */
 export type StopSwitchOptions = {
