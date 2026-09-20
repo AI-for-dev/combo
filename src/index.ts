@@ -226,9 +226,9 @@ export {
 	type Worktree,
 } from "./worktree.ts";
 export { commandVerifier, type CommandVerifierOptions, type Verification, type Verify } from "./verify.ts";
+export { reviewRecord, type ProseApproval, type ReviewRecord, type ReviewRecordOptions, type ReviewRound } from "./review.ts";
 export {
 	declaresVerdict,
-	lastVerdict,
 	VERDICT_TOOL,
 	verdictTool,
 	type Resolution,

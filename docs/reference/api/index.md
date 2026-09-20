@@ -38,6 +38,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`reporters/tui`](reporters/tui.md) | Formatting for the pi TUI, with no pi-tui in sight. | 7 |
 | [`result`](result.md) | `Result`: the single contract shared by everything else. | 4 |
 | [`resume`](resume.md) | Saving a build so it can be picked up again. | 10 |
+| [`review`](review.md) | The review record: what one reviewer decided, and what it is still owed. | 5 |
 | [`run`](run.md) | `run()`: the disposable form. Spawn, ask, close. | 2 |
 | [`scratch`](scratch.md) | A working copy with a lifetime: made for one piece of work, and released when that work is done. | 2 |
 | [`session`](session.md) | The whole pi API lives here, and nowhere else. | 9 |
@@ -46,7 +47,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`subagent`](subagent.md) | A subagent: a live session, a memory, a state. | 5 |
 | [`text`](text.md) | Reading what a model wrote: shortening it, and finding the structure in it. | 3 |
 | [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 7 |
-| [`verdict`](verdict.md) | A verdict given as a tool call, rather than recovered from prose. | 7 |
+| [`verdict`](verdict.md) | A verdict given as a tool call, rather than recovered from prose. | 6 |
 | [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 4 |
 | [`workflows/audit`](workflows/audit.md) | The audit: one agent reads the whole of a delivery, and says what is left. | 4 |
 | [`workflows/chain`](workflows/chain.md) | `chain`: 1 → 1 → 1. The output of step *n* is the input of step *n+1*. | 2 |
@@ -99,6 +100,7 @@ reporters/tree
 reporters/tui
 result
 resume
+review
 run
 scratch
 session

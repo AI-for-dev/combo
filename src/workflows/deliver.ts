@@ -17,12 +17,13 @@
 
 import type { Agent } from "./../agent.ts";
 import { land, landable, type Landed } from "./../land.ts";
-import { createLedger, type Obligation } from "./../ledger.ts";
+import type { Obligation } from "./../ledger.ts";
 import type { Result } from "./../result.ts";
+import { reviewRecord } from "./../review.ts";
 import { truncate } from "./../text.ts";
 import { emptyUsage, sumUsage, type Usage } from "./../usage.ts";
 import type { BuildProgress } from "./../resume.ts";
-import { declaresVerdict, lastVerdict, verdictTool, type Verdict } from "./../verdict.ts";
+import { declaresVerdict } from "./../verdict.ts";
 import type { Verification, Verify } from "./../verify.ts";
 import { auditOnce, fixesFrom, isApproved, withCheck, type AuditRound } from "./audit.ts";
 import { mapConcurrent } from "./concurrent.ts";
@@ -187,21 +188,20 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 
 	// The auditor decides through a tool when its definition asks for one. Built
 	// once for the whole delivery, although `auditOnce` spawns a fresh auditor
-	// every round: the ledger outlives the agent that writes into it.
-	const auditByTool = !!auditor && declaresVerdict(auditor.tools);
-	const ledger = createLedger(resume?.obligations);
-	const verdicts = auditByTool
-		? verdictTool({
-				knows: (id) => ledger.open.some((one) => one.id === id),
-				open: () => ledger.open.map((one) => one.id),
-			})
-		: undefined;
+	// every round: the record outlives the agent that writes into it. With no
+	// auditor no round is ever closed, and the record is only read - for what a
+	// resumed run carried in.
+	const record = reviewRecord(auditor?.name ?? "", {
+		byTool: !!auditor && declaresVerdict(auditor.tools),
+		inProse: (review) => isApproved(review.output),
+		restored: resume?.obligations,
+	});
 
 	// A reporting hook is an observer: a listener that throws must not take the
 	// build down, exactly like a reporter on the event bus.
 	const report = (plan: PlannedTask[], done = false) => {
 		try {
-			onProgress?.({ plan, tasks, audits, obligations: ledger.all, verification, done });
+			onProgress?.({ plan, tasks, audits, obligations: record.all, verification, done });
 		} catch {
 			// a caller's bookkeeping problem is not the workflow's problem
 		}
@@ -221,11 +221,11 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 			audits,
 			verification,
 			landings,
-			obligations: ledger.all,
+			obligations: record.all,
 			// A failing check outranks every opinion above it, an obligation nobody
 			// closed outranks the auditor's own yes, and work that never reached
 			// the tree is not delivered whatever was said about the reports.
-			approved: signedOff && ledger.settled && verification?.ok !== false && landings.every((one) => one.ok),
+			approved: signedOff && record.open.length === 0 && verification?.ok !== false && landings.every((one) => one.ok),
 			usage: sumUsage(usages, performance.now() - startedAt),
 			ok: !error && planning.ok && !broken,
 			error: error ?? broken?.error ?? planning.error,
@@ -315,7 +315,6 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 	for (let round = audits.length + 1; round <= maxAuditRounds; round++) {
 		if (shared.signal?.aborted) break;
 
-		const open = ledger.open;
 		const review = await auditOnce({
 			...shared,
 			auditor,
@@ -325,26 +324,14 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 			verification,
 			round,
 			maxAuditRounds,
-			open,
-			verdictTool: verdicts?.tool,
+			open: record.open,
+			verdictTool: record.tool,
 		});
 
-		let verdict: Verdict | undefined;
-		let raised: string[] = [];
-		if (verdicts && review.ok) {
-			verdict = lastVerdict(verdicts.take());
-			for (const one of verdict?.resolved ?? []) {
-				ledger.close(one.id, auditor.name, { how: one.how, reason: one.reason, at: round });
-			}
-			raised = verdict?.raised ?? [];
-			for (const text of raised) ledger.raise(auditor.name, text, round);
-		}
-
-		const said = !review.ok ? false : verdicts ? (verdict?.approved ?? false) : isApproved(review.output);
-		const approved = said && ledger.settled;
+		const { verdict, approved, raised } = await record.close(review, round);
 		// The auditor names who fixes what, in the plan convention: one parser,
 		// one vocabulary. A name it invented is dropped, like anywhere else.
-		const fixes = approved || !review.ok ? [] : fixesFrom(review, workers, raised, !!verdicts);
+		const fixes = approved || !review.ok ? [] : fixesFrom(review, workers, raised, record.byTool);
 
 		// The check goes out with the fix, not only with the audit that asked for
 		// it: `withCheck` says what that is worth.

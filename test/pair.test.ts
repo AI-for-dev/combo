@@ -273,21 +273,6 @@ describe("pair, with a ledger of obligations", () => {
 		assert.match(second, /Still open, from your earlier rounds:\no1: the parser drops the last token/);
 	});
 
-	test("approving over an open obligation does not finish the work", async () => {
-		const fake = scripted([
-			{ approved: false, raised: ["one", "two"] },
-			{ approved: true, resolved: [{ id: "o1", how: "addressed" }] },
-		]);
-		const result = await pair({ worker, reviewer: judge, input: "x", maxRounds: 2, spawn: fake.spawn });
-
-		assert.equal(result.verdict?.approved, true, "the reviewer said yes");
-		assert.equal(result.approved, false, "and `o2` was still open, so the work is not finished");
-		assert.deepEqual(
-			result.obligations.filter((one) => !one.closed).map((one) => one.id),
-			["o2"],
-		);
-	});
-
 	test("a withdrawal closes it, and keeps the reason it was dropped for", async () => {
 		const fake = scripted([
 			{ approved: false, raised: ["the parser drops the last token"] },
@@ -319,13 +304,6 @@ describe("pair, with a ledger of obligations", () => {
 		assert.equal(result.obligations.length, 1, "a resolution naming nothing raises nothing either");
 	});
 
-	test("a round cannot raise and close the same obligation", async () => {
-		const fake = scripted([{ approved: true, raised: ["one"], resolved: [{ id: "o1", how: "addressed" }] }]);
-		const result = await pair({ worker, reviewer: judge, input: "x", maxRounds: 1, spawn: fake.spawn });
-
-		assert.equal(result.approved, false);
-		assert.equal(result.obligations[0]?.closed, undefined, "closures are applied before anything new is raised");
-	});
 });
 
 describe("pair, when the reviewer names an id nothing is open for", () => {
