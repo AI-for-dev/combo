@@ -18,6 +18,7 @@ import {
 	copyMainSession,
 	createHerdrReporter,
 	createRunPicture,
+	statusColour,
 	stopSwitch,
 	usageReport,
 	widgetRows,
@@ -195,12 +196,10 @@ export function paintWidget(snapshot: RunSnapshot, theme: WidgetTheme, selected?
 		const indent = "  ".repeat(row.depth);
 		if (row.kind === "detail") return `${indent}  ${theme.fg("dim", row.text)}`;
 
-		const colour =
-			row.status === "failed" ? "error" : row.status === "done" ? "success" : row.status === "blocked" ? "warning" : "accent";
 		// Marked only while it could still be stopped: a pointer left on a row
 		// that has finished offers something that is no longer there.
 		const marked = row.id === selected && row.status !== "done";
-		const dot = marked ? theme.fg("accent", "▸") : theme.fg(colour, row.icon);
+		const dot = marked ? theme.fg("accent", "▸") : theme.fg(statusColour(row.status), row.icon);
 		const id = theme.fg(marked ? "accent" : "toolTitle", row.id);
 		// The id carries the weight; the activity is deliberately quiet, and the
 		// numbers of a finished subagent are quieter still - they sit where its

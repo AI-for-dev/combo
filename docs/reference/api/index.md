@@ -36,7 +36,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`reporters/record`](reporters/record.md) | The event stream, on disk: one JSON object per line, in the order it happened. | 1 |
 | [`reporters/silent`](reporters/silent.md) | The no-op reporter. | 1 |
 | [`reporters/tree`](reporters/tree.md) | A run as a tree: a delegated subagent drawn under the one that asked for it. | 1 |
-| [`reporters/tui`](reporters/tui.md) | Formatting for the pi TUI, with no pi-tui in sight. | 7 |
+| [`reporters/tui`](reporters/tui.md) | Formatting for the pi TUI, with no pi-tui in sight. | 8 |
 | [`result`](result.md) | `Result`: the single contract shared by everything else. | 4 |
 | [`resume`](resume.md) | Saving a build so it can be picked up again. | 10 |
 | [`review`](review.md) | The review record: what one reviewer decided, and what it is still owed. | 5 |

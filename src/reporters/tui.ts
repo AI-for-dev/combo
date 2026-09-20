@@ -13,11 +13,33 @@ import { compact, formatUsage } from "../usage.ts";
 import type { RunSnapshot, SubagentSnapshot } from "./picture.ts";
 import { treeOrder } from "./tree.ts";
 
-/** `⏳` while it works, `✓` when it succeeded, `✗` when it did not. */
-export function statusIcon(snapshot: SubagentSnapshot): string {
-	if (snapshot.ok === false) return "✗";
-	if (snapshot.status === "done") return "✓";
-	return "⏳";
+/** How a subagent stands: its status, with a failure outranking whatever the status says. */
+export type Standing = SubagentStatus | "failed";
+
+/**
+ * Reads how a subagent stands off its snapshot.
+ *
+ * The one place `ok` and `status` are folded into a word, so that a widget, a
+ * card, a table and a console cannot each decide differently what a finished
+ * failure looks like - they did, and one of them drew a tick on it.
+ */
+export function standingOf(snapshot: SubagentSnapshot): Standing {
+	return snapshot.ok === false ? "failed" : snapshot.status;
+}
+
+/** `●` while it lives, `✓` once it succeeded, `✗` once it failed. */
+export function statusIcon(standing: Standing): string {
+	if (standing === "failed") return "✗";
+	if (standing === "done") return "✓";
+	return "●";
+}
+
+/** The theme colour a standing is drawn in, by the name pi's theme knows it under. */
+export function statusColour(standing: Standing): "error" | "success" | "warning" | "accent" {
+	if (standing === "failed") return "error";
+	if (standing === "done") return "success";
+	if (standing === "blocked") return "warning";
+	return "accent";
 }
 
 /**
@@ -68,16 +90,6 @@ export function formatToolCall(name: string, args: unknown): string {
 	}
 }
 
-/** One compact line per subagent: `⏳ scout#1  find auth code  → grep`. */
-export function collapsedLine(snapshot: SubagentSnapshot, width = 60): string {
-	const parts = [statusIcon(snapshot), snapshot.id];
-	if (snapshot.task) parts.push(truncate(firstLine(snapshot.task), width));
-	const last = snapshot.tools.at(-1);
-	if (last && snapshot.status !== "done") parts.push(`→ ${last.name}`);
-	if (snapshot.error) parts.push(`(${truncate(snapshot.error, 40)})`);
-	return parts.join("  ");
-}
-
 /**
  * What a subagent is doing *right now*, in a few words.
  *
@@ -111,7 +123,7 @@ export type WidgetRow =
 	| {
 			kind: "activity";
 			icon: string;
-			status: SubagentStatus | "failed";
+			status: Standing;
 			id: string;
 			activity: string;
 			/** Model, tokens and time, when they belong on this line rather than under it. */
@@ -131,13 +143,13 @@ export function widgetRows(snapshot: RunSnapshot): WidgetRow[] {
 	const rows: WidgetRow[] = [];
 
 	for (const one of treeOrder(snapshot.subagents)) {
-		const failed = one.ok === false;
-		const over = failed || one.status === "done";
+		const standing = standingOf(one);
+		const failed = standing === "failed";
+		const over = failed || standing === "done";
 		rows.push({
 			kind: "activity",
-			// A filled dot while it lives, a verdict once it is over.
-			icon: failed ? "✗" : one.status === "done" ? "✓" : "●",
-			status: failed ? "failed" : one.status,
+			icon: statusIcon(standing),
+			status: standing,
 			id: one.id,
 			// A tick already says "done"; an error says something the tick cannot.
 			activity: over && !failed ? "" : currentActivity(one),
@@ -200,7 +212,7 @@ export function progressLine(snapshot: RunSnapshot): string {
  */
 export function summaryTable(snapshot: RunSnapshot, wallMs: number): string[] {
 	const lines = treeOrder(snapshot.subagents).map(
-		(one) => `${statusIcon(one)} ${pad(`${"  ".repeat(one.depth)}${one.id}`, 16)} ${formatUsage(one.usage)}`,
+		(one) => `${statusIcon(standingOf(one))} ${pad(`${"  ".repeat(one.depth)}${one.id}`, 16)} ${formatUsage(one.usage)}`,
 	);
 	lines.push(`${pad("total", 18)} ${formatUsage({ ...snapshot.usage, wallMs })}`);
 	if (wallMs > 0 && snapshot.usage.busyMs > wallMs) {

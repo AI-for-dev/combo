@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { createRunPicture } from "../src/reporters/picture.ts";
 import {
-	collapsedLine,
 	detailLine,
 	elapsedMs,
 	formatToolCall,
 	progressLine,
+	standingOf,
+	statusColour,
 	statusIcon,
 	summaryTable,
 	widgetLines,
@@ -50,40 +51,6 @@ describe("formatToolCall", () => {
 		const line = formatToolCall("mystery", { text: "x".repeat(100) });
 		assert.ok(line.length < 60, line);
 		assert.match(line, /…/);
-	});
-});
-
-describe("collapsedLine", () => {
-	test("shows icon, id, task and the tool in flight", () => {
-		const picture = replay(spawned("scout#1"), working("scout#1", "find the auth code"), { type: "tool", id: "scout#1", name: "grep", args: {} });
-
-		const line = collapsedLine(picture.snapshot().subagents[0]!);
-		assert.match(line, /^⏳ {2}scout#1/);
-		assert.match(line, /find the auth code/);
-		assert.match(line, /→ grep/);
-	});
-
-	test("a finished subagent shows no tool in flight", () => {
-		const picture = replay(spawned("scout#1"), { type: "tool", id: "scout#1", name: "grep", args: {} }, closed("scout#1"));
-		const line = collapsedLine(picture.snapshot().subagents[0]!);
-
-		assert.match(line, /^✓/);
-		assert.ok(!line.includes("→"), line);
-	});
-
-	test("a failed subagent shows ✗ and its error", () => {
-		const picture = replay(spawned("scout#1"), closed("scout#1", false));
-		const line = collapsedLine(picture.snapshot().subagents[0]!);
-
-		assert.match(line, /^✗/);
-		assert.match(line, /it broke/);
-	});
-
-	test("a long task is truncated to the given width", () => {
-		const picture = replay(spawned("scout#1"), working("scout#1", "a ".repeat(80)));
-
-		const line = collapsedLine(picture.snapshot().subagents[0]!, 20);
-		assert.ok(line.length < 60, line);
 	});
 });
 
@@ -191,10 +158,23 @@ describe("the widget above the prompt", () => {
 	});
 });
 
-describe("statusIcon", () => {
+describe("how a subagent stands", () => {
 	test("failure wins over doneness", () => {
 		const picture = replay(spawned("scout#1"), closed("scout#1", false));
-		assert.equal(statusIcon(picture.snapshot().subagents[0]!), "✗");
+		assert.equal(standingOf(picture.snapshot().subagents[0]!), "failed");
+	});
+
+	test("one glyph and one colour per standing, decided once for every reader", () => {
+		assert.deepEqual(
+			(["working", "idle", "blocked", "done", "failed"] as const).map((standing) => [standing, statusIcon(standing), statusColour(standing)]),
+			[
+				["working", "●", "accent"],
+				["idle", "●", "accent"],
+				["blocked", "●", "warning"],
+				["done", "✓", "success"],
+				["failed", "✗", "error"],
+			],
+		);
 	});
 });
 
