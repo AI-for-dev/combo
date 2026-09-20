@@ -486,6 +486,14 @@ reach it. It carries its own finish line - with `--claim` naming what there is,
 the run stops when each thing has been reported on, which took the same job from
 3 rounds and 9 turns to 1 and 3.
 
+`--until agree` is the same finish line for a job that does not split: the goal
+gains a sentence asking for `VOTE: <answer>` on a line of its own, and the run
+stops when every member's latest vote says the same. Same numbers, one question
+instead of three files. What it exposed is worth more than the flag - three
+copies of one model agree on the first turn, having argued nothing, so a swarm
+asked to debate has to be handed its disagreement. `--claim` is the only thing
+here that hands one out, by leasing the opening positions one owner at a time.
+
 Three things are left, and the case for each is weaker than it looks:
 
 - **A released key looks free again**, so under `maxPerMember: 1` a file

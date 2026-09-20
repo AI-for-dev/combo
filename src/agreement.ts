@@ -1,0 +1,79 @@
+/**
+ * When a board has agreed: who voted for what, and whether they all say one thing.
+ *
+ * Every other stop condition here reads a `Result`. `loop` asks whether a
+ * reviewer said a word, a pipeline step asks whether the last one was ok. A
+ * swarm's cannot: its members answer separately, none of them sees another's
+ * answer, and the only place several agents can be observed agreeing is the
+ * board they agreed on.
+ *
+ * Two things are settled here rather than left to whoever writes the goal:
+ *
+ * - **A vote is a line, not a shape.** `VOTE: Rust` is what a small model
+ *   writes correctly on its first turn, where a JSON object comes back fenced,
+ *   commented on, or explained. {@link saysWord} takes the same liberties with
+ *   decoration and for the same reason: `**VOTE: Rust**` is a vote, and so is
+ *   `vote : rust.`
+ * - **The instruction and the parser live together.** A stop condition that
+ *   depends on a format nobody was told about never fires, and a format told in
+ *   one file and read in another drifts the first time either is edited.
+ */
+
+import type { Board, Post } from "./board.ts";
+
+/**
+ * What to append to a goal so the members vote in a way that can be counted.
+ *
+ * Appended rather than written into an agent definition: agreement is what one
+ * *run* is for, and a definition that asked for a vote every time would have
+ * every other run posting one nobody reads.
+ */
+export const VOTE_INSTRUCTION = [
+	"Post your answer to the board as a `result` whose first line is exactly `VOTE: <your answer>`, with nothing else on that line.",
+	"You may vote differently from one turn to the next, and it is your last vote that counts.",
+	"This ends when every one of you has voted for the same thing.",
+].join(" ");
+
+/** The vote line, wherever the decoration a model adds has put it. */
+const VOTE_LINE = /^[\s*_#>]*vote\s*:\s*(.+)$/im;
+
+/**
+ * What each member voted for last, by the id the board stamped on its posts.
+ *
+ * The latest post wins, because changing your mind is the thing being watched
+ * for and a run scored on opening positions cannot see it happen. Within one
+ * post it is the first vote line that counts, which is where the member was
+ * told to put it: a member quoting somebody else's vote underneath its own has
+ * quoted, not voted.
+ */
+export function latestVotes(posts: readonly Post[]): Map<string, string> {
+	const latest = new Map<string, string>();
+	for (const post of posts) {
+		const said = VOTE_LINE.exec(post.text)?.[1];
+		if (said) latest.set(post.from, normalise(said));
+	}
+	return latest;
+}
+
+/**
+ * Everybody has voted, and every vote is the same one.
+ *
+ * It takes the roster size rather than counting whoever spoke: three members of
+ * which two agree have not agreed, and a test that read only the votes cast
+ * would stop the moment the first two matched.
+ *
+ * A member that dropped out therefore never lets this fire, and the run spends
+ * its rounds and reports `converged: false`. That is the honest end of it -
+ * agents that stopped talking have agreed on nothing.
+ */
+export function agreed(members: number): (board: Board) => boolean {
+	return (board) => {
+		const cast = latestVotes(board.all());
+		return cast.size === members && new Set(cast.values()).size === 1;
+	};
+}
+
+/** One vote, past the emphasis and punctuation a model writes around it anyway. */
+function normalise(vote: string): string {
+	return vote.replace(/^[*_`"'\s]+/, "").replace(/[*_`"'.!\s]+$/, "").toLowerCase();
+}
