@@ -256,6 +256,46 @@ in task order and `steps` is what the contract calls them. `InterviewResult.brie
 survives beside `output` for the same reason. Two aliases were judged cheaper
 than a rename through every caller and every page.
 
+### One shape for where a build stands
+
+"What a delivery has done so far" was spelled four ways: `AuditProgress` from
+the audit cycle, `BuildProgress` for the hook and the resume, `BuildState` on
+disk, and `DeliverResult` at the end. `deliver` held a fifth in four `let`s,
+filled by a `take()` that copied the audit's progress field by field so that
+`report()` could rebuild a `BuildProgress` and `outcome()` a `DeliverResult`.
+The disk had drifted from the rest: a saved audit kept the review's text, its
+`ok`, `approved` and the fixes, and dropped the verdict, the check as it stood
+and what the fixes produced, so a resumed cycle read a thinner history than the
+one it had lived; and the review came back as a `Result` with `agent:
+"auditor"` written in, whatever the auditor was called.
+
+`BuildProgress` is now `AuditProgress & { plan }`, defined by `deliver`, which
+is the workflow that reports it - `resume.ts` imports it rather than the other
+way round. `DeliverResult` is that progress as it ended, plus what only the end
+can say: the brief, the planning turn, the landings, `approved`, and the
+`Result` reading. `deliver` keeps one `progress` and moves it forward by spread:
+the plan once made, the tasks and the check once settled, and after every
+audit round whatever the cycle reports - which is why `AuditResult` now carries
+its cycle under `progress`, the same shape every round reported, so a caller
+absorbs the end of the cycle in the same spread as its rounds. `take()` and the
+four variables are gone.
+
+`done` left the progress. A build's progress does not know whether the build is
+over; the moment it is reported does. So `onProgress(progress, done)` says both,
+`toBuildState` takes `done` with the rest of what the state says about the
+build, and a `resume` no longer carries a `done` nobody read. `notify` grew
+variadic for it, which costs the bus nothing.
+
+The saved round keeps what the live round has: the auditor's name, the review's
+usage and error, its verdict, the check that stood, and the fixes' results as
+saved tasks. `BUILD_STATE_VERSION` is 2, because that is what the version is
+for: an older file is refused whole rather than read into a shape it does not
+fill. The two conversions are written once each, `saveTask` and `loadTask`,
+shared by the subtasks and the fixes. What a state still drops is the trail -
+messages, turns, the review a pair kept, the working copy - and the test that
+proves it is now an identity: a full progress through `toBuildState` and back
+is itself, less that trail.
+
 ## Workflows to cover
 
 | Workflow | Shape | Semantics | Status |

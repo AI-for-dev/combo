@@ -87,7 +87,7 @@ export {
 	type InterviewOptions,
 	type InterviewResult,
 } from "./workflows/interview.ts";
-export { deliver, type DeliverOptions, type DeliverResult } from "./workflows/deliver.ts";
+export { deliver, type BuildProgress, type DeliverOptions, type DeliverResult } from "./workflows/deliver.ts";
 export {
 	audit,
 	auditPrompt,
@@ -290,7 +290,6 @@ export {
 	missingAgents,
 	saveBuildState,
 	toBuildState,
-	type BuildProgress,
 	type BuildState,
 } from "./resume.ts";
 

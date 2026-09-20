@@ -16,20 +16,27 @@ import path from "node:path";
 import type { Agent } from "./agent.ts";
 import type { Obligation } from "./ledger.ts";
 import type { Result } from "./result.ts";
-import { emptyUsage, type Usage } from "./usage.ts";
+import type { Usage } from "./usage.ts";
+import type { Verdict } from "./verdict.ts";
+import type { Verification } from "./verify.ts";
 import type { AuditRound } from "./workflows/audit.ts";
+import type { BuildProgress } from "./workflows/deliver.ts";
 import type { PairResult } from "./workflows/pair.ts";
 import type { PlannedTask } from "./workflows/plan.ts";
-import type { Verification } from "./verify.ts";
 
 /** The file a build writes into its run directory. */
 export const BUILD_STATE_FILE = "build.json";
 
 /** Bumped when the shape changes; an older file is ignored rather than guessed at. */
-export const BUILD_STATE_VERSION = 1;
+export const BUILD_STATE_VERSION = 2;
 
 type SavedStep = { agent: string; task: string };
 
+/**
+ * A pair's result, by name and text. What it drops is the trail: the messages,
+ * the turns, the review, the working copy. What it keeps is what a resumed
+ * build reads - and only an approved task is read, which had nothing open.
+ */
 type SavedTask = SavedStep & {
 	output: string;
 	ok: boolean;
@@ -37,13 +44,21 @@ type SavedTask = SavedStep & {
 	approved: boolean;
 	rounds: number;
 	usage: Usage;
+	verdict?: Verdict;
 };
 
+/** An audit round as it was: the review by text, what it decided, what it caused. */
 type SavedAudit = {
+	agent: string;
 	output: string;
 	ok: boolean;
+	error?: string;
+	usage: Usage;
 	approved: boolean;
+	verdict?: Verdict;
+	verification?: Verification;
 	fixes: SavedStep[];
+	results: SavedTask[];
 };
 
 /** The build as it is written to `build.json`, and read back by `/build resume`. */
@@ -75,47 +90,27 @@ export type BuildState = {
 	tasks: SavedTask[];
 	/** The audit rounds already spent. Resuming continues the cycle, it does not restart it. */
 	audits: SavedAudit[];
-	/**
-	 * The obligations the auditor raised, open and closed, with their ids.
-	 *
-	 * Optional: a state written before the ledger existed has none, and an empty
-	 * ledger is the honest reading of that.
-	 */
-	obligations?: Obligation[];
+	/** The obligations the auditor raised, open and closed, with their ids. */
+	obligations: Obligation[];
 	/** The last verdict of the project's own check, when one was run. */
 	verification?: Verification;
 	/** True once the build reached its own end - approved or not. */
 	done: boolean;
 };
 
-/** What `deliver` reports as it goes, and what it accepts to start again from. */
-/** The same picture in memory: live results rather than names and text. */
-export type BuildProgress = {
-	/** The subtasks, with their agents resolved. */
-	plan: PlannedTask[];
-	/** Finished subtasks, in plan order. Only the approved ones survive a resume. */
-	tasks: PairResult[];
-	/** One entry per audit round, in order. */
-	audits: AuditRound[];
-	/**
-	 * What the auditor has raised so far, open and closed.
-	 *
-	 * Carried across a resume, unlike the subtasks: an obligation that was open
-	 * when the run stopped is still open, and a build that forgot it would sign
-	 * off on work nobody finished.
-	 */
-	obligations: readonly Obligation[];
-	/** The check's verdict, when a `verify` port was given. It is final. */
-	verification?: Verification;
-	/** True once the build reached its own end - approved or not. */
+/** What a state says about the build besides its progress. */
+export type BuildAbout = {
+	request: string;
+	brief: string;
+	cwd: string;
+	startedAt?: string;
+	step?: string;
+	/** Whether the build reached its own end. A finished build is not offered for resuming. */
 	done: boolean;
 };
 
 /** Turns live results into something that survives the process. */
-export function toBuildState(
-	progress: BuildProgress,
-	about: { request: string; brief: string; cwd: string; startedAt?: string; step?: string },
-): BuildState {
+export function toBuildState(progress: BuildProgress, about: BuildAbout): BuildState {
 	const now = new Date().toISOString();
 	return {
 		version: BUILD_STATE_VERSION,
@@ -125,26 +120,23 @@ export function toBuildState(
 		cwd: about.cwd,
 		startedAt: about.startedAt ?? now,
 		updatedAt: now,
-		plan: progress.plan.map((step) => ({ agent: step.agent.name, task: step.task })),
-		tasks: progress.tasks.map((task) => ({
-			agent: task.agent,
-			task: task.input,
-			output: task.output,
-			ok: task.ok,
-			error: task.error,
-			approved: task.approved,
-			rounds: task.rounds,
-			usage: task.usage,
-		})),
+		plan: progress.plan.map(saveStep),
+		tasks: progress.tasks.map(saveTask),
 		audits: progress.audits.map((round) => ({
+			agent: round.review.agent,
 			output: round.review.output,
 			ok: round.review.ok,
+			...(round.review.error === undefined ? {} : { error: round.review.error }),
+			usage: round.review.usage,
 			approved: round.approved,
-			fixes: round.fixes.map((fix) => ({ agent: fix.agent.name, task: fix.task })),
+			...(round.verdict === undefined ? {} : { verdict: round.verdict }),
+			...(round.verification === undefined ? {} : { verification: round.verification }),
+			fixes: round.fixes.map(saveStep),
+			results: round.results.map(saveTask),
 		})),
 		obligations: [...progress.obligations],
-		verification: progress.verification,
-		done: progress.done,
+		...(progress.verification === undefined ? {} : { verification: progress.verification }),
+		done: about.done,
 	};
 }
 
@@ -167,39 +159,68 @@ export function fromBuildState(state: BuildState, agents: readonly Agent[]): Bui
 		plan.push({ agent, task: step.task });
 	}
 
-	const tasks: PairResult[] = state.tasks.map((task) => ({
-		agent: task.agent,
-		input: task.task,
-		output: task.output,
-		messages: [],
-		usage: task.usage ?? emptyUsage(),
-		ok: task.ok,
-		error: task.error,
-		steps: [],
-		rounds: task.rounds,
-		approved: task.approved,
-		// Not persisted: only **approved** subtasks survive a resume, and an
-		// approved one had nothing open. What is lost is the trail, not the state.
-		obligations: [],
-	}));
-
-	const audits: AuditRound[] = state.audits.map((round) => ({
-		review: { agent: "auditor", output: round.output, messages: [], usage: emptyUsage(), ok: round.ok } as Result,
-		approved: round.approved,
-		fixes: round.fixes.flatMap((fix) => {
-			const agent = byName.get(fix.agent);
-			return agent ? [{ agent, task: fix.task }] : [];
-		}),
-		results: [],
-	}));
+	const audits: AuditRound[] = state.audits.map((round) => {
+		const review: Result = { agent: round.agent, output: round.output, messages: [], usage: round.usage, ok: round.ok };
+		if (round.error !== undefined) review.error = round.error;
+		return {
+			review,
+			...(round.verdict === undefined ? {} : { verdict: round.verdict }),
+			...(round.verification === undefined ? {} : { verification: round.verification }),
+			approved: round.approved,
+			// A fix naming an agent the roster no longer has is dropped like any
+			// other plan step nobody can run; the round itself stays spent.
+			fixes: round.fixes.flatMap((fix) => {
+				const agent = byName.get(fix.agent);
+				return agent ? [{ agent, task: fix.task }] : [];
+			}),
+			results: round.results.map(loadTask),
+		};
+	});
 
 	return {
 		plan,
-		tasks,
+		tasks: state.tasks.map(loadTask),
 		audits,
-		obligations: state.obligations ?? [],
-		verification: state.verification,
-		done: state.done,
+		obligations: state.obligations,
+		...(state.verification === undefined ? {} : { verification: state.verification }),
+	};
+}
+
+function saveStep(step: PlannedTask): SavedStep {
+	return { agent: step.agent.name, task: step.task };
+}
+
+function saveTask(task: PairResult): SavedTask {
+	return {
+		agent: task.agent,
+		task: task.input,
+		output: task.output,
+		ok: task.ok,
+		...(task.error === undefined ? {} : { error: task.error }),
+		approved: task.approved,
+		rounds: task.rounds,
+		usage: task.usage,
+		...(task.verdict === undefined ? {} : { verdict: task.verdict }),
+	};
+}
+
+/** A saved task as a pair's result, with the trail it never carried empty. */
+function loadTask(saved: SavedTask): PairResult {
+	return {
+		agent: saved.agent,
+		input: saved.task,
+		output: saved.output,
+		messages: [],
+		usage: saved.usage,
+		ok: saved.ok,
+		...(saved.error === undefined ? {} : { error: saved.error }),
+		steps: [],
+		rounds: saved.rounds,
+		approved: saved.approved,
+		...(saved.verdict === undefined ? {} : { verdict: saved.verdict }),
+		// Only **approved** subtasks survive a resume, and an approved one had
+		// nothing open. What is lost is the trail, not the state.
+		obligations: [],
 	};
 }
 
