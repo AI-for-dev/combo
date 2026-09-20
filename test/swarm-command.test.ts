@@ -136,6 +136,49 @@ describe("/swarm", () => {
 		assert.equal(until(board), true);
 	});
 
+	test("--until agree stops on the members saying one thing, and tells them how to say it", async () => {
+		const { ctx } = fakeCtx();
+		const { deps: injected, asked } = deps();
+
+		await runSwarm("--members 3 --until agree which language for the backend", ctx, injected);
+
+		assert.match(asked[0]?.goal ?? "", /VOTE: <your answer>/, "a stop condition nobody was told about never fires");
+		const until = asked[0]?.until;
+		assert.ok(until);
+		const board = createBoard();
+		board.post("member#1", { kind: "result", text: "VOTE: Rust" });
+		board.post("member#2", { kind: "result", text: "VOTE: Go" });
+		assert.equal(until(board), false, "two votes of three, and not the same one");
+		board.post("member#2", { kind: "result", text: "VOTE: Rust" });
+		assert.equal(until(board), false, "member#3 has not said anything yet");
+		board.post("member#3", { kind: "result", text: "VOTE: Rust" });
+		assert.equal(until(board), true);
+	});
+
+	test("claims hand out the sides and agreement ends it, which is one debate", async () => {
+		const { ctx } = fakeCtx();
+		const { deps: injected, asked } = deps();
+
+		await runSwarm("--members 3 --claim Python,Rust,Go --hold 1 --until agree which one", ctx, injected);
+
+		assert.ok(asked[0]?.claims, "the camps are still leased one owner at a time");
+		const until = asked[0]?.until;
+		assert.ok(until);
+		const board = createBoard();
+		for (const id of ["member#1", "member#2", "member#3"]) board.post(id, { kind: "result", text: "VOTE: Rust" });
+		assert.equal(until(board), true, "reporting on a camp is not the others coming round to it");
+	});
+
+	test("a --until nobody recognises is refused rather than run on the round cap", async () => {
+		const { ctx, said } = fakeCtx();
+		const { deps: injected, asked } = deps();
+
+		await runSwarm("--until consensus which language", ctx, injected);
+
+		assert.equal(asked.length, 0);
+		assert.match(said(), /--until takes "agree"/);
+	});
+
 	test("with nothing to claim the members are on their honour, as the library has it", async () => {
 		const { ctx } = fakeCtx();
 		const { deps: injected, asked } = deps();

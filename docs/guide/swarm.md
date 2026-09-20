@@ -153,6 +153,46 @@ files:
 A round cap bounds the worst case; it is not a plan. Without `--claim` there is
 nothing to be done with, so the members run their rounds and stop.
 
+### Stopping on agreement
+
+`--claim` finishes a run by coverage, which is what a job that splits has to
+reach. A job that does not split has no coverage: put three members on one
+question and what ends it is the three of them saying the same thing.
+
+```
+/swarm --members 3 --until agree which programming language should a new backend service be written in
+```
+
+`--until agree` appends one sentence to the goal, asking each member to post its
+answer as `VOTE: <answer>` on a line of its own, and stops the run when every
+member's latest vote says the same. The instruction is written where the votes
+are counted, because a stop condition that depends on a format nobody was told
+about never fires, and one told in one place and read in another drifts.
+
+It reads the roster rather than whoever spoke: two members of three that agree
+have not agreed, and a member that dropped out never lets it fire, so the run
+spends its rounds and comes back `stopped by rounds`. Reaching a cap is not
+success here either.
+
+The two compose, and a debate wants both: `--claim Python,Rust,Go --hold 1`
+hands out the opening positions one owner at a time, `--until agree` ends it.
+A camp is an opening rather than a verdict, and the vote is free every round.
+
+Measured in a real pi on the line above, three members and one question:
+
+| | rounds | turns | how it ended |
+| --- | --- | --- | --- |
+| round cap alone | 3 | 9 | stopped by rounds, on three prose answers nobody counted |
+| `--until agree` | 1 | 3 | converged, on the first vote each of them cast |
+
+What the same three members converged *on* is the thing to read before
+believing a debate happened. Given the run above, all three read the repository
+they were standing in and voted TypeScript, which is agreement about a fact
+rather than an argument anybody won. Copies of one model share its opinion, so
+a swarm asked for a debate has to be given its disagreement: that is what the
+claims are for, and a run where nobody ever changed a vote is the control arm
+saying nothing was at stake.
+
 `/herdr on` before it gives every member its own split and the board a pane of
 its own, which is the only view where the exchange reads as an exchange. See
 [Display](display.md).
@@ -184,8 +224,7 @@ avoiding.
 No signing, because identity is stamped rather than claimed and there is nothing
 to forge. No file transfer over the board: a post carries text, files move
 through the filesystem where the worktree governs them. No coded roles, lanes or
-leader election, because whether those emerge is the question. No `/swarm`
-command, until a run from code has asked for one.
+leader election, because whether those emerge is the question.
 
 ## See also
 

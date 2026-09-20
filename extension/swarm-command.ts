@@ -22,6 +22,7 @@
 import * as path from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import {
+	agreed,
 	boardLines,
 	checkModel,
 	createClaims,
@@ -35,6 +36,7 @@ import {
 	type Board,
 	type Claims,
 	type SwarmResult,
+	VOTE_INSTRUCTION,
 } from "../src/index.ts";
 import { loadRoster, parseLeadingFlags, refuse, type CommandCtx } from "./command.ts";
 import { currentChain, recordStep, startChain, type RelayStep } from "./relay.ts";
@@ -56,7 +58,7 @@ export default function registerSwarmCommand(pi: ExtensionAPI) {
 
 	pi.registerCommand("swarm", {
 		description:
-			"Put several copies of one agent on one job, with a board between them (`--members <n>`, `--claim a,b`, `--hold <n>`, `--rounds <n>`, `--agent <name>`, `--model <pattern>`)",
+			"Put several copies of one agent on one job, with a board between them (`--members <n>`, `--claim a,b`, `--hold <n>`, `--until agree`, `--rounds <n>`, `--agent <name>`, `--model <pattern>`)",
 		handler: async (args: string, ctx: ExtensionCommandContext) => {
 			await runSwarm(args, ctx as unknown as CommandCtx, deps);
 		},
@@ -64,15 +66,22 @@ export default function registerSwarmCommand(pi: ExtensionAPI) {
 }
 
 /**
- * `/swarm [--members <n>] [--claim a,b,c] [--hold <n>] [--rounds <n>] [--agent <name>] [--model <pattern>] <goal>`.
+ * `/swarm [--members <n>] [--claim a,b,c] [--hold <n>] [--until agree] [--rounds <n>] [--agent <name>] [--model <pattern>] <goal>`.
  *
  * `--claim` is what turns announcing into holding: named, the things are leased
  * one owner at a time and a second member is refused and told who has it.
  * Without it the members are on their honour, which a run showed is a race
  * whatever the prompt says.
+ *
+ * `--until agree` is the other thing a swarm can be finished by. Default, a run
+ * is done when every named thing has been reported on, which is coverage and
+ * suits a job that splits. A job that does not split has no coverage to reach:
+ * put three members on one question and what ends it is the three of them
+ * saying the same thing. The two compose, and a debate wants both - the claims
+ * hand out the opening positions, agreement stops it.
  */
 export async function runSwarm(args: string, ctx: CommandCtx, deps: StepDeps = {}): Promise<RelayStep | undefined> {
-	const { flags, rest: goal } = parseLeadingFlags(args, ["members", "rounds", "hold", "claim", "agent", "model"]);
+	const { flags, rest: goal } = parseLeadingFlags(args, ["members", "rounds", "hold", "claim", "agent", "model", "until"]);
 	if (!goal.trim()) {
 		return refuse(ctx, "swarm: say what they are all on, for example /swarm describe every file under src/reporters/", "warning");
 	}
@@ -103,6 +112,13 @@ export async function runSwarm(args: string, ctx: CommandCtx, deps: StepDeps = {
 		return refuse(ctx, "swarm: --claim takes one comma-separated list with no spaces, for example --claim a.ts,b.ts", "warning");
 	}
 
+	// The only value there is, named in the refusal: a `--until` nobody
+	// recognises would otherwise run on the round cap and look like it worked.
+	if (flags.until !== undefined && flags.until.trim().toLowerCase() !== "agree") {
+		return refuse(ctx, `swarm: --until takes "agree", not "${flags.until}"`, "warning");
+	}
+	const toAgree = flags.until !== undefined;
+
 	const keys = keysFrom(flags.claim);
 	const claims = claimsFrom(keys, whole(flags.hold, "hold"));
 	const relay = currentChain() ?? startChain((deps.runDir ?? createRunDir)());
@@ -114,10 +130,16 @@ export async function runSwarm(args: string, ctx: CommandCtx, deps: StepDeps = {
 	try {
 		done = await (deps.swarm ?? swarm)({
 			members: [{ agent: member, count }],
-			goal,
+			// The vote is asked for here rather than in a definition: it is what
+			// this run is finished by, and an agent that asked for one every time
+			// would have every other run posting a vote nobody counts.
+			goal: toAgree ? `${goal}\n\n${VOTE_INSTRUCTION}` : goal,
 			...(rounds === undefined ? {} : { rounds }),
 			...(claims ? { claims } : {}),
-			...(keys.length ? { until: everythingDescribed(keys) } : {}),
+			// Agreement wins over coverage when both are asked for: the claims of a
+			// debate hand out the opening positions, and reporting on one is not
+			// the same as the others coming round to it.
+			...(toAgree ? { until: agreed(count) } : keys.length ? { until: everythingDescribed(keys) } : {}),
 			cwd: ctx.cwd,
 			exportDir: dir,
 			model: flags.model,

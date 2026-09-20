@@ -1960,6 +1960,30 @@ member had already described. A round cap bounds the worst case; it is not a
 plan. With nothing named there is nothing to be done with, and the rounds are
 all there is.
 
+**`--until agree` is the other way to be finished, for the jobs that do not
+split.** Coverage is a test on work: every named thing reported on. A question
+put to three members has no named things, so the only end it has is the three of
+them saying one thing. The condition reads the roster rather than whoever spoke,
+because two of three agreeing is not agreement, and a member that dropped out
+therefore never lets it fire - the run spends its rounds and says so.
+
+The vote is a line, `VOTE: <answer>`, and the sentence asking for it is appended
+to the goal by the command. Two alternatives were weighed. A JSON shape would be
+parsed more exactly and comes back fenced or explained from a small model, where
+a line is what one writes correctly on its first turn. Putting the request in an
+agent definition instead would have every other run of that agent posting a vote
+nobody counts, and would miss any agent a user writes. So the instruction lives
+beside the parser that reads it, in `src/agreement.ts`: told in one file and
+read in another, the two drift the first time either is edited.
+
+Measured in a real pi, three members on one question: 3 rounds and 9 turns with
+the cap alone, 1 round and 3 turns with the condition. What they agreed on is
+the part worth reading - all three read the repository they stood in and voted
+for its language, which is agreement about a fact rather than an argument
+anybody won. Copies of one model share its opinion, so a swarm asked to debate
+has to be handed its disagreement, and `--claim` is what hands it out: the camps
+are leased one owner at a time, and the vote stays free every round.
+
 **An agent that does not name `board` is run anyway**, with a word saying its
 copies cannot reach each other. That is a fan-out, which is precisely the arm a
 swarm has to be compared against, and refusing it would remove the control from
