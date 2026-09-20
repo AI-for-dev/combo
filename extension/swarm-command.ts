@@ -24,23 +24,20 @@ import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-c
 import {
 	agreed,
 	boardLines,
-	checkModel,
 	createClaims,
-	createRunDir,
 	declaresBoard,
 	exportBaseName,
 	findAgent,
 	plural,
-	swarm,
-	type Agent,
 	type Board,
 	type Claims,
 	type SwarmResult,
 	VOTE_INSTRUCTION,
 } from "../src/index.ts";
-import { loadRoster, parseLeadingFlags, refuse, type CommandCtx } from "./command.ts";
+import { checked, loadRoster, refuse, watched, type CommandCtx } from "./command.ts";
+import { resolved } from "./deps.ts";
+import { parseLeadingFlags } from "./flags.ts";
 import { currentChain, recordStep, startChain, type RelayStep } from "./relay.ts";
-import { liveRun, STATUS } from "./run-ui.ts";
 import { STEP_ENTRY, type StepDeps } from "./step-commands.ts";
 
 /** The agent a swarm is made of when the command is not told otherwise. */
@@ -80,24 +77,22 @@ export default function registerSwarmCommand(pi: ExtensionAPI) {
  * saying the same thing. The two compose, and a debate wants both - the claims
  * hand out the opening positions, agreement stops it.
  */
-export async function runSwarm(args: string, ctx: CommandCtx, deps: StepDeps = {}): Promise<RelayStep | undefined> {
+export async function runSwarm(args: string, ctx: CommandCtx, injected: StepDeps = {}): Promise<RelayStep | undefined> {
+	const deps = resolved(injected);
 	const { flags, rest: goal } = parseLeadingFlags(args, ["members", "rounds", "hold", "claim", "agent", "model", "until"]);
 	if (!goal.trim()) {
 		return refuse(ctx, "swarm: say what they are all on, for example /swarm describe every file under src/reporters/", "warning");
 	}
 
-	const agents = loadRoster(ctx, deps);
-	let member: Agent;
-	let count: number;
-	let rounds: number | undefined;
-	try {
-		member = findAgent(agents, flags.agent ?? DEFAULT_MEMBER);
-		count = whole(flags.members, "members") ?? DEFAULT_MEMBERS;
-		rounds = whole(flags.rounds, "rounds");
-		if (flags.model) await (deps.checkModel ?? checkModel)(flags.model);
-	} catch (cause) {
-		return refuse(ctx, cause instanceof Error ? cause.message : String(cause), "error");
-	}
+	const cast = await checked(ctx, async () => {
+		const member = findAgent(loadRoster(ctx, deps), flags.agent ?? DEFAULT_MEMBER);
+		const count = whole(flags.members, "members") ?? DEFAULT_MEMBERS;
+		const rounds = whole(flags.rounds, "rounds");
+		if (flags.model) await deps.checkModel(flags.model);
+		return { member, count, rounds };
+	});
+	if (!cast) return undefined;
+	const { member, count, rounds } = cast;
 
 	// Warned rather than refused: a swarm whose members cannot talk is a fan-out,
 	// which is the control arm every run of this wants to be compared against.
@@ -121,36 +116,39 @@ export async function runSwarm(args: string, ctx: CommandCtx, deps: StepDeps = {
 
 	const keys = keysFrom(flags.claim);
 	const claims = claimsFrom(keys, whole(flags.hold, "hold"));
-	const relay = currentChain() ?? startChain((deps.runDir ?? createRunDir)());
+	const relay = currentChain() ?? startChain(deps.runDir());
 	const dir = path.join(relay.dir, `${relay.steps.length + 1}-${exportBaseName(member.name)}`);
-	const live = liveRun(ctx.ui, { tickMs: deps.tickMs, signal: ctx.signal });
-	ctx.ui.setStatus(STATUS, `${count} × ${member.name}…`);
 
-	let done: SwarmResult | undefined;
+	let done: SwarmResult;
 	try {
-		done = await (deps.swarm ?? swarm)({
-			members: [{ agent: member, count }],
-			// The vote is asked for here rather than in a definition: it is what
-			// this run is finished by, and an agent that asked for one every time
-			// would have every other run posting a vote nobody counts.
-			goal: toAgree ? `${goal}\n\n${VOTE_INSTRUCTION}` : goal,
-			...(rounds === undefined ? {} : { rounds }),
-			...(claims ? { claims } : {}),
-			// Agreement wins over coverage when both are asked for: the claims of a
-			// debate hand out the opening positions, and reporting on one is not
-			// the same as the others coming round to it.
-			...(toAgree ? { until: agreed(count) } : keys.length ? { until: everythingDescribed(keys) } : {}),
-			cwd: ctx.cwd,
-			exportDir: dir,
-			model: flags.model,
-			signal: live.signal,
-			spawn: live.spawn,
-			onEvent: live.onEvent,
+		done = await watched(ctx, deps, {
+			status: `${count} × ${member.name}…`,
+			dir,
+			work: (live) =>
+				deps.swarm({
+					members: [{ agent: member, count }],
+					// The vote is asked for here rather than in a definition: it is what
+					// this run is finished by, and an agent that asked for one every time
+					// would have every other run posting a vote nobody counts.
+					goal: toAgree ? `${goal}\n\n${VOTE_INSTRUCTION}` : goal,
+					...(rounds === undefined ? {} : { rounds }),
+					...(claims ? { claims } : {}),
+					// Agreement wins over coverage when both are asked for: the claims of a
+					// debate hand out the opening positions, and reporting on one is not
+					// the same as the others coming round to it.
+					...(toAgree ? { until: agreed(count) } : keys.length ? { until: everythingDescribed(keys) } : {}),
+					cwd: ctx.cwd,
+					exportDir: dir,
+					model: flags.model,
+					signal: live.signal,
+					spawn: live.spawn,
+					onEvent: live.onEvent,
+				}),
 		});
 	} catch (cause) {
+		// A swarm refuses a configuration that cannot work - one round with
+		// members that forget - and that refusal is the user's to read.
 		return refuse(ctx, `swarm: ${cause instanceof Error ? cause.message : String(cause)}`, "error");
-	} finally {
-		live.stop(dir, done?.usage.wallMs ?? 0);
 	}
 
 	// A member that failed still said something, and the ones beside it did the
@@ -168,7 +166,7 @@ export async function runSwarm(args: string, ctx: CommandCtx, deps: StepDeps = {
 		usage: done.usage,
 		dir,
 	});
-	deps.appendEntry?.(STEP_ENTRY, { id: step.id, kind: step.kind, output: step.output, turns: done.usage.turns, dir });
+	injected.appendEntry?.(STEP_ENTRY, { id: step.id, kind: step.kind, output: step.output, turns: done.usage.turns, dir });
 	ctx.ui.notify(swarmLine(step.id, done), done.ok ? "info" : "warning");
 	return step;
 }

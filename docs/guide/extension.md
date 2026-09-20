@@ -165,11 +165,20 @@ pi.
 `extension/index.ts` keeps only what genuinely needs a terminal - the renderers -
 and registers every command. The tool body lives in `extension/execute.ts`, and
 everything it touches is injectable: agent loading, `spawn`, the second
-reporter, the UI, the repaint timer. The commands have the same seam, and it is
-declared once in `extension/command.ts`: `CommandCtx` is the slice of pi they
-are handed, `BuildDeps` the doubles a test puts in its place, and `loadRoster`,
-`choosePipeline`, the flag parser and `refuse` are the things all of them do the
-same way.
+reporter, the UI, the repaint timer.
+
+The commands stand on one floor, in three files. `extension/deps.ts` is what a
+command reaches for: `CommandDeps` are the doubles a test puts in place, and
+`resolved()` fills what was left unsaid with the real thing, once, so a command
+reads `deps.runPipeline` and never asks which it is. `extension/flags.ts` reads
+what was typed. `extension/command.ts` is the shape every command that launches
+work has: `CommandCtx`, the slice of pi it is handed; `loadRoster`, the same
+roster everywhere; `checked()`, the checks that must pass before anything is
+spawned, a thrown explanation becoming a refusal; and `watched()`, the live view
+for as long as the work runs, with the `finally` that takes it down and writes
+`usage.json` whatever happened. `/build`, `/run`, `/step`, `/swarm` and
+`/interview` each write their flags, their target and their call, and nothing
+of that shape.
 
 Each command's own file holds only what that command does, `/build` included:
 the interview it opens with is `interview-command.ts`, which is a command in its

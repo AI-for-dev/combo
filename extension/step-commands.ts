@@ -21,8 +21,10 @@
 
 import * as path from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import { checkModel, checkPipelineAgents, createRunDir, exportBaseName, plural } from "../src/index.ts";
-import { loadRoster, parseLeadingFlags, refuse, switchValue, type CommandCtx } from "./command.ts";
+import { checkPipelineAgents, exportBaseName, plural } from "../src/index.ts";
+import { checked, loadRoster, refuse, watched, type CommandCtx } from "./command.ts";
+import { resolved } from "./deps.ts";
+import { parseLeadingFlags, switchValue } from "./flags.ts";
 import { PIPELINE_MESSAGE, type PipelineDeps } from "./pipeline-commands.ts";
 import {
 	chainInput,
@@ -36,8 +38,7 @@ import {
 	stepId,
 	type RelayStep,
 } from "./relay.ts";
-import { liveRun, STATUS } from "./run-ui.ts";
-import { resolveTarget, runStage, type Done, type Target } from "./stage.ts";
+import { resolveTarget, runStage } from "./stage.ts";
 
 /** `customType` of the transcript entry a finished step leaves behind. */
 export const STEP_ENTRY = "chain-step";
@@ -109,7 +110,8 @@ export default function registerStepCommands(pi: ExtensionAPI) {
  * export is still on disk, and the same command can be retried on another
  * model.
  */
-export async function runStep(args: string, ctx: CommandCtx, deps: StepDeps = {}): Promise<RelayStep | undefined> {
+export async function runStep(args: string, ctx: CommandCtx, injected: StepDeps = {}): Promise<RelayStep | undefined> {
+	const deps = resolved(injected);
 	const { flags, rest } = parseLeadingFlags(args, ["from", "model"], ["agent", "worktree"]);
 	const [name, ...words] = rest.split(/\s+/).filter(Boolean);
 	if (!name) {
@@ -118,22 +120,21 @@ export async function runStep(args: string, ctx: CommandCtx, deps: StepDeps = {}
 	const instruction = words.join(" ");
 
 	const agents = loadRoster(ctx, deps);
-	let target: Target;
-	let previous: RelayStep | undefined;
-	try {
-		previous = stepFrom(currentChain(), flags.from);
+	const stage = await checked(ctx, async () => {
+		const previous = stepFrom(currentChain(), flags.from);
 		// A step with neither an instruction nor anything carried in asks an
 		// agent to answer about nothing, which costs real tokens to discover.
 		// With an output in hand it is the ordinary case: "review that".
 		if (!instruction.trim() && !previous) {
 			throw new Error(`step: say what ${name} should do, for example /step ${name} find where usage is measured`);
 		}
-		target = resolveTarget(name, flags.agent === "true", ctx, deps, agents);
+		const target = resolveTarget(name, flags.agent === "true", ctx, deps, agents);
 		if (target.kind === "pipeline") checkPipelineAgents(target.pipeline, agents);
-		if (flags.model) await (deps.checkModel ?? checkModel)(flags.model);
-	} catch (cause) {
-		return refuse(ctx, cause instanceof Error ? cause.message : String(cause), "error");
-	}
+		if (flags.model) await deps.checkModel(flags.model);
+		return { target, previous };
+	});
+	if (!stage) return undefined;
+	const { target, previous } = stage;
 
 	if (flags.worktree === "true" && target.kind === "agent") {
 		ctx.ui.notify("step: --worktree gives a delivery's workers a copy of the repository - a lone agent gets none", "warning");
@@ -141,31 +142,27 @@ export async function runStep(args: string, ctx: CommandCtx, deps: StepDeps = {}
 
 	// One chain, one folder, one step per subfolder: a chain walked by hand is
 	// still a run, and it leaves the same trace as one walked by `/run`.
-	const relay = currentChain() ?? startChain((deps.runDir ?? createRunDir)());
+	const relay = currentChain() ?? startChain(deps.runDir());
 	const id = stepId(relay, name);
 	const dir = path.join(relay.dir, `${relay.steps.length + 1}-${exportBaseName(id)}`);
 	const input = chainInput(instruction, previous);
 
-	const live = liveRun(ctx.ui, { tickMs: deps.tickMs, signal: ctx.signal });
-	ctx.ui.setStatus(STATUS, `running ${id}…`);
-
-	const startedAt = performance.now();
-	let done: Done;
-	try {
-		done = await runStage(target, input, {
-			agents,
-			ctx,
-			deps,
-			dir,
-			model: flags.model,
-			worktree: switchValue(flags, "worktree"),
-			onEvent: live.onEvent,
-			signal: live.signal,
-			spawn: live.spawn,
-		});
-	} finally {
-		live.stop(dir, performance.now() - startedAt);
-	}
+	const done = await watched(ctx, deps, {
+		status: `running ${id}…`,
+		dir,
+		work: (live) =>
+			runStage(target, input, {
+				agents,
+				ctx,
+				deps,
+				dir,
+				model: flags.model,
+				worktree: switchValue(flags, "worktree"),
+				onEvent: live.onEvent,
+				signal: live.signal,
+				spawn: live.spawn,
+			}),
+	});
 
 	if (done.error !== undefined) {
 		refuse(ctx, `step: ${id} failed: ${done.error} - the chain is unchanged, what ran is in ${dir}`, "error");
@@ -174,7 +171,7 @@ export async function runStep(args: string, ctx: CommandCtx, deps: StepDeps = {}
 
 	const { output, usage } = done;
 	const step = recordStep(relay, { name, kind: target.kind, instruction, from: previous?.id, output, usage, dir });
-	deps.appendEntry?.(STEP_ENTRY, { id: step.id, kind: step.kind, from: step.from, output: step.output, turns: usage.turns, dir });
+	injected.appendEntry?.(STEP_ENTRY, { id: step.id, kind: step.kind, from: step.from, output: step.output, turns: usage.turns, dir });
 	ctx.ui.notify(`${step.id}: ${plural(usage.turns, "turn")} - /step <next> carries it on, /quote puts it in this conversation`, "info");
 	return step;
 }
@@ -207,6 +204,8 @@ export function showChain(args: string, ctx: CommandCtx): string[] {
  */
 export function quoteStep(args: string, ctx: CommandCtx, deps: StepDeps = {}): RelayStep | undefined {
 	const relay = currentChain();
+	// `checked` is for what runs before a spawn; nothing is spawned here, but the
+	// refusal has the same shape, and one shape is the point.
 	let step: RelayStep | undefined;
 	try {
 		step = stepFrom(relay, args.trim() || "last");

@@ -22,6 +22,7 @@ import { runSwarm, swarmAnswer, swarmLine } from "../extension/swarm-command.ts"
 import { emptyUsage } from "../src/usage.ts";
 import type { SwarmOptions, SwarmResult } from "../src/workflows/swarm.ts";
 import { fakeCtx } from "./fixtures/command-ctx.ts";
+import { baseDeps } from "./fixtures/command-deps.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
 
 initTheme();
@@ -39,9 +40,7 @@ function deps(over: Partial<SwarmResult> = {}) {
 	const sent: { content: string }[] = [];
 
 	const injected: StepDeps = {
-		loadAgents: () => [member, scout],
-		runDir: () => runs,
-		tickMs: 0,
+		...baseDeps([member, scout], [], runs),
 		appendEntry: (_customType, data) => void entries.push(data),
 		sendMessage: (message) => void sent.push({ content: message.content }),
 		swarm: (async (options: SwarmOptions) => {
