@@ -23,7 +23,7 @@ import { Type } from "typebox";
 import type { Agent } from "./agent.ts";
 import { defineTool, type ToolDefinition } from "./session.ts";
 import { fanOut } from "./workflows/fan-out.ts";
-import type { WorkflowOptions } from "./workflows/common.ts";
+import type { WorkflowOptions } from "./workflows/options.ts";
 
 /** The name an agent writes in its `tools:` to be allowed children of its own. */
 export const SUBAGENT_TOOL = "subagent";

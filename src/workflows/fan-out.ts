@@ -5,7 +5,9 @@
 import type { Agent } from "./../agent.ts";
 import { failed, type Result } from "./../result.ts";
 import { sumUsage, type Usage } from "./../usage.ts";
-import { mapConcurrent, SubagentPool, type WorkflowOptions } from "./common.ts";
+import { mapConcurrent } from "./concurrent.ts";
+import type { WorkflowOptions } from "./options.ts";
+import { SubagentPool } from "./pool.ts";
 
 /** The branches, who runs them, and how many may run at once. */
 export type FanOutOptions = WorkflowOptions & {
@@ -45,7 +47,7 @@ export type FanOutResult = {
  * around, not sharing a memory.
  */
 export async function fanOut(options: FanOutOptions): Promise<FanOutResult> {
-	const { tasks, signal, failFast, timeoutMs } = options;
+	const { tasks, failFast } = options;
 	const concurrency = Math.max(1, options.concurrency ?? 4);
 	const agents = resolveAgents(options);
 
@@ -57,17 +59,12 @@ export async function fanOut(options: FanOutOptions): Promise<FanOutResult> {
 	try {
 		results = await mapConcurrent(tasks, concurrency, async (task, index) => {
 			const agent = agents[index] as Agent;
-			if (stopped || signal?.aborted) return failed(agent.name, "aborted");
+			if (stopped) return failed(agent.name, "aborted");
 
 			// Keyed by branch: even persistent, two branches stay isolated.
-			const subagent = await pool.acquire(agent, `${agent.name}#${index}`);
-			try {
-				const result = await subagent.ask(task, { signal, timeoutMs });
-				if (!result.ok && failFast) stopped = true;
-				return result;
-			} finally {
-				await pool.release(subagent);
-			}
+			const result = await pool.turn(agent, task, { key: `${agent.name}#${index}` });
+			if (!result.ok && failFast) stopped = true;
+			return result;
 		});
 	} finally {
 		await pool.closeAll();

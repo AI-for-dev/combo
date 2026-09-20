@@ -34,7 +34,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`reporters/record`](reporters/record.md) | The event stream, on disk: one JSON object per line, in the order it happened. | 1 |
 | [`reporters/silent`](reporters/silent.md) | The no-op reporter. | 1 |
 | [`reporters/tui`](reporters/tui.md) | State and formatting for the pi TUI, with no pi-tui in sight. | 14 |
-| [`result`](result.md) | `Result`: the single contract shared by everything else. | 3 |
+| [`result`](result.md) | `Result`: the single contract shared by everything else. | 4 |
 | [`resume`](resume.md) | Saving a build so it can be picked up again. | 10 |
 | [`run`](run.md) | `run()`: the disposable form. Spawn, ask, close. | 2 |
 | [`scratch`](scratch.md) | A working copy with a lifetime: made for one piece of work, and released when that work is done. | 2 |
@@ -48,15 +48,17 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 4 |
 | [`workflows/audit`](workflows/audit.md) | The audit: one agent reads the whole of a delivery, and says what is left. | 4 |
 | [`workflows/chain`](workflows/chain.md) | `chain`: 1 → 1 → 1. The output of step *n* is the input of step *n+1*. | 2 |
-| [`workflows/common`](workflows/common.md) | What every combinator shares: the same options, the same defaults, and the same way of honouring lifetime. | 4 |
+| [`workflows/concurrent`](workflows/concurrent.md) | Running several things at once, but not all of them: a subtask is a session, and N sessions opening together is the bill nobody meant to pay. | 1 |
 | [`workflows/deliver`](workflows/deliver.md) | `deliver`: a brief in, work done and audited out. | 3 |
 | [`workflows/fan-out`](workflows/fan-out.md) | `fanOut`: 1 → N. N subtasks in parallel, with bounded concurrency. | 4 |
 | [`workflows/interview`](workflows/interview.md) | `interview`: a conversation with the *user*, ending in a brief. | 8 |
 | [`workflows/loop`](workflows/loop.md) | `loop`: 1 → 1, repeated until a criterion is met. | 4 |
+| [`workflows/options`](workflows/options.md) | What every combinator shares: the same options, under the same names, with the same defaults. | 2 |
 | [`workflows/orchestrate`](workflows/orchestrate.md) | `orchestrate`: 1 → ?. An agent *decides* the split, then the split runs. | 3 |
 | [`workflows/pair`](workflows/pair.md) | `pair`: one worker, one reviewer, talking until the work is accepted. | 7 |
 | [`workflows/pipeline-run`](workflows/pipeline-run.md) | Running a pipeline: the piece `pipeline.ts` describes and deliberately leaves to someone else. | 6 |
 | [`workflows/plan`](workflows/plan.md) | Reading a plan an agent wrote: the prompt, the parser, the validation. | 6 |
+| [`workflows/pool`](workflows/pool.md) | The pool: where a workflow's turns are played. | 3 |
 | [`workflows/reduce`](workflows/reduce.md) | `reduce`: N → 1. One agent synthesises the results of a fan-out. | 3 |
 | [`workflows/route`](workflows/route.md) | `route`: 1 → 1. A classifier agent picks who should do the work. | 5 |
 | [`workflows/swarm`](workflows/swarm.md) | Several members on one job, for as many rounds as you allow. | 7 |
@@ -105,15 +107,17 @@ verdict
 verify
 workflows/audit
 workflows/chain
-workflows/common
+workflows/concurrent
 workflows/deliver
 workflows/fan-out
 workflows/interview
 workflows/loop
+workflows/options
 workflows/orchestrate
 workflows/pair
 workflows/pipeline-run
 workflows/plan
+workflows/pool
 workflows/reduce
 workflows/route
 workflows/swarm

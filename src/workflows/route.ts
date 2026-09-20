@@ -5,7 +5,8 @@
 import type { Agent } from "./../agent.ts";
 import { failed, type Result, type WorkflowResult } from "./../result.ts";
 import { truncate } from "./../text.ts";
-import { SubagentPool, type WorkflowOptions } from "./common.ts";
+import type { WorkflowOptions } from "./options.ts";
+import { SubagentPool } from "./pool.ts";
 
 /** The classifier, the agents it may pick from, and what to do when it picks nobody. */
 export type RouteOptions = WorkflowOptions & {
@@ -46,27 +47,15 @@ export type RouteResult = WorkflowResult & {
  * is a silent pick of the first destination.
  */
 export async function route(options: RouteOptions): Promise<RouteResult> {
-	const { router, destinations, input, signal, timeoutMs } = options;
+	const { router, destinations, input } = options;
 	if (destinations.length === 0) throw new Error("route: `destinations` is empty - there is nowhere to route to");
 
 	const parse = options.parse ?? pickDestination;
 	const format = options.format ?? routingPrompt;
 
-	if (signal?.aborted) {
-		const aborted = failed(router.name, "aborted");
-		return { ...aborted, routing: aborted, steps: [aborted] };
-	}
-
 	const pool = new SubagentPool(options);
 	try {
-		const classifier = await pool.acquire(router, router.name);
-		let routing: Result;
-		try {
-			routing = await classifier.ask(format(input, destinations), { signal, timeoutMs });
-		} finally {
-			await pool.release(classifier);
-		}
-
+		const routing = await pool.turn(router, format(input, destinations));
 		if (!routing.ok) return { ...routing, routing, steps: [routing] };
 
 		const destination = parse(routing.output, destinations) ?? options.fallback;
@@ -80,14 +69,7 @@ export async function route(options: RouteOptions): Promise<RouteResult> {
 			return { ...unrouted, routing, steps: [routing, unrouted] };
 		}
 
-		const worker = await pool.acquire(destination, destination.name);
-		let handled: Result;
-		try {
-			handled = await worker.ask(input, { signal, timeoutMs });
-		} finally {
-			await pool.release(worker);
-		}
-
+		const handled = await pool.turn(destination, input);
 		return { ...handled, destination, routing, steps: [routing, handled] };
 	} finally {
 		await pool.closeAll();

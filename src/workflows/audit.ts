@@ -17,12 +17,13 @@
 
 import type { Agent } from "./../agent.ts";
 import { openList, type Obligation } from "./../ledger.ts";
-import { failed, type Result } from "./../result.ts";
+import type { Result } from "./../result.ts";
 import type { ToolDefinition } from "./../session.ts";
 import { saysWord } from "./../text.ts";
 import type { Verdict } from "./../verdict.ts";
 import type { Verification } from "./../verify.ts";
-import { SubagentPool, type WorkflowOptions } from "./common.ts";
+import type { WorkflowOptions } from "./options.ts";
+import { SubagentPool } from "./pool.ts";
 import type { PairResult } from "./pair.ts";
 import { parsePlan, type PlannedTask } from "./plan.ts";
 
@@ -63,24 +64,16 @@ export type AuditOptions = WorkflowOptions & {
 
 /** One audit turn, on its own throwaway subagent. */
 export async function auditOnce(options: AuditOptions): Promise<Result> {
-	const { auditor, workers, brief, tasks, verification, round, maxAuditRounds, open, signal, timeoutMs, ...rest } =
+	const { auditor, workers, brief, tasks, verification, round, maxAuditRounds, open, verdictTool: tool, ...shared } =
 		options;
-	const { verdictTool: tool, ...shared } = rest;
-
-	if (signal?.aborted) return failed(auditor.name, "aborted");
 
 	// A fresh auditor every round on purpose: the second audit must read the
 	// code as it is now, not remember how it was talked into approving. The
 	// ledger is what carries between rounds instead.
 	const pool = new SubagentPool({ ...shared, lifetime: "task", customTools: tool ? () => [tool] : undefined });
 	try {
-		const subagent = await pool.acquire(auditor, auditor.name);
-		try {
-			const prompt = auditPrompt(brief, tasks, round, maxAuditRounds, verification, workers, { open, byTool: !!tool });
-			return await subagent.ask(prompt, { signal, timeoutMs });
-		} finally {
-			await pool.release(subagent);
-		}
+		const prompt = auditPrompt(brief, tasks, round, maxAuditRounds, verification, workers, { open, byTool: !!tool });
+		return await pool.turn(auditor, prompt);
 	} finally {
 		await pool.closeAll();
 	}

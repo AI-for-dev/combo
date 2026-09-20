@@ -126,16 +126,6 @@ describe("fanOut", () => {
 		});
 	});
 
-	test("timeoutMs reaches every branch", async () => {
-		const fake = fakeSpawn();
-		await fanOut({ agent: scout, tasks: ["a", "b", "c"], timeoutMs: 5_000, spawn: fake.spawn });
-
-		assert.deepEqual(
-			fake.askOptions.map((options) => options.timeoutMs),
-			[5_000, 5_000, 5_000],
-		);
-	});
-
 	describe("cancellation", () => {
 		test("an already-aborted signal runs nothing but still fills every slot", async () => {
 			const fake = fakeSpawn();

@@ -131,6 +131,37 @@ Rules:
   (`session.compact()`) or fail cleanly - never truncate silently.
 - **No shared mutable state** between fan-out branches, whatever the lifetime.
 
+### A turn is the pool's interface
+
+`SubagentPool` used to hand out subagents: `acquire`, `release`, `closeAll`.
+Every combinator then wrote the same six lines around them - check the signal,
+acquire under a key, `try`, `ask(task, { signal, timeoutMs })`, `finally`
+release - ten times over, and the pool's constructor, which absorbed eight of
+the shared options, dropped the two that a turn needs. Twenty-four call sites
+threaded `signal` and `timeoutMs` by hand, and the file holding the pool had no
+test of its own: the only proof that a deadline reached a turn was one
+assertion per combinator, each testing the same thing.
+
+The pool now plays the turn. `turn(agent, task, { key })` is the whole of the
+sequence: it refuses without spawning on a signal already aborted, runs the turn
+with the workflow's signal and deadline, and gives the subagent back in a
+`finally`. `hold(agent, { key })` is the other shape a combinator needs - a
+conversation of several turns, for the interviewer and for a swarm's members -
+and it returns an `id` and an `ask`, not the `Subagent`: closing stays the
+pool's job, so nothing a combinator receives can be forgotten. `release` is
+private. What was `common.ts` is three files, one concept each: `options.ts`,
+`pool.ts`, `concurrent.ts`.
+
+Two abort checks survive outside the pool, and both are about what happens
+*before* a turn: `pair` would otherwise make a working copy for a pair that will
+never run in it, and `interview` would spawn a held interviewer it never asks.
+
+The tests moved with the behaviour: the pool's contract - lifetime by key, the
+options on every turn, refusal without a spawn, release on a throw, `closeAll`
+surviving a close that fails - is asserted once in `test/pool.test.ts`, and the
+per-combinator assertions that each proved a forwarded `timeoutMs` are gone. A
+combinator's tests now say what the combinator decides, not what it relays.
+
 ## Workflows to cover
 
 | Workflow | Shape | Semantics | Status |

@@ -16,7 +16,8 @@ import type { Answer, AskUser, Choice, Question } from "./../ask.ts";
 import { failed, type Result } from "./../result.ts";
 import { jsonObjects, saysWord } from "./../text.ts";
 import { sumUsage, type Usage } from "./../usage.ts";
-import { SubagentPool, type WorkflowOptions } from "./common.ts";
+import type { WorkflowOptions } from "./options.ts";
+import { SubagentPool } from "./pool.ts";
 
 /** The agent says this - alone - when it has enough to write the brief. */
 export const READY = "READY";
@@ -99,7 +100,7 @@ export type InterviewResult = {
  * an interrogation nobody finished.
  */
 export async function interview(options: InterviewOptions): Promise<InterviewResult> {
-	const { agent, input, ask, signal, timeoutMs } = options;
+	const { agent, input, ask, signal } = options;
 	const maxQuestions = options.maxQuestions ?? 6;
 	const parse = options.parse ?? parseQuestion;
 
@@ -121,6 +122,8 @@ export async function interview(options: InterviewOptions): Promise<InterviewRes
 		error,
 	});
 
+	// A held subagent is spawned before it is asked anything, so an interview
+	// already called off is refused here rather than by its first turn.
 	if (signal?.aborted) {
 		steps.push(failed(agent.name, "aborted"));
 		return outcome("", false, "aborted");
@@ -131,40 +134,37 @@ export async function interview(options: InterviewOptions): Promise<InterviewRes
 	// an explicit `undefined` from a merging caller must not read as a choice.
 	const pool = new SubagentPool({ ...options, lifetime: options.lifetime ?? "workflow" });
 	try {
-		const subagent = await pool.acquire(agent, agent.name);
+		// Held, not turned: the interviewer has to remember what it asked.
+		const interviewer = await pool.hold(agent);
 		let turn = questionPrompt(input, maxQuestions);
 
-		try {
-			for (let asked = 0; asked < maxQuestions; asked++) {
-				const result = await subagent.ask(turn, { signal, timeoutMs });
-				steps.push(result);
-				if (!result.ok) return outcome("", false, result.error);
+		for (let asked = 0; asked < maxQuestions; asked++) {
+			const result = await interviewer.ask(turn);
+			steps.push(result);
+			if (!result.ok) return outcome("", false, result.error);
 
-				if (isReady(result.output)) break;
+			if (isReady(result.output)) break;
 
-				const question = parse(result.output);
-				if (!question) {
-					// Not a failure: an agent that answers with prose has, in
-					// practice, said what it wanted to say. Ask it to conclude.
-					break;
-				}
-
-				const answer = await ask(question);
-				if (!answer) {
-					submitted = true;
-					break;
-				}
-
-				answers.push(answer);
-				turn = answerPrompt(answer, maxQuestions - asked - 1);
+			const question = parse(result.output);
+			if (!question) {
+				// Not a failure: an agent that answers with prose has, in
+				// practice, said what it wanted to say. Ask it to conclude.
+				break;
 			}
 
-			const final = await subagent.ask(briefPrompt(input, answers), { signal, timeoutMs });
-			steps.push(final);
-			return final.ok ? outcome(final.output, true) : outcome("", false, final.error);
-		} finally {
-			await pool.release(subagent);
+			const answer = await ask(question);
+			if (!answer) {
+				submitted = true;
+				break;
+			}
+
+			answers.push(answer);
+			turn = answerPrompt(answer, maxQuestions - asked - 1);
 		}
+
+		const final = await interviewer.ask(briefPrompt(input, answers));
+		steps.push(final);
+		return final.ok ? outcome(final.output, true) : outcome("", false, final.error);
 	} finally {
 		await pool.closeAll();
 	}
