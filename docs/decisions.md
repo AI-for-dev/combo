@@ -426,6 +426,35 @@ keeps its id rather than raising a duplicate of it. `BuildState.obligations` is
 optional for a state written before the ledger existed, and an empty ledger is
 the honest reading of that rather than a reason to refuse the file.
 
+### The record is the one that joins the verdict to the ledger
+
+The tool and the ledger were built in two places, `pair` and `deliver`, with the
+same two callbacks wiring one to the other written out in each; and each round
+of each workflow then made the same join by hand - take the last verdict, apply
+its closures, raise what it raised, decide `said && settled`. `pair` had it in a
+helper, `deliver` inline. The rule that makes the join safe, closures before
+raises, was tested through `pair` and nowhere near `deliver`.
+
+`src/review.ts` is the record: one per reviewer, both the tool and the list.
+`reviewRecord(name, { byTool, inProse, restored })` builds the ledger and, when
+the reviewer decides by tool, the tool wired to it. `record.tool` is what the
+reviewer is offered, `record.open` what a round is asked about, `record.all`
+what a result reports, and `record.close(review, round)` answers the one
+question a round has: what was declared, whether the reviewer said yes, whether
+that finishes anything, and what was raised. A review that did not run to
+completion decided nothing, and the collector is drained regardless so a
+verdict left behind by a failed turn cannot be read as the next round's.
+
+`byTool` is the caller's to say, not the record's to infer: `pair` lets a
+caller's own `approved` predicate stand in for the tool whatever the agent
+declares, and that is `pair`'s rule to keep readable in `pair.ts`.
+
+`lastVerdict` is gone. It was one line, its only callers were the two joins,
+and the rule it carried - the last call wins, because an agent that calls again
+has changed its mind - is the record's to state. `verdict.ts` and `ledger.ts`
+stay as they are, each with its own rules and its own tests: the record joins
+them, it does not absorb them.
+
 ### A working copy belongs to the work, not to the subagent
 
 `deliver` pins `concurrency` to 2 because its workers write to the same tree.

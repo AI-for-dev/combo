@@ -7,7 +7,7 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { declaresVerdict, lastVerdict, verdictTool, type Verdict } from "../src/verdict.ts";
+import { declaresVerdict, verdictTool } from "../src/verdict.ts";
 import { callTool as call } from "./fixtures/call-tool.ts";
 
 describe("verdictTool", () => {
@@ -109,20 +109,6 @@ describe("verdictTool", () => {
 
 		await call(verdicts.tool, { approved: true });
 		assert.deepEqual(verdicts.take(), [{ approved: true, remarks: undefined, resolved: [], raised: [] }]);
-	});
-});
-
-describe("lastVerdict", () => {
-	test("an agent that never called has not decided", () => {
-		assert.equal(lastVerdict([]), undefined);
-	});
-
-	test("an agent that called twice has changed its mind", () => {
-		const given: Verdict[] = [
-			{ approved: false, remarks: "no", resolved: [], raised: [] },
-			{ approved: true, resolved: [], raised: [] },
-		];
-		assert.deepEqual(lastVerdict(given), { approved: true, resolved: [], raised: [] });
 	});
 });
 
