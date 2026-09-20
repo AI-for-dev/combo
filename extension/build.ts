@@ -285,7 +285,7 @@ function deliveryWiring(
 		// approved subtasks.
 		resume: (stepId) =>
 			started.resume && (previous?.state.step ?? stepId) === stepId ? started.resume : undefined,
-		onProgress: (stepId, progress) => void deps.saveState(where.exportDir, toBuildState(progress, { ...about, step: stepId })),
+		onProgress: (stepId, progress, done) => void deps.saveState(where.exportDir, toBuildState(progress, { ...about, step: stepId, done })),
 	};
 }
 

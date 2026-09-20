@@ -6,13 +6,17 @@
  * they are only ever read together: a round closes what it addressed, raises
  * what it found, and is approved when the reviewer said yes *and* nothing is
  * left open. This is the one place that joins them. A workflow asks the record
- * one question per round and never touches the tool or the list itself.
+ * one question per round and never touches the tool or the list itself - and
+ * the record says how it is to be asked: what is still owed, and how the
+ * decision is read, in the same words for every reviewer.
  */
 
-import { createLedger, type Obligation } from "./ledger.ts";
+import type { Agent } from "./agent.ts";
+import { createLedger, openList, type Obligation } from "./ledger.ts";
 import type { Result } from "./result.ts";
-import type { ToolDefinition } from "./session.ts";
-import { verdictTool, type Verdict } from "./verdict.ts";
+import { saysWord } from "./text.ts";
+import { declaresVerdict, VERDICT_TOOL, verdictTool, type Verdict } from "./verdict.ts";
+import type { WorkflowOptions } from "./workflows/options.ts";
 
 /** Reads an approval out of prose, for a reviewer that holds no tool. */
 export type ProseApproval = (review: Result, round: number) => boolean | Promise<boolean>;
@@ -20,15 +24,20 @@ export type ProseApproval = (review: Result, round: number) => boolean | Promise
 /** How the record is built for a reviewer. */
 export type ReviewRecordOptions = {
 	/**
-	 * Whether the reviewer decides through the `verdict` tool.
+	 * The word the reviewer says alone when it decides in prose.
 	 *
-	 * Decided by the caller rather than read off the agent here, because a
-	 * workflow may have a rule of its own - `pair` lets a caller's own
-	 * `approved` predicate stand in for the tool, whatever the agent declares.
+	 * Named in the terms it is asked on and read off its answer by the same
+	 * record, so the two cannot drift apart.
 	 */
-	byTool: boolean;
-	/** How a round is read when it is not by tool. Ignored when it is. */
-	inProse: ProseApproval;
+	word: string;
+	/**
+	 * A caller's own reading of the prose.
+	 *
+	 * It stands in for the word **and** for the tool: a reviewer whose
+	 * definition names `verdict` still decides in prose when the caller says
+	 * how, because the caller's rule is the nearer one.
+	 */
+	approved?: ProseApproval;
 	/** Obligations a previous run recorded, for a resumed one to carry on. */
 	restored?: readonly Obligation[];
 };
@@ -51,16 +60,29 @@ export type ReviewRound = {
 	raised: readonly string[];
 };
 
-/** One reviewer's record: the tool it decides with, and the list it is held to. */
+/** One reviewer's record: how it is asked, what it decides with, and the list it is held to. */
 export type ReviewRecord = {
-	/** Offered to the reviewer through `customTools`. Absent when it decides in prose. */
-	readonly tool?: ToolDefinition;
 	/** Whether the reviewer decides through the tool. */
 	readonly byTool: boolean;
 	/** Still owed, in the order raised. What a round is asked about. */
 	readonly open: readonly Obligation[];
 	/** Everything raised, open and closed, in the order raised. */
 	readonly all: readonly Obligation[];
+	/**
+	 * What the reviewer is told at the end of every round: what it still owes,
+	 * by id, and how its decision is read - a call to the tool, or the word
+	 * alone. Written here once, so a pair and an audit ask in the same words.
+	 */
+	terms(): string;
+	/**
+	 * The tools to offer through `customTools`: the verdict tool to this
+	 * reviewer and to nobody else, `others` to everybody else.
+	 *
+	 * Only the reviewer, because two agents writing into one collector would
+	 * make their answers indistinguishable, and pi's allowlist would refuse it
+	 * anyway. A reviewer that decides in prose changes nothing: `others` stands.
+	 */
+	offer(others?: WorkflowOptions["customTools"]): WorkflowOptions["customTools"];
 	/**
 	 * Closes a round: reads what the reviewer decided, writes it into the list,
 	 * and says what the round amounted to.
@@ -83,9 +105,11 @@ export type ReviewRecord = {
  * list has nothing open for is refused by the tool and named back to the agent
  * inside the same turn - the only moment it can still repair the mistake.
  */
-export function reviewRecord(reviewer: string, options: ReviewRecordOptions): ReviewRecord {
+export function reviewRecord(reviewer: Agent, options: ReviewRecordOptions): ReviewRecord {
 	const ledger = createLedger(options.restored);
-	const verdicts = options.byTool
+	const byTool = !options.approved && declaresVerdict(reviewer.tools);
+	const inProse: ProseApproval = options.approved ?? ((review) => saysWord(review.output, options.word));
+	const verdicts = byTool
 		? verdictTool({
 				knows: (id) => ledger.open.some((one) => one.id === id),
 				open: () => ledger.open.map((one) => one.id),
@@ -93,13 +117,32 @@ export function reviewRecord(reviewer: string, options: ReviewRecordOptions): Re
 		: undefined;
 
 	return {
-		tool: verdicts?.tool,
-		byTool: options.byTool,
+		byTool,
 		get open() {
 			return ledger.open;
 		},
 		get all() {
 			return ledger.all;
+		},
+
+		terms() {
+			const owed = ledger.open;
+			const parts: string[] = [];
+			if (owed.length) parts.push("Still open, from your earlier rounds:", openList(owed), "");
+			if (!verdicts) {
+				parts.push(`Answer ${options.word} alone when you have nothing left to ask for.`);
+				return parts.join("\n");
+			}
+			parts.push(`End by calling the \`${VERDICT_TOOL}\` tool: that call is what is read as your decision.`);
+			if (owed.length) {
+				parts.push("Name in `resolved` every id above you are done with. One you leave out stays open, and the work is not finished while anything is.");
+			}
+			return parts.join("\n");
+		},
+
+		offer(others) {
+			if (!verdicts) return others;
+			return (agent) => (agent.name === reviewer.name ? [verdicts.tool] : others?.(agent));
 		},
 
 		async close(review, round) {
@@ -109,7 +152,7 @@ export function reviewRecord(reviewer: string, options: ReviewRecordOptions): Re
 			if (!review.ok) return { said: false, approved: false, raised: [] };
 
 			if (!verdicts) {
-				const said = await options.inProse(review, round);
+				const said = await inProse(review, round);
 				return { said, approved: said && ledger.settled, raised: [] };
 			}
 
@@ -117,10 +160,10 @@ export function reviewRecord(reviewer: string, options: ReviewRecordOptions): Re
 			for (const one of verdict?.resolved ?? []) {
 				// A closure the list refuses - an id another agent raised - leaves
 				// the obligation open, which is the outcome the caller reads anyway.
-				ledger.close(one.id, reviewer, { how: one.how, reason: one.reason, at: round });
+				ledger.close(one.id, reviewer.name, { how: one.how, reason: one.reason, at: round });
 			}
 			const raised = verdict?.raised ?? [];
-			for (const text of raised) ledger.raise(reviewer, text, round);
+			for (const text of raised) ledger.raise(reviewer.name, text, round);
 
 			// A reviewer holding the tool and calling nothing has not approved:
 			// guessing from its prose is the reading the tool exists to retire.

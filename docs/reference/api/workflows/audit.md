@@ -70,7 +70,7 @@ export type AuditOptions = WorkflowOptions & {
 	/** Audit → fix → re-audit cycles. Defaults to 2. */
 	maxAuditRounds?: number;
 	/** What a previous run already spent and raised. Resuming continues the cycle, it does not restart it. */
-	resume?: Pick<AuditProgress, "rounds" | "obligations">;
+	resume?: Pick<AuditProgress, "audits" | "obligations">;
 	/**
 	 * Runs the fixes the auditor asked for, and says what the tree is afterwards.
 	 *
@@ -93,7 +93,7 @@ Who audits, what, and how what it asks for gets done.
 ```typescript
 export type AuditProgress = {
 	/** Every round so far, the ones a previous run recorded first. */
-	rounds: readonly AuditRound[];
+	audits: readonly AuditRound[];
 	/** What was audited last: the subtasks, then every fix that came back. */
 	tasks: readonly PairResult[];
 	/** What the auditor raised across the rounds, and what became of each. */
@@ -110,18 +110,10 @@ The cycle as it stands: what a caller saves after every round.
 *function*
 
 ```typescript
-export function auditPrompt(
-	brief: string,
-	tasks: readonly PairResult[],
-	round: number,
-	maxAuditRounds: number,
-	verification?: Verification,
-	workers: readonly Agent[] = [],
-	options: AuditPromptOptions = {},
-): string { /* … */ }
+export function auditPrompt(options: AuditPromptOptions): string { /* … */ }
 ```
 
-What the auditor reads: the brief, what each subtask claims, and what is owed.
+What the auditor reads: the brief, what each subtask claims, the check, and the terms it answers on.
 
 ## `AuditPromptOptions`
 
@@ -129,22 +121,35 @@ What the auditor reads: the brief, what each subtask claims, and what is owed.
 
 ```typescript
 export type AuditPromptOptions = {
-	/** Obligations still open, which it is asked to answer for by id. */
-	open?: readonly Obligation[];
-	/** Whether the auditor decides through the `verdict` tool. */
-	byTool?: boolean;
+	/** The specification the work is audited against. */
+	brief: string;
+	/** What is audited: every subtask, then every fix that came back. */
+	tasks: readonly PairResult[];
+	/** This round, counted from one. */
+	round: number;
+	/** The cap, so the last round knows it is the last and asks only for what matters. */
+	maxAuditRounds: number;
+	/** The check as it stands, when one ran. */
+	verification?: Verification;
+	/** Who the auditor may hand a fix to. It has to know their names. */
+	workers: readonly Agent[];
+	/** What the auditor still owes and how its decision is read - its record's terms. */
+	terms: string;
+	/** Whether the decision goes through the verdict tool, which is then where the fix lines go too. */
+	byTool: boolean;
 };
 ```
 
-How the auditor is asked to answer, and what it still owes.
+What one audit round is built from.
 
 ## `AuditResult`
 
 *type*
 
 ```typescript
-export type AuditResult = WorkflowResult &
-	AuditProgress & {
+export type AuditResult = WorkflowResult & {
+	/** The cycle as it ended: the same shape every round reported, so a caller keeps one. */
+	progress: AuditProgress;
 	/**
 	 * Whether the last round signed off with nothing owed and no failing check
 	 * standing. Reaching the cap is not approval, and neither is a yes over a

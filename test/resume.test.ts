@@ -19,9 +19,9 @@ import {
 	loadBuildState,
 	saveBuildState,
 	toBuildState,
-	type BuildProgress,
 } from "../src/resume.ts";
 import { emptyUsage } from "../src/usage.ts";
+import type { BuildProgress } from "../src/workflows/deliver.ts";
 import type { PairResult } from "../src/workflows/pair.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
 
@@ -61,13 +61,42 @@ const progress = (over: Partial<BuildProgress> = {}): BuildProgress => ({
 	tasks: [task("coder", "write it", true)],
 	audits: [],
 	obligations: [],
-	done: false,
 	...over,
 });
 
-const about = { request: "add a cache", brief: "THE BRIEF", cwd: "/repo" };
+const about = { request: "add a cache", brief: "THE BRIEF", cwd: "/repo", done: false };
+
+/** What the trail a task carried looks like once it has been through the file: gone. */
+const withoutTrail = (one: PairResult): PairResult => ({ ...one, messages: [], steps: [], obligations: [] });
 
 describe("the saved state", () => {
+	test("a build comes back as it was, less the conversation: one shape in memory and on disk", () => {
+		const fixed = task("coder", "fix it", true);
+		const full = progress({
+			tasks: [task("coder", "write it", true), { ...task("scribe", "document it", false), ok: false, error: "the model fell over" }],
+			audits: [
+				{
+					review: { agent: "auditor", output: "coder: fix it", messages: [{ role: "user", content: "x" } as never], usage: { ...emptyUsage(), turns: 1 }, ok: true },
+					verdict: { approved: false, remarks: "one thing", resolved: [], raised: ["one thing"] },
+					verification: { ok: false, output: "1 failing", command: "npm test" },
+					approved: false,
+					fixes: [{ agent: coder, task: "fix it" }],
+					results: [fixed],
+				},
+			],
+			obligations: [{ id: "o1", text: "one thing", raisedIn: 1 } as never],
+			verification: { ok: true, output: "all green", command: "npm test" },
+		});
+
+		const back = fromBuildState(toBuildState(full, about), agents);
+
+		assert.deepEqual(back, {
+			...full,
+			tasks: full.tasks.map(withoutTrail),
+			audits: full.audits.map((round) => ({ ...round, review: { ...round.review, messages: [] }, results: round.results.map(withoutTrail) })),
+		});
+	});
+
 	test("round-trips through a file", () => {
 		const dir = tmpDir();
 		const file = saveBuildState(dir, toBuildState(progress(), about));
@@ -134,7 +163,7 @@ describe("findResumableBuild", () => {
 			["2026-07-19_11-00-00", false],
 		] as const) {
 			const dir = path.join(base, stamp);
-			saveBuildState(dir, toBuildState(progress({ done }), about));
+			saveBuildState(dir, toBuildState(progress(), { ...about, done }));
 		}
 		return base;
 	}
@@ -146,7 +175,7 @@ describe("findResumableBuild", () => {
 
 	test("a finished build is not offered: carrying on means carrying on something that stopped", () => {
 		const base = tmpDir();
-		saveBuildState(path.join(base, "2026-07-19_09-00-00"), toBuildState(progress({ done: true }), about));
+		saveBuildState(path.join(base, "2026-07-19_09-00-00"), toBuildState(progress(), { ...about, done: true }));
 
 		assert.equal(findResumableBuild(base), undefined);
 	});

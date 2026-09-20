@@ -110,18 +110,22 @@ export type LiveRun = {
 	signal: AbortSignal;
 	/** Give the workflow this `spawn`: it is what makes one subagent stoppable. */
 	spawn: SpawnFn;
+	/** How long the view has been up. The run's wall time, measured once, here. */
+	elapsedMs(): number;
 	/**
-	 * Clears the footer and the widget, and writes the run's `usage.json`.
+	 * Clears the footer and the widget, and writes the run's `usage.json` with
+	 * the time this view measured.
 	 *
 	 * Call it in a `finally`: a thrown workflow must not leave a dead row of dots
 	 * above the prompt for the rest of the session, and a run that was cancelled
 	 * still has work worth keeping.
 	 */
-	stop(exportDir: string | undefined, wallMs: number): void;
+	stop(exportDir: string | undefined): void;
 };
 
 /** Starts painting a run. `ui` is absent for a headless caller: nothing is drawn. */
 export function liveRun(ui: RunUi | undefined, options: LiveRunOptions = {}): LiveRun {
+	const startedAt = performance.now();
 	const picture = createRunPicture();
 	const onEvent = combineReporters(
 		picture.reporter,
@@ -146,12 +150,15 @@ export function liveRun(ui: RunUi | undefined, options: LiveRunOptions = {}): Li
 	const tick = tickMs > 0 ? setInterval(paint, tickMs) : undefined;
 	tick?.unref?.();
 
+	const elapsedMs = () => performance.now() - startedAt;
 	return {
 		onEvent,
 		picture,
 		signal: stopping.signal,
 		spawn: stopping.spawn,
-		stop(exportDir, wallMs) {
+		elapsedMs,
+		stop(exportDir) {
+			const wallMs = elapsedMs();
 			forgetRun(watched);
 			if (tick) clearInterval(tick);
 			ui?.setStatus?.(STATUS, undefined);

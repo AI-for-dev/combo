@@ -19,12 +19,10 @@
 import type { Agent } from "./../agent.ts";
 import { notify } from "./../events.ts";
 import type { Landed } from "./../land.ts";
-import type { Obligation } from "./../ledger.ts";
 import { joinOutputs, type Result, type WorkflowResult } from "./../result.ts";
 import { emptyUsage, sumUsage } from "./../usage.ts";
-import type { BuildProgress } from "./../resume.ts";
-import type { Verification, Verify } from "./../verify.ts";
-import { audit, type AuditProgress, type AuditRound } from "./audit.ts";
+import type { Verify } from "./../verify.ts";
+import { audit, type AuditProgress } from "./audit.ts";
 import { mapConcurrent } from "./concurrent.ts";
 import type { WorkflowOptions } from "./options.ts";
 import { pair, type PairResult } from "./pair.ts";
@@ -97,37 +95,46 @@ export type DeliverOptions = WorkflowOptions & {
 	 */
 	resume?: BuildProgress;
 	/**
-	 * Called after the plan, after the subtasks and after every audit round.
+	 * Called after the plan, after the subtasks and after every audit round,
+	 * with where the build stands and whether it has reached its end.
 	 *
 	 * This is what makes a build resumable at all: the caller writes it down. It
 	 * is a reporting hook, so it must not throw - a listener that does is
 	 * swallowed, like everywhere else here.
 	 */
-	onProgress?: (progress: BuildProgress) => void;
+	onProgress?: (progress: BuildProgress, done: boolean) => void;
+};
+
+/**
+ * Where a build stands: what `deliver` reports as it goes, and what it accepts
+ * to start again from.
+ *
+ * The audit cycle's own progress, plus the plan it works from. One shape for
+ * the three moments it is read at - reported after every unit of work, saved
+ * by whoever runs the build, handed back on resume - so nothing is copied
+ * between them field by field, and a saved build carries what a live one does.
+ */
+export type BuildProgress = AuditProgress & {
+	/** The subtasks, with their agents resolved. Reused on resume, never made again. */
+	plan: PlannedTask[];
 };
 
 /**
  * Everything a delivery produced, and the two words that say whether it counts.
  *
- * As a `Result`: the planner's turn, with every subtask's output labelled
- * where its own would be. `steps` is what the delivery paid for - the planning,
- * every subtask as a pair's result, every audit's review - and `usage` is their
- * sum over the run, fixes included since the audit puts them among the tasks.
- * `ok` says every turn ran and nothing about quality: read `approved`.
+ * The build's progress as it ended, plus what only the end can say. As a
+ * `Result`: the planner's turn, with every subtask's output labelled where its
+ * own would be. `steps` is what the delivery paid for - the planning, every
+ * subtask as a pair's result, every audit's review - and `usage` is their sum
+ * over the run, fixes included since the audit puts them among the tasks. `ok`
+ * says every turn ran and nothing about quality: read `approved`.
  */
-export type DeliverResult = WorkflowResult & {
+export type DeliverResult = WorkflowResult &
+	BuildProgress & {
 	/** The specification the delivery worked from, as given. */
 	brief: string;
-	/** The subtasks, after validation against the roster. */
-	plan: PlannedTask[];
 	/** The planner's own turn. Kept whatever happened next. */
 	planning: Result;
-	/** One per planned subtask, in plan order. */
-	tasks: PairResult[];
-	/** The audit rounds that ran, in order. Empty when no auditor was given. */
-	audits: AuditRound[];
-	/** The last verification, when one was configured. */
-	verification?: Verification;
 	/**
 	 * What became of the copies' patches, one entry per batch that ran.
 	 *
@@ -136,14 +143,6 @@ export type DeliverResult = WorkflowResult & {
 	 * is not delivered, whatever the auditor thought of the reports.
 	 */
 	landings: readonly Landed[];
-	/**
-	 * What the auditor raised across the rounds, and what became of each.
-	 *
-	 * Empty when the auditor holds no verdict tool. A run that stopped short says
-	 * here which lines are open and since which round, which is what
-	 * `approved: false` on its own has never been able to say.
-	 */
-	obligations: readonly Obligation[];
 	/**
 	 * Whether the work passed the bar: the auditor signed off, **nothing it
 	 * raised is still open**, and the check passed. `true` with neither an
@@ -183,21 +182,24 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 	} = options;
 
 	const startedAt = performance.now();
-	let audits: readonly AuditRound[] = resume?.audits ?? [];
-	let tasks: readonly PairResult[] = [];
-	// What a resumed run carried in stands until an auditor moves it; with no
-	// auditor it is reported as it came.
-	let obligations: readonly Obligation[] = resume?.obligations ?? [];
-	let verification: Verification | undefined = resume?.verification;
+	// Where the build stands. A resumed run carries in the plan it paid for, the
+	// audits it spent and what the auditor raised, which stand until an auditor
+	// moves them; its subtasks come back only once approved, below.
+	let progress: BuildProgress = {
+		plan: resume?.plan ?? [],
+		tasks: [],
+		audits: resume?.audits ?? [],
+		obligations: resume?.obligations ?? [],
+		verification: resume?.verification,
+	};
 	// Set once the plan says how many will write; until then, nothing landed.
 	let tree: Settling | undefined;
-	const landings = (): readonly Landed[] => tree?.landings ?? [];
 
 	// A reporting hook is an observer, like a reporter on the event bus.
-	const report = (plan: PlannedTask[], done = false) =>
-		notify(onProgress, { plan, tasks: [...tasks], audits: [...audits], obligations, verification, done });
+	const report = (done = false) => notify(onProgress, progress, done);
 
-	const outcome = (plan: PlannedTask[], planning: Result, signedOff: boolean, error?: string): DeliverResult => {
+	const outcome = (planning: Result, signedOff: boolean, error?: string): DeliverResult => {
+		const { tasks, audits, obligations, verification } = progress;
 		// The fixes are in `tasks` already, so a round's own cost is its review.
 		const steps = [planning, ...tasks, ...audits.map((round) => round.review)];
 		const broken = tasks.find((result) => !result.ok);
@@ -206,13 +208,9 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 			output: joinOutputs(tasks),
 			steps,
 			brief,
-			plan,
+			...progress,
 			planning,
-			tasks: [...tasks],
-			audits: [...audits],
-			verification,
-			landings: landings(),
-			obligations,
+			landings: tree?.landings ?? [],
 			// A failing check outranks every opinion above it, an obligation nobody
 			// closed outranks the auditor's own yes, and work that never reached
 			// the tree is not delivered whatever was said about the reports.
@@ -231,13 +229,14 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 	const planned = resume?.plan.length
 		? { ok: true as const, plan: resume.plan, planning: reusedPlanning(planner, resume.plan) }
 		: await makePlan({ ...shared, planner, workers, input: brief, maxTasks });
-	if (!planned.ok) return outcome([], planned.planning, false, planned.error);
-	report(planned.plan);
+	if (!planned.ok) return outcome(planned.planning, false, planned.error);
+	progress = { ...progress, plan: planned.plan };
+	report();
 
 	// Decided here because here is where the number of writers is first known,
 	// and refused here when the tree cannot take what it would have to take back.
 	const ready = await settling({ cwd: shared.cwd ?? process.cwd(), worktree, writers: planned.plan.length, verify });
-	if (!ready.ok) return outcome([], planned.planning, false, ready.error);
+	if (!ready.ok) return outcome(planned.planning, false, ready.error);
 	tree = ready.value;
 
 	const run = (step: PlannedTask) =>
@@ -250,47 +249,46 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 	const done = await mapConcurrent(todo, concurrency, run);
 
 	const byTask = new Map(done.map((task) => [task.input, task]));
-	tasks = planned.plan.flatMap((step) => {
-		const task = kept.get(step.task) ?? byTask.get(step.task);
-		return task ? [task] : [];
-	});
-	verification = await tree.settle(done);
-	report(planned.plan);
+	progress = {
+		...progress,
+		tasks: planned.plan.flatMap((step) => {
+			const task = kept.get(step.task) ?? byTask.get(step.task);
+			return task ? [task] : [];
+		}),
+		verification: await tree.settle(done),
+	};
+	report();
 
 	if (!auditor) {
-		report(planned.plan, true);
-		return outcome(planned.plan, planned.planning, true);
+		report(true);
+		return outcome(planned.planning, true);
 	}
 
-	// The audit says what must change; this is how it reaches the tree.
-	const take = (progress: AuditProgress) => {
-		audits = progress.rounds;
-		tasks = progress.tasks;
-		obligations = progress.obligations;
-		verification = progress.verification;
-	};
+	// The audit says what must change; this is how it reaches the tree. What
+	// the cycle reports is the build's progress minus the plan, so it lands in
+	// one spread.
 	const audited = await audit({
 		...shared,
 		auditor,
 		workers,
 		brief,
-		tasks,
-		verification,
+		tasks: progress.tasks,
+		verification: progress.verification,
 		maxAuditRounds,
-		resume: resume ? { rounds: resume.audits, obligations: resume.obligations } : undefined,
+		resume,
 		fix: async (fixes) => {
 			const results = await mapConcurrent(fixes, concurrency, run);
 			return { results, verification: await ready.value.settle(results) };
 		},
-		onRound: (progress) => {
-			take(progress);
-			report(planned.plan);
+		onRound: (round) => {
+			progress = { ...progress, ...round };
+			report();
 		},
 	});
-	take(audited);
+	progress = { ...progress, ...audited.progress };
 
-	report(planned.plan, true);
-	return outcome(planned.plan, planned.planning, audited.approved);
+	report(true);
+	return outcome(planned.planning, audited.approved);
 }
 
 /**

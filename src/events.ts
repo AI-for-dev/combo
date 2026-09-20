@@ -149,9 +149,9 @@ export function createEventBus(): EventBus {
  * hand is an observer too, and gets the same treatment - a caller's
  * bookkeeping that fails must not take the run down with it.
  */
-export function notify<T>(listener: ((value: T) => void) | undefined, value: T): void {
+export function notify<A extends unknown[]>(listener: ((...args: A) => void) | undefined, ...args: A): void {
 	try {
-		listener?.(value);
+		listener?.(...args);
 	} catch {
 		// an observer's problem is never the workflow's problem
 	}

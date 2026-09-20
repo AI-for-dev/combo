@@ -30,39 +30,10 @@ The file a build writes into its run directory.
 *const*
 
 ```typescript
-export const BUILD_STATE_VERSION = 1;
+export const BUILD_STATE_VERSION = 2;
 ```
 
 Bumped when the shape changes; an older file is ignored rather than guessed at.
-
-## `BuildProgress`
-
-*type*
-
-```typescript
-export type BuildProgress = {
-	/** The subtasks, with their agents resolved. */
-	plan: PlannedTask[];
-	/** Finished subtasks, in plan order. Only the approved ones survive a resume. */
-	tasks: PairResult[];
-	/** One entry per audit round, in order. */
-	audits: AuditRound[];
-	/**
-	 * What the auditor has raised so far, open and closed.
-	 *
-	 * Carried across a resume, unlike the subtasks: an obligation that was open
-	 * when the run stopped is still open, and a build that forgot it would sign
-	 * off on work nobody finished.
-	 */
-	obligations: readonly Obligation[];
-	/** The check's verdict, when a `verify` port was given. It is final. */
-	verification?: Verification;
-	/** True once the build reached its own end - approved or not. */
-	done: boolean;
-};
-```
-
-The same picture in memory: live results rather than names and text.
 
 ## `BuildState`
 
@@ -97,13 +68,8 @@ export type BuildState = {
 	tasks: SavedTask[];
 	/** The audit rounds already spent. Resuming continues the cycle, it does not restart it. */
 	audits: SavedAudit[];
-	/**
-	 * The obligations the auditor raised, open and closed, with their ids.
-	 *
-	 * Optional: a state written before the ledger existed has none, and an empty
-	 * ledger is the honest reading of that.
-	 */
-	obligations?: Obligation[];
+	/** The obligations the auditor raised, open and closed, with their ids. */
+	obligations: Obligation[];
 	/** The last verdict of the project's own check, when one was run. */
 	verification?: Verification;
 	/** True once the build reached its own end - approved or not. */
@@ -181,10 +147,7 @@ Writes the state into a run directory. Never throws: it is a safety net.
 *function*
 
 ```typescript
-export function toBuildState(
-	progress: BuildProgress,
-	about: { request: string; brief: string; cwd: string; startedAt?: string; step?: string },
-): BuildState { /* … */ }
+export function toBuildState(progress: BuildProgress, about: BuildAbout): BuildState { /* … */ }
 ```
 
 Turns live results into something that survives the process.

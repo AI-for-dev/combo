@@ -118,6 +118,16 @@ Lifetime of a subagent - the central choice of this library.
 - `"workflow"`: lives for the duration of the workflow. Remembers iterations.
 - `"session"`: lives as long as the pi session. Long memory, watch it.
 
+## `LIFETIMES`
+
+*const*
+
+```typescript
+export const LIFETIMES = ["task", "workflow", "session"] as const satisfies readonly Lifetime[];
+```
+
+Every {@link Lifetime}, for whoever validates one - the tool's schema names them from here.
+
 ## `loadAgents`
 
 *function*

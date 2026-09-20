@@ -274,6 +274,23 @@ describe("/build", () => {
 		assert.match(prompts[0] ?? "", /src\/new\.ts/, "untracked files are part of what gets committed");
 	});
 
+	test("the committer runs on the run's signal and spawn, within reach of esc and /stop", async () => {
+		let given: { signal?: AbortSignal; spawn?: unknown; onEvent?: unknown } | undefined;
+		const { ctx } = fakeCtx();
+		const { git } = fakeGit();
+		await runBuild("x", ctx, deps({
+			git,
+			run: (async (_agent: unknown, _task: string, options: typeof given) => {
+				given = options;
+				return result({ agent: "committer", output: "Subject", messages: [] });
+			}) as never,
+		}));
+
+		assert.ok(given?.signal instanceof AbortSignal, "the run's signal, not pi's, which is undefined during a command");
+		assert.equal(typeof given?.spawn, "function", "the run's spawn, which is what registers it for /stop");
+		assert.equal(typeof given?.onEvent, "function", "and its dots reach the widget");
+	});
+
 	test("a branch that already exists stops the commit rather than landing on it", async () => {
 		const { ctx, said } = fakeCtx();
 		const { git, calls } = fakeGit({ createBranch: async () => ({ ok: false as const, error: "branch exists" }) });
@@ -322,6 +339,7 @@ function interrupted(over: Partial<BuildState> = {}): BuildState {
 			},
 		],
 		audits: [],
+		obligations: [],
 		done: false,
 		...over,
 	};
@@ -527,8 +545,8 @@ describe("/build resume", () => {
 			findResumable: () => ({ dir: "runs/2026-07-19_10-00-00", state: interrupted() }),
 			runDir: () => "runs/a-brand-new-one",
 			saveState: (dir) => (saved.push(dir), undefined),
-			runPipeline: (async (options: { delivery?: { onProgress?: (id: string, p: unknown) => void } }) => {
-				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [], done: false });
+			runPipeline: (async (options: { delivery?: { onProgress?: (id: string, p: unknown, done: boolean) => void } }) => {
+				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [] }, false);
 				return delivered();
 			}) as never,
 		}));
@@ -544,9 +562,9 @@ describe("/build resume", () => {
 		await runBuild("add a cache", ctx, deps({
 			git,
 			saveState: (_dir, state) => (states.push(state as BuildState), undefined),
-			runPipeline: (async (options: { delivery?: { onProgress?: (id: string, p: unknown) => void } }) => {
-				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [], done: false });
-				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [], done: true });
+			runPipeline: (async (options: { delivery?: { onProgress?: (id: string, p: unknown, done: boolean) => void } }) => {
+				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [] }, false);
+				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [] }, true);
 				return delivered();
 			}) as never,
 		}));
