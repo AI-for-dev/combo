@@ -528,13 +528,16 @@ means yes, anything else is quoted back at the user - and says
 running server on all three answers, including the shape that shipped, with no
 pane opened by any of them.
 
-## 11. A pane that is a pi session - the mirror is in, the pane is not
+## 11. A pane that is a pi session - mirror and pane are in, herdr is not
 
 The herdr split shows a text file and takes no keyboard. The way to a pane
 that looks like pi and answers to one is a client of the session, drawn with
-pi's own components, and the mirror (`src/mirror.ts`) is the half that landed:
-every live subagent on one unix socket, transcript replayed on attach, pi's
-events forwarded, `steer` and `abort` taken back.
+pi's own components. Two of the three pieces landed: the mirror
+(`src/mirror.ts`), every live subagent on one unix socket, transcript replayed
+on attach, pi's events forwarded, `steer` and `abort` taken back; and the pane
+(`pane/main.ts`), pi's chat components over that socket with an editor under
+them. Run by hand in a pty against `ilaas/gemma-4-31b`, it drew the turn as pi
+draws it, and a line typed one second in came back as `Result.output`.
 
 What the probe settled before it, on pi 0.80.10 and 0.85.1 alike: a steer
 mid-turn lands after the tool call in flight and stays in the transcript; a
@@ -542,12 +545,13 @@ steer or follow-up queued while idle is delivered into the **next** `ask` and
 changes what the workflow reads back. So the mirror refuses a word between
 tasks and queues nothing, and `followUp` is nowhere in the library.
 
-Left, in order: the client (`pane/`, a `TUI` of `UserMessageComponent`,
-`AssistantMessageComponent`, `ToolExecutionComponent` and an `Editor`, fed by
-the socket), then `herdr.ts` opening it instead of `tail`. Two things to check
-in a real pi before trusting either: that `process.execPath` is node, and that
-the `pi` URL `attached` carries resolves to the host pi rather than to this
-repository's `node_modules`.
+Left: `herdr.ts` opening the pane instead of `tail`. One thing to check in a
+real pi before trusting it: that `process.execPath` is node, since that is what
+the split will be told to run the pane with.
+
+Two things a frame showed and nobody has judged in a real terminal yet: the
+thinking block is drawn as text, not in pi's muted style, and the pane has no
+header, since the split's own label already names the subagent.
 
 ## How to verify anything here
 
