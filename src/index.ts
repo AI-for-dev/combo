@@ -191,6 +191,7 @@ export {
 	findPipeline,
 	loadPipelines,
 	loadPipelinesFromDir,
+	lookupPipeline,
 	PIPELINES_DIR,
 	type BrokenPipeline,
 	type PipelineCatalogue,

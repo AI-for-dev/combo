@@ -44,11 +44,7 @@ A file that looks like a pipeline and does not parse. Kept, never swallowed.
 export function findPipeline(catalogue: PipelineCatalogue, name: string): Pipeline { /* … */ }
 ```
 
-Looks up a pipeline by name, or throws.
-
-A name that matches a **broken** file reports why it is broken, rather than
-claiming it does not exist. Getting "unknown pipeline: build" for a
-`build.md` you are looking at is the kind of message that costs an hour.
+Looks up a pipeline by name, or throws - an unknown name is an error here, with what there is instead.
 
 ## `loadPipelines`
 
@@ -78,6 +74,23 @@ export function loadPipelinesFromDir(dir: string): PipelineCatalogue { /* … */
 ```
 
 Reads every `.md` in a directory. A missing or unreadable directory yields nothing.
+
+## `lookupPipeline`
+
+*function*
+
+```typescript
+export function lookupPipeline(catalogue: PipelineCatalogue, name: string): Pipeline | undefined { /* … */ }
+```
+
+The pipeline `name` names, or `undefined` when none does.
+
+A name that matches a **broken** file throws instead of answering nothing:
+refused, never silently replaced. Getting "unknown pipeline: build" for a
+`build.md` you are looking at is the kind of message that costs an hour, and
+a caller that falls back to something else on `undefined` must not fall back
+past a file that is right there and does not parse. The one rule, written
+once, for every lookup.
 
 ## `PipelineCatalogue`
 

@@ -15,7 +15,7 @@
  */
 
 import { checkPipelineAgents, plural, type PipelineCatalogue, type PipelineRunResult } from "../src/index.ts";
-import { checked, choosePipeline, loadRoster, pipelineVerifier, refuse, watched } from "./command.ts";
+import { checked, choosePipeline, loadCatalogue, loadRoster, pipelineVerifier, refuse, watched } from "./command.ts";
 import { sessionDoors, type CommandCtx, type PiApi } from "./pi.ts";
 import { resolved, type PipelineDeps, type SendMessage } from "./deps.ts";
 import { parseLeadingFlags, switchValue } from "./flags.ts";
@@ -82,7 +82,7 @@ export function pipelineLines(catalogue: PipelineCatalogue, cwd: string): string
 
 /** `/pipelines` - what is loaded, from where, and what does not parse. */
 export function listPipelines(ctx: CommandCtx, deps: PipelineDeps = {}): string[] {
-	const catalogue = resolved(deps).loadPipelines({ cwd: ctx.cwd, scope: "both", builtin: true });
+	const catalogue = loadCatalogue(ctx, resolved(deps));
 	const lines = pipelineLines(catalogue, ctx.cwd);
 	ctx.ui.notify(lines.join("\n"), catalogue.broken.length > 0 ? "warning" : "info");
 	return lines;
@@ -121,7 +121,7 @@ export async function runNamed(args: string, ctx: CommandCtx, injected: Pipeline
 	const pipeline = await checked(ctx, async () => {
 		// The same chooser `/build` uses, so a broken file is named here too
 		// rather than reported as an unknown pipeline.
-		const chosen = choosePipeline(name, ctx, deps, "run");
+		const chosen = choosePipeline(name, ctx, deps);
 		checkPipelineAgents(chosen, agents);
 		if (model) await deps.checkModel(model);
 		return chosen;

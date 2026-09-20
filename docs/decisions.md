@@ -1697,6 +1697,29 @@ specification above kept for a collapsed row went with the row nobody drew.
 The console keeps `⏳` on its spawn line, which says something else: born, not
 yet working.
 
+### One lookup for a pipeline
+
+The rule that a broken file is refused rather than silently replaced was
+implemented three times, with three message shapes: in `findPipeline`, which
+the extension never reached for a broken file because two of its callers
+checked first; in `choosePipeline`, with a `command:` prefix its unknown-name
+sibling never had; and in `resolveTarget`, which searched the catalogue itself
+rather than call `findPipeline`, because it needed "absent" to fall through
+to an agent instead of throwing. The catalogue was loaded with the same three
+flags at three sites, where the roster had `loadRoster` and the paragraph
+saying why.
+
+`lookupPipeline(catalogue, name)` answers a pipeline or `undefined`, and throws
+on a broken file of that name: absent is a thing a caller may act on, a file
+that is right there and does not parse is not, and a caller that falls back on
+`undefined` must never fall back past one. `findPipeline` is the lookup plus
+"unknown name is an error, with what there is instead". `loadCatalogue` is
+`loadRoster`'s sibling. `choosePipeline` is one line; `resolveTarget` calls the
+lookup and keeps its own question, which was only ever "pipeline or agent";
+`listPipelines` loads through the same door. One message, the library's, for
+every command: the `run:` and `step:` prefixes went, as the unknown-name
+message had never carried one.
+
 ## Stopping a run, and one subagent of it
 
 A run already obeys a `signal`, and that is all it took to call the whole thing

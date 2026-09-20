@@ -13,8 +13,8 @@
  * on without running anything.
  */
 
-import { findAgent, type Agent, type EventListener, type Pipeline, type SpawnFn, type Usage } from "../src/index.ts";
-import { pipelineVerifier } from "./command.ts";
+import { findAgent, lookupPipeline, type Agent, type EventListener, type Pipeline, type SpawnFn, type Usage } from "../src/index.ts";
+import { loadCatalogue, pipelineVerifier } from "./command.ts";
 import type { Deps } from "./deps.ts";
 import type { CommandCtx } from "./pi.ts";
 
@@ -66,11 +66,9 @@ export type Stage = {
 export function resolveTarget(name: string, forceAgent: boolean, ctx: CommandCtx, deps: Deps, agents: Agent[]): Target {
 	if (forceAgent) return { kind: "agent", agent: findAgent(agents, name) };
 
-	const catalogue = deps.loadPipelines({ cwd: ctx.cwd, scope: "both", builtin: true });
-	const broken = catalogue.broken.find((one) => one.name === name);
-	if (broken) throw new Error(`step: ${broken.filePath} does not parse: ${broken.error}`);
-
-	const pipeline = catalogue.pipelines.find((one) => one.name === name);
+	// A broken file of that name is refused by the lookup, and never fallen
+	// past to an agent that happens to share the name.
+	const pipeline = lookupPipeline(loadCatalogue(ctx, deps), name);
 	const agent = agents.find((one) => one.name === name);
 	if (!pipeline && !agent) {
 		throw new Error(
