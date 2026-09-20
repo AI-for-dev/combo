@@ -30,23 +30,6 @@ export function declaresVerdict(tools: readonly string[] | undefined): boolean {
 
 Whether an agent's definition asks for the tool.
 
-## `lastVerdict`
-
-*function*
-
-```typescript
-export function lastVerdict(verdicts: readonly Verdict[]): Verdict | undefined { /* … */ }
-```
-
-What a round decided, from the verdicts it produced.
-
-`undefined` when the agent called nothing. That is not a refusal and not an
-approval: it is a turn that failed to answer, and the caller has to be able to
-say so rather than pick one.
-
-The **last** call wins when there are several, because an agent that calls
-again has changed its mind, and the alternative is to make it unable to.
-
 ## `Resolution`
 
 *type*

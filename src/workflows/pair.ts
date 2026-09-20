@@ -12,12 +12,14 @@
  */
 
 import type { Agent } from "./../agent.ts";
-import { createLedger, openList, type Ledger, type Obligation } from "./../ledger.ts";
+import type { ToolDefinition } from "./../session.ts";
+import { openList, type Obligation } from "./../ledger.ts";
 import { scratchWorktree, type Scratch } from "./../scratch.ts";
 import { failed, type Result } from "./../result.ts";
+import { reviewRecord } from "./../review.ts";
 import { saysWord } from "./../text.ts";
 import { sumUsage } from "./../usage.ts";
-import { declaresVerdict, lastVerdict, verdictTool, type Verdict } from "./../verdict.ts";
+import { declaresVerdict, type Verdict } from "./../verdict.ts";
 import type { WorkflowOptions } from "./options.ts";
 import { SubagentPool } from "./pool.ts";
 
@@ -131,18 +133,14 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 	const maxRounds = options.maxRounds ?? 3;
 	if (maxRounds < 1) throw new Error(`pair: \`maxRounds\` must be at least 1, got ${maxRounds}`);
 
-	// The reviewer decides through a tool when its definition asks for one. Built
-	// here rather than per round, so a reviewer kept across rounds keeps its own.
-	const speaksByTool = !options.approved && declaresVerdict(reviewer.tools);
-	const ledger = createLedger();
-	const verdicts = speaksByTool
-		? verdictTool({
-				knows: (id) => ledger.open.some((one) => one.id === id),
-				open: () => ledger.open.map((one) => one.id),
-			})
-		: undefined;
+	// The reviewer decides through a tool when its definition asks for one, and a
+	// caller's own predicate stands in for it. Built here rather than per round,
+	// so a reviewer kept across rounds keeps its own record.
+	const record = reviewRecord(reviewer.name, {
+		byTool: !options.approved && declaresVerdict(reviewer.tools),
+		inProse: options.approved ?? approvedByDefault,
+	});
 
-	const isApproved = options.approved ?? approvedByDefault;
 	const steps: Result[] = [];
 	const startedAt = performance.now();
 	let verdict: Verdict | undefined;
@@ -162,7 +160,7 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 		rounds,
 		approved,
 		verdict,
-		obligations: ledger.all,
+		obligations: record.all,
 		worktree: patch ? scratch?.branch : undefined,
 		patch,
 	});
@@ -201,7 +199,7 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 		...options,
 		cwd: scratch?.path ?? options.cwd,
 		lifetime: options.lifetime ?? "workflow",
-		customTools: verdicts ? (agent) => (agent.name === reviewer.name ? [verdicts.tool] : undefined) : options.customTools,
+		customTools: record.tool ? (agent) => (agent.name === reviewer.name ? [record.tool as ToolDefinition] : undefined) : options.customTools,
 	});
 	let work: Result | undefined;
 	let review: Result | undefined;
@@ -217,21 +215,13 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 			steps.push(work);
 			if (!work.ok) break;
 
-			review = await pool.turn(reviewer, reviewPrompt(input, work.output, round, { byTool: speaksByTool, open: ledger.open }));
+			review = await pool.turn(reviewer, reviewPrompt(input, work.output, round, { byTool: record.byTool, open: record.open }));
 			steps.push(review);
 			if (!review.ok) break;
 
-			if (verdicts) {
-				verdict = lastVerdict(verdicts.take());
-				if (verdict) record(ledger, verdict, reviewer.name, round);
-				// Two things have to hold: the reviewer has nothing further to ask,
-				// and nothing it raised earlier is still open. A reviewer holding the
-				// tool and calling nothing has not approved either - guessing from its
-				// prose is the reading this tool exists to retire.
-				approved = !!verdict?.approved && ledger.settled;
-			} else {
-				approved = await isApproved(review, round);
-			}
+			const decided = await record.close(review, round);
+			verdict = decided.verdict;
+			approved = decided.approved;
 			// Breaking rather than returning: the copy is released in the `finally`
 			// below, and a result built before that would carry no patch.
 			if (approved) break;
@@ -269,18 +259,6 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 /** `LGTM` on a line of its own, whatever decoration the model put around it. */
 function approvedByDefault(review: Result): boolean {
 	return saysWord(review.output, APPROVAL);
-}
-
-/**
- * Writes a round's verdict into the ledger: what it closed, then what it raised.
- *
- * Closures first, so an obligation raised this round cannot be closed by the
- * same call. A closure the ledger refuses - an unknown id, one the reviewer did
- * not raise - leaves it open, which is the outcome the caller reads anyway.
- */
-function record(ledger: Ledger, verdict: Verdict, by: string, round: number): void {
-	for (const one of verdict.resolved) ledger.close(one.id, by, { how: one.how, reason: one.reason, at: round });
-	for (const text of verdict.raised) ledger.raise(by, text, round);
 }
 
 /** How the reviewer is asked to answer, and what it still owes. */
