@@ -164,6 +164,34 @@ describe("reading", () => {
 		assert.equal(board.since("scout#1").cursor, "");
 		assert.equal(board.since("scout#1", "p4").cursor, "p4");
 	});
+
+	test("a limit hands back a page, says how much waits, and leaves the rest for the next read", () => {
+		const board = createBoard();
+		for (let n = 1; n <= 5; n++) board.post("scout#1", tell(`post ${n}`));
+
+		const first = board.since("scout#2", undefined, 2);
+		assert.deepEqual(first.posts.map((one) => one.text), ["post 1", "post 2"]);
+		assert.equal(first.waiting, 3);
+		assert.equal(first.cursor, "p2", "past what was handed over, never past what was merely looked at");
+
+		const second = board.since("scout#2", first.cursor, 2);
+		assert.deepEqual(second.posts.map((one) => one.text), ["post 3", "post 4"]);
+		assert.equal(second.waiting, 1);
+
+		const last = board.since("scout#2", second.cursor, 2);
+		assert.deepEqual(last.posts.map((one) => one.text), ["post 5"]);
+		assert.equal(last.waiting, 0);
+		assert.equal(last.cursor, "p5", "with everything handed over, the cursor follows the board again");
+	});
+
+	test("without a limit everything is handed over and nothing waits", () => {
+		const board = createBoard();
+		board.post("scout#1", tell("a"));
+		board.post("scout#1", tell("b"));
+		const read = board.since("scout#2");
+		assert.equal(read.posts.length, 2);
+		assert.equal(read.waiting, 0);
+	});
 });
 
 describe("the record", () => {

@@ -244,6 +244,7 @@ export {
 	type Ledger,
 	type Obligation,
 } from "./ledger.ts";
+export { announcedBoard, announcedClaims } from "./announced.ts";
 export { boardTool, declaresBoard, BOARD_TOOL, type BoardToolOptions } from "./board-tool.ts";
 export {
 	createClaims,

@@ -192,6 +192,48 @@ describe("what an observer sees", () => {
 		assert.ok(seen.includes("post"), "and so is what a member said");
 		assert.equal(seen.filter((type) => type === "post").length, 1, "one listener, one bus: no event twice");
 	});
+
+	test("the handout that opens every round is on the stream, the empty one included", async () => {
+		const board = createBoard();
+		board.post("member#9", { kind: "tell", text: "news" });
+		const reads: { id: string; posts: readonly string[] }[] = [];
+
+		await swarm({
+			members: [{ agent: member, count: 2 }],
+			goal: "x",
+			rounds: 1,
+			board,
+			concurrency: 1,
+			spawn: fakeSpawn().spawn,
+			onEvent: (event) => void (event.type === "read" && reads.push({ id: event.id, posts: event.posts })),
+		});
+
+		assert.deepEqual(reads, [
+			{ id: "member#1", posts: ["p1"] },
+			{ id: "member#2", posts: ["p1"] },
+		]);
+	});
+
+	test("what a member was still holding when the swarm ended is given back on the stream", async () => {
+		const claims = createClaims({ keys: ["a"] });
+		const releases: unknown[] = [];
+		const fake = fakeSpawn(async (_task, _agent, options) => {
+			const tool = offeredTools(options, "member#1")[0];
+			if (tool) await callTool(tool, { action: "take", key: "a" });
+			return {};
+		});
+
+		await swarm({
+			members: [{ agent: member, count: 1 }],
+			goal: "x",
+			rounds: 1,
+			claims,
+			spawn: fake.spawn,
+			onEvent: (event) => void (event.type === "claim" && event.action === "release" && releases.push(event)),
+		});
+
+		assert.deepEqual(releases, [{ type: "claim", id: "member#1", key: "a", action: "release", ok: true }]);
+	});
 });
 
 describe("with no board and no claims, one round", () => {

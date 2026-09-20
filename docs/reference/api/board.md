@@ -49,8 +49,15 @@ export type Board = {
 	 * else with the turn it has left.
 	 */
 	post(from: string, draft: Draft): PostOutcome;
-	/** What `reader` has not been given: everyone's broadcasts, plus its own mail. */
-	since(reader: string, cursor?: string): Reading;
+	/**
+	 * What `reader` has not been given: everyone's broadcasts, plus its own mail.
+	 *
+	 * `limit` is a page: a board holds hundreds and a member's context holds one
+	 * conversation, so a reader may ask for a few and be told how many wait. The
+	 * cursor then moves past what was handed over, never past what was merely
+	 * looked at, so a post left for the next page is still there when asked.
+	 */
+	since(reader: string, cursor?: string, limit?: number): Reading;
 	/** Every post, in the order they went up. The record an investigation reads. */
 	all(): readonly Post[];
 };
@@ -193,10 +200,12 @@ A post that went up, or why it did not.
 
 ```typescript
 export type Reading = {
-	/** What came in since the cursor, for this reader only. */
+	/** What came in since the cursor, for this reader only - up to the limit asked for. */
 	posts: readonly Post[];
 	/** Pass it back to {@link Board.since} to be given only what came after. */
 	cursor: string;
+	/** How many more were there for this reader, past the limit. `0` when it was handed everything. */
+	waiting: number;
 };
 ```
 
