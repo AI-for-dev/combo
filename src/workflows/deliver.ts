@@ -3,9 +3,9 @@
  *
  * Plan the split, run each subtask as a worker↔reviewer {@link pair}, then have
  * one auditor read the whole thing and send back what still needs fixing. It is
- * the composition the rest of this library was built for, and it adds exactly
- * one idea of its own: **the audit**, which lives next door in `audit.ts` -
- * here it is a loop over rounds, a ledger and a check.
+ * the composition the rest of this library was built for: plan, work, audit,
+ * settle. The audit cycle lives next door in `audit.ts`; what this file adds is
+ * how the work reaches the tree, and the check on it.
  *
  * Why a {@link Verify} on top of the audit: in a real run a pair wrote a
  * helper with its tests, the reviewer approved and the auditor approved, while
@@ -19,13 +19,11 @@ import type { Agent } from "./../agent.ts";
 import { land, landable, type Landed } from "./../land.ts";
 import type { Obligation } from "./../ledger.ts";
 import type { Result } from "./../result.ts";
-import { reviewRecord } from "./../review.ts";
 import { truncate } from "./../text.ts";
 import { emptyUsage, sumUsage, type Usage } from "./../usage.ts";
 import type { BuildProgress } from "./../resume.ts";
-import { declaresVerdict } from "./../verdict.ts";
 import type { Verification, Verify } from "./../verify.ts";
-import { auditOnce, fixesFrom, isApproved, withCheck, type AuditRound } from "./audit.ts";
+import { audit, type AuditProgress, type AuditRound } from "./audit.ts";
 import { mapConcurrent } from "./concurrent.ts";
 import type { WorkflowOptions } from "./options.ts";
 import { pair, type PairResult } from "./pair.ts";
@@ -172,7 +170,7 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 		maxTasks,
 		concurrency = 2,
 		maxRounds,
-		maxAuditRounds = 2,
+		maxAuditRounds,
 		verify,
 		worktree,
 		resume,
@@ -181,51 +179,41 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 	} = options;
 
 	const startedAt = performance.now();
-	const audits: AuditRound[] = [...(resume?.audits ?? [])];
-	let tasks: PairResult[] = [];
+	let audits: readonly AuditRound[] = resume?.audits ?? [];
+	let tasks: readonly PairResult[] = [];
+	// What a resumed run carried in stands until an auditor moves it; with no
+	// auditor it is reported as it came.
+	let obligations: readonly Obligation[] = resume?.obligations ?? [];
 	let verification: Verification | undefined = resume?.verification;
 	const landings: Landed[] = [];
-
-	// The auditor decides through a tool when its definition asks for one. Built
-	// once for the whole delivery, although `auditOnce` spawns a fresh auditor
-	// every round: the record outlives the agent that writes into it. With no
-	// auditor no round is ever closed, and the record is only read - for what a
-	// resumed run carried in.
-	const record = reviewRecord(auditor?.name ?? "", {
-		byTool: !!auditor && declaresVerdict(auditor.tools),
-		inProse: (review) => isApproved(review.output),
-		restored: resume?.obligations,
-	});
 
 	// A reporting hook is an observer: a listener that throws must not take the
 	// build down, exactly like a reporter on the event bus.
 	const report = (plan: PlannedTask[], done = false) => {
 		try {
-			onProgress?.({ plan, tasks, audits, obligations: record.all, verification, done });
+			onProgress?.({ plan, tasks: [...tasks], audits: [...audits], obligations, verification, done });
 		} catch {
 			// a caller's bookkeeping problem is not the workflow's problem
 		}
 	};
 
 	const outcome = (plan: PlannedTask[], planning: Result, signedOff: boolean, error?: string): DeliverResult => {
-		const usages = [planning.usage, ...tasks.map((task) => task.usage)];
-		for (const round of audits) {
-			usages.push(round.review.usage, ...round.results.map((result) => result.usage));
-		}
-		const broken = [...tasks, ...audits.flatMap((round) => round.results)].find((result) => !result.ok);
+		// The fixes are in `tasks` already, so a round's own cost is its review.
+		const usages = [planning.usage, ...tasks.map((task) => task.usage), ...audits.map((round) => round.review.usage)];
+		const broken = tasks.find((result) => !result.ok);
 		return {
 			brief,
 			plan,
 			planning,
-			tasks,
-			audits,
+			tasks: [...tasks],
+			audits: [...audits],
 			verification,
 			landings,
-			obligations: record.all,
+			obligations,
 			// A failing check outranks every opinion above it, an obligation nobody
 			// closed outranks the auditor's own yes, and work that never reached
 			// the tree is not delivered whatever was said about the reports.
-			approved: signedOff && record.open.length === 0 && verification?.ok !== false && landings.every((one) => one.ok),
+			approved: signedOff && obligations.every((one) => one.closed) && verification?.ok !== false && landings.every((one) => one.ok),
 			usage: sumUsage(usages, performance.now() - startedAt),
 			ok: !error && planning.ok && !broken,
 			error: error ?? broken?.error ?? planning.error,
@@ -268,13 +256,11 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 	 *
 	 * One call rather than two at each of the two places a batch of pairs
 	 * finishes: with nobody isolated this is the check on its own, and with the
-	 * copies it is what `land` ran between the patches.
+	 * copies it is what `land` ran between the patches. What comes back is the
+	 * tree as it stands.
 	 */
-	const settle = async (batch: readonly PairResult[]) => {
-		if (!isolate) {
-			verification = await verify?.();
-			return;
-		}
+	const settle = async (batch: readonly PairResult[]): Promise<Verification | undefined> => {
+		if (!isolate) return await verify?.();
 
 		const landed = await land(
 			shared.cwd ?? process.cwd(),
@@ -289,7 +275,7 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 		landings.push(landed);
 		// The last check `land` ran is the tree as it stands. With nothing to land
 		// it ran none, and the check still has to be asked.
-		verification = landed.checks.at(-1) ?? (await verify?.());
+		return landed.checks.at(-1) ?? (await verify?.());
 	};
 
 	// Only what was **approved** survives a resume: a subtask still being argued
@@ -303,7 +289,7 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 		const task = kept.get(step.task) ?? byTask.get(step.task);
 		return task ? [task] : [];
 	});
-	await settle(done);
+	verification = await settle(done);
 	report(planned.plan);
 
 	if (!auditor) {
@@ -311,51 +297,35 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 		return outcome(planned.plan, planned.planning, true);
 	}
 
-	// A resumed build has already spent the audit rounds it recorded.
-	for (let round = audits.length + 1; round <= maxAuditRounds; round++) {
-		if (shared.signal?.aborted) break;
-
-		const review = await auditOnce({
-			...shared,
-			auditor,
-			workers,
-			brief,
-			tasks,
-			verification,
-			round,
-			maxAuditRounds,
-			open: record.open,
-			verdictTool: record.tool,
-		});
-
-		const { verdict, approved, raised } = await record.close(review, round);
-		// The auditor names who fixes what, in the plan convention: one parser,
-		// one vocabulary. A name it invented is dropped, like anywhere else.
-		const fixes = approved || !review.ok ? [] : fixesFrom(review, workers, raised, record.byTool);
-
-		// The check goes out with the fix, not only with the audit that asked for
-		// it: `withCheck` says what that is worth.
-		const sent = fixes.map((fix) => ({ ...fix, task: withCheck(fix.task, verification) }));
-		const results = sent.length > 0 ? await mapConcurrent(sent, concurrency, run) : [];
-		audits.push({ review, verdict, verification, approved, fixes, results });
-		tasks = [...tasks, ...results];
-		if (results.length > 0) await settle(results);
-		report(planned.plan);
-
-		// An approval on top of a failing check is not an approval: keep going
-		// while there are rounds left, because the check is the one voice here
-		// that cannot be talked round.
-		if (approved && verification?.ok !== false) {
-			report(planned.plan, true);
-			return outcome(planned.plan, planned.planning, true);
-		}
-		// Nothing actionable came back and nothing moved in the ledger: another
-		// identical audit would only cost tokens.
-		if (results.length === 0 && !(verdict?.resolved.length ?? 0)) break;
-	}
+	// The audit says what must change; this is how it reaches the tree.
+	const take = (progress: AuditProgress) => {
+		audits = progress.rounds;
+		tasks = progress.tasks;
+		obligations = progress.obligations;
+		verification = progress.verification;
+	};
+	const audited = await audit({
+		...shared,
+		auditor,
+		workers,
+		brief,
+		tasks,
+		verification,
+		maxAuditRounds,
+		resume: resume ? { rounds: resume.audits, obligations: resume.obligations } : undefined,
+		fix: async (fixes) => {
+			const results = await mapConcurrent(fixes, concurrency, run);
+			return { results, verification: await settle(results) };
+		},
+		onRound: (progress) => {
+			take(progress);
+			report(planned.plan);
+		},
+	});
+	take(audited);
 
 	report(planned.plan, true);
-	return outcome(planned.plan, planned.planning, false);
+	return outcome(planned.plan, planned.planning, audited.approved);
 }
 
 /**

@@ -8,9 +8,9 @@ Source: [`src/workflows/deliver.ts`](https://github.com/AI-for-dev/combo/blob/ma
 
 Plan the split, run each subtask as a worker↔reviewer {@link pair}, then have
 one auditor read the whole thing and send back what still needs fixing. It is
-the composition the rest of this library was built for, and it adds exactly
-one idea of its own: **the audit**, which lives next door in `audit.ts` -
-here it is a loop over rounds, a ledger and a check.
+the composition the rest of this library was built for: plan, work, audit,
+settle. The audit cycle lives next door in `audit.ts`; what this file adds is
+how the work reaches the tree, and the check on it.
 
 Why a {@link Verify} on top of the audit: in a real run a pair wrote a
 helper with its tests, the reviewer approved and the auditor approved, while
