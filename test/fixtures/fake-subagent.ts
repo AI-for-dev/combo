@@ -8,7 +8,7 @@
 
 import type { Agent } from "../../src/agent.ts";
 import { emptyUsage, type Usage } from "../../src/usage.ts";
-import type { Result } from "../../src/result.ts";
+import { failed, succeeded, type Result } from "../../src/result.ts";
 import type { ToolDefinition } from "../../src/session.ts";
 import type { SpawnFn } from "../../src/workflows/options.ts";
 import { toolsOffered, type AskOptions, type SpawnOptions, type Subagent } from "../../src/subagent.ts";
@@ -127,7 +127,7 @@ export function fakeSpawn(
 					}
 
 					if (error) {
-						const result: Result = { agent: agent.name, output: "", messages: [], usage: emptyUsage(), ok: false, error };
+						const result = failed(agent.name, error);
 						lastResult = result;
 						bus?.emit({ type: "status", id, status: "blocked" });
 						return result;
@@ -135,14 +135,9 @@ export function fakeSpawn(
 
 					const usage: Usage = { ...emptyUsage(), turns: 1, ...answer.usage };
 					const ok = answer.ok ?? true;
-					const result: Result = {
-						agent: agent.name,
-						output: answer.output ?? `${agent.name}(${task})`,
-						messages: [],
-						usage,
-						ok,
-					};
-					if (!ok) result.error = answer.error ?? "failed";
+					const output = answer.output ?? `${agent.name}(${task})`;
+					// A failed turn keeps what it said, as the real one keeps its messages.
+					const result: Result = ok ? succeeded(agent.name, output, usage) : { ...failed(agent.name, answer.error ?? "failed", usage), output };
 					lastResult = result;
 					bus?.emit({ type: "usage", id, usage });
 					bus?.emit({ type: "status", id, status: ok ? "idle" : "blocked" });
@@ -171,7 +166,7 @@ export function fakeSpawn(
 				bus?.emit({
 					type: "close",
 					id,
-					result: lastResult ?? { agent: agent.name, output: "", messages: [], usage: emptyUsage(), ok: true },
+					result: lastResult ?? succeeded(agent.name, ""),
 				});
 			},
 		};

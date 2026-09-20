@@ -15,23 +15,25 @@ import { runBuild } from "../extension/build.ts";
 import { toggleHerdr } from "../extension/herdr-command.ts";
 import { runInterview } from "../extension/interview-command.ts";
 import type { CommandDeps } from "../extension/deps.ts";
+import type { EventListener } from "../src/events.ts";
 import { parsePipeline } from "../src/pipeline.ts";
 import { watchEverything, watchEverythingIs } from "../extension/herdr-switch.ts";
 import { BUILD_STATE_VERSION, type BuildState } from "../src/resume.ts";
-import type { DeliverResult } from "../src/workflows/deliver.ts";
+import type { BuildProgress, DeliverResult } from "../src/workflows/deliver.ts";
 import type { PipelineRunResult } from "../src/workflows/pipeline-run.ts";
+import { succeeded } from "../src/result.ts";
 import { emptyUsage } from "../src/usage.ts";
 import { fakeCtx } from "./fixtures/command-ctx.ts";
 import { baseDeps } from "./fixtures/command-deps.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
+import { spawned, working } from "./fixtures/picture.ts";
+import { deliverResult, interviewResult, pipelineRunResult } from "./fixtures/results.ts";
 
 initTheme();
 
 const agents = ["interviewer", "planner", "coder", "reviewer", "auditor", "committer"].map((name) =>
 	testAgent(name, { description: `${name} for tests` }),
 );
-
-const result = <T extends object>(over: T) => ({ usage: emptyUsage(), ok: true, ...over });
 
 type Git = NonNullable<CommandDeps["git"]>;
 
@@ -73,30 +75,18 @@ const shipped = parsePipeline(
  * carried by the step, never off the step's text - so a double that returned
  * only text would test nothing the command actually does.
  */
-function delivered(over: Partial<DeliverResult> = {}) {
-	const delivery = result({
-		brief: "THE BRIEF",
-		plan: [],
-		planning: {} as never,
-		tasks: [],
-		audits: [],
-		approved: true,
-		...over,
-	}) as DeliverResult;
-	return result({
-		pipeline: "build",
-		steps: [{ id: "work", kind: "deliver" as const, result: {} as never, delivery }],
-		output: "done",
-	}) as PipelineRunResult;
+function delivered(over: Partial<DeliverResult> = {}): PipelineRunResult {
+	const delivery = deliverResult(over);
+	return pipelineRunResult({ pipeline: "build", steps: [{ id: "work", kind: "deliver", result: delivery, delivery }], output: "done" });
 }
 
 /** The happy path's doubles: a brief, a delivery, a commit message. */
 function deps(over: CommandDeps = {}): CommandDeps {
 	return {
 		...baseDeps(agents, [shipped]),
-		interview: async () => result({ brief: "THE BRIEF", answers: [], steps: [], submitted: false }) as never,
+		interview: async () => interviewResult(),
 		runPipeline: async () => delivered(),
-		run: async () => result({ agent: "committer", output: "Add x\n\nBecause.", messages: [] }) as never,
+		run: async () => succeeded("committer", "Add x\n\nBecause."),
 		...over,
 	};
 }
@@ -121,7 +111,7 @@ describe("/interview", () => {
 	test("an empty request is refused before anything runs", async () => {
 		const { ctx, said } = fakeCtx();
 		let interviewed = false;
-		await runInterview("   ", ctx, deps({ interview: (async () => ((interviewed = true), {})) as never }));
+		await runInterview("   ", ctx, deps({ interview: async () => ((interviewed = true), interviewResult()) }));
 
 		assert.equal(interviewed, false);
 		assert.match(said(), /say what you want built/);
@@ -145,7 +135,7 @@ describe("/interview", () => {
 
 	test("a failed interview never invents a brief", async () => {
 		const { ctx, said, editors } = fakeCtx();
-		const outcome = await runInterview("x", ctx, deps({ interview: async () => result({ brief: "", ok: false, error: "boom" }) as never }));
+		const outcome = await runInterview("x", ctx, deps({ interview: async () => interviewResult({ brief: "", ok: false, error: "boom" }) }));
 
 		assert.equal(outcome?.ok, false);
 		assert.equal(editors.length, 0);
@@ -173,7 +163,7 @@ describe("/build", () => {
 			deps({
 				git,
 				checkModel: async () => {},
-				runPipeline: (async (options: { model?: string }) => ((seen = options.model), delivered())) as never,
+				runPipeline: async (options: { model?: string }) => ((seen = options.model), delivered()),
 			}),
 		);
 
@@ -192,7 +182,7 @@ describe("/build", () => {
 				checkModel: async () => {
 					throw new Error('No model found for "local/nope"');
 				},
-				interview: (async () => ((interviewed = true), {})) as never,
+				interview: async () => ((interviewed = true), interviewResult()),
 			}),
 		);
 
@@ -205,7 +195,7 @@ describe("/build", () => {
 		const { ctx, said } = fakeCtx({ confirm: [false] });
 		let ran = false;
 		const { git, calls } = fakeGit();
-		await runBuild("x", ctx, deps({ git, runPipeline: (async () => ((ran = true), {})) as never }));
+		await runBuild("x", ctx, deps({ git, runPipeline: async () => ((ran = true), delivered()) }));
 
 		assert.equal(ran, false);
 		assert.deepEqual(calls, [], "nothing was branched, nothing was committed");
@@ -242,7 +232,7 @@ describe("/build", () => {
 		const { ctx, said } = fakeCtx();
 		let interviewed = false;
 		const { git } = fakeGit({ isRepository: async () => false });
-		await runBuild("x", ctx, deps({ git, interview: (async () => ((interviewed = true), {})) as never }));
+		await runBuild("x", ctx, deps({ git, interview: async () => ((interviewed = true), interviewResult()) }));
 
 		assert.equal(interviewed, false);
 		assert.match(said(), /not a git repository/);
@@ -263,10 +253,10 @@ describe("/build", () => {
 		const { git } = fakeGit();
 		await runBuild("x", ctx, deps({
 			git,
-			run: (async (_agent: unknown, task: string) => {
+			run: async (_agent: unknown, task: string) => {
 				prompts.push(task);
-				return result({ agent: "committer", output: "Subject", messages: [] });
-			}) as never,
+				return succeeded("committer", "Subject");
+			},
 		}));
 
 		assert.match(prompts[0] ?? "", /THE BRIEF/);
@@ -280,10 +270,10 @@ describe("/build", () => {
 		const { git } = fakeGit();
 		await runBuild("x", ctx, deps({
 			git,
-			run: (async (_agent: unknown, _task: string, options: typeof given) => {
+			run: async (_agent: unknown, _task: string, options: typeof given) => {
 				given = options;
-				return result({ agent: "committer", output: "Subject", messages: [] });
-			}) as never,
+				return succeeded("committer", "Subject");
+			},
 		}));
 
 		assert.ok(given?.signal instanceof AbortSignal, "the run's signal, not pi's, which is undefined during a command");
@@ -353,10 +343,10 @@ describe("/build and its pipeline", () => {
 
 		await runBuild("add a cache", ctx, deps({
 			git,
-			runPipeline: (async (options: { pipeline: { name: string; filePath: string } }) => {
+			runPipeline: async (options: { pipeline: { name: string; filePath: string } }) => {
 				ran = `${options.pipeline.name} from ${options.pipeline.filePath}`;
 				return delivered();
-			}) as never,
+			},
 		}));
 
 		assert.match(ran ?? "", /^build from .*pipelines\/build\.md$/, "the default is a file, not a constant");
@@ -389,7 +379,7 @@ describe("/build and its pipeline", () => {
 		await runBuild("x", ctx, deps({
 			git,
 			loadPipelines: () => ({ pipelines: [], broken: [] }),
-			runPipeline: (async () => ((ran = true), {})) as never,
+			runPipeline: async () => ((ran = true), delivered()),
 		}));
 
 		assert.equal(ran, false);
@@ -408,10 +398,10 @@ describe("/build and its pipeline", () => {
 		await runBuild("x", ctx, deps({
 			git,
 			loadPipelines: () => ({ pipelines: [mine], broken: [] }),
-			runPipeline: (async (options: { pipeline: { filePath: string } }) => {
+			runPipeline: async (options: { pipeline: { filePath: string } }) => {
 				ran = options.pipeline.filePath;
 				return delivered();
-			}) as never,
+			},
 		}));
 
 		assert.equal(ran, "/somewhere/.pi/pipelines/build.md");
@@ -429,10 +419,10 @@ describe("/build and its pipeline", () => {
 		await runBuild("--pipeline audit check the parser", ctx, deps({
 			git,
 			loadPipelines: () => ({ pipelines: [audit], broken: [] }),
-			runPipeline: (async (options: { pipeline: { name: string } }) => {
+			runPipeline: async (options: { pipeline: { name: string } }) => {
 				ran = options.pipeline.name;
 				return delivered();
-			}) as never,
+			},
 		}));
 
 		assert.equal(ran, "audit");
@@ -449,7 +439,7 @@ describe("/build and its pipeline", () => {
 				pipelines: [],
 				broken: [{ filePath: ".pi/pipelines/build.md", name: "build", error: 'needs a non-empty "steps" list.' }],
 			}),
-			runPipeline: (async () => ((ran = true), {})) as never,
+			runPipeline: async () => ((ran = true), delivered()),
 		}));
 
 		assert.equal(ran, false, "a file sitting right there must not be quietly ignored");
@@ -464,7 +454,7 @@ describe("/build and its pipeline", () => {
 		await runBuild("--pipeline ghost x", ctx, deps({
 			git,
 			loadPipelines: () => ({ pipelines: [], broken: [] }),
-			interview: (async () => ((interviewed = true), {})) as never,
+			interview: async () => ((interviewed = true), interviewResult()),
 		}));
 
 		assert.equal(interviewed, false, "a typo costs a second, not a conversation");
@@ -483,7 +473,7 @@ describe("/build and its pipeline", () => {
 		await runBuild("x", ctx, deps({
 			git,
 			loadPipelines: () => ({ pipelines: [ghosts], broken: [] }),
-			interview: (async () => ((interviewed = true), {})) as never,
+			interview: async () => ((interviewed = true), interviewResult()),
 		}));
 
 		assert.equal(interviewed, false);
@@ -503,7 +493,7 @@ describe("/build and its pipeline", () => {
 			git,
 			verify: undefined,
 			loadPipelines: () => ({ pipelines: [withCheck], broken: [] }),
-			runPipeline: (async (options: { verify?: unknown }) => ((verified = options.verify), delivered())) as never,
+			runPipeline: async (options: { verify?: unknown }) => ((verified = options.verify), delivered()),
 		}));
 
 		assert.ok(verified, "the file states the project's bar once, so nobody has to retype it");
@@ -521,12 +511,12 @@ describe("/build resume", () => {
 		await runBuild("resume", ctx, deps({
 			git,
 			findResumable: () => ({ dir: "runs/2026-07-19_10-00-00", state: interrupted() }),
-			interview: (async () => ((interviewed = true), {})) as never,
-			runPipeline: (async (options: { delivery?: { resume?: (id: string) => unknown }; input: string }) => {
+			interview: async () => ((interviewed = true), interviewResult()),
+			runPipeline: async (options: { delivery?: { resume?: (id: string) => unknown }; input: string }) => {
 				resumed = options.delivery?.resume?.("work");
 				assert.equal(options.input, "THE OLD BRIEF", "the user does not re-decide what they decided an hour ago");
 				return delivered();
-			}) as never,
+			},
 		}));
 
 		assert.equal(interviewed, false);
@@ -545,10 +535,10 @@ describe("/build resume", () => {
 			findResumable: () => ({ dir: "runs/2026-07-19_10-00-00", state: interrupted() }),
 			runDir: () => "runs/a-brand-new-one",
 			saveState: (dir) => (saved.push(dir), undefined),
-			runPipeline: (async (options: { delivery?: { onProgress?: (id: string, p: unknown, done: boolean) => void } }) => {
+			runPipeline: async (options: { delivery?: { onProgress?: (id: string, p: BuildProgress, done: boolean) => void } }) => {
 				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [] }, false);
 				return delivered();
-			}) as never,
+			},
 		}));
 
 		assert.deepEqual(saved, ["runs/2026-07-19_10-00-00"], "one run, one folder");
@@ -562,11 +552,11 @@ describe("/build resume", () => {
 		await runBuild("add a cache", ctx, deps({
 			git,
 			saveState: (_dir, state) => (states.push(state as BuildState), undefined),
-			runPipeline: (async (options: { delivery?: { onProgress?: (id: string, p: unknown, done: boolean) => void } }) => {
+			runPipeline: async (options: { delivery?: { onProgress?: (id: string, p: BuildProgress, done: boolean) => void } }) => {
 				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [] }, false);
 				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [] }, true);
 				return delivered();
-			}) as never,
+			},
 		}));
 
 		assert.equal(states.length, 2);
@@ -583,7 +573,7 @@ describe("/build resume", () => {
 		await runBuild("resume", ctx, deps({
 			git,
 			findResumable: () => undefined,
-			runPipeline: (async () => ((ran = true), {})) as never,
+			runPipeline: async () => ((ran = true), delivered()),
 		}));
 
 		assert.equal(ran, false);
@@ -598,7 +588,7 @@ describe("/build resume", () => {
 		await runBuild("resume", ctx, deps({
 			git,
 			findResumable: () => ({ dir: "runs/x", state: interrupted({ plan: [{ agent: "ghost", task: "do magic" }] }) }),
-			runPipeline: (async () => ((ran = true), {})) as never,
+			runPipeline: async () => ((ran = true), delivered()),
 		}));
 
 		assert.equal(ran, false);
@@ -704,12 +694,12 @@ describe("the interview gets what it was promised", () => {
 			"add a cache",
 			ctx,
 			deps({
-				interview: (async (options: { onEvent?: (event: unknown) => void }) => {
-					options.onEvent?.({ type: "spawn", id: "interviewer#1", agent: "interviewer", lifetime: "workflow", openInHerdr: false });
-					options.onEvent?.({ type: "status", id: "interviewer#1", status: "working", task: "…" });
+				interview: async (options: { onEvent?: EventListener }) => {
+					options.onEvent?.({ ...spawned("interviewer#1"), lifetime: "workflow" });
+					options.onEvent?.(working("interviewer#1", "…"));
 					options.onEvent?.({ type: "tool", id: "interviewer#1", name: "read", args: { path: "src/agent.ts" } });
-					return result({ brief: "THE BRIEF", answers: [], steps: [], submitted: false }) as never;
-				}) as never,
+					return interviewResult();
+				},
 			}),
 		);
 
@@ -726,10 +716,10 @@ describe("the interview gets what it was promised", () => {
 			"add a cache",
 			ctx,
 			deps({
-				interview: (async (options: Record<string, unknown>) => {
+				interview: async (options: Record<string, unknown>) => {
 					seen = options;
-					return result({ brief: "THE BRIEF", answers: [], steps: [], submitted: false }) as never;
-				}) as never,
+					return interviewResult();
+				},
 			}),
 			{ model: "local/one", maxQuestions: 2 },
 		);
@@ -747,10 +737,10 @@ describe("a failed interview leaves something to read", () => {
 
 		const outcome = await runInterview("add a cache", ctx, deps({
 			runDir: () => "runs/the-one-folder",
-			interview: (async (options: Record<string, unknown>) => {
+			interview: async (options: Record<string, unknown>) => {
 				seen = options;
-				return result({ brief: "", answers: [], steps: [], submitted: false, ok: false, error: "[node9] prompt blocked" }) as never;
-			}) as never,
+				return interviewResult({ brief: "", ok: false, error: "[node9] prompt blocked" });
+			},
 		}));
 
 		assert.equal(seen?.exportDir, "runs/the-one-folder", "the subagent exports as it closes, failure included");
@@ -769,14 +759,14 @@ describe("a failed interview leaves something to read", () => {
 		await runBuild("add a cache", ctx, deps({
 			git,
 			runDir: () => "runs/one-run-one-folder",
-			interview: (async (options: { exportDir?: string }) => {
+			interview: async (options: { exportDir?: string }) => {
 				dirs.push(options.exportDir ?? "(none)");
-				return result({ brief: "THE BRIEF", answers: [], steps: [], submitted: false }) as never;
-			}) as never,
-			runPipeline: (async (options: { exportDir?: string }) => {
+				return interviewResult();
+			},
+			runPipeline: async (options: { exportDir?: string }) => {
 				dirs.push(options.exportDir ?? "(none)");
 				return delivered();
-			}) as never,
+			},
 		}));
 
 		assert.deepEqual(dirs, ["runs/one-run-one-folder", "runs/one-run-one-folder"]);
