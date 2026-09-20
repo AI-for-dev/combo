@@ -10,20 +10,25 @@
 import assert from "node:assert/strict";
 import { beforeEach, describe, test } from "node:test";
 import {
+	beginStep,
 	chainInput,
 	chainLines,
 	chainUsage,
 	currentChain,
 	entryOf,
+	finishStep,
 	forgetChain,
+	framed,
 	recordStep,
 	startChain,
+	STEP_ENTRY,
 	stepAnswer,
 	stepDir,
 	stepFrom,
 	stepId,
 	type Relay,
 	type RelayStep,
+	type StepEntry,
 } from "../extension/relay.ts";
 import { emptyUsage } from "../src/usage.ts";
 
@@ -55,6 +60,40 @@ describe("the chain of this terminal", () => {
 		chainOf({ name: "scout" });
 		forgetChain();
 		assert.equal(currentChain(), undefined);
+	});
+});
+
+describe("the life of a step", () => {
+	test("beginning one opens a chain when none is walked, in the folder it is given", () => {
+		const begun = beginStep("coder", () => "runs/fresh");
+
+		assert.equal(currentChain(), begun.relay);
+		assert.equal(begun.relay.dir, "runs/fresh");
+		assert.deepEqual({ id: begun.id, dir: begun.dir }, { id: "coder", dir: "runs/fresh/1-coder" });
+	});
+
+	test("beginning another continues the chain, under the next free id and the next folder", () => {
+		chainOf({ name: "coder" });
+		let opened = 0;
+		const begun = beginStep("coder", () => (opened++, "runs/never"));
+
+		assert.equal(opened, 0, "a chain already walked is not started again");
+		assert.deepEqual({ id: begun.id, dir: begun.dir }, { id: "coder-2", dir: "runs/2026-01-01_00-00-00/2-coder-2" });
+	});
+
+	test("finishing one records it under the id it began with, and leaves its entry through the door in one call", () => {
+		const entries: [string, StepEntry][] = [];
+		const begun = beginStep("coder", () => "runs/x");
+
+		const step = finishStep(
+			begun,
+			{ name: "coder", kind: "agent", instruction: "write it", output: "written", usage: { ...emptyUsage(), turns: 2 } },
+			(customType, data) => void entries.push([customType, data]),
+		);
+
+		assert.deepEqual(currentChain()?.steps, [step]);
+		assert.deepEqual({ id: step.id, dir: step.dir }, { id: "coder", dir: "runs/x/1-coder" }, "what beginStep named is what the record carries");
+		assert.deepEqual(entries, [[STEP_ENTRY, entryOf(step)]]);
 	});
 });
 
@@ -162,6 +201,13 @@ describe("what the chain adds up to", () => {
 		assert.match(lines[0] ?? "", /^1\. scout /);
 		assert.match(lines[1] ?? "", /←scout/);
 		assert.match(lines.at(-1) ?? "", /2 steps, 3 turns - exported to runs\//);
+	});
+});
+
+describe("framing a result for the conversation", () => {
+	test("names what ran and what it was asked, and drops the ask when there was none", () => {
+		assert.equal(framed("the `x` pipeline", "find it", "found"), "Result of the `x` pipeline, asked to: find it.\n\nfound");
+		assert.equal(framed("the `x` pipeline", "  ", "found"), "Result of the `x` pipeline.\n\nfound");
 	});
 });
 

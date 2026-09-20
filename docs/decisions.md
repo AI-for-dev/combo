@@ -1885,6 +1885,35 @@ reaches for. What one command file still imports from another is the design
 and not a leftover: `/build` opens with `/interview`'s function, and `/quote`
 sends the message `/run` sends.
 
+### The relay owns the life of a step
+
+Owning the vocabulary left the sequence to the commands, and `/step` and
+`/swarm` still spelled it out alike, eight moves each: continue or start the
+chain, mint the id, name the folder, run under the dots, refuse on failure,
+record, append the entry, notify. The entry went through
+`injected.appendEntry?.(…)` - the door read off the raw dependencies, where
+`resolved()` never looked, so a caller that forgot it got a step recorded in
+the relay and never drawn, in silence, the very failure `resolved()` guards
+against for every other dependency. `stepAnswer` and `pipelineAnswer` were one
+framing in two files, each justified by the same paragraph about pi's
+user-role slot.
+
+`beginStep(name, runDir)` opens or continues the chain and names the id and
+the folder before anything runs; `finishStep(begun, outcome, appendEntry)`
+records under that id and appends the entry in the same call, so "recorded but
+never drawn" cannot be written. What the commands keep is what each decides:
+the flags, the target, the refusal's wording, the notification. The doors are
+**required** on `PipelineDeps` and `StepDeps` rather than resolved to a
+default: a door that quietly did nothing would be the failure the type exists
+to prevent, so pi's is bound once in `sessionDoors` and a test hands a
+recorder. `framed(what, asked, output)` is the one framing, in the relay, and
+the pipeline's answer is a one-line caller of it.
+
+The mechanism is asserted once, in `test/relay.test.ts`: a begun step opens or
+continues the chain, a finished one is recorded under the id it began with and
+its entry goes through the door. The two commands' tests keep saying what each
+sends and what each draws, because that is the property they exist for.
+
 ## pi comes in through one door, and nothing casts it on the way
 
 Every command handler took pi's `ExtensionCommandContext` and handed it on `as

@@ -25,21 +25,7 @@ import { sessionDoors, type CommandCtx, type PiApi } from "./pi.ts";
 import { resolved, type StepDeps } from "./deps.ts";
 import { parseLeadingFlags, switchValue } from "./flags.ts";
 import { PIPELINE_MESSAGE } from "./pipeline-commands.ts";
-import {
-	chainInput,
-	chainLines,
-	currentChain,
-	entryOf,
-	forgetChain,
-	recordStep,
-	startChain,
-	STEP_ENTRY,
-	stepAnswer,
-	stepDir,
-	stepFrom,
-	stepId,
-	type RelayStep,
-} from "./relay.ts";
+import { beginStep, chainInput, chainLines, currentChain, finishStep, forgetChain, stepAnswer, stepFrom, type RelayStep } from "./relay.ts";
 import { resolveTarget, runStage } from "./stage.ts";
 
 /** Registers `/step`, `/chain` and `/quote`. */
@@ -84,7 +70,7 @@ export default function registerStepCommands(pi: PiApi) {
  * export is still on disk, and the same command can be retried on another
  * model.
  */
-export async function runStep(args: string, ctx: CommandCtx, injected: StepDeps = {}): Promise<RelayStep | undefined> {
+export async function runStep(args: string, ctx: CommandCtx, injected: StepDeps): Promise<RelayStep | undefined> {
 	const deps = resolved(injected);
 	const { flags, rest } = parseLeadingFlags(args, ["from", "model"], ["agent", "worktree"]);
 	const [name, ...words] = rest.split(/\s+/).filter(Boolean);
@@ -114,20 +100,18 @@ export async function runStep(args: string, ctx: CommandCtx, injected: StepDeps 
 		ctx.ui.notify("step: --worktree gives a delivery's workers a copy of the repository - a lone agent gets none", "warning");
 	}
 
-	const relay = currentChain() ?? startChain(deps.runDir());
-	const id = stepId(relay, name);
-	const dir = stepDir(relay, id);
+	const begun = beginStep(name, deps.runDir);
 	const input = chainInput(instruction, previous);
 
 	const done = await watched(ctx, deps, {
-		status: `running ${id}…`,
-		dir,
+		status: `running ${begun.id}…`,
+		dir: begun.dir,
 		work: (live) =>
 			runStage(target, input, {
 				agents,
 				ctx,
 				deps,
-				dir,
+				dir: begun.dir,
 				model: flags.model,
 				worktree: switchValue(flags, "worktree"),
 				onEvent: live.onEvent,
@@ -137,13 +121,12 @@ export async function runStep(args: string, ctx: CommandCtx, injected: StepDeps 
 	});
 
 	if (done.error !== undefined) {
-		refuse(ctx, `step: ${id} failed: ${done.error} - the chain is unchanged, what ran is in ${dir}`, "error");
+		refuse(ctx, `step: ${begun.id} failed: ${done.error} - the chain is unchanged, what ran is in ${begun.dir}`, "error");
 		return undefined;
 	}
 
 	const { output, usage } = done;
-	const step = recordStep(relay, { id, name, kind: target.kind, instruction, from: previous?.id, output, usage, dir });
-	injected.appendEntry?.(STEP_ENTRY, entryOf(step));
+	const step = finishStep(begun, { name, kind: target.kind, instruction, from: previous?.id, output, usage }, injected.appendEntry);
 	ctx.ui.notify(`${step.id}: ${plural(usage.turns, "turn")} - /step <next> carries it on, /quote puts it in this conversation`, "info");
 	return step;
 }
@@ -174,7 +157,7 @@ export function showChain(args: string, ctx: CommandCtx): string[] {
  * The only door out of the relay, and it stays manual: the whole reason a step
  * is drawn rather than sent is that this session acts on whatever it reads.
  */
-export function quoteStep(args: string, ctx: CommandCtx, deps: StepDeps = {}): RelayStep | undefined {
+export function quoteStep(args: string, ctx: CommandCtx, deps: StepDeps): RelayStep | undefined {
 	const relay = currentChain();
 	// `checked` is for what runs before a spawn; nothing is spawned here, but the
 	// refusal has the same shape, and one shape is the point.
@@ -186,7 +169,7 @@ export function quoteStep(args: string, ctx: CommandCtx, deps: StepDeps = {}): R
 	}
 	if (!step || !relay) return refuse(ctx, "quote: nothing has run yet - /step <agent|pipeline> <task> starts a chain", "warning");
 
-	deps.sendMessage?.({
+	deps.sendMessage({
 		customType: PIPELINE_MESSAGE,
 		content: stepAnswer(step),
 		display: true,

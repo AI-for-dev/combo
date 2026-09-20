@@ -17,8 +17,9 @@
 import { checkPipelineAgents, plural, type PipelineCatalogue, type PipelineRunResult } from "../src/index.ts";
 import { checked, choosePipeline, loadCatalogue, loadRoster, pipelineVerifier, refuse, watched } from "./command.ts";
 import { sessionDoors, type CommandCtx, type PiApi } from "./pi.ts";
-import { resolved, type PipelineDeps, type SendMessage } from "./deps.ts";
+import { resolved, type CommandDeps, type PipelineDeps, type SendMessage } from "./deps.ts";
 import { parseLeadingFlags, switchValue } from "./flags.ts";
+import { framed } from "./relay.ts";
 
 /**
  * `customType` of the message a finished pipeline leaves in the session.
@@ -81,7 +82,7 @@ export function pipelineLines(catalogue: PipelineCatalogue, cwd: string): string
 }
 
 /** `/pipelines` - what is loaded, from where, and what does not parse. */
-export function listPipelines(ctx: CommandCtx, deps: PipelineDeps = {}): string[] {
+export function listPipelines(ctx: CommandCtx, deps: CommandDeps = {}): string[] {
 	const catalogue = loadCatalogue(ctx, resolved(deps));
 	const lines = pipelineLines(catalogue, ctx.cwd);
 	ctx.ui.notify(lines.join("\n"), catalogue.broken.length > 0 ? "warning" : "info");
@@ -101,7 +102,7 @@ export function listPipelines(ctx: CommandCtx, deps: PipelineDeps = {}): string[
  * where the user types means they have to send their own report back to the
  * model before it knows anything about it.
  */
-export async function runNamed(args: string, ctx: CommandCtx, injected: PipelineDeps = {}): Promise<PipelineRunResult | undefined> {
+export async function runNamed(args: string, ctx: CommandCtx, injected: PipelineDeps): Promise<PipelineRunResult | undefined> {
 	const deps = resolved(injected);
 	const { flags, rest: text } = parseLeadingFlags(args, ["model"], ["worktree"]);
 	const model = flags.model;
@@ -153,7 +154,7 @@ export async function runNamed(args: string, ctx: CommandCtx, injected: Pipeline
 		return done;
 	}
 
-	injected.sendMessage?.({
+	injected.sendMessage({
 		customType: PIPELINE_MESSAGE,
 		content: pipelineAnswer(pipeline.name, input, done.output),
 		display: true,
@@ -166,14 +167,7 @@ export async function runNamed(args: string, ctx: CommandCtx, injected: Pipeline
 	return done;
 }
 
-/**
- * The answer, framed so a user-role slot does not misread it.
- *
- * pi hands custom messages to the model as user messages, and an unattributed
- * report arriving in that slot reads as an instruction. Two lines of framing
- * turn it back into what it is: the result of something that was run.
- */
+/** The answer, framed so a user-role slot does not misread it - the relay's framing, for a pipeline. */
 export function pipelineAnswer(name: string, input: string, output: string): string {
-	const asked = input.trim() ? `, asked to: ${input.trim()}` : "";
-	return `Result of the \`${name}\` pipeline${asked}.\n\n${output.trim()}`;
+	return framed(`the \`${name}\` pipeline`, input, output);
 }
