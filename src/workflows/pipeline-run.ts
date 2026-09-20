@@ -33,14 +33,13 @@ import type { Agent } from "../agent.ts";
 import { findAgent } from "../agent.ts";
 import { notify } from "../events.ts";
 import type { Pipeline, PipelineStep } from "../pipeline.ts";
-import type { BuildProgress } from "../resume.ts";
 import { failed, type Result } from "../result.ts";
 import { saysWord } from "../text.ts";
 import type { Usage } from "../usage.ts";
 import type { Verify } from "../verify.ts";
 import { chain } from "./chain.ts";
 import type { WorkflowOptions } from "./options.ts";
-import { deliver, type DeliverResult } from "./deliver.ts";
+import { deliver, type BuildProgress, type DeliverResult } from "./deliver.ts";
 import { fanOut } from "./fan-out.ts";
 import { loop } from "./loop.ts";
 import { orchestrate } from "./orchestrate.ts";
@@ -129,8 +128,8 @@ export type PipelineRunOptions = WorkflowOptions & {
 	delivery?: {
 		/** Whatever was already paid for on a previous life of this step, if anything. */
 		resume?: (stepId: string) => BuildProgress | undefined;
-		/** Called after the plan, after each subtask and after each audit. */
-		onProgress?: (stepId: string, progress: BuildProgress) => void;
+		/** Called after the plan, after each subtask and after each audit, and told when the step is over. */
+		onProgress?: (stepId: string, progress: BuildProgress, done: boolean) => void;
 	};
 };
 
@@ -400,11 +399,11 @@ async function runStep(
 				maxAuditRounds: step.maxAuditRounds,
 				worktree,
 				resume: delivery?.resume?.(step.id),
-				onProgress: delivery?.onProgress && ((progress) => delivery.onProgress?.(step.id, progress)),
+				onProgress: delivery?.onProgress && ((progress, done) => delivery.onProgress?.(step.id, progress, done)),
 			});
 			// The subtasks are what a following step folds; the delivery is kept
 			// whole beside them, because `approved` is not a thing a `Result` says.
-			return entry(done, done.tasks, done);
+			return entry(done, [...done.tasks], done);
 		}
 	}
 }

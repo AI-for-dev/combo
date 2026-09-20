@@ -60,7 +60,7 @@ export type Fixed = {
 /** The cycle as it stands: what a caller saves after every round. */
 export type AuditProgress = {
 	/** Every round so far, the ones a previous run recorded first. */
-	rounds: readonly AuditRound[];
+	audits: readonly AuditRound[];
 	/** What was audited last: the subtasks, then every fix that came back. */
 	tasks: readonly PairResult[];
 	/** What the auditor raised across the rounds, and what became of each. */
@@ -77,8 +77,9 @@ export type AuditProgress = {
  * first, and `usage` their sum over this cycle - the fixes are the caller's
  * pairs, and counted where the caller keeps them.
  */
-export type AuditResult = WorkflowResult &
-	AuditProgress & {
+export type AuditResult = WorkflowResult & {
+	/** The cycle as it ended: the same shape every round reported, so a caller keeps one. */
+	progress: AuditProgress;
 	/**
 	 * Whether the last round signed off with nothing owed and no failing check
 	 * standing. Reaching the cap is not approval, and neither is a yes over a
@@ -102,7 +103,7 @@ export type AuditOptions = WorkflowOptions & {
 	/** Audit → fix → re-audit cycles. Defaults to 2. */
 	maxAuditRounds?: number;
 	/** What a previous run already spent and raised. Resuming continues the cycle, it does not restart it. */
-	resume?: Pick<AuditProgress, "rounds" | "obligations">;
+	resume?: Pick<AuditProgress, "audits" | "obligations">;
 	/**
 	 * Runs the fixes the auditor asked for, and says what the tree is afterwards.
 	 *
@@ -132,7 +133,7 @@ export type AuditOptions = WorkflowOptions & {
 export async function audit(options: AuditOptions): Promise<AuditResult> {
 	const { auditor, workers, brief, resume, fix, onRound, ...shared } = options;
 	const maxAuditRounds = options.maxAuditRounds ?? 2;
-	const rounds: AuditRound[] = [...(resume?.rounds ?? [])];
+	const rounds: AuditRound[] = [...(resume?.audits ?? [])];
 	let tasks: readonly PairResult[] = options.tasks;
 	let verification = options.verification;
 
@@ -143,7 +144,7 @@ export async function audit(options: AuditOptions): Promise<AuditResult> {
 		inProse: (review) => isApproved(review.output),
 		restored: resume?.obligations,
 	});
-	const progress = (): AuditProgress => ({ rounds, tasks, obligations: record.all, verification });
+	const progress = (): AuditProgress => ({ audits: rounds, tasks, obligations: record.all, verification });
 	const report = () => notify(onRound, progress());
 
 	// `"task"` whatever the caller runs with: the second audit must read the code
@@ -160,7 +161,7 @@ export async function audit(options: AuditOptions): Promise<AuditResult> {
 			output: last?.output ?? "",
 			messages: last?.messages ?? [],
 			...(broken ? { error: broken.error } : {}),
-			...progress(),
+			progress: progress(),
 			approved,
 			steps: pool.trail.steps,
 			usage: pool.trail.usage(),

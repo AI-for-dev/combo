@@ -322,6 +322,7 @@ function interrupted(over: Partial<BuildState> = {}): BuildState {
 			},
 		],
 		audits: [],
+		obligations: [],
 		done: false,
 		...over,
 	};
@@ -527,8 +528,8 @@ describe("/build resume", () => {
 			findResumable: () => ({ dir: "runs/2026-07-19_10-00-00", state: interrupted() }),
 			runDir: () => "runs/a-brand-new-one",
 			saveState: (dir) => (saved.push(dir), undefined),
-			runPipeline: (async (options: { delivery?: { onProgress?: (id: string, p: unknown) => void } }) => {
-				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [], done: false });
+			runPipeline: (async (options: { delivery?: { onProgress?: (id: string, p: unknown, done: boolean) => void } }) => {
+				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [] }, false);
 				return delivered();
 			}) as never,
 		}));
@@ -544,9 +545,9 @@ describe("/build resume", () => {
 		await runBuild("add a cache", ctx, deps({
 			git,
 			saveState: (_dir, state) => (states.push(state as BuildState), undefined),
-			runPipeline: (async (options: { delivery?: { onProgress?: (id: string, p: unknown) => void } }) => {
-				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [], done: false });
-				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [], done: true });
+			runPipeline: (async (options: { delivery?: { onProgress?: (id: string, p: unknown, done: boolean) => void } }) => {
+				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [] }, false);
+				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [] }, true);
 				return delivered();
 			}) as never,
 		}));

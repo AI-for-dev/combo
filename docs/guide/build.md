@@ -220,7 +220,9 @@ What survives, and why:
   after every step.
 - **A state whose agents no longer exist is refused whole.** Dropping the steps
   that no longer resolve would silently drop work.
-- **The audit rounds already spent stay spent.** Resuming continues the cycle, it
+- **The audit rounds already spent stay spent, whole.** Each round comes back
+  with its verdict, the check as it stood and what its fixes produced, so the
+  resumed cycle reads the history it lived. Resuming continues the cycle, it
   does not restart it.
 
 ## Choosing the pipeline

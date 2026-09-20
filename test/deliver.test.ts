@@ -289,7 +289,6 @@ describe("resuming", () => {
 		],
 		audits: [],
 		obligations: [],
-		done: false,
 		...over,
 	});
 
@@ -343,7 +342,7 @@ describe("resuming", () => {
 			reviewer,
 			auditor,
 			brief: "x",
-			onProgress: (progress) => reported.push({ tasks: progress.tasks.length, done: progress.done }),
+			onProgress: (progress, done) => reported.push({ tasks: progress.tasks.length, done }),
 			spawn: fake.spawn,
 			worktree: false,
 		});
@@ -532,7 +531,6 @@ describe("an auditor that signs through the verdict tool", () => {
 				tasks: [],
 				audits: [],
 				obligations: stopped.obligations,
-				done: false,
 			},
 			worktree: false,
 		});
