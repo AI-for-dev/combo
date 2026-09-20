@@ -99,6 +99,15 @@ export async function settling(options: SettleOptions): Promise<GitResult<Settli
 					// Only the first landing of a delivery meets a tree it did not
 					// write. Refusing the later ones would break the option on any
 					// audit that asks for a fix.
+					//
+					// This asks the tree a second time, on purpose. The pre-flight above
+					// answered before the work, so that no subtask is paid for that
+					// cannot come home; this one answers now, minutes later, on the tree
+					// as it stands - the pairs wrote in copies, but the person whose
+					// tree it is may have written in it meanwhile, and landing onto that
+					// would make "which patch broke this" unanswerable, which is the one
+					// question `land` exists to answer. The first is a warning, this is
+					// the guard, and one `git status` is what telling them apart costs.
 					{ verify, requireCleanTree: landings.length === 0 },
 				);
 				landings.push(landed);
