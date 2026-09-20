@@ -14,7 +14,7 @@ import { initTheme } from "@earendil-works/pi-coding-agent";
 import type { Component } from "@earendil-works/pi-tui";
 import extension from "../extension/index.ts";
 import { PIPELINE_MESSAGE } from "../extension/pipeline-commands.ts";
-import { STEP_ENTRY } from "../extension/step-commands.ts";
+import { STEP_ENTRY } from "../extension/relay.ts";
 import { emptyUsage } from "../src/usage.ts";
 import type { SubagentSnapshot } from "../src/reporters/picture.ts";
 import { testTheme } from "./fixtures/theme.ts";

@@ -16,7 +16,8 @@
  * and what the model gets to read is what `/quote` puts there on purpose.
  */
 
-import { plural, stepInput, truncate, type Usage } from "../src/index.ts";
+import * as path from "node:path";
+import { exportBaseName, plural, stepInput, truncate, type Usage } from "../src/index.ts";
 
 /** One step that ran: what it was asked, and what came back. */
 export type RelayStep = {
@@ -73,17 +74,21 @@ export function forgetChain(): void {
 }
 
 /**
- * Appends a finished step, giving it an id nothing else in the chain has.
+ * Appends a finished step under the id it ran with.
  *
  * Only successful steps get here: a step that failed produced nothing to carry,
  * and recording it would make `--from last` hand the next agent an error
  * message. The chain is left exactly where it was, which is also what lets the
  * same command be retried on another model.
+ *
+ * The id comes from {@link stepId}, taken before the step ran so that its
+ * folder and its entry carry the same name. A second step under an id the
+ * chain already holds is a programming error, and throws.
  */
-export function recordStep(relay: Relay, step: Omit<RelayStep, "id">): RelayStep {
-	const recorded = { ...step, id: stepId(relay, step.name) };
-	relay.steps.push(recorded);
-	return recorded;
+export function recordStep(relay: Relay, step: RelayStep): RelayStep {
+	if (relay.steps.some((one) => one.id === step.id)) throw new Error(`relay: a step called \`${step.id}\` is already in this chain`);
+	relay.steps.push(step);
+	return step;
 }
 
 /** `coder` while it is free, then `coder-2`: an id a user can type. */
@@ -94,6 +99,47 @@ export function stepId(relay: Relay, name: string): string {
 		const id = `${name}-${n}`;
 		if (!taken.has(id)) return id;
 	}
+}
+
+/**
+ * Where the step about to run exports: `runs/<chain>/<n>-<id>/`.
+ *
+ * One chain, one folder, one step per numbered subfolder: a chain walked by
+ * hand is still a run, and it leaves the same trace as one walked by `/run`.
+ * Numbered by position so the folders read in the order the steps ran, and
+ * named by id so the folder and the transcript entry say the same thing.
+ */
+export function stepDir(relay: Relay, id: string): string {
+	return path.join(relay.dir, `${relay.steps.length + 1}-${exportBaseName(id)}`);
+}
+
+/** `customType` of the transcript entry a finished step leaves behind. */
+export const STEP_ENTRY = "chain-step";
+
+/**
+ * What {@link STEP_ENTRY} carries, and the renderer in `index.ts` draws.
+ *
+ * Less than a {@link RelayStep}: the entry is written into the session file, so
+ * it holds what the transcript shows and not what the chain needs to carry on.
+ */
+export type StepEntry = {
+	/** The step's id in the chain, which is also what `--from` takes. */
+	id: string;
+	/** What ran it: one agent, a pipeline, or a swarm of one agent's copies. */
+	kind: "agent" | "pipeline" | "swarm";
+	/** The step whose output it was handed, when it was handed one. */
+	from?: string;
+	/** What it produced, in full - this is a transcript entry, not a summary. */
+	output: string;
+	/** Turns, so the entry says what it cost without expanding anything. */
+	turns: number;
+	/** Where this step's transcripts landed. */
+	dir: string;
+};
+
+/** The entry a recorded step leaves in the transcript. */
+export function entryOf(step: RelayStep): StepEntry {
+	return { id: step.id, kind: step.kind, from: step.from, output: step.output, turns: step.usage.turns, dir: step.dir };
 }
 
 /**
