@@ -3,8 +3,9 @@
  */
 
 import type { Agent } from "./../agent.ts";
-import { failed, type Result, type WorkflowResult } from "./../result.ts";
-import { SubagentPool, type WorkflowOptions } from "./common.ts";
+import type { Result, WorkflowResult } from "./../result.ts";
+import type { WorkflowOptions } from "./options.ts";
+import { SubagentPool } from "./pool.ts";
 
 /** What a chain needs: the agents, in order, and the task for the first one. */
 export type ChainOptions = WorkflowOptions & {
@@ -31,7 +32,7 @@ export type ChainOptions = WorkflowOptions & {
  * `finally`, cancellation included.
  */
 export async function chain(options: ChainOptions): Promise<WorkflowResult> {
-	const { steps, input, signal, timeoutMs } = options;
+	const { steps, input } = options;
 	if (steps.length === 0) throw new Error("chain: `steps` is empty");
 
 	const pool = new SubagentPool(options);
@@ -41,21 +42,9 @@ export async function chain(options: ChainOptions): Promise<WorkflowResult> {
 
 	try {
 		for (const agent of steps) {
-			if (signal?.aborted) {
-				last = failed(agent.name, "aborted");
-				results.push(last);
-				break;
-			}
-
 			// Keyed by name: in "workflow" lifetime, the same agent appearing
 			// twice is the *same* subagent, with its memory intact.
-			const subagent = await pool.acquire(agent, agent.name);
-			try {
-				last = await subagent.ask(current, { signal, timeoutMs });
-			} finally {
-				await pool.release(subagent);
-			}
-
+			last = await pool.turn(agent, current);
 			results.push(last);
 			if (!last.ok) break;
 			current = last.output;

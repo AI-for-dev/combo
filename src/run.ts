@@ -8,7 +8,7 @@
 import type { Agent } from "./agent.ts";
 import type { Result } from "./result.ts";
 import { spawn as defaultSpawn, type AskOptions, type SpawnOptions } from "./subagent.ts";
-import type { SpawnFn } from "./workflows/common.ts";
+import type { SpawnFn } from "./workflows/options.ts";
 
 /** {@link SpawnOptions} without `lifetime` - `run` is `"task"` by definition - plus the per-turn deadline. */
 export type RunOptions = Omit<SpawnOptions, "lifetime"> &

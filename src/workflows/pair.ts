@@ -16,9 +16,10 @@ import { createLedger, openList, type Ledger, type Obligation } from "./../ledge
 import { scratchWorktree, type Scratch } from "./../scratch.ts";
 import { failed, type Result } from "./../result.ts";
 import { saysWord } from "./../text.ts";
-import { sumUsage, type Usage } from "./../usage.ts";
+import { sumUsage } from "./../usage.ts";
 import { declaresVerdict, lastVerdict, verdictTool, type Verdict } from "./../verdict.ts";
-import { SubagentPool, type WorkflowOptions } from "./common.ts";
+import type { WorkflowOptions } from "./options.ts";
+import { SubagentPool } from "./pool.ts";
 
 /** The word a reviewer that holds no verdict tool says when it is satisfied. */
 export const APPROVAL = "LGTM";
@@ -126,7 +127,7 @@ export type PairResult = Result & {
  * nothing to fix. The failure comes back as the result, never as a throw.
  */
 export async function pair(options: PairOptions): Promise<PairResult> {
-	const { worker, reviewer, input, signal, timeoutMs } = options;
+	const { worker, reviewer, input, signal } = options;
 	const maxRounds = options.maxRounds ?? 3;
 	if (maxRounds < 1) throw new Error(`pair: \`maxRounds\` must be at least 1, got ${maxRounds}`);
 
@@ -166,6 +167,8 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 		patch,
 	});
 
+	// The pool would answer this on the first turn; checking here spares making
+	// a working copy for a pair that will never run in it.
 	if (signal?.aborted) {
 		const aborted = failed(worker.name, "aborted");
 		steps.push(aborted);
@@ -210,28 +213,11 @@ export async function pair(options: PairOptions): Promise<PairResult> {
 		for (let round = 1; round <= maxRounds; round++) {
 			rounds = round;
 
-			if (signal?.aborted) {
-				work = failed(worker.name, "aborted");
-				steps.push(work);
-				break;
-			}
-
-			const doing = await pool.acquire(worker, worker.name);
-			try {
-				work = await doing.ask(task, { signal, timeoutMs });
-			} finally {
-				await pool.release(doing);
-			}
+			work = await pool.turn(worker, task);
 			steps.push(work);
 			if (!work.ok) break;
 
-			const judging = await pool.acquire(reviewer, reviewer.name);
-			try {
-				const prompt = reviewPrompt(input, work.output, round, { byTool: speaksByTool, open: ledger.open });
-				review = await judging.ask(prompt, { signal, timeoutMs });
-			} finally {
-				await pool.release(judging);
-			}
+			review = await pool.turn(reviewer, reviewPrompt(input, work.output, round, { byTool: speaksByTool, open: ledger.open }));
 			steps.push(review);
 			if (!review.ok) break;
 

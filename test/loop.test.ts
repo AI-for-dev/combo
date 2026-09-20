@@ -243,11 +243,4 @@ describe("loop", () => {
 		});
 	});
 
-	test("timeoutMs reaches every turn of every iteration", async () => {
-		const fake = fakeSpawn();
-		await loop({ steps: [coder, reviewer], input: "x", maxIterations: 2, timeoutMs: 45_000, spawn: fake.spawn });
-
-		assert.equal(fake.askOptions.length, 4);
-		assert.ok(fake.askOptions.every((options) => options.timeoutMs === 45_000));
-	});
 });

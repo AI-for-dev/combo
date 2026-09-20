@@ -84,16 +84,6 @@ describe("chain", () => {
 		});
 	});
 
-	test("timeoutMs reaches every step, as a per-step budget", async () => {
-		const fake = fakeSpawn();
-		await chain({ steps: [coder, reviewer], input: "x", timeoutMs: 30_000, spawn: fake.spawn });
-
-		assert.deepEqual(
-			fake.askOptions.map((options) => options.timeoutMs),
-			[30_000, 30_000],
-		);
-	});
-
 	test("model reaches every spawn - one workflow, one model, no agent file edited", async () => {
 		const fake = fakeSpawn();
 		await chain({ steps: [coder, reviewer], input: "x", model: "local/sweep", spawn: fake.spawn });

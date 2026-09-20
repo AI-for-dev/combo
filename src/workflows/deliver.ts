@@ -17,15 +17,16 @@
 
 import type { Agent } from "./../agent.ts";
 import { land, landable, type Landed } from "./../land.ts";
-import { createLedger, type Ledger, type Obligation } from "./../ledger.ts";
-import { failed, type Result } from "./../result.ts";
+import { createLedger, type Obligation } from "./../ledger.ts";
+import type { Result } from "./../result.ts";
 import { truncate } from "./../text.ts";
 import { emptyUsage, sumUsage, type Usage } from "./../usage.ts";
 import type { BuildProgress } from "./../resume.ts";
 import { declaresVerdict, lastVerdict, verdictTool, type Verdict } from "./../verdict.ts";
 import type { Verification, Verify } from "./../verify.ts";
 import { auditOnce, fixesFrom, isApproved, withCheck, type AuditRound } from "./audit.ts";
-import { mapConcurrent, SubagentPool, type WorkflowOptions } from "./common.ts";
+import { mapConcurrent } from "./concurrent.ts";
+import type { WorkflowOptions } from "./options.ts";
 import { pair, type PairResult } from "./pair.ts";
 import { makePlan, type PlannedTask } from "./plan.ts";
 

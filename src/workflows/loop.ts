@@ -7,8 +7,9 @@
  */
 
 import type { Agent } from "./../agent.ts";
-import { failed, type Result, type WorkflowResult } from "./../result.ts";
-import { SubagentPool, type WorkflowOptions } from "./common.ts";
+import type { Result, WorkflowResult } from "./../result.ts";
+import type { WorkflowOptions } from "./options.ts";
+import { SubagentPool } from "./pool.ts";
 
 /**
  * Decides whether the loop is done, from the last step's result.
@@ -74,7 +75,7 @@ export type LoopResult = WorkflowResult & {
  * throws on a model failure; it throws only on invalid arguments.
  */
 export async function loop(options: LoopOptions): Promise<LoopResult> {
-	const { steps, input, until, signal, timeoutMs } = options;
+	const { steps, input, until } = options;
 	const maxIterations = options.maxIterations ?? 5;
 
 	if (steps.length === 0) throw new Error("loop: `steps` is empty");
@@ -93,22 +94,9 @@ export async function loop(options: LoopOptions): Promise<LoopResult> {
 			let broken = false;
 
 			for (const agent of steps) {
-				if (signal?.aborted) {
-					last = failed(agent.name, "aborted");
-					all.push(last);
-					broken = true;
-					break;
-				}
-
 				// Keyed by name, not by iteration: in "workflow" lifetime the
 				// reviewer of iteration 3 is the one that reviewed iteration 1.
-				const subagent = await pool.acquire(agent, agent.name);
-				try {
-					last = await subagent.ask(current, { signal, timeoutMs });
-				} finally {
-					await pool.release(subagent);
-				}
-
+				last = await pool.turn(agent, current);
 				all.push(last);
 				if (!last.ok) {
 					broken = true;

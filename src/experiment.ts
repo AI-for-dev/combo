@@ -28,7 +28,9 @@ import {
 import { createRunDir, exportBaseName, usageReport, writeUsageReport } from "./export.ts";
 import type { EventListener } from "./events.ts";
 import { combineReporters, createTuiCollector, recordReporter } from "./reporters/index.ts";
-import { abortError, mapConcurrent, type SpawnFn, type WorkflowOptions } from "./workflows/common.ts";
+import { abortError } from "./result.ts";
+import { mapConcurrent } from "./workflows/concurrent.ts";
+import type { SpawnFn, WorkflowOptions } from "./workflows/options.ts";
 
 /**
  * What a cell reports back: a verdict, plus the flat flags the study compares.

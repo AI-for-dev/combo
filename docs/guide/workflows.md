@@ -256,6 +256,38 @@ measure a mixture.
 await loop({ steps: [coder, reviewer], input, model: "anthropic/claude-sonnet-5" });
 ```
 
+## Writing one in TypeScript
+
+A combinator is a function over a `SubagentPool`. The pool takes the options
+above and plays the turns; the combinator only says who speaks, in what order,
+and what is done with the answer.
+
+```typescript
+export async function twice(options: WorkflowOptions & { agent: Agent; input: string }) {
+	const pool = new SubagentPool(options);
+	try {
+		const first = await pool.turn(options.agent, options.input);
+		if (!first.ok) return first;
+		return await pool.turn(options.agent, `Do it again, better:\n${first.output}`);
+	} finally {
+		await pool.closeAll();
+	}
+}
+```
+
+`turn` is one question and one answer. It refuses without spawning when the
+signal is already aborted, runs the turn with the workflow's `signal` and
+`timeoutMs`, and gives the subagent back whatever happened - which in `"task"`
+lifetime closes it. The `key` decides who shares a memory in a persistent
+lifetime: it defaults to the agent's name, and a fan-out passes the branch
+instead so two branches never meet.
+
+`hold` is for a conversation: it hands back an `id` and an `ask` for several
+turns in a row, and the subagent lives until `closeAll` whatever the lifetime.
+`interview` holds its interviewer, `swarm` holds its members.
+
+`closeAll` goes in a `finally`. Whoever opens, closes, cancellation included.
+
 ## Deadlines
 
 `timeoutMs` is a **per-turn** deadline, and it has **no default**.
@@ -317,4 +349,6 @@ sequential, use `chain`.
 - [`workflows/chain`](../reference/api/workflows/chain.md), [`fan-out`](../reference/api/workflows/fan-out.md), [`loop`](../reference/api/workflows/loop.md), [`reduce`](../reference/api/workflows/reduce.md)
 - [`workflows/route`](../reference/api/workflows/route.md), [`orchestrate`](../reference/api/workflows/orchestrate.md), [`plan`](../reference/api/workflows/plan.md)
 - [`workflows/pair`](../reference/api/workflows/pair.md), [`interview`](../reference/api/workflows/interview.md), [`deliver`](../reference/api/workflows/deliver.md), [`audit`](../reference/api/workflows/audit.md)
-- [`workflows/common`](../reference/api/workflows/common.md) - `WorkflowOptions`, `SubagentPool`, `mapConcurrent`.
+- [`workflows/options`](../reference/api/workflows/options.md) - `WorkflowOptions`, what every combinator takes.
+- [`workflows/pool`](../reference/api/workflows/pool.md) - `SubagentPool`, where a workflow's turns are played.
+- [`workflows/concurrent`](../reference/api/workflows/concurrent.md) - `mapConcurrent`.

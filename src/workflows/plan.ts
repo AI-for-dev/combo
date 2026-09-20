@@ -26,9 +26,10 @@
  */
 
 import type { Agent } from "./../agent.ts";
-import { failed, type Result } from "./../result.ts";
+import type { Result } from "./../result.ts";
 import { jsonObjects, truncate } from "./../text.ts";
-import { SubagentPool, type WorkflowOptions } from "./common.ts";
+import type { WorkflowOptions } from "./options.ts";
+import { SubagentPool } from "./pool.ts";
 
 /** One step of a plan: a *resolved* agent - an unknown name never gets this far - and its task. */
 export type PlannedTask = {
@@ -83,29 +84,19 @@ export type PlanOutcome = {
  * work.
  */
 export async function makePlan(options: PlanOptions): Promise<PlanOutcome> {
-	const { planner, workers, input, signal, timeoutMs } = options;
+	const { planner, workers, input } = options;
 	if (workers.length === 0) throw new Error("makePlan: `workers` is empty - there is nobody to delegate to");
 
 	const maxTasks = options.maxTasks ?? 8;
 	const parse = options.parse ?? parsePlan;
 	const format = options.format ?? planningPrompt;
 
-	if (signal?.aborted) {
-		const aborted = failed(planner.name, "aborted");
-		return { plan: [], planning: aborted, ok: false, error: aborted.error };
-	}
-
 	// The planner gets its own pool: it is not one of the workers, and its
 	// context has no business being reused by them.
 	const pool = new SubagentPool(options);
 	let planning: Result;
 	try {
-		const subagent = await pool.acquire(planner, planner.name);
-		try {
-			planning = await subagent.ask(format(input, workers, maxTasks), { signal, timeoutMs });
-		} finally {
-			await pool.release(subagent);
-		}
+		planning = await pool.turn(planner, format(input, workers, maxTasks));
 	} finally {
 		await pool.closeAll();
 	}

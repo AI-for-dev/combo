@@ -45,3 +45,8 @@ export type WorkflowResult = Result & {
 	/** Intermediate results, in execution order. */
 	steps: Result[];
 };
+
+/** Turns an abort into the same failure a combinator returns for it. */
+export function abortError(signal: AbortSignal | undefined): string | undefined {
+	return signal?.aborted ? "aborted" : undefined;
+}

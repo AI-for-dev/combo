@@ -38,7 +38,7 @@ import { saysWord } from "../text.ts";
 import { sumUsage, type Usage } from "../usage.ts";
 import type { Verify } from "../verify.ts";
 import { chain } from "./chain.ts";
-import type { WorkflowOptions } from "./common.ts";
+import type { WorkflowOptions } from "./options.ts";
 import { deliver, type DeliverResult } from "./deliver.ts";
 import { fanOut } from "./fan-out.ts";
 import { loop } from "./loop.ts";

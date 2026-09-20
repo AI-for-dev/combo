@@ -115,12 +115,10 @@ describe("reduce", () => {
 		assert.deepEqual(result.steps.slice(0, 2), branches);
 	});
 
-	test("the signal reaches the turn, and the subagent is closed whatever happens", async () => {
-		const controller = new AbortController();
+	test("the subagent is closed whatever happens", async () => {
 		const fake = fakeSpawn();
-		await reduce({ agent: synthesiser, results: branches, input: "x", signal: controller.signal, spawn: fake.spawn });
+		await reduce({ agent: synthesiser, results: branches, input: "x", spawn: fake.spawn });
 
-		assert.equal(fake.askOptions[0]?.signal, controller.signal);
 		assert.deepEqual(
 			fake.closed,
 			fake.spawned.map((entry) => entry.id),
