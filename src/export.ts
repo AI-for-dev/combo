@@ -19,6 +19,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { RunSnapshot } from "./reporters/picture.ts";
+import type { Usage } from "./usage.ts";
 import { treeOrder } from "./reporters/tree.ts";
 import type { SessionPort } from "./session.ts";
 
@@ -140,8 +141,16 @@ export type UsageReportEntry = {
 	 * already shows the children under their parent.
 	 */
 	parentId?: string;
-	/** Its {@link Usage}, flattened: time measured here, tokens as pi reported them. */
-	usage: Record<string, number | undefined>;
+	/** Its {@link Usage}: time measured here, tokens as pi reported them. */
+	usage: Usage;
+};
+
+/** The sum over a whole run, and how many subagents it was spread over. */
+export type UsageTotal = Usage & {
+	/** Subagents in the run, failures included. */
+	subagents: number;
+	/** Those that ended with `ok: false`. Counted apart: `2/3 done` hides a crash. */
+	failed: number;
 };
 
 /** The whole `usage.json` document. */
@@ -152,8 +161,8 @@ export type UsageReport = {
 	wallMs: number;
 	/** One entry per subagent, in tree order: a child follows the parent it hangs under. */
 	subagents: UsageReportEntry[];
-	/** The sum over every subagent - failures included, because they cost too. */
-	total: Record<string, number>;
+	/** The sum over every subagent - failures included, because they cost too. Its `wallMs` is the run's. */
+	total: UsageTotal;
 	/** Busy time over wall time: the parallelism actually achieved. */
 	parallelism: number;
 	/** Where each transcript landed, and why one is missing when it is. */
@@ -183,19 +192,9 @@ export function usageReport(snapshot: RunSnapshot, wallMs: number, exports?: Ses
 			task: one.task,
 			toolCalls: one.tools.length,
 			parentId: one.parentId,
-			usage: { ...one.usage },
+			usage: one.usage,
 		})),
-		total: {
-			subagents: snapshot.subagents.length,
-			failed: snapshot.failed,
-			turns: total.turns,
-			busyMs: total.busyMs,
-			input: total.input,
-			output: total.output,
-			cacheRead: total.cacheRead,
-			cacheWrite: total.cacheWrite,
-			cost: total.cost,
-		},
+		total: { ...total, wallMs, subagents: snapshot.subagents.length, failed: snapshot.failed },
 		parallelism: wallMs > 0 ? total.busyMs / wallMs : 0,
 	};
 }

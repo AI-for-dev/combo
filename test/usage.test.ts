@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import type { SessionStats } from "@earendil-works/pi-coding-agent";
-import { deltaUsage, emptyUsage, formatUsage, snapshotUsage, sumUsage, type Usage } from "../src/usage.ts";
+import { accumulate, deltaUsage, emptyUsage, formatUsage, snapshotUsage, sumUsage, type Usage } from "../src/usage.ts";
 
 function stats(tokens: Partial<SessionStats["tokens"]>, cost = 0, contextTokens?: number): SessionStats {
 	const filled = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0, ...tokens };
@@ -103,6 +103,38 @@ describe("sumUsage", () => {
 
 	test("an empty fan-out is zero, not NaN", () => {
 		assert.deepEqual(sumUsage([], 42), { ...emptyUsage(), wallMs: 42 });
+	});
+});
+
+describe("accumulate", () => {
+	test("adds a turn to a subagent's total, and leaves the subagent's own clock alone", () => {
+		const total = usage({ wallMs: 9_000, busyMs: 400, turns: 1, input: 100, cost: 0.01 });
+		const turn = usage({ busyMs: 600, turns: 1, input: 50, output: 20, cacheRead: 5, cost: 0.02 });
+
+		assert.deepEqual(accumulate(total, turn), {
+			...usage({ wallMs: 9_000, busyMs: 1_000, turns: 2, input: 150, output: 20, cacheRead: 5, cost: 0.03 }),
+			contextTokens: undefined,
+		});
+	});
+
+	test("the context is a level: the turn's reading replaces the last one", () => {
+		const total = usage({ contextTokens: 10_000 });
+		assert.equal(accumulate(total, usage({ contextTokens: 14_000 })).contextTokens, 14_000);
+	});
+
+	test("a turn that reports no context leaves the last known level in place", () => {
+		assert.equal(accumulate(usage({ contextTokens: 10_000 }), usage({})).contextTokens, 10_000);
+	});
+
+	test("does not touch what it was given", () => {
+		const total = usage({ input: 1 });
+		accumulate(total, usage({ input: 1 }));
+		assert.equal(total.input, 1);
+	});
+
+	test("survives the JSON a report writes, field for field", () => {
+		const measured = usage({ wallMs: 1, busyMs: 2, turns: 3, input: 4, output: 5, cacheRead: 6, cacheWrite: 7, cost: 0.5 });
+		assert.deepEqual(JSON.parse(JSON.stringify(measured)), measured);
 	});
 });
 

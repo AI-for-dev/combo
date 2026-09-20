@@ -17,7 +17,7 @@
  */
 
 import * as path from "node:path";
-import { exportBaseName, plural, stepInput, truncate, type Usage } from "../src/index.ts";
+import { exportBaseName, plural, stepInput, sumUsage, truncate, type Usage } from "../src/index.ts";
 
 /** One step that ran: what it was asked, and what came back. */
 export type RelayStep = {
@@ -175,20 +175,17 @@ export function chainInput(instruction: string, previous?: RelayStep): string {
 	return previous ? stepInput("", instruction, previous) : instruction.trim();
 }
 
-/** Every step's usage, summed. `wallMs` is deliberately absent: see {@link chainLines}. */
+/**
+ * Every step's usage, summed - `wallMs` included, as the sum of the steps' own.
+ *
+ * A chain walked by hand spends most of its life waiting for a human, and
+ * counting that as work would be an estimate; the steps' wall times add up
+ * because they ran one after another. See {@link chainLines}.
+ */
 export function chainUsage(relay: Relay): Usage {
-	return relay.steps.reduce(
-		(total, step) => ({
-			wallMs: total.wallMs + step.usage.wallMs,
-			busyMs: total.busyMs + step.usage.busyMs,
-			turns: total.turns + step.usage.turns,
-			input: total.input + step.usage.input,
-			output: total.output + step.usage.output,
-			cacheRead: total.cacheRead + step.usage.cacheRead,
-			cacheWrite: total.cacheWrite + step.usage.cacheWrite,
-			cost: total.cost + step.usage.cost,
-		}),
-		{ wallMs: 0, busyMs: 0, turns: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
+	return sumUsage(
+		relay.steps.map((step) => step.usage),
+		relay.steps.reduce((sum, step) => sum + step.usage.wallMs, 0),
 	);
 }
 

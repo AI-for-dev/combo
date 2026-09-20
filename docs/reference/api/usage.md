@@ -10,6 +10,22 @@ Nothing is estimated. Tokens and cost come from pi
 (`session.getSessionStats()`); the only things we add are **time** - which
 pi does not measure - and **attribution per subagent**.
 
+## `accumulate`
+
+*function*
+
+```typescript
+export function accumulate(total: Usage, turn: Usage): Usage { /* … */ }
+```
+
+A subagent's usage after one more turn.
+
+Counters and busy time add up; `wallMs` is the subagent's own clock and is
+left as it stands; `contextTokens` is a level rather than a counter, so the
+turn's reading replaces the last one - a turn that reports none leaves the
+last known level in place. This is the one rule {@link sumUsage} does not
+have, because a context belongs to one session and a fan-out sums several.
+
 ## `compact`
 
 *function*

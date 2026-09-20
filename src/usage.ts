@@ -84,6 +84,19 @@ export function deltaUsage(before: Usage, after: Usage): Usage {
 }
 
 /**
+ * A subagent's usage after one more turn.
+ *
+ * Counters and busy time add up; `wallMs` is the subagent's own clock and is
+ * left as it stands; `contextTokens` is a level rather than a counter, so the
+ * turn's reading replaces the last one - a turn that reports none leaves the
+ * last known level in place. This is the one rule {@link sumUsage} does not
+ * have, because a context belongs to one session and a fan-out sums several.
+ */
+export function accumulate(total: Usage, turn: Usage): Usage {
+	return { ...sumUsage([total, turn], total.wallMs), contextTokens: turn.contextTokens ?? total.contextTokens };
+}
+
+/**
  * Aggregates the usage of several subagents - typically a fan-out.
  *
  * We **sum**, we never average. And `wallMs` is passed separately rather than
