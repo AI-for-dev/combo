@@ -507,6 +507,31 @@ report says `(failed)` beside the name with the error where the output would
 be, as every other failed section does, rather than `(failed: error)` over
 `(no output)`.
 
+### A result is built in one place, and a double is built whole
+
+`failed()` had six callers and no pendant: the six-field literal of a turn that
+ran was spelled out in the core twice, in a workflow, in a resume and three
+times in the fake, each free to drift - the close event's `Result` carried
+`messages: []` and a cumulative usage, a shape no `ask` returns, and nothing
+said so. `succeeded(agent, output, usage?, messages?)` is the pendant, and the
+six sites call it. A failed review or a failed fake turn that has text keeps
+it, by spreading `output` over `failed(…)`, because that text is the evidence.
+
+The `spawn` event was constructed field by field in the core and in three test
+files, each with its own launch counter; when `order` and `parentId` were
+added, all four moved. The core keeps its one, since it is where the event is
+born; the reporters' test now derives its two events from `test/fixtures/
+picture.ts`, which is where the other tests already took them from.
+
+The tests of `/build` and `/run` fed `runPipeline` and `interview` doubles a
+corner of what the real thing returns, and cast the rest away: forty-nine
+`as never` in two files, and a test author who had to know which corner a
+command reads. `test/fixtures/results.ts` builds an `InterviewResult`, a
+`DeliverResult` and a `PipelineRunResult` whole, from the few fields a test
+cares about, the way `fixtures/picture.ts` builds a snapshot. The casts are
+gone, and a double that stops matching the real shape now fails to compile
+rather than passing on a lie.
+
 ### An offer of tools composes, and a combo tool shares its constant parts
 
 `SpawnOptions.customTools` is a list or a function of the id to come, and

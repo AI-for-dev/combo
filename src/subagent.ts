@@ -15,7 +15,7 @@ import { busFor, nextSubagentId, type EventBus, type EventListener, type Subagen
 import { exportSession, type SessionExport } from "./export.ts";
 import { inTheLanguageOfTheWork } from "./language.ts";
 import { registerMirror } from "./mirror.ts";
-import { failed, type Result } from "./result.ts";
+import { failed, succeeded, type Result } from "./result.ts";
 import {
 	createDefaultSession,
 	modelLabel,
@@ -350,9 +350,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 				error = `timed out after ${askOptions.timeoutMs}ms`;
 			}
 
-			const result: Result = error
-				? failed(agent.name, error, turn, messages)
-				: { agent: agent.name, output: lastAssistantText(messages), messages, usage: turn, ok: true };
+			const result: Result = error ? failed(agent.name, error, turn, messages) : succeeded(agent.name, lastAssistantText(messages), turn, messages);
 
 			lastError = error;
 			bus.emit({ type: "usage", id, usage: turn });
@@ -388,15 +386,10 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 			bus.emit({
 				type: "close",
 				id,
-				result: lastError
-					? { agent: agent.name, output: "", messages: [], usage: finalUsage, ok: false, error: lastError }
-					: {
-							agent: agent.name,
-							output: lastAssistantText(session.messages),
-							messages: [],
-							usage: finalUsage,
-							ok: true,
-						},
+				// Over the subagent's whole life, and without the messages: what a
+				// reader wants of a close is the outcome and the bill, and the
+				// transcript is the export's.
+				result: lastError ? failed(agent.name, lastError, finalUsage) : succeeded(agent.name, lastAssistantText(session.messages), finalUsage),
 			});
 			unregister();
 		},

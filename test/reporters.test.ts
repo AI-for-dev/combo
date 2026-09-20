@@ -16,6 +16,7 @@ import { probeHerdr } from "../src/reporters/herdr-probe.ts";
 import type { SubagentEvent } from "../src/events.ts";
 import { emptyUsage } from "../src/usage.ts";
 import { withoutHerdr } from "./fixtures/no-herdr.ts";
+import { closed, spawned } from "./fixtures/picture.ts";
 
 const tmpDirs: string[] = [];
 after(() => {
@@ -28,23 +29,9 @@ function tmpDir(): string {
 	return dir;
 }
 
-let launch = 0;
-
-const spawnEvent = (id: string, openInHerdr: boolean, parentId?: string): SubagentEvent => ({
-	type: "spawn",
-	id,
-	agent: id.split("#")[0] as string,
-	order: ++launch,
-	lifetime: "task",
-	openInHerdr,
-	parentId,
-});
-
-const closeEvent = (id: string, ok = true): SubagentEvent => ({
-	type: "close",
-	id,
-	result: { agent: id, output: "", messages: [], usage: emptyUsage(), ok, ...(ok ? {} : { error: "it broke" }) },
-});
+/** The shared `spawn`, with the one field this file varies. */
+const spawnEvent = (id: string, openInHerdr: boolean, parentId?: string): SubagentEvent => ({ ...spawned(id, parentId), openInHerdr });
+const closeEvent = closed;
 
 /**
  * A `HerdrSend` that records calls and answers like the real server.

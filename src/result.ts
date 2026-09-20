@@ -28,6 +28,17 @@ export type Result = {
 };
 
 /**
+ * Builds a `Result` for a turn that ran: what the agent said, over what it cost.
+ *
+ * The pendant of {@link failed}. Written here so a `Result` is built in one
+ * place and a field added to it is added once: the six-field literal had been
+ * spelled out in the core, a workflow, a resume and three fixtures.
+ */
+export function succeeded(agent: string, output: string, usage: Usage = emptyUsage(), messages: AgentMessage[] = []): Result {
+	return { agent, output, messages, usage, ok: true };
+}
+
+/**
  * Builds a failed `Result`.
  *
  * The `usage` is **kept**: a subagent that crashed after 12k tokens really did

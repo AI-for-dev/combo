@@ -3,8 +3,8 @@
  */
 
 import type { Agent } from "./../agent.ts";
-import { failed, joinOutputs, type Result, type WorkflowResult } from "./../result.ts";
-import { emptyUsage, sumUsage, type Usage } from "./../usage.ts";
+import { failed, joinOutputs, succeeded, type Result, type WorkflowResult } from "./../result.ts";
+import { sumUsage, type Usage } from "./../usage.ts";
 import { mapConcurrent } from "./concurrent.ts";
 import type { WorkflowOptions } from "./options.ts";
 import { SubagentPool } from "./pool.ts";
@@ -74,8 +74,7 @@ export async function fanOut(options: FanOutOptions): Promise<FanOutResult> {
 
 	// The branch that speaks for the whole: the first that failed, else the
 	// last. A fan-out of nothing is nobody's turn, and nothing went wrong in it.
-	const pivot: Result = results.find((result) => !result.ok) ??
-		results.at(-1) ?? { agent: options.agent?.name ?? "", output: "", messages: [], usage: emptyUsage(), ok: true };
+	const pivot: Result = results.find((result) => !result.ok) ?? results.at(-1) ?? succeeded(options.agent?.name ?? "", "");
 	return { ...pivot, output: joinOutputs(results), usage: pool.trail.usage(), steps: results, results };
 }
 
