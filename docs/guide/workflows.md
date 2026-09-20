@@ -15,6 +15,17 @@ type Result = {
 };
 ```
 
+Every combinator returns a `WorkflowResult`: that `Result`, read for the whole
+workflow, plus `steps`, the trail that led to it. The reading is the
+combinator's own and is decided nowhere else. A chain is its last step and a
+reduce its synthesis; a fan-out is its branches labelled one after the other,
+failed if any of them failed; an orchestration is its synthesis when it has
+one and its planner otherwise; a delivery is its planner over every subtask's
+report. What a workflow says beyond that - `converged`, `approved`, `plan`,
+`answers` - it says in fields of its own, because `ok` only ever means that
+every turn ran. A pipeline step or a tool call therefore reads any of them the
+same way, and never has to rebuild one.
+
 Every combinator is an exported function. No classes, no inheritance, no global
 registry.
 
@@ -42,7 +53,9 @@ usage.busyMs / usage.wallMs;   // the parallelism actually achieved
 
 Results come back **in the order of `tasks`**, not of completion. A failing
 branch becomes a `Result` with `ok: false` in its slot and the others carry on,
-unless `failFast` is set.
+unless `failFast` is set. As one `Result`, the fan-out's `output` is every
+branch's under a heading naming its agent, a failed one marked with its error,
+and its `ok` is false the moment one branch failed.
 
 ### `loop` - 1 to 1, until a bar is reached
 

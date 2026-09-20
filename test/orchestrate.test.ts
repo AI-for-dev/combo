@@ -36,6 +36,18 @@ describe("orchestrate", () => {
 		assert.equal(result.results.length, 2);
 	});
 
+	test("read as one Result: the synthesis when there is one, the planner over its subtasks otherwise", async () => {
+		const spoken = await orchestrate({ planner, workers, input: "x", spawn: plannerSays(plan).spawn });
+		assert.equal(spoken.agent, "planner");
+		assert.match(spoken.output, /## scout\n\nscout\(find the parser\)\n\n## scout\n\nscout\(find the lexer\)/);
+		assert.equal(spoken.steps.length, 3, "the planner's turn, then every subtask");
+
+		const folded = await orchestrate({ planner, workers, input: "x", reduceWith: synthesiser, spawn: plannerSays(plan).spawn });
+		assert.equal(folded.agent, "synthesiser");
+		assert.equal(folded.output, folded.answer?.output);
+		assert.equal(folded.steps.length, 4);
+	});
+
 	test("the planner sees who it may delegate to, and what they are for", async () => {
 		const fake = plannerSays(plan);
 		await orchestrate({ planner, workers, input: "explain the parsing", spawn: fake.spawn });

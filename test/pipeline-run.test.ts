@@ -156,6 +156,20 @@ describe("runPipeline", () => {
 		assert.equal(fake.spawned.length, 0, "a synthesis of nothing is not worth a session");
 	});
 
+	test("a step is its combinator's own reading: a fan-out with a failed branch fails the step and shows which", async () => {
+		const fake = fakeSpawn((task) => (task.includes("\n\nb") ? { ok: false, error: "b exploded" } : {}));
+		const done = await runPipeline({
+			pipeline: pipeline("name: p\nsteps:\n  - id: explore\n    fanOut: scout\n    tasks: [a, b]", "## explore\nLook."),
+			agents,
+			input: "x",
+			spawn: fake.spawn,
+		});
+
+		assert.equal(done.ok, false);
+		assert.match(done.error ?? "", /step "explore" \(fanOut\) failed: b exploded/);
+		assert.match(done.steps[0]?.result.output ?? "", /## scout \(failed\)\n\nb exploded/, "the failed branch is marked, not a heading over nothing");
+	});
+
 	test("a loop that never converges is a failure, not a silent hand-over", async () => {
 		const fake = fakeSpawn();
 		const done = await runPipeline({

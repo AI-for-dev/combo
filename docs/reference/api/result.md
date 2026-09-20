@@ -6,9 +6,11 @@ Source: [`src/result.ts`](https://github.com/AI-for-dev/combo/blob/main/src/resu
 
 `Result`: the single contract shared by everything else.
 
-A subagent returns a `Result`. A workflow returns a `Result` (or an array
-of them). Workflows compose because they all speak this language - that is
-the whole of what makes them composable.
+A subagent returns a `Result`. A workflow returns a {@link WorkflowResult}:
+a `Result` too, with the steps that led to it. Workflows compose because they
+all speak this language - that is the whole of what makes them composable,
+and it is what lets a pipeline step or a tool call read any of them the same
+way.
 
 ## `abortError`
 
@@ -72,4 +74,12 @@ export type WorkflowResult = Result & {
 };
 ```
 
-A workflow result: the final answer, plus the trail of intermediate steps.
+A workflow result: the workflow read as one turn of work, plus the trail of
+steps that led to it.
+
+The `Result` part is the workflow's own reading of itself, decided where the
+workflow is written and nowhere else: a chain is its last step, a reduce its
+synthesis, a fan-out its branches labelled one after the other, an
+orchestration its synthesis or its planner. `usage` is the whole workflow's;
+`ok` says every turn ran, and never more than that - a bar reached or missed
+is a field of its own, `converged`, `approved`.

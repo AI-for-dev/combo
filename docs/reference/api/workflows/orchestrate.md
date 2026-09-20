@@ -45,7 +45,7 @@ export type OrchestrateOptions = PlanOptions & {
 *type*
 
 ```typescript
-export type OrchestrateResult = {
+export type OrchestrateResult = WorkflowResult & {
 	/** What the planner asked for, after validation. Empty when planning failed. */
 	plan: PlannedTask[];
 	/** The planner's own turn. Kept whatever happened next. */
@@ -54,13 +54,13 @@ export type OrchestrateResult = {
 	results: Result[];
 	/** The synthesis, present only when `reduceWith` was given. */
 	answer?: Result;
-	/** Aggregate over planning, subtasks and synthesis. `wallMs` is the whole run. */
-	usage: Usage;
-	/** False when the planning failed or produced nothing runnable. */
-	ok: boolean;
-	/** Set if and only if `ok` is false. */
-	error?: string;
 };
 ```
 
 The plan, what it produced, and optionally the one answer it was folded into.
+
+As a `Result`: the synthesis when `reduceWith` was given, otherwise the
+planner's turn with the subtasks' outputs, labelled, where its own would be.
+`usage` covers planning, subtasks and synthesis over the whole run; `ok` is
+false when the planning failed, produced nothing runnable, or a subtask
+failed. `steps` is the planner's turn, every subtask, then the synthesis.

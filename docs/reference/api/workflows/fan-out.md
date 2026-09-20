@@ -64,15 +64,16 @@ The branches, who runs them, and how many may run at once.
 *type*
 
 ```typescript
-export type FanOutResult = {
-	/** One result per task, **in the order of `tasks`** - not of completion. */
+export type FanOutResult = WorkflowResult & {
+	/** One result per task, **in the order of `tasks`** - not of completion. `steps` is this same list. */
 	results: Result[];
-	/**
-	 * Aggregate usage. `busyMs` is the sum of the branches, `wallMs` the real
-	 * duration: their ratio is the parallelism actually achieved.
-	 */
-	usage: Usage;
 };
 ```
 
-The branches' results, and what the parallelism actually was.
+The branches' results, and the fan-out read as one.
+
+As a `Result`: `output` is every branch's output labelled by its agent, a
+failed one marked as such; `ok` is false when any branch failed and `error`
+is the first failure's; `agent` and `messages` are that branch's, or the last
+branch's when none failed. `usage.busyMs` is the sum of the branches and
+`wallMs` the real duration: their ratio is the parallelism actually achieved.

@@ -129,7 +129,7 @@ export type PipelineStepResult = {
 	id: string;
 	/** The combinator it named. */
 	kind: PipelineStep["kind"];
-	/** The step's own result: the last turn of whatever ran. */
+	/** The step's own result: the combinator that ran, read as one turn of work. */
 	result: Result;
 	/**
 	 * Every result the step produced, when it produced several.
