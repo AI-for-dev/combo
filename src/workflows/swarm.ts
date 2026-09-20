@@ -36,8 +36,7 @@ import { boardTool } from "./../board-tool.ts";
 import { boardLines, createBoard, type Board, type Post } from "./../board.ts";
 import { createClaims, type Claims } from "./../claims.ts";
 import { busFor } from "./../events.ts";
-import { failed, type Result } from "./../result.ts";
-import type { Usage } from "./../usage.ts";
+import { failed, joinOutputs, type Result, type WorkflowResult } from "./../result.ts";
 import { mapConcurrent } from "./concurrent.ts";
 import type { WorkflowOptions } from "./options.ts";
 import { type Held, SubagentPool } from "./pool.ts";
@@ -91,8 +90,15 @@ export type SwarmOptions = WorkflowOptions & {
 	until?: (board: Board) => boolean;
 };
 
-/** What the swarm did, and what it left behind. */
-export type SwarmResult = {
+/**
+ * What the swarm did, and what it left behind.
+ *
+ * As a `Result`: every member's last turn, labelled by the name it posted
+ * under, a failed one marked as such; `ok` is false when any member failed or
+ * was never asked, `error` the first failure's. `steps` is every turn of every
+ * round, and `usage` their sum over the swarm's own wall time.
+ */
+export type SwarmResult = WorkflowResult & {
 	/** One per member, in roster order, the ones that failed included. */
 	members: readonly SwarmMember[];
 	/** Every post, in order. The run's social history. */
@@ -101,16 +107,10 @@ export type SwarmResult = {
 	claims: readonly SwarmClaim[];
 	/** How many rounds actually ran. */
 	rounds: number;
-	/** Every turn of every member, over the swarm's own wall time. */
-	usage: Usage;
 	/** Whether `until` fired. Reaching the round cap is not success. */
 	converged: boolean;
 	/** Which cap ended it. */
 	stoppedBy: SwarmEnd;
-	/** Every member ran every round it was asked to, without a model error. */
-	ok: boolean;
-	/** The first failure, when there was one. */
-	error?: string;
 };
 
 /**
@@ -209,23 +209,26 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 	// nobody will do and nobody can take.
 	const held = claims.open();
 	const released = new Set(members.flatMap((one) => claims.releaseAll(one.id)));
-	const broken = pool.trail.broken();
+	const reported: SwarmMember[] = members.map((one) => ({ id: one.id, agent: one.agent.name, result: one.result ?? failed(one.agent.name, "never asked") }));
+	// The member that speaks for the whole: the first that failed, else the last
+	// on the roster. Under the name it posted under, which is how the others
+	// know it and how a reader finds it on the board.
+	const voice = (reported.find((one) => !one.result.ok) ?? reported.at(-1)) as SwarmMember;
 
 	return {
-		members: members.map((one) => ({
-			id: one.id,
-			agent: one.agent.name,
-			result: one.result ?? failed(one.agent.name, "never asked"),
-		})),
+		...voice.result,
+		output: joinOutputs(reported.map((one) => ({ ...one.result, agent: one.id }))),
+		steps: pool.trail.steps,
+		members: reported,
 		posts: board.all(),
 		claims: held.map((one) => ({ ...one, released: released.has(one.key) })),
 		rounds: ran,
 		usage: pool.trail.usage(),
 		converged,
 		stoppedBy,
-		// Every member, not every turn: one that was never asked failed the swarm too.
-		ok: members.length > 0 && members.every((one) => one.result?.ok === true),
-		...(broken?.error ? { error: broken.error } : {}),
+		// Every member, not every turn: one that was never asked failed the swarm
+		// too. The error is the voice's own, carried by the spread above.
+		ok: reported.every((one) => one.result.ok),
 	};
 }
 

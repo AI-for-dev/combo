@@ -3,8 +3,8 @@
  */
 
 import type { Agent } from "./../agent.ts";
-import { failed, type Result } from "./../result.ts";
-import { sumUsage, type Usage } from "./../usage.ts";
+import { failed, joinOutputs, type Result, type WorkflowResult } from "./../result.ts";
+import { emptyUsage, sumUsage, type Usage } from "./../usage.ts";
 import { mapConcurrent } from "./concurrent.ts";
 import type { WorkflowOptions } from "./options.ts";
 import { SubagentPool } from "./pool.ts";
@@ -23,15 +23,18 @@ export type FanOutOptions = WorkflowOptions & {
 	failFast?: boolean;
 };
 
-/** The branches' results, and what the parallelism actually was. */
-export type FanOutResult = {
-	/** One result per task, **in the order of `tasks`** - not of completion. */
+/**
+ * The branches' results, and the fan-out read as one.
+ *
+ * As a `Result`: `output` is every branch's output labelled by its agent, a
+ * failed one marked as such; `ok` is false when any branch failed and `error`
+ * is the first failure's; `agent` and `messages` are that branch's, or the last
+ * branch's when none failed. `usage.busyMs` is the sum of the branches and
+ * `wallMs` the real duration: their ratio is the parallelism actually achieved.
+ */
+export type FanOutResult = WorkflowResult & {
+	/** One result per task, **in the order of `tasks`** - not of completion. `steps` is this same list. */
 	results: Result[];
-	/**
-	 * Aggregate usage. `busyMs` is the sum of the branches, `wallMs` the real
-	 * duration: their ratio is the parallelism actually achieved.
-	 */
-	usage: Usage;
 };
 
 /**
@@ -69,7 +72,11 @@ export async function fanOut(options: FanOutOptions): Promise<FanOutResult> {
 		await pool.closeAll();
 	}
 
-	return { results, usage: pool.trail.usage() };
+	// The branch that speaks for the whole: the first that failed, else the
+	// last. A fan-out of nothing is nobody's turn, and nothing went wrong in it.
+	const pivot: Result = results.find((result) => !result.ok) ??
+		results.at(-1) ?? { agent: options.agent?.name ?? "", output: "", messages: [], usage: emptyUsage(), ok: true };
+	return { ...pivot, output: joinOutputs(results), usage: pool.trail.usage(), steps: results, results };
 }
 
 /**

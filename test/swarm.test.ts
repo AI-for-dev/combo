@@ -83,7 +83,17 @@ describe("a round", () => {
 		assert.equal(done.stoppedBy, "signal");
 		assert.equal(done.rounds, 0);
 		assert.equal(done.ok, false);
+		assert.equal(done.error, "never asked");
 		assert.equal(done.members.length, 3, "the roster is reported, nobody on it was asked");
+	});
+
+	test("read as one Result: what every member said, under the name it posted under", async () => {
+		const fake = fakeSpawn((task, agent) => ({ output: `${agent.name} on ${task.split("\n")[0]}` }));
+		const done = await swarm({ members: [{ agent: member, count: 2 }], goal: "do it", rounds: 1, spawn: fake.spawn });
+
+		assert.equal(done.output, "## member#1\n\nmember on do it\n\n## member#2\n\nmember on do it");
+		assert.equal(done.agent, "member");
+		assert.equal(done.steps.length, 2);
 	});
 
 	test("`until` ends it, and that is the only thing that counts as converged", async () => {

@@ -31,11 +31,12 @@
 
 import type { Agent } from "../agent.ts";
 import { findAgent } from "../agent.ts";
+import { notify } from "../events.ts";
 import type { Pipeline, PipelineStep } from "../pipeline.ts";
 import type { BuildProgress } from "../resume.ts";
 import { failed, type Result } from "../result.ts";
 import { saysWord } from "../text.ts";
-import { sumUsage, type Usage } from "../usage.ts";
+import type { Usage } from "../usage.ts";
 import type { Verify } from "../verify.ts";
 import { chain } from "./chain.ts";
 import type { WorkflowOptions } from "./options.ts";
@@ -46,6 +47,7 @@ import { orchestrate } from "./orchestrate.ts";
 import { pair } from "./pair.ts";
 import { reduce } from "./reduce.ts";
 import { route } from "./route.ts";
+import { Trail } from "./trail.ts";
 
 /** What one step produced, kept whole so a report can show the shape of the run. */
 export type PipelineStepResult = {
@@ -53,7 +55,7 @@ export type PipelineStepResult = {
 	id: string;
 	/** The combinator it named. */
 	kind: PipelineStep["kind"];
-	/** The step's own result: the last turn of whatever ran. */
+	/** The step's own result: the combinator that ran, read as one turn of work. */
 	result: Result;
 	/**
 	 * Every result the step produced, when it produced several.
@@ -155,7 +157,8 @@ export async function runPipeline(options: PipelineRunOptions): Promise<Pipeline
 	// not survive a sweep that was asked to run it on another.
 	shared.model ??= pipeline.model;
 
-	const startedAt = performance.now();
+	// Each step's own reading of itself is one result; the run is their trail.
+	const trail = new Trail();
 	const done: PipelineStepResult[] = [];
 	let previous: Previous | undefined;
 	let error: string | undefined;
@@ -168,7 +171,8 @@ export async function runPipeline(options: PipelineRunOptions): Promise<Pipeline
 
 		const outcome = await runStep(step, cast, input, previous, { ...shared, verify });
 		done.push(outcome);
-		report(onStep, outcome);
+		trail.record(outcome.result);
+		notify(onStep, outcome);
 
 		if (!outcome.result.ok) {
 			error = `step "${step.id}" (${step.kind}) failed: ${outcome.result.error ?? "unknown error"}`;
@@ -177,16 +181,11 @@ export async function runPipeline(options: PipelineRunOptions): Promise<Pipeline
 		previous = { id: step.id, output: outcome.result.output, results: outcome.results };
 	}
 
-	const wallMs = performance.now() - startedAt;
-
 	return {
 		pipeline: pipeline.name,
 		steps: done,
 		output: done.at(-1)?.result.output ?? "",
-		usage: sumUsage(
-			done.map((entry) => entry.result.usage),
-			wallMs,
-		),
+		usage: trail.usage(),
 		ok: error === undefined,
 		error,
 	};
@@ -309,8 +308,7 @@ async function runStep(
 				concurrency: step.concurrency,
 				failFast: step.failFast,
 			});
-			const last = done.results.find((result) => !result.ok) ?? done.results.at(-1);
-			return entry({ ...(last as Result), output: joinOutputs(done.results), usage: done.usage }, done.results);
+			return entry(done, done.results);
 		}
 
 		case "loop": {
@@ -373,15 +371,7 @@ async function runStep(
 				maxTasks: step.maxTasks,
 				concurrency: step.concurrency,
 			});
-			const result: Result = done.answer ?? {
-				agent: (cast.agents[0] as Agent).name,
-				output: done.ok ? joinOutputs(done.results) : "",
-				messages: done.planning.messages,
-				usage: done.usage,
-				ok: done.ok,
-				error: done.error,
-			};
-			return entry({ ...result, usage: done.usage }, done.results);
+			return entry(done, done.results);
 		}
 
 		case "pair": {
@@ -412,33 +402,9 @@ async function runStep(
 				resume: delivery?.resume?.(step.id),
 				onProgress: delivery?.onProgress && ((progress) => delivery.onProgress?.(step.id, progress)),
 			});
-			const results = done.tasks.map((task) => task as Result);
-			const result: Result = {
-				agent: (cast.agents[0] as Agent).name,
-				output: joinOutputs(results),
-				messages: done.planning.messages,
-				usage: done.usage,
-				// An unapproved delivery is not a failed one: `deliver` already
-				// separates "every turn ran" from "the work passed the bar", and
-				// flattening the two here would throw away the distinction.
-				ok: done.ok,
-				error: done.error,
-			};
-			return entry(result, results, done);
+			// The subtasks are what a following step folds; the delivery is kept
+			// whole beside them, because `approved` is not a thing a `Result` says.
+			return entry(done, done.tasks, done);
 		}
-	}
-}
-
-/** Every output, one after the other, labelled by the agent that produced it. */
-function joinOutputs(results: readonly Result[]): string {
-	return results.map((result) => `## ${result.agent}\n\n${result.output}`).join("\n\n");
-}
-
-function report(onStep: ((step: PipelineStepResult) => void) | undefined, step: PipelineStepResult): void {
-	if (!onStep) return;
-	try {
-		onStep(step);
-	} catch {
-		// a reporting hook is an observer: its failure is never the run's
 	}
 }

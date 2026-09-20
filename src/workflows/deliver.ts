@@ -20,8 +20,8 @@ import type { Agent } from "./../agent.ts";
 import { notify } from "./../events.ts";
 import type { Landed } from "./../land.ts";
 import type { Obligation } from "./../ledger.ts";
-import type { Result } from "./../result.ts";
-import { emptyUsage, sumUsage, type Usage } from "./../usage.ts";
+import { joinOutputs, type Result, type WorkflowResult } from "./../result.ts";
+import { emptyUsage, sumUsage } from "./../usage.ts";
 import type { BuildProgress } from "./../resume.ts";
 import type { Verification, Verify } from "./../verify.ts";
 import { audit, type AuditProgress, type AuditRound } from "./audit.ts";
@@ -106,8 +106,16 @@ export type DeliverOptions = WorkflowOptions & {
 	onProgress?: (progress: BuildProgress) => void;
 };
 
-/** Everything a delivery produced, and the two words that say whether it counts. */
-export type DeliverResult = {
+/**
+ * Everything a delivery produced, and the two words that say whether it counts.
+ *
+ * As a `Result`: the planner's turn, with every subtask's output labelled
+ * where its own would be. `steps` is what the delivery paid for - the planning,
+ * every subtask as a pair's result, every audit's review - and `usage` is their
+ * sum over the run, fixes included since the audit puts them among the tasks.
+ * `ok` says every turn ran and nothing about quality: read `approved`.
+ */
+export type DeliverResult = WorkflowResult & {
 	/** The specification the delivery worked from, as given. */
 	brief: string;
 	/** The subtasks, after validation against the roster. */
@@ -142,12 +150,6 @@ export type DeliverResult = {
 	 * auditor nor a check - there was no bar.
 	 */
 	approved: boolean;
-	/** Aggregate over planning, every pair, the audits and the fixes. */
-	usage: Usage;
-	/** Every turn ran without a model error. Says nothing about quality - read `approved`. */
-	ok: boolean;
-	/** Set if and only if `ok` is false. */
-	error?: string;
 };
 
 /**
@@ -197,9 +199,12 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 
 	const outcome = (plan: PlannedTask[], planning: Result, signedOff: boolean, error?: string): DeliverResult => {
 		// The fixes are in `tasks` already, so a round's own cost is its review.
-		const usages = [planning.usage, ...tasks.map((task) => task.usage), ...audits.map((round) => round.review.usage)];
+		const steps = [planning, ...tasks, ...audits.map((round) => round.review)];
 		const broken = tasks.find((result) => !result.ok);
 		return {
+			...planning,
+			output: joinOutputs(tasks),
+			steps,
 			brief,
 			plan,
 			planning,
@@ -212,7 +217,10 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 			// closed outranks the auditor's own yes, and work that never reached
 			// the tree is not delivered whatever was said about the reports.
 			approved: signedOff && obligations.every((one) => one.closed) && verification?.ok !== false && (tree?.landed ?? true),
-			usage: sumUsage(usages, performance.now() - startedAt),
+			usage: sumUsage(
+				steps.map((step) => step.usage),
+				performance.now() - startedAt,
+			),
 			ok: !error && planning.ok && !broken,
 			error: error ?? broken?.error ?? planning.error,
 		};
