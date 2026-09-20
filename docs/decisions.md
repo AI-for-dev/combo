@@ -1382,6 +1382,34 @@ Display specification - this is the "Claude Code" bar we are aiming at:
   user's key configuration must be respected.
 - Reuse `context.lastComponent` instead of rebuilding the tree every frame.
 
+### One picture of the run, and readers that do not fold
+
+The TUI collector held the fold of the event stream - who spawned, under whom,
+doing what, at what cost - and it was not the only one. The console kept a
+`depths` map of its own to indent a delegated subagent, the extension rebuilt
+counts and a hand-summed total from the subagents pi handed back in a tool
+result, and `setTask` sat on the collector's interface for a caller that no
+longer existed, its TSDoc saying the core did not emit the task when `status`
+had carried it for some time. A fix to the fold - the launch order of a
+fan-out - reached the widget and nothing else.
+
+The fold is one module now, `picture.ts`, named for what it is rather than for
+the first thing that read it: `createRunPicture` folds, `RunSnapshot` is what
+comes out, and `snapshotFrom` derives the counts and the total from a list of
+subagents so the extension gets the same picture back from a serialised
+result. Depth is a fact of the fold, decided when a subagent spawns from the
+parent the picture had seen, and stored on the snapshot; `treeOrder` only puts
+children after their parents. The console reads the depth from a picture of its
+own instead of keeping one, `setTask` is gone, and `of(id)` takes its place on
+the interface - a read where there was a write-in side door. Formatting stays
+in `tui.ts`, with nothing to hold.
+
+What did not move, and why: the herdr reporter keeps a map of the panes it
+opened, which is effect state rather than a second copy of the run; the mirror
+relays a session's events to a socket and holds nothing; and the pane client
+lives in another process, fed by the wire, with three variables. None of them
+re-derives what the picture knows.
+
 ### The stream on disk
 
 `recordReporter(file)` appends every event as one JSON line. It is a reporter

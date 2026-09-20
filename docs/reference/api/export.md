@@ -108,7 +108,7 @@ What one subagent left on disk. Both paths are absent when nothing could be writ
 *function*
 
 ```typescript
-export function usageReport(snapshot: TuiSnapshot, wallMs: number, exports?: SessionExport[]): UsageReport { /* … */ }
+export function usageReport(snapshot: RunSnapshot, wallMs: number, exports?: SessionExport[]): UsageReport { /* … */ }
 ```
 
 Builds the report from a collected snapshot.

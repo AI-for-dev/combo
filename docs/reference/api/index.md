@@ -31,9 +31,11 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`reporters/herdr-probe`](reporters/herdr-probe.md) | Asking herdr whether it would open a pane, without opening one. | 1 |
 | [`reporters/herdr`](reporters/herdr.md) | The herdr reporter: one split per subagent, showing it work. | 3 |
 | [`reporters/index`](reporters/index.md) | Choosing a reporter, so the caller does not have to. | 3 |
+| [`reporters/picture`](reporters/picture.md) | The picture of a run: the event stream folded, once, into what every reader wants to know - who is alive, under whom, doing what, at what cost. | 6 |
 | [`reporters/record`](reporters/record.md) | The event stream, on disk: one JSON object per line, in the order it happened. | 1 |
 | [`reporters/silent`](reporters/silent.md) | The no-op reporter. | 1 |
-| [`reporters/tui`](reporters/tui.md) | State and formatting for the pi TUI, with no pi-tui in sight. | 14 |
+| [`reporters/tree`](reporters/tree.md) | A run as a tree: a delegated subagent drawn under the one that asked for it. | 1 |
+| [`reporters/tui`](reporters/tui.md) | Formatting for the pi TUI, with no pi-tui in sight. | 7 |
 | [`result`](result.md) | `Result`: the single contract shared by everything else. | 4 |
 | [`resume`](resume.md) | Saving a build so it can be picked up again. | 10 |
 | [`run`](run.md) | `run()`: the disposable form. Spawn, ask, close. | 2 |
@@ -90,8 +92,10 @@ reporters/herdr-client
 reporters/herdr-probe
 reporters/herdr
 reporters/index
+reporters/picture
 reporters/record
 reporters/silent
+reporters/tree
 reporters/tui
 result
 resume

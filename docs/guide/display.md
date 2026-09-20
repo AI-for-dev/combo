@@ -37,10 +37,10 @@ learn it, and until it did, every collapsed row in the TUI showed a blank task.
 composing:
 
 ```typescript
-import { combineReporters, createHerdrReporter, createTuiCollector } from "combo";
+import { combineReporters, createHerdrReporter, createRunPicture } from "combo";
 
-const collector = createTuiCollector();
-onEvent: combineReporters(collector.reporter, createHerdrReporter());
+const picture = createRunPicture();
+onEvent: combineReporters(picture.reporter, createHerdrReporter());
 ```
 
 `createHerdrReporter()` returns `undefined` outside herdr, and `combineReporters`
@@ -315,7 +315,7 @@ in the tool row alike:
 ```
 
 A row says how deep it sits and the drawing applies the indent, which is the
-same split as everywhere else here: the collector lays out, the terminal
+same split as everywhere else here: the picture knows the depth, the terminal
 decides what a level looks like. A run with no delegation is drawn exactly as
 it always was.
 
@@ -370,12 +370,26 @@ Markdown, and usage per subagent.
 A parallel run shows what it achieved (`2/3 done, 1 running`), and a loop says
 whether it **converged** or merely ran out of iterations.
 
-## Collection and drawing are separate
+## One picture, many readers
 
-The state collector turns the event stream into a snapshot and formats strings,
-with no pi-tui import. The extension draws it. Collection is therefore tested by
-inspecting a snapshot rather than by scraping a terminal, and the same state
-would feed a web view or an export without touching a component.
+The event stream is folded once, by `createRunPicture()`, into the picture of
+the run: every subagent with its status, task, tool calls, usage and how deep
+it sits under the one that delegated to it, plus what they add up to. The TUI
+widget, the console reporter, `usage.json`, an experiment's cell and the
+`subagent` tool's own result all read that picture. None of them folds the
+stream itself, so a fix to how the picture is built - the launch order of a
+fan-out, the depth of a delegated subagent - reaches every one of them.
+
+`snapshotFrom(subagents)` derives the counts and the total from a list of
+subagents alone. It is what the live picture calls on every frame, and what the
+extension calls on the subagents pi handed back serialised in a tool result, so
+both ends draw from the same arithmetic.
+
+Formatting sits apart, in `tui.ts`: it takes a snapshot in and gives strings
+and rows back, with no pi-tui import. The extension draws them. A line is
+therefore tested by calling the function that makes it, never by scraping a
+terminal, and the same picture would feed a web view without touching a
+component.
 
 ## Reference
 
@@ -383,6 +397,8 @@ would feed a web view or an export without touching a component.
 - [`reporters/index`](../reference/api/reporters/index.md) - `autoReporter`, `combineReporters`.
 - [`mirror`](../reference/api/mirror.md) - `registerMirror`, `mirrorSocket`, the wire.
 - [`reporters/herdr`](../reference/api/reporters/herdr.md), [`reporters/herdr-client`](../reference/api/reporters/herdr-client.md)
-- [`reporters/tui`](../reference/api/reporters/tui.md) - `createTuiCollector`, `TuiSnapshot`, `widgetRows`.
+- [`reporters/picture`](../reference/api/reporters/picture.md) - `createRunPicture`, `snapshotFrom`, `RunSnapshot`.
+- [`reporters/tree`](../reference/api/reporters/tree.md) - `treeOrder`, a child under its parent.
+- [`reporters/tui`](../reference/api/reporters/tui.md) - `widgetRows`, `summaryTable`, the formatting.
 - [`reporters/record`](../reference/api/reporters/record.md) - `recordReporter`, the event stream on disk.
 - [`reporters/console`](../reference/api/reporters/console.md), [`reporters/silent`](../reference/api/reporters/silent.md)

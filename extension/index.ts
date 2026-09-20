@@ -4,7 +4,7 @@
  * Everything here is a thin shell over the library. Structural decision #2 says
  * a feature must work from a script before it is exposed in the TUI, so this
  * file owns no logic - it maps tool arguments onto combinators, and draws what
- * `createTuiCollector` collected.
+ * `createRunPicture` folded.
  *
  * Install with:
  *   ln -s <repo>/extension/index.ts ~/.pi/agent/extensions/combo.ts
@@ -26,6 +26,7 @@ import {
 	formatUsage,
 	MAX_DEPTH,
 	plural,
+	snapshotFrom,
 	statusIcon,
 	summaryTable,
 	treeOrder,
@@ -238,10 +239,10 @@ export default function (pi: ExtensionAPI) {
 function renderCollapsed(details: Details, theme: Theme): Container {
 	const container = new Container();
 
-	for (const { snapshot: one, depth } of treeOrder(details.subagents)) {
+	for (const one of treeOrder(details.subagents)) {
 		// A subagent that was delegated sits under the one that asked for it:
 		// three scouts read as an explorer's split rather than as five peers.
-		const indent = "  ".repeat(depth);
+		const indent = "  ".repeat(one.depth);
 		const icon = one.ok === false ? theme.fg("error", "✗") : theme.fg("success", "✓");
 		let line = `${indent}${icon} ${theme.fg("toolTitle", theme.bold(one.id))}`;
 		if (one.task) line += ` ${theme.fg("dim", truncate(one.task, 50))}`;
@@ -272,11 +273,11 @@ function renderExpanded(details: Details, theme: Theme): Container {
 	const container = new Container();
 	const markdown = getMarkdownTheme();
 
-	for (const [index, { snapshot: one, depth }] of treeOrder(details.subagents).entries()) {
+	for (const [index, one] of treeOrder(details.subagents).entries()) {
 		if (index > 0) container.addChild(new Spacer(1));
 
 		const icon = one.ok === false ? theme.fg("error", "✗") : theme.fg("success", "✓");
-		container.addChild(new Text(`${"  ".repeat(depth)}${icon} ${theme.fg("toolTitle", theme.bold(one.id))}`, 0, 0));
+		container.addChild(new Text(`${"  ".repeat(one.depth)}${icon} ${theme.fg("toolTitle", theme.bold(one.id))}`, 0, 0));
 
 		if (one.task) {
 			container.addChild(new Text(theme.fg("muted", "─── task ───"), 0, 0));
@@ -302,42 +303,15 @@ function renderExpanded(details: Details, theme: Theme): Container {
 
 	container.addChild(new Spacer(1));
 	if (details.decision) container.addChild(new Text(theme.fg("accent", `→ ${details.decision}`), 0, 0));
-	for (const line of summaryTable({ ...snapshotOf(details) }, details.wallMs)) {
+	for (const line of summaryTable(snapshotFrom(details.subagents), details.wallMs)) {
 		container.addChild(new Text(theme.fg("dim", line), 0, 0));
 	}
 	if (details.exportDir) container.addChild(new Text(theme.fg("muted", `exported to ${details.exportDir}`), 0, 0));
 	return container;
 }
 
-/** Rebuilds a `TuiSnapshot` from the details we serialised into the result. */
-function snapshotOf(details: Details) {
-	const subagents = details.subagents;
-	const usage = subagents.reduce(
-		(total, one) => ({
-			...total,
-			busyMs: total.busyMs + one.usage.busyMs,
-			turns: total.turns + one.usage.turns,
-			input: total.input + one.usage.input,
-			output: total.output + one.usage.output,
-			cacheRead: total.cacheRead + one.usage.cacheRead,
-			cacheWrite: total.cacheWrite + one.usage.cacheWrite,
-			cost: total.cost + one.usage.cost,
-		}),
-		{ wallMs: 0, busyMs: 0, turns: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
-	);
-
-	return {
-		subagents,
-		total: subagents.length,
-		done: subagents.filter((one) => one.status === "done").length,
-		running: 0,
-		failed: subagents.filter((one) => one.ok === false).length,
-		usage,
-	};
-}
-
 function totalLine(details: Details): string {
-	const snapshot = snapshotOf(details);
+	const snapshot = snapshotFrom(details.subagents);
 	let line = formatUsage({ ...snapshot.usage, wallMs: details.wallMs });
 	if (details.iterations !== undefined) {
 		line += `  ${details.iterations} iteration${details.iterations > 1 ? "s" : ""}`;

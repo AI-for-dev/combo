@@ -89,7 +89,7 @@ export {
 export { deliver, type DeliverOptions, type DeliverResult } from "./workflows/deliver.ts";
 export { auditPrompt, AUDIT_APPROVAL, type AuditPromptOptions, type AuditRound } from "./workflows/audit.ts";
 
-// ── Watching a run: reporters, and the state they collect ────────────────────
+// ── Watching a run: reporters, and the picture they read ─────────────────────
 
 export {
 	busFor,
@@ -106,11 +106,12 @@ export {
 	createHerdrReporter,
 	createHerdrReporterWith,
 	createHerdrSend,
-	createTuiCollector,
+	createRunPicture,
 	detectHerdr,
 	probeHerdr,
 	recordReporter,
 	silentReporter,
+	snapshotFrom,
 	type AutoReporterOptions,
 	type ConsoleReporterOptions,
 	// `HerdrEnv` is what `detectHerdr` returns and `HerdrSend` is
@@ -118,13 +119,13 @@ export {
 	type HerdrEnv,
 	type HerdrOptions,
 	type HerdrSend,
+	type RunPicture,
+	type RunSnapshot,
 	type SubagentSnapshot,
 	type ToolCall,
-	type TuiCollector,
-	type TuiSnapshot,
 } from "./reporters/index.ts";
-// Formatting a collected snapshot. Drawing it is the caller's - see the pi
-// extension, which is the only consumer of these today.
+// Formatting a snapshot. Drawing it is the caller's - see the pi extension,
+// which is the only consumer of these today.
 export {
 	collapsedLine,
 	formatToolCall,
@@ -133,7 +134,6 @@ export {
 	summaryTable,
 	treeOrder,
 	widgetRows,
-	type TreeRow,
 	type WidgetRow,
 } from "./reporters/index.ts";
 export { plural, saysWord, truncate } from "./text.ts";

@@ -17,7 +17,7 @@ cell is the caller's business - a combinator, a `runPipeline`, or a whole
 script - and the only contract is that the cell's `options` are spread into
 it, so every subagent lands on that cell's model and in that cell's directory.
 
-Measurement is reused, never reinvented: each cell gets its own collector, its
+Measurement is reused, never reinvented: each cell gets its own picture, its
 `usage.json` is the same document a single run writes, and its whole event
 stream is kept in `events.jsonl` next to it.
 
@@ -56,7 +56,7 @@ export type ExperimentCell = {
 	 *
 	 * Spreading it is the contract: it carries the cell's `model` and
 	 * `exportDir`, the experiment's `signal`, `timeoutMs`, `cwd` and `spawn`, and
-	 * an `onEvent` combining the cell's own collector, its `events.jsonl`
+	 * an `onEvent` combining the cell's own picture, its `events.jsonl`
 	 * recorder and the caller's listener. A callback that rebuilds these by hand
 	 * measures something else.
 	 */
@@ -93,7 +93,7 @@ export type ExperimentOptions = {
 	timeoutMs?: number;
 	/** Working directory of every subagent. */
 	cwd?: string;
-	/** A listener over the whole experiment, combined with each cell's collector. */
+	/** A listener over the whole experiment, combined with each cell's picture. */
 	onEvent?: EventListener;
 	/** Defaults to the real `spawn`. The injection point that keeps tests offline. */
 	spawn?: SpawnFn;
