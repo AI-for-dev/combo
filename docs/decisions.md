@@ -1177,6 +1177,33 @@ The console and a herdr pane are read side by side when a run is compared
 against another, and a difference in how they say it would read as a difference
 in what happened.
 
+**Reversed: a subagent's pane hosts a client, not a file.** The `tail -f`
+above was the right answer to a pane that cannot host a subagent, and the
+wrong shape for two things asked of it since: to read like pi, and to take a
+word for the subagent. A text file can do neither. The split now runs
+`pane/main.ts`, a client of the mirror, so what it draws is pi's chat and what
+is typed into it reaches the turn in flight. The three herdr calls are the
+same three, with a different command typed into the shell; the file, the
+one-line tool summary and the usage line the reporter used to write are gone
+from it, because the pane draws them from the session itself. Text, tool and
+usage events still flow on the bus for every other reporter, and the herdr
+reporter reads only `spawn`, `status` and `close` from it: what herdr must be
+told, and nothing the pane already knows.
+
+The command names the binary this process runs on (`process.execPath`) and
+the client where the package keeps it, both quoted, because the split's shell
+may find another `node` or none, and a pane opening on a usage error says
+nothing about why. When this process is not node at all, the shell's `node` is
+the one candidate left.
+
+The board keeps its file. Nobody works in it and nothing is typed to it, and
+its lines are the console's, which is the property worth keeping there. A
+member's own pane no longer repeats its half of the traffic: the tool calls
+it made are drawn as tool calls, which is how pi would show them. The console
+keeps the `⌨` line for a steer, and `traffic.ts` does not carry it, because
+the pane draws a steer as the user message it becomes and two displays of one
+run must not say it twice.
+
 **A reporter that nobody subscribes reports nothing.** `onEvent` takes a single
 listener, so watching in the TUI *and* in herdr means composing them - use
 `combineReporters(collector.reporter, createHerdrReporter())`, which drops the
@@ -1228,6 +1255,39 @@ A reporter asking a module for a path is not a reporter querying the run.
 `attached` names the pi package this process resolved
 (`import.meta.resolve`), because the events are that pi's and the components
 reading them have to be too - the version trap above, seen from the other side.
+
+### The pane is pi's chat, fed by the mirror
+
+`pane/` is the client a herdr split runs: a `TUI` over a `ProcessTerminal`,
+a chat of `UserMessageComponent`, `AssistantMessageComponent` and
+`ToolExecutionComponent`, an `Editor`, two lines of footer. The chat runs the
+switch pi's own interactive mode runs over the same events, which is why it
+looks like pi: there was no drawing to invent, only a session to be fed.
+
+It sits at the top level like `extension/`, because it is pi UI code and
+imports `@earendil-works/pi-tui`, which `src/` never does: the TUI collector
+stays free of it so a snapshot can be tested without a terminal, and so does
+this, on `render(width)` of the components themselves.
+
+**It imports pi statically**, from the same tree as `src/`. The plan had it
+import the package from the URL `attached` carries, so the components would be
+the version that produced the events; but `pane/` and `src/` resolve the bare
+specifier the same way from the same checkout, so the URL adds nothing here and
+a dynamic import would cost the types. The URL stays on the wire as a fact a
+client may compare against its own resolution, and nothing reads it yet.
+
+**pi's editor theme is not exported.** `getEditorTheme()` lives in pi's theme
+module and `index.ts` does not re-export it, and `theme` itself is not exported
+either, so the pane's editor border is plain dim rather than the theme's
+`borderMuted`. The select list inside it is the theme's, through
+`getSelectListTheme()`, which is exported.
+
+Verified in a pty against a real subagent: the task, the thinking, each `read`
+in its box, the answer; a line typed one second into the turn shown as a user
+box, the model's answer to it below, and `Result.output` reading `STEERED` on
+the library's side; a line typed after the close answered `done - nobody is
+listening`. The frame was drawn with `scripts/frame.py`, which is the check no
+fake can do.
 
 ### pi TUI reporter (always available)
 
