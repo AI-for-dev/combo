@@ -507,6 +507,33 @@ report says `(failed)` beside the name with the error where the output would
 be, as every other failed section does, rather than `(failed: error)` over
 `(no output)`.
 
+### An offer of tools composes, and a combo tool shares its constant parts
+
+`SpawnOptions.customTools` is a list or a function of the id to come, and
+`WorkflowOptions.customTools` a function of the agent answering either. Adding
+a tool to what a caller offered therefore needed a flattener, and the only one
+in the tree lived in a test fixture. `swarm` did it with a cast -
+`options.customTools?.(agent) as never[]` - which read a caller's offer as a
+list whatever it was: an offer written in the function form, as the `subagent`
+tool writes its own, would have thrown the moment it was spread. Latent only
+because `/swarm` passed no offer.
+
+`toolsOffered(offer, id)` in `subagent.ts` is the one reader of the two shapes:
+`spawn` reads through it, the fixture is a one-line caller of it, and so is the
+composition. `ToolOffer` names what a workflow offers each of its agents, and
+`offerBoth(first, second)` is two of them as one, asked for the id whenever
+either needs it. `swarm` offers the board beside the caller's offer with no
+cast. The two shapes stay: a list is what most callers write, and a function is
+what a tool that must know its holder needs, and the reader is what makes the
+union safe to hold.
+
+Around each combo tool the same three helpers were written: whether an agent
+declares it, an answer, a refusal - one body three times, and two of them
+inline in the verdict tool's body. They are `src/tool.ts`: `declares(tools,
+name)`, `said(text)`, `refuse(text)`, with `declaresVerdict`, `declaresBoard`
+and `declaresDelegate` kept as the named one-liners the extension reads. A
+tool body is now the decision it records or the act it performs.
+
 ### A verdict is a tool call, and prose is the argument for it
 
 A reviewer's answer carries two things: an argument, which is prose and belongs

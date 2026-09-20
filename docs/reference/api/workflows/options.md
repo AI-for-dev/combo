@@ -10,6 +10,20 @@ the same defaults.
 Combinators are functions, not classes. No inheritance, no global registry.
 They compose because they all take a `Result` in and give a `Result` back.
 
+## `offerBoth`
+
+*function*
+
+```typescript
+export function offerBoth(first: ToolOffer | undefined, second: ToolOffer | undefined): ToolOffer | undefined { /* … */ }
+```
+
+Two offers as one: what `first` offers an agent, then what `second` does.
+
+Whichever shape either answers in, the sum is asked for the id, because a
+list spread beside a function is how a swarm handed its members the board
+and would have thrown on a caller's offer written the other way.
+
 ## `SpawnFn`
 
 *type*
@@ -19,6 +33,21 @@ export type SpawnFn = (agent: Agent, options: SpawnOptions) => Promise<Subagent>
 ```
 
 The spawn function a combinator uses. Injection point for tests.
+
+## `ToolOffer`
+
+*type*
+
+```typescript
+export type ToolOffer = (agent: Agent) => ToolDefinition[] | CustomToolsFor | undefined;
+```
+
+What a workflow offers each of its agents beyond their own tools.
+
+A function of the agent, because the answer differs by agent: a reviewer is
+offered the verdict tool and the worker beside it is not. What it answers is
+{@link SpawnOptions.customTools}: a list, or a function of the id to come
+when a tool needs to know who holds it.
 
 ## `WorkflowOptions`
 
@@ -81,7 +110,7 @@ export type WorkflowOptions = {
 	 * only a tool that spawns children needs the id, and nothing else should pay
 	 * for it.
 	 */
-	customTools?: (agent: Agent) => ToolDefinition[] | CustomToolsFor | undefined;
+	customTools?: ToolOffer;
 	/**
 	 * The subagent every subagent of this workflow hangs under.
 	 *

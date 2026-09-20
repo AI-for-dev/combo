@@ -30,13 +30,17 @@ describe("measuredRun", () => {
 		const run = measuredRun({ dir });
 
 		run.onEvent(spawned("scout#1"));
+		// Measured on the clock the run reads, so the bound holds whatever the
+		// timer's granularity.
+		const before = performance.now();
 		await new Promise((resolve) => setTimeout(resolve, 5));
+		const slept = performance.now() - before;
 		run.onEvent(closed("scout#1", true, { input: 100 }));
 		const finished = run.finish();
 
 		assert.equal(finished.total.subagents, 1);
 		assert.equal(finished.total.input, 100);
-		assert.ok(finished.wallMs >= 5, "the wall time is the measurement's own clock");
+		assert.ok(finished.wallMs >= slept, "the wall time is the measurement's own clock");
 		assert.equal(report(dir).total.input, 100);
 	});
 

@@ -38,7 +38,7 @@ import { createClaims, type Claims } from "./../claims.ts";
 import { busFor } from "./../events.ts";
 import { failed, joinOutputs, type Result, type WorkflowResult } from "./../result.ts";
 import { mapConcurrent } from "./concurrent.ts";
-import type { WorkflowOptions } from "./options.ts";
+import { offerBoth, type WorkflowOptions } from "./options.ts";
 import { type Held, SubagentPool } from "./pool.ts";
 
 /** How many of one agent stand on the board. A swarm of one is a run. */
@@ -152,12 +152,10 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 		bus,
 		onEvent: undefined,
 		lifetime,
-		// Every member is handed the board under its own name. The id exists only
-		// once the subagent does, which is what the function form is for.
-		customTools: (agent) => (id: string) => [
-			...(options.customTools?.(agent) as never[] | undefined ?? []),
-			boardTool({ board, from: id, claims }),
-		],
+		// Every member is handed the board under its own name, beside whatever the
+		// caller offered it. The id exists only once the subagent does, which is
+		// what the function form is for.
+		customTools: offerBoth(options.customTools, () => (id: string) => [boardTool({ board, from: id, claims })]),
 	});
 
 	let converged = false;
