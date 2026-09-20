@@ -106,6 +106,14 @@ export function createHerdrReporterWith(send: HerdrSend, options: HerdrOptions =
 			return;
 		}
 
+		// A person's word to one member is that member's alone: the board is what
+		// passed between members, and a steer on it would open one for a run that
+		// never had a board.
+		if (event.type === "steer") {
+			panes.get(event.id)?.write(`${trafficLine(event, { self: event.id })}\n`);
+			return;
+		}
+
 		const traffic = trafficLine(event);
 		if (traffic !== undefined) {
 			lines += 1;

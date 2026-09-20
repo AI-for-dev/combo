@@ -30,6 +30,8 @@ export type Turn = {
 
 export type FakeSession = SessionPort & {
 	readonly prompts: string[];
+	/** What was steered into it, in order. */
+	readonly steers: string[];
 	readonly disposed: boolean;
 	readonly aborted: number;
 };
@@ -39,6 +41,8 @@ export function fakeSession(turns: Turn[] = []): FakeSession {
 	const listeners = new Set<(event: SessionEvent) => void>();
 	const messages: AgentMessage[] = [];
 	const prompts: string[] = [];
+	const steers: string[] = [];
+	let streaming = false;
 
 	const total = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
 	let contextTokens: number | undefined;
@@ -60,6 +64,17 @@ export function fakeSession(turns: Turn[] = []): FakeSession {
 		get prompts() {
 			return prompts;
 		},
+		get steers() {
+			return steers;
+		},
+		get isStreaming() {
+			return streaming;
+		},
+
+		async steer(text) {
+			steers.push(text);
+			messages.push({ role: "user", content: text } as AgentMessage);
+		},
 		get disposed() {
 			return disposed;
 		},
@@ -74,49 +89,12 @@ export function fakeSession(turns: Turn[] = []): FakeSession {
 
 		async prompt(text) {
 			prompts.push(text);
-			const turn: Turn = turns[index++] ?? {};
-
-			messages.push({ role: "user", content: text } as AgentMessage);
-
-			// A real `abort()` cuts the turn short. A fake that slept through it
-			// would let a broken timeout look like a working one.
-			if (turn.delayMs) {
-				await new Promise<void>((resolve) => {
-					const timer = setTimeout(resolve, turn.delayMs);
-					interrupt = () => {
-						clearTimeout(timer);
-						resolve();
-					};
-				});
-				interrupt = undefined;
+			streaming = true;
+			try {
+				await runTurn(text);
+			} finally {
+				streaming = false;
 			}
-
-			for (const tool of turn.tools ?? []) {
-				emit({ type: "tool_execution_start", toolName: tool.name, args: tool.args });
-			}
-			if (turn.text) {
-				emit({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: turn.text } });
-			}
-
-			// Tokens are billed even when the turn goes on to fail.
-			total.input += turn.tokens?.input ?? 0;
-			total.output += turn.tokens?.output ?? 0;
-			total.cacheRead += turn.tokens?.cacheRead ?? 0;
-			total.cacheWrite += turn.tokens?.cacheWrite ?? 0;
-			total.cost += turn.cost ?? 0;
-			if (turn.contextTokens !== undefined) contextTokens = turn.contextTokens;
-
-			if (turn.throws) throw new Error(turn.throws);
-
-			const stopReason = abortCurrent ? "aborted" : (turn.stopReason ?? "stop");
-			abortCurrent = false;
-			messages.push({
-				role: "assistant",
-				content: [{ type: "text", text: turn.text ?? "" }],
-				stopReason,
-				errorMessage: stopReason === "error" ? "boom" : undefined,
-			} as unknown as AgentMessage);
-			emit({ type: "turn_end" });
 		},
 
 		getSessionStats(): SessionStats {
@@ -149,6 +127,53 @@ export function fakeSession(turns: Turn[] = []): FakeSession {
 			listeners.clear();
 		},
 	};
+
+	/** One scripted turn. Apart from `prompt` so `isStreaming` brackets all of it. */
+	async function runTurn(text: string) {
+		const turn: Turn = turns[index++] ?? {};
+
+		messages.push({ role: "user", content: text } as AgentMessage);
+
+		// A real `abort()` cuts the turn short. A fake that slept through it
+		// would let a broken timeout look like a working one.
+		if (turn.delayMs) {
+			await new Promise<void>((resolve) => {
+				const timer = setTimeout(resolve, turn.delayMs);
+				interrupt = () => {
+					clearTimeout(timer);
+					resolve();
+				};
+			});
+			interrupt = undefined;
+		}
+
+		for (const tool of turn.tools ?? []) {
+			emit({ type: "tool_execution_start", toolName: tool.name, args: tool.args });
+		}
+		if (turn.text) {
+			emit({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: turn.text } });
+		}
+
+		// Tokens are billed even when the turn goes on to fail.
+		total.input += turn.tokens?.input ?? 0;
+		total.output += turn.tokens?.output ?? 0;
+		total.cacheRead += turn.tokens?.cacheRead ?? 0;
+		total.cacheWrite += turn.tokens?.cacheWrite ?? 0;
+		total.cost += turn.cost ?? 0;
+		if (turn.contextTokens !== undefined) contextTokens = turn.contextTokens;
+
+		if (turn.throws) throw new Error(turn.throws);
+
+		const stopReason = abortCurrent ? "aborted" : (turn.stopReason ?? "stop");
+		abortCurrent = false;
+		messages.push({
+			role: "assistant",
+			content: [{ type: "text", text: turn.text ?? "" }],
+			stopReason,
+			errorMessage: stopReason === "error" ? "boom" : undefined,
+		} as unknown as AgentMessage);
+		emit({ type: "turn_end" });
+	}
 
 	return session;
 }

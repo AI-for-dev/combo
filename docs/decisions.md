@@ -1184,6 +1184,51 @@ listener, so watching in the TUI *and* in herdr means composing them - use
 passed `openInHerdr` all the way to the `spawn` event with nobody listening, and
 nothing failed: no split, no error, no clue.
 
+### The mirror: a live session on a socket, and what a typed word may do
+
+A pane cannot host an in-process subagent, and the `tail -f` above shows one
+without letting anybody speak to it. What a pane *can* host is a client: the
+mirror (`src/mirror.ts`, wire in `mirror-wire.ts`) registers every live
+subagent by id on one unix socket per process, replays `session.messages` to
+whoever attaches, then forwards pi's own session events as they come. pi's own
+chat components are written against exactly those events, so a client built
+from them draws the session the way pi would.
+
+The mirror is **not a reporter**. A reporter reads the stream and never reaches
+the session; this one takes `steer` and `abort` from the socket and applies
+them. It is a port of the core, beside `ask.ts` and `verify.ts`, and it is
+reached only by the act that opens a pane. Registration is a map entry, so
+every subagent registers and no socket exists until something asks for its
+path: the suite spawns hundreds of fakes and listens on nothing.
+
+**Nothing typed while idle is queued.** Probed, on two pi generations with
+the same answer: a `steer` queued on an idle session is delivered with the
+next `prompt()` and answered *in place of it* (`user SECOND → user STEERED →
+assistant STEERED`); a `followUp` queued while idle is answered *inside* the
+next `prompt()`, after the task, so `lastAssistantText` reads the person's
+exchange back as the workflow's result. Either silently changes a turn the
+workflow believes it composed. So a steer is accepted only while
+`session.isStreaming`, refused otherwise with a reason the pane can print, and
+`followUp` is not on `SessionPort` at all. Mid-turn a steer lands after the
+tool call in flight and the transcript `ask` returns carries it, which is the
+feature.
+
+**A steer is an event.** `{ type: "steer", id, text }` goes on the bus when
+one went through, so `events.jsonl`, the console and the pane say a person
+spoke and where. A run somebody steered is not the run they would have got by
+watching, and the record is what tells the two apart afterwards. The line is
+`traffic.ts`'s (`⌨ scout#1 ← …`), for the reason every line there is: two
+displays of one run must say the same thing.
+
+**The socket path does not ride on the `spawn` event.** The plan had it
+there, beside `openInHerdr`; it is a process-wide fact and not a subagent's,
+so `mirrorSocket()` answers it once and the same path serves everyone alive.
+A reporter asking a module for a path is not a reporter querying the run.
+
+`attached` names the pi package this process resolved
+(`import.meta.resolve`), because the events are that pi's and the components
+reading them have to be too - the version trap above, seen from the other side.
+
 ### pi TUI reporter (always available)
 
 Implemented across `src/reporters/tui.ts` and `extension/index.ts`.

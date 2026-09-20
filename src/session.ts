@@ -60,6 +60,16 @@ export type SessionPort = {
 	getContextUsage(): ContextUsage | undefined;
 	/** Cuts the in-flight turn short. `prompt()` takes no signal, so this is the bridge. */
 	abort(): Promise<void>;
+	/**
+	 * Queues a word for the turn in flight, delivered after the tool call the
+	 * model is in. **Only while `isStreaming`**: measured, a steer queued on an
+	 * idle session is delivered with the next `prompt()` and answered in place
+	 * of it, which silently changes what a workflow reads back from its own
+	 * task. The mirror is the one caller, and it checks first.
+	 */
+	steer(text: string): Promise<void>;
+	/** Whether a turn is in flight - the one moment a steer is safe. */
+	readonly isStreaming: boolean;
 	/** Releases the session. An undisposed session leaks; measurements come first. */
 	dispose(): void;
 	/**

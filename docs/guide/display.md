@@ -23,6 +23,7 @@ type SubagentEvent =
 	| { type: "post";   id: string; post: Post }
 	| { type: "read";   id: string; posts: readonly string[]; waiting: number }
 	| { type: "claim";  id: string; key: string; action: "take" | "release"; ok: boolean; heldBy?: string }
+	| { type: "steer";  id: string; text: string }
 	| { type: "usage";  id: string; usage: Usage }
 	| { type: "close";  id: string; result: Result };
 ```
@@ -202,6 +203,50 @@ The pane opens only when the run is being watched at all, closes with the last
 member, and carries no herdr *agent*: nobody works in it, so there is nothing to
 report a state for and nothing to release.
 
+## Reaching in: the mirror
+
+Every live subagent is registered, by id, with the **mirror**
+(`src/mirror.ts`): a unix socket server, one per process, that starts the
+first time something asks where it is and goes with the last subagent. A
+client attaches by id and speaks newline-delimited JSON:
+
+```text
+→ { "attach": "scout#1" }
+← { "type": "attached", "id": "scout#1", "agent": "scout", "model": "…", "cwd": "…", "pi": "file:///…/pi-coding-agent/dist/index.js" }
+← { "type": "message", "message": … }          // the transcript so far, one per entry
+← { "type": "message_start", … }               // then pi's own events, as pi emits them
+← { "type": "status", "id": "scout#1", … }     // and ours, around them
+→ { "type": "steer", "text": "look at test/ first" }
+→ { "type": "abort" }
+← { "type": "close", … }                       // then the line goes
+```
+
+`attached` names the pi package this process runs, because the events that
+follow are that pi's and whatever draws them has to be built from the same
+one. A `message_update` arrives per token and carries the whole partial
+message, so the mirror sends the latest at most every 50 ms, and always before
+whatever follows it.
+
+**A steer is delivered only while the subagent works.** Measured: a steer
+queued on an idle session is delivered with the next `prompt()` and answered
+*in place of it*, and a follow-up is answered *inside* the next `prompt()`
+after the task, so the workflow reads a person's exchange back as its own
+result. Between tasks the mirror answers
+`{ "type": "refused", "reason": "between tasks - it can only be steered while it works" }`
+and queues nothing. `abort` is `stop()`, safe at any moment, and the turn comes
+back `stopped` like `/stop`.
+
+Every steer that went through is also a `steer` event on the run's stream, so
+the record, the console (`⌨ scout#1 ← look at test/ first`) and a herdr pane
+hold that a person spoke. A run somebody steered is not the run they would
+have got by watching, and two identical `events.jsonl` must not describe two
+different runs.
+
+This is not a reporter. A reporter reads the stream and never reaches the
+session; the mirror is a port of the core, beside `ask` and `verify`, and it is
+opened by the same act that opens a pane. Unplug every reporter, attach nobody,
+and the result is identical.
+
 ## The pi TUI
 
 While the subagents work, a dot per subagent sits just above the prompt:
@@ -303,6 +348,7 @@ would feed a web view or an export without touching a component.
 
 - [`events`](../reference/api/events.md) - `SubagentEvent`, `EventBus`.
 - [`reporters/index`](../reference/api/reporters/index.md) - `autoReporter`, `combineReporters`.
+- [`mirror`](../reference/api/mirror.md) - `registerMirror`, `mirrorSocket`, the wire.
 - [`reporters/herdr`](../reference/api/reporters/herdr.md), [`reporters/herdr-client`](../reference/api/reporters/herdr-client.md)
 - [`reporters/tui`](../reference/api/reporters/tui.md) - `createTuiCollector`, `TuiSnapshot`, `widgetRows`.
 - [`reporters/record`](../reference/api/reporters/record.md) - `recordReporter`, the event stream on disk.

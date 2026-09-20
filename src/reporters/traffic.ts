@@ -10,6 +10,9 @@
  *
  * The **quiet one is why this exists at all**: a member handed nothing is what
  * tells three members racing apart from three models thinking alike.
+ *
+ * A fourth line is not board traffic: a person steering a member from its
+ * pane. It is here for the same reason - two displays, one wording.
  */
 
 import type { SubagentEvent } from "../events.ts";
@@ -48,6 +51,8 @@ export function trafficLine(event: SubagentEvent, options: TrafficOptions = {}):
 			return `⇣${who(event.id)} was handed ${handed(event.posts.length, event.waiting)}`;
 		case "claim":
 			return `⚑${who(event.id)} ${event.action} ${event.key} → ${settled(event.action, event.ok, event.heldBy)}`;
+		case "steer":
+			return `⌨${who(event.id)} ← ${truncate(event.text, SAID)}`;
 		default:
 			return undefined;
 	}

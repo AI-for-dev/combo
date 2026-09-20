@@ -99,6 +99,14 @@ export type SubagentEvent =
 	 * fact of the run as a grant.
 	 */
 	| { type: "claim"; id: string; key: string; action: "take" | "release"; ok: boolean; heldBy?: string }
+	/**
+	 * A person spoke to a working subagent, through its pane.
+	 *
+	 * On the stream so the record holds it: a run somebody steered is not the
+	 * run they would have got by watching, and two identical `events.jsonl`
+	 * must not describe two different runs.
+	 */
+	| { type: "steer"; id: string; text: string }
 	| { type: "usage"; id: string; usage: Usage }
 	| { type: "close"; id: string; result: Result };
 

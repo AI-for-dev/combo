@@ -271,6 +271,18 @@ export {
 	type BuildState,
 } from "./resume.ts";
 
+// ── Reaching a live subagent from outside: the mirror a pane attaches to ─────
+
+export {
+	mirrorSocket,
+	REFUSED_IDLE,
+	registerMirror,
+	type Attach,
+	type MirrorIn,
+	type MirrorOut,
+	type Mirrored,
+} from "./mirror.ts";
+
 // ── The pi session itself: the seam every test injects a fake into ───────────
 
 export {
