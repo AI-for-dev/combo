@@ -18,8 +18,9 @@ import { registerMirror } from "./mirror.ts";
 import { failed, succeeded, type Result } from "./result.ts";
 import {
 	createDefaultSession,
+	lastTurn,
 	modelLabel,
-	type AgentMessage,
+	streamed,
 	type CreateSession,
 	type SessionPort,
 	type ToolDefinition,
@@ -241,18 +242,9 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 	// Streaming events are forwarded as they arrive - never buffered until the
 	// end of the turn, otherwise the TUI would show an opaque spinner.
 	const unsubscribe = session.subscribe((event) => {
-		if (event.type === "message_update") {
-			const inner = (event as { assistantMessageEvent?: { type: string; delta?: string } }).assistantMessageEvent;
-			if (inner?.type === "text_delta" && inner.delta) {
-				bus.emit({ type: "text", id, delta: inner.delta });
-			}
-		} else if (event.type === "tool_execution_start") {
-			const call = event as { toolName?: string; args?: unknown };
-			// `??` is not enough: a call pi cannot name arrives with an empty name
-			// rather than none, and an empty verb draws a row of bare arguments -
-			// what the call was given, and never what was done with it.
-			bus.emit({ type: "tool", id, name: call.toolName?.trim() || "?", args: call.args });
-		}
+		const seen = streamed(event);
+		if (seen?.type === "text") bus.emit({ type: "text", id, delta: seen.delta });
+		else if (seen?.type === "tool") bus.emit({ type: "tool", id, name: seen.name, args: seen.args });
 	});
 
 	const openInHerdr = options.openInHerdr ?? agent.openInHerdr ?? false;
@@ -337,8 +329,9 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 
 			const messages = session.messages.slice(startIndex);
 			// A turn can also fail without throwing: pi reports it through the
-			// last assistant message's stopReason.
-			error ??= stopError(messages);
+			// last assistant message, and the session's reader says so.
+			const said = lastTurn(messages);
+			error ??= said.error;
 
 			// All three look like an abort from pi's side. Say which one it was: a
 			// deadline that expired, a caller that changed its mind and a person who
@@ -350,7 +343,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 				error = `timed out after ${askOptions.timeoutMs}ms`;
 			}
 
-			const result: Result = error ? failed(agent.name, error, turn, messages) : succeeded(agent.name, lastAssistantText(messages), turn, messages);
+			const result: Result = error ? failed(agent.name, error, turn, messages) : succeeded(agent.name, said.text, turn, messages);
 
 			lastError = error;
 			bus.emit({ type: "usage", id, usage: turn });
@@ -389,7 +382,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 				// Over the subagent's whole life, and without the messages: what a
 				// reader wants of a close is the outcome and the bill, and the
 				// transcript is the export's.
-				result: lastError ? failed(agent.name, lastError, finalUsage) : succeeded(agent.name, lastAssistantText(session.messages), finalUsage),
+				result: lastError ? failed(agent.name, lastError, finalUsage) : succeeded(agent.name, lastTurn(session.messages).text, finalUsage),
 			});
 			unregister();
 		},
@@ -418,33 +411,6 @@ function readUsage(session: SessionPort): Usage {
 	} catch {
 		return emptyUsage();
 	}
-}
-
-/** Concatenates the text of the last assistant message. */
-function lastAssistantText(messages: readonly AgentMessage[]): string {
-	for (let i = messages.length - 1; i >= 0; i--) {
-		const message = messages[i] as { role?: string; content?: unknown };
-		if (message?.role !== "assistant") continue;
-		if (!Array.isArray(message.content)) continue;
-		return message.content
-			.filter((part): part is { type: "text"; text: string } => (part as { type?: string })?.type === "text")
-			.map((part) => part.text)
-			.join("")
-			.trim();
-	}
-	return "";
-}
-
-/** Turns a failing `stopReason` into an error message, or `undefined`. */
-function stopError(messages: readonly AgentMessage[]): string | undefined {
-	for (let i = messages.length - 1; i >= 0; i--) {
-		const message = messages[i] as { role?: string; stopReason?: string; errorMessage?: string };
-		if (message?.role !== "assistant") continue;
-		if (message.stopReason === "error") return message.errorMessage ?? "model error";
-		if (message.stopReason === "aborted") return "aborted";
-		return undefined;
-	}
-	return undefined;
 }
 
 export type { SubagentEvent };

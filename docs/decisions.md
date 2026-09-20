@@ -2176,6 +2176,32 @@ into the other through `runs/<timestamp>/build.json`.
 - `onProgress` is a reporting hook, so a listener that throws is swallowed - the
   same rule as the event bus.
 
+### The shape of a message is read where the pi API lives
+
+Two readers in `subagent.ts` knew what a pi message looks like: one walked the
+content parts of the last assistant message for its text, the other read its
+`stopReason` and `errorMessage` for the failure a turn can end on without
+throwing - the trap `AGENTS.md` lists. The event subscription beside them cast
+a `SessionEvent` to reach `assistantMessageEvent`, `toolName` and `args`, though
+`session.ts` declares that very union. The fake session then had to reproduce
+the same shape for those readers to read. Three places knew pi's shape; the
+invariant names one.
+
+`lastTurn(messages)` and `streamed(event)` are the two readings, in
+`session.ts`: what the last turn said and how it ended, and what a streamed
+event means to a listener - a piece of the answer, a tool being called, or
+nothing. `subagent.ts` reads a text, an error and two kinds of event, and
+holds no cast. The casts themselves did not go: the union keeps a `{ type:
+string }` member so that pi's own listener type satisfies the port, and that
+member is what stops narrowing; they sit where the shape is known, with the
+reason. The fake still builds pi-shaped messages, because it stands in for pi,
+and the two readings are asserted against that shape once, in
+`test/session.test.ts`.
+
+The port itself did not grow a method. `createDefaultSession` hands back pi's
+`AgentSession` as it is, which satisfies the port structurally; a method of our
+own would have meant a wrapper proxying every member for the sake of one.
+
 ## The pi API: what you need to know
 
 **Which pi matters is the one the code runs inside, not the one in
