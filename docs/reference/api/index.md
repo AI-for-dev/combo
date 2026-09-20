@@ -9,25 +9,24 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | Module | What it is for | Exports |
 | --- | --- | --- |
 | [`agent`](agent.md) | An agent is *content*: a system prompt, a model, a set of tools. It is declared as Markdown + frontmatter, following the pi convention. | 9 |
-| [`agreement`](agreement.md) | When a board has agreed: who voted for what, and whether they all say one thing. | 3 |
-| [`announced`](announced.md) | A board and a set of claims that say what they do, on the event bus. | 2 |
-| [`ask`](ask.md) | Asking the *user* a question - the one place a workflow may block on a human. | 5 |
-| [`board-tool`](board-tool.md) | How a member reaches the board. | 4 |
+| [`agreement`](agreement.md) | When a board has agreed: who voted for what, and whether they all say one thing. | 2 |
+| [`ask`](ask.md) | Asking the *user* a question - the one place a workflow may block on a human. | 4 |
+| [`board-tool`](board-tool.md) | How a member reaches the board. | 2 |
 | [`board`](board.md) | A place several subagents can leave messages for each other. | 10 |
 | [`claims`](claims.md) | One owner per thing, decided here rather than agreed between members. | 6 |
-| [`delegate`](delegate.md) | Letting a subagent have subagents of its own. | 5 |
-| [`events`](events.md) | The event stream: one core, many reporters. | 6 |
-| [`experiment-report`](experiment-report.md) | What an experiment leaves behind: one JSON document, one comparison table. | 6 |
+| [`delegate`](delegate.md) | Letting a subagent have subagents of its own. | 4 |
+| [`events`](events.md) | The event stream: one core, many reporters. | 4 |
+| [`experiment-report`](experiment-report.md) | What an experiment leaves behind: one JSON document, one comparison table. | 4 |
 | [`experiment`](experiment.md) | Running the same work across several models, several times. | 4 |
-| [`export`](export.md) | Exporting a run: `runs/<timestamp>/` with one HTML and one JSONL per subagent, plus a `usage.json`. | 10 |
-| [`git`](git.md) | The git a pipeline is allowed to do - and nothing else. | 11 |
-| [`land`](land.md) | Putting the work of several copies back into one tree. | 4 |
-| [`language`](language.md) | The language a subagent answers in: the one it was asked in. | 4 |
-| [`ledger`](ledger.md) | What is left to do, as a list nobody can lose track of. | 6 |
+| [`export`](export.md) | Exporting a run: `runs/<timestamp>/` with one HTML and one JSONL per subagent, plus a `usage.json`. | 8 |
+| [`git`](git.md) | The git a pipeline is allowed to do - and nothing else. | 8 |
+| [`land`](land.md) | Putting the work of several copies back into one tree. | 3 |
+| [`language`](language.md) | The language a subagent answers in: the one it was asked in. | 1 |
+| [`ledger`](ledger.md) | What is left to do, as a list nobody can lose track of. | 4 |
 | [`measured`](measured.md) | A run that measures itself: the picture it is drawn from, the stream it may keep, and the `usage.json` it leaves behind. | 3 |
-| [`mirror`](mirror.md) | The mirror: a live subagent's session, on a unix socket. | 7 |
-| [`pipeline-load`](pipeline-load.md) | Finding the pipelines a user wrote, wherever they put them. | 7 |
-| [`pipeline`](pipeline.md) | A pipeline is *data*: an ordered list of combinator calls, declared as YAML frontmatter + Markdown, following the same convention as an agent. | 5 |
+| [`mirror`](mirror.md) | The mirror: a live subagent's session, on a unix socket. | 4 |
+| [`pipeline-load`](pipeline-load.md) | Finding the pipelines a user wrote, wherever they put them. | 5 |
+| [`pipeline`](pipeline.md) | A pipeline is *data*: an ordered list of combinator calls, declared as YAML frontmatter + Markdown, following the same convention as an agent. | 4 |
 | [`reporters/console`](reporters/console.md) | A plain console reporter: one line per event that matters. | 2 |
 | [`reporters/herdr-client`](reporters/herdr-client.md) | Detection and transport for herdr's socket API. Nothing else lives here. | 4 |
 | [`reporters/herdr-probe`](reporters/herdr-probe.md) | Asking herdr whether it would open a pane, without opening one. | 1 |
@@ -38,36 +37,36 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`reporters/silent`](reporters/silent.md) | The no-op reporter. | 1 |
 | [`reporters/tree`](reporters/tree.md) | A run as a tree: a delegated subagent drawn under the one that asked for it. | 1 |
 | [`reporters/tui`](reporters/tui.md) | Formatting for the pi TUI, with no pi-tui in sight. | 8 |
-| [`result`](result.md) | `Result`: the single contract shared by everything else. | 7 |
-| [`resume`](resume.md) | Saving a build so it can be picked up again. | 9 |
-| [`review`](review.md) | The review record: what one reviewer decided, and what it is still owed. | 5 |
+| [`result`](result.md) | `Result`: the single contract shared by everything else. | 6 |
+| [`resume`](resume.md) | Saving a build so it can be picked up again. | 7 |
+| [`review`](review.md) | The review record: what one reviewer decided, and what it is still owed. | 4 |
 | [`run`](run.md) | `run()`: the disposable form. Spawn, ask, close. | 2 |
-| [`scratch`](scratch.md) | A working copy with a lifetime: made for one piece of work, and released when that work is done. | 2 |
+| [`scratch`](scratch.md) | A working copy with a lifetime: made for one piece of work, and released when that work is done. | 1 |
 | [`session`](session.md) | The whole pi API lives here, and nowhere else. | 9 |
-| [`skills`](skills.md) | The skills an agent may load, and where they are looked up. | 3 |
+| [`skills`](skills.md) | The skills an agent may load, and where they are looked up. | 2 |
 | [`stop`](stop.md) | The stop switch of a live run: everything at once, or one subagent of it. | 3 |
 | [`subagent`](subagent.md) | A subagent: a live session, a memory, a state. | 5 |
 | [`text`](text.md) | Reading what a model wrote, and cutting what it is handed: shortening text, and finding the structure in it. | 5 |
 | [`tool`](tool.md) | The constant parts of a tool combo defines: whether an agent asked for it, and the two shapes of answer a model reads. | 3 |
-| [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 8 |
-| [`verdict`](verdict.md) | A verdict given as a tool call, rather than recovered from prose. | 6 |
+| [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 6 |
+| [`verdict`](verdict.md) | A verdict given as a tool call, rather than recovered from prose. | 3 |
 | [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 4 |
-| [`workflows/audit`](workflows/audit.md) | The audit: one agent reads the whole of a delivery, and says what is left. | 9 |
+| [`workflows/audit`](workflows/audit.md) | The audit: one agent reads the whole of a delivery, and says what is left. | 7 |
 | [`workflows/chain`](workflows/chain.md) | `chain`: 1 → 1 → 1. The output of step *n* is the input of step *n+1*. | 2 |
 | [`workflows/concurrent`](workflows/concurrent.md) | Running several things at once, but not all of them: a subtask is a session, and N sessions opening together is the bill nobody meant to pay. | 1 |
 | [`workflows/deliver`](workflows/deliver.md) | `deliver`: a brief in, work done and audited out. | 4 |
 | [`workflows/fan-out`](workflows/fan-out.md) | `fanOut`: 1 → N. N subtasks in parallel, with bounded concurrency. | 4 |
-| [`workflows/interview`](workflows/interview.md) | `interview`: a conversation with the *user*, ending in a brief. | 8 |
+| [`workflows/interview`](workflows/interview.md) | `interview`: a conversation with the *user*, ending in a brief. | 5 |
 | [`workflows/loop`](workflows/loop.md) | `loop`: 1 → 1, repeated until a criterion is met. | 4 |
 | [`workflows/options`](workflows/options.md) | What every combinator shares: the same options, under the same names, with the same defaults. | 4 |
 | [`workflows/orchestrate`](workflows/orchestrate.md) | `orchestrate`: 1 → ?. An agent *decides* the split, then the split runs. | 3 |
-| [`workflows/pair`](workflows/pair.md) | `pair`: one worker, one reviewer, talking until the work is accepted. | 5 |
+| [`workflows/pair`](workflows/pair.md) | `pair`: one worker, one reviewer, talking until the work is accepted. | 4 |
 | [`workflows/pipeline-run`](workflows/pipeline-run.md) | Running a pipeline: the piece `pipeline.ts` describes and deliberately leaves to someone else. | 6 |
-| [`workflows/plan`](workflows/plan.md) | Reading a plan an agent wrote: the prompt, the parser, the validation. | 6 |
+| [`workflows/plan`](workflows/plan.md) | Reading a plan an agent wrote: the prompt, the parser, the validation. | 5 |
 | [`workflows/pool`](workflows/pool.md) | The pool: where a workflow's turns are played. | 3 |
 | [`workflows/reduce`](workflows/reduce.md) | `reduce`: N → 1. One agent synthesises the results of a fan-out. | 3 |
 | [`workflows/route`](workflows/route.md) | `route`: 1 → 1. A classifier agent picks who should do the work. | 5 |
-| [`workflows/settle`](workflows/settle.md) | How a delivery's work reaches its tree. | 3 |
+| [`workflows/settle`](workflows/settle.md) | How a delivery's work reaches its tree. | 2 |
 | [`workflows/swarm`](workflows/swarm.md) | Several members on one job, for as many rounds as you allow. | 8 |
 | [`workflows/trail`](workflows/trail.md) | The trail: every result a workflow produced so far, over its own clock. | 1 |
 | [`worktree`](worktree.md) | Working copies, so two agents can write at once without writing over each other. | 6 |
@@ -77,7 +76,6 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 
 agent
 agreement
-announced
 ask
 board-tool
 board

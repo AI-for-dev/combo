@@ -35,30 +35,6 @@ export type SettleOptions = {
 
 What a delivery says about its copies before any work runs.
 
-## `settling`
-
-*function*
-
-```typescript
-export async function settling(options: SettleOptions): Promise<GitResult<Settling>> { /* … */ }
-```
-
-Decides how this delivery's work reaches the tree, and checks the tree can
-take it.
-
-With more than one writer and nothing said, every pair gets a copy: two
-subagents in one directory read each other, so a shared directory is a
-channel between them and not only a race. One writer stays where it was told
-to write - it has nobody to leak to, and a delivery on your own repository is
-the case isolating it would ruin.
-
-Isolation nobody asked for has to be possible *before* the work starts.
-Asked for explicitly it stays the caller's problem and fails where it always
-did - at the copy - but a delivery that chose this itself must not pay for two
-subtasks and then discover their patches cannot come home. The refusal gives
-both ways out, in both spellings, because both kinds of caller hit it: a
-script sets the option, and whoever typed a command has only the flag.
-
 ## `Settling`
 
 *type*

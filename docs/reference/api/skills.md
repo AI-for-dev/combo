@@ -47,23 +47,3 @@ export type SkillDir = {
 ```
 
 A directory to search, and the label pi records for what it finds there.
-
-## `skillDirs`
-
-*function*
-
-```typescript
-export function skillDirs(agent: Agent, cwd: string): SkillDir[] { /* … */ }
-```
-
-The directories a declared skill is looked up in, **nearest first**.
-
-The agent's own directory is `<definition>/skills/`: `agents/scout.md` keeps
-its skills in `agents/scout/skills/`, so a definition and what it needs
-travel together and a clone of the repository resolves the same names. An
-agent built in memory has no definition file and therefore no own directory.
-
-The other two are the project's and the user's, and they are the deliberate
-hole in "a subagent inherits nothing": a name still has to be written in the
-definition, but where it resolves depends on the machine. A skill that must
-run anywhere ships beside its agent.

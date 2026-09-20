@@ -41,22 +41,6 @@ A member that dropped out therefore never lets this fire, and the run spends
 its rounds and reports `converged: false`. That is the honest end of it -
 agents that stopped talking have agreed on nothing.
 
-## `latestVotes`
-
-*function*
-
-```typescript
-export function latestVotes(posts: readonly Post[]): Map<string, string> { /* … */ }
-```
-
-What each member voted for last, by the id the board stamped on its posts.
-
-The latest post wins, because changing your mind is the thing being watched
-for and a run scored on opening positions cannot see it happen. Within one
-post it is the first vote line that counts, which is where the member was
-told to put it: a member quoting somebody else's vote underneath its own has
-quoted, not voted.
-
 ## `VOTE_INSTRUCTION`
 
 *const*

@@ -20,22 +20,6 @@ observer that takes the workflow down with it is a bug. That matters most on
 the interrupted path, where exporting is precisely what we are trying to
 rescue.
 
-## `copyMainSession`
-
-*function*
-
-```typescript
-export function copyMainSession(sessionFile: string | undefined, dir: string): SessionExport { /* … */ }
-```
-
-Copies the parent session's JSONL next to the subagents' exports.
-
-An orchestration export that lost the parent would be half a story. HTML is
-missing here on purpose: pi's HTML exporter is a method of `AgentSession`,
-and an extension only ever sees a `ReadonlySessionManager` - the renderer is
-not on pi's public surface. `pi --export <file>` turns this JSONL into the
-same HTML whenever it is wanted.
-
 ## `createRunDir`
 
 *function*
@@ -69,20 +53,6 @@ Turns a subagent id into a file name: `reviewer#2` → `reviewer-2`.
 
 `#` is legal in a file name and unusable in a URL, and these files are meant
 to be opened in a browser and shared.
-
-## `exportSession`
-
-*function*
-
-```typescript
-export async function exportSession(session: SessionPort, dir: string, id: string): Promise<SessionExport> { /* … */ }
-```
-
-Exports one **live** session into `dir`.
-
-Must be called before `dispose()`: afterwards the session is gone and the
-transcript with it. Each format is attempted on its own - an in-memory
-session still yields its JSONL even though pi refuses to render its HTML.
 
 ## `SessionExport`
 

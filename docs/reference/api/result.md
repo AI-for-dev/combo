@@ -12,16 +12,6 @@ all speak this language - that is the whole of what makes them composable,
 and it is what lets a pipeline step or a tool call read any of them the same
 way.
 
-## `abortError`
-
-*function*
-
-```typescript
-export function abortError(signal: AbortSignal | undefined): string | undefined { /* … */ }
-```
-
-Turns an abort into the same failure a combinator returns for it.
-
 ## `failed`
 
 *function*

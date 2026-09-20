@@ -29,22 +29,6 @@ convention. This is a parsed convention, and the reasoning is worth keeping:
 model, not a caller. Everywhere else in this library a malformed input is an
 error.
 
-## `makePlan`
-
-*function*
-
-```typescript
-export async function makePlan(options: PlanOptions): Promise<PlanOutcome> { /* … */ }
-```
-
-Asks an agent how to split the work, and validates what comes back.
-
-Nothing is spawned beyond the planner itself: a plan is checked in full -
-every agent name known, the cap respected - **before** any of it runs.
-A step naming an unknown agent is dropped, never remapped: guessing which
-agent a hallucinated name meant is how a workflow silently does the wrong
-work.
-
 ## `parsePlan`
 
 *function*
