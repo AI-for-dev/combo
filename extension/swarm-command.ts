@@ -35,7 +35,7 @@ import { checked, loadRoster, refuse, watched } from "./command.ts";
 import { sessionDoors, type CommandCtx, type PiApi } from "./pi.ts";
 import { resolved, type StepDeps } from "./deps.ts";
 import { parseLeadingFlags } from "./flags.ts";
-import { currentChain, entryOf, recordStep, startChain, STEP_ENTRY, stepDir, stepId, type RelayStep } from "./relay.ts";
+import { beginStep, finishStep, type RelayStep } from "./relay.ts";
 
 /** The agent a swarm is made of when the command is not told otherwise. */
 export const DEFAULT_MEMBER = "member";
@@ -71,7 +71,7 @@ export default function registerSwarmCommand(pi: PiApi) {
  * saying the same thing. The two compose, and a debate wants both - the claims
  * hand out the opening positions, agreement stops it.
  */
-export async function runSwarm(args: string, ctx: CommandCtx, injected: StepDeps = {}): Promise<RelayStep | undefined> {
+export async function runSwarm(args: string, ctx: CommandCtx, injected: StepDeps): Promise<RelayStep | undefined> {
 	const deps = resolved(injected);
 	const { flags, rest: goal } = parseLeadingFlags(args, ["members", "rounds", "hold", "claim", "agent", "model", "until"]);
 	if (!goal.trim()) {
@@ -110,15 +110,13 @@ export async function runSwarm(args: string, ctx: CommandCtx, injected: StepDeps
 
 	const keys = keysFrom(flags.claim);
 	const claims = claimsFrom(keys, whole(flags.hold, "hold"));
-	const relay = currentChain() ?? startChain(deps.runDir());
-	const id = stepId(relay, member.name);
-	const dir = stepDir(relay, id);
+	const begun = beginStep(member.name, deps.runDir);
 
 	let done: SwarmResult;
 	try {
 		done = await watched(ctx, deps, {
 			status: `${count} × ${member.name}…`,
-			dir,
+			dir: begun.dir,
 			work: (live) =>
 				deps.swarm({
 					members: [{ agent: member, count }],
@@ -133,7 +131,7 @@ export async function runSwarm(args: string, ctx: CommandCtx, injected: StepDeps
 					// the same as the others coming round to it.
 					...(toAgree ? { until: agreed(count) } : keys.length ? { until: everythingDescribed(keys) } : {}),
 					cwd: ctx.cwd,
-					exportDir: dir,
+					exportDir: begun.dir,
 					model: flags.model,
 					signal: live.signal,
 					spawn: live.spawn,
@@ -149,20 +147,11 @@ export async function runSwarm(args: string, ctx: CommandCtx, injected: StepDeps
 	// A member that failed still said something, and the ones beside it did the
 	// work: a swarm is reported with its failed branches rather than dropped.
 	if (done.members.every((one) => !one.result.ok)) {
-		refuse(ctx, `swarm: every member failed - ${done.error ?? "no reason given"} - what ran is in ${dir}`, "error");
+		refuse(ctx, `swarm: every member failed - ${done.error ?? "no reason given"} - what ran is in ${begun.dir}`, "error");
 		return undefined;
 	}
 
-	const step = recordStep(relay, {
-		id,
-		name: member.name,
-		kind: "swarm",
-		instruction: goal,
-		output: swarmAnswer(done),
-		usage: done.usage,
-		dir,
-	});
-	injected.appendEntry?.(STEP_ENTRY, entryOf(step));
+	const step = finishStep(begun, { name: member.name, kind: "swarm", instruction: goal, output: swarmAnswer(done), usage: done.usage }, injected.appendEntry);
 	ctx.ui.notify(swarmLine(step.id, done), done.ok ? "info" : "warning");
 	return step;
 }

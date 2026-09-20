@@ -56,7 +56,7 @@ const runs = mkdtempSync(join(tmpdir(), "combo-chain-"));
 after(() => rmSync(runs, { recursive: true, force: true }));
 
 /** The asks each double received, so the dataflow can be read back out. */
-function deps(over: StepDeps = {}) {
+function deps(over: Partial<StepDeps> = {}) {
 	const pipelineInputs: string[] = [];
 	const agentAsks: { agent: string; task: string; model?: string }[] = [];
 	const entries: StepEntry[] = [];
