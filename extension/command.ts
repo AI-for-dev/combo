@@ -10,8 +10,8 @@
 
 import { commandVerifier, loadAgents, findPipeline, type Agent, type Pipeline, type Verify } from "../src/index.ts";
 import type { CommandDeps, Deps } from "./deps.ts";
-import type { CommandCtx } from "./pi.ts";
-import { liveRun, STATUS, type LiveRun } from "./run-ui.ts";
+import type { CommandCtx, RunUi } from "./pi.ts";
+import { liveRun, STATUS, type LiveRun, type LiveRunOptions } from "./run-ui.ts";
 
 /**
  * The roster every command runs with.
@@ -48,32 +48,39 @@ export async function checked<T>(ctx: CommandCtx, check: () => T | Promise<T>): 
 	}
 }
 
-/** What a command watches while it works, and where the trace of it lands. */
+/** What is watched while it works, and where the trace of it lands. */
 export type Watched<T> = {
-	/** The footer while the work runs: `building…`, `running explore…`. */
-	status: string;
+	/** The footer while the work runs: `building…`, `running explore…`. Absent leaves the footer alone. */
+	status?: string;
 	/** Where `usage.json` is written when it is over. Absent writes none. */
 	dir: string | undefined;
+	/**
+	 * What this caller varies about the view: the tool streams a progress line
+	 * and knows the parent session, a test injects a spawn and a reporter.
+	 */
+	live?: Pick<LiveRunOptions, "reporter" | "herdrAll" | "onChange" | "mainSessionFile" | "spawn">;
 	/** The work, handed the live run: its `signal`, its `spawn`, its `onEvent`. */
 	work: (live: LiveRun) => Promise<T>;
 };
+
+/** Who stands on the floor: a command with pi's context, or the tool with what pi handed it. */
+export type Watcher = { ui?: RunUi; signal?: AbortSignal };
 
 /**
  * Runs the work under the dots, and takes them down whatever happens.
  *
  * One painter, one `finally`, one clock: the live view goes up, the footer says
  * what is running, and on the way out - thrown or not - the widget and the
- * footer are cleared and the run's `usage.json` written with the time this
- * command measured. A thrown `work` still throws, after the clean-up.
+ * footer are cleared and the run's `usage.json` written with the time the view
+ * measured. A thrown `work` still throws, after the clean-up.
  */
-export async function watched<T>(ctx: CommandCtx, deps: Pick<CommandDeps, "tickMs">, at: Watched<T>): Promise<T> {
-	const live = liveRun(ctx.ui, { tickMs: deps.tickMs, signal: ctx.signal });
-	ctx.ui.setStatus(STATUS, at.status);
-	const startedAt = performance.now();
+export async function watched<T>(ctx: Watcher, deps: Pick<CommandDeps, "tickMs">, at: Watched<T>): Promise<T> {
+	const live = liveRun(ctx.ui, { ...at.live, tickMs: deps.tickMs, signal: ctx.signal });
+	if (at.status) ctx.ui?.setStatus?.(STATUS, at.status);
 	try {
 		return await at.work(live);
 	} finally {
-		live.stop(at.dir, performance.now() - startedAt);
+		live.stop(at.dir);
 	}
 }
 

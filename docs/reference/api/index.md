@@ -8,7 +8,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 
 | Module | What it is for | Exports |
 | --- | --- | --- |
-| [`agent`](agent.md) | An agent is *content*: a system prompt, a model, a set of tools. It is declared as Markdown + frontmatter, following the pi convention. | 8 |
+| [`agent`](agent.md) | An agent is *content*: a system prompt, a model, a set of tools. It is declared as Markdown + frontmatter, following the pi convention. | 9 |
 | [`agreement`](agreement.md) | When a board has agreed: who voted for what, and whether they all say one thing. | 3 |
 | [`announced`](announced.md) | A board and a set of claims that say what they do, on the event bus. | 2 |
 | [`ask`](ask.md) | Asking the *user* a question - the one place a workflow may block on a human. | 5 |

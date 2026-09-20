@@ -1700,6 +1700,43 @@ cleared whatever happened, `usage.json` lands in the folder given - and the two
 commands that each proved the widget goes when the run ends lost those tests.
 Their own tests say what each command decides.
 
+### The tool and the committer stand on it too
+
+The floor was built for five commands and two launch sites stayed beside it.
+The `subagent` tool opened its own `liveRun`, kept its own clock and wrote its
+own `finally`, because it varies four things about the view - a second
+reporter, `herdrAll`, the parent session's file, a progress line streamed on
+every change - and `watched` let none of them through. And `/build`'s committer
+ran through `deps.run` with `ctx.signal`, which the section above says is
+`undefined` during a command: the one subagent of a build that neither `esc`
+nor `/stop` could reach, with no dots to say it was working. Its footer status
+was set and cleared by hand around it.
+
+`Watched` takes `live`, the slice of `LiveRunOptions` a caller may vary, and
+`status` became optional because the tool has no footer to write to; who stands
+on the floor is a `Watcher`, a `ui` and a `signal`, which pi's command context
+and the tool's deps both are. The live run keeps the clock - `elapsedMs()`, and
+`stop(dir)` no longer takes a wall time it was handed - so the tool reads the
+run's time off the view it ran under rather than keeping a second one. The
+committer runs under `watched` with the run's `signal`, `spawn` and `onEvent`,
+which is what puts it within reach of `/stop` and on the widget.
+
+The tool's arguments were declared twice: a typebox `Schema` in `index.ts` for
+pi, and a hand-kept `Params` in `execute.ts` for the code, each with its own
+description of the same twenty-one fields. `Schema` lives in `execute.ts` and
+`Params` is `Static<typeof Schema>`. Three of its fields are `enum`s now -
+`mode`, `lifetime`, `scope` - so what the code accepts is what the model is
+told: `asLifetime` silently took `"session"`, which the description never
+named, and `asScope` took anything and fell back in silence; pi refuses what
+the schema does not name, and the two validators are gone. What the model
+sends is `extension/params.ts`, what the tool does stays `execute.ts`, and the
+`switch` over the mode is `perform()`, apart from the wiring: the one file was
+mixing three things at 345 lines.
+
+The tool's widget test went the way the commands' did: the floor's contract is
+asserted once, and the tool's tests say what the tool decides. The committer
+has the test it was owed - the run's signal, not pi's.
+
 ### The relay owns the entry a step leaves
 
 `/step` and `/swarm` both end a stage the same way: a numbered subfolder of the

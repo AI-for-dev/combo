@@ -17,6 +17,7 @@
 
 export {
 	findAgent,
+	LIFETIMES,
 	loadAgents,
 	loadAgentsFromDir,
 	parseAgent,
