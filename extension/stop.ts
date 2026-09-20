@@ -18,7 +18,7 @@
 
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { parseKey } from "@earendil-works/pi-tui";
-import type { StopSwitch, TuiSnapshot } from "../src/index.ts";
+import type { StopSwitch, RunSnapshot } from "../src/index.ts";
 import { treeOrder } from "../src/index.ts";
 
 /** A run that can still be stopped, as the terminal sees it. */
@@ -26,7 +26,7 @@ export type LiveRun = {
 	/** What actually stops it. */
 	readonly stop: StopSwitch;
 	/** Its current state - the list a selection moves through. */
-	snapshot(): TuiSnapshot;
+	snapshot(): RunSnapshot;
 	/** Redraws the widget, so a moved selection shows at once. */
 	repaint(): void;
 	/** The subagent the next bare `/stop` acts on. */
@@ -187,10 +187,10 @@ export function moveSelection(delta: number): string | undefined {
 }
 
 /** The ids a stop would reach, in the order the widget draws them. */
-export function stoppable(snapshot: TuiSnapshot): string[] {
+export function stoppable(snapshot: RunSnapshot): string[] {
 	return treeOrder(snapshot.subagents)
-		.filter((row) => row.snapshot.status !== "done")
-		.map((row) => row.snapshot.id);
+		.filter((one) => one.status !== "done")
+		.map((one) => one.id);
 }
 
 /**

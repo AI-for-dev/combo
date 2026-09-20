@@ -119,8 +119,9 @@ src/                the library
   workflows/        chain fan-out loop reduce route orchestrate
                     interview pair deliver audit plan swarm pipeline-run;
                     options.ts pool.ts (turn, hold, closeAll) concurrent.ts
-  reporters/        herdr, tui (collects and formats, draws nothing), console,
-                    silent, record (the event stream on disk)
+  reporters/        picture (the stream folded once, for every reader), tree,
+                    tui (formats, draws nothing), herdr, console, silent,
+                    record (the event stream on disk)
 extension/          the pi extension: tool, commands, renderers, UI
 agents/ pipelines/  shipped definitions (symlinked into .pi/)
 examples/ scripts/ test/

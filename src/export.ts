@@ -18,7 +18,8 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { treeOrder, type TuiSnapshot } from "./reporters/tui.ts";
+import type { RunSnapshot } from "./reporters/picture.ts";
+import { treeOrder } from "./reporters/tree.ts";
 import type { SessionPort } from "./session.ts";
 
 /** What one subagent left on disk. Both paths are absent when nothing could be written. */
@@ -166,12 +167,12 @@ export type UsageReport = {
  * `busyMs` is the sum of the branches, and `wallMs` is how long the run took.
  * The ratio of the last two is the only honest measure of parallelism.
  */
-export function usageReport(snapshot: TuiSnapshot, wallMs: number, exports?: SessionExport[]): UsageReport {
+export function usageReport(snapshot: RunSnapshot, wallMs: number, exports?: SessionExport[]): UsageReport {
 	const total = snapshot.usage;
 	return {
 		generatedAt: new Date().toISOString(),
 		wallMs,
-		subagents: treeOrder(snapshot.subagents).map(({ snapshot: one }) => ({
+		subagents: treeOrder(snapshot.subagents).map((one) => ({
 			id: one.id,
 			agent: one.agent,
 			lifetime: one.lifetime,

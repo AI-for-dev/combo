@@ -17,23 +17,25 @@ export { probeHerdr } from "./herdr-probe.ts";
 export { recordReporter } from "./record.ts";
 export { silentReporter } from "./silent.ts";
 export {
+	createRunPicture,
+	snapshotFrom,
+	type RunPicture,
+	type RunSnapshot,
+	type SubagentSnapshot,
+	type ToolCall,
+} from "./picture.ts";
+export { treeOrder } from "./tree.ts";
+export {
 	collapsedLine,
-	createTuiCollector,
-	formatToolCall,
-	progressLine,
 	currentActivity,
 	detailLine,
 	elapsedMs,
+	formatToolCall,
+	progressLine,
 	statusIcon,
 	summaryTable,
-	treeOrder,
 	widgetLines,
 	widgetRows,
-	type SubagentSnapshot,
-	type TreeRow,
-	type ToolCall,
-	type TuiCollector,
-	type TuiSnapshot,
 	type WidgetRow,
 } from "./tui.ts";
 
@@ -59,7 +61,7 @@ export function autoReporter(options: AutoReporterOptions = {}): EventListener {
  *
  * `onEvent` takes a single listener, so watching in two places at once - the pi
  * TUI *and* herdr - needs composing. Absent entries are dropped, which is what
- * makes `combineReporters(collector, createHerdrReporter())` read well:
+ * makes `combineReporters(picture.reporter, createHerdrReporter())` read well:
  * `createHerdrReporter` returns `undefined` outside herdr.
  *
  * One reporter throwing does not stop the others; that guarantee belongs to the

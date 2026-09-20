@@ -96,7 +96,7 @@ export type ExecuteDeps = {
 	/** Defaults to the real `spawn`, through the combinators. */
 	spawn?: SpawnFn;
 	/**
-	 * A second observer beside the TUI collector. Defaults to the herdr
+	 * A second observer beside the TUI picture. Defaults to the herdr
 	 * reporter, which is `undefined` unless pi itself runs inside herdr.
 	 */
 	reporter?: EventListener;
@@ -141,7 +141,7 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 		onChange: (snapshot) =>
 			deps.onUpdate?.({ content: [{ type: "text", text: progressLine(snapshot) }], details: undefined }),
 	});
-	const collector = live.collector;
+	const picture = live.picture;
 
 	// The directory is created up front: subagents export themselves as they
 	// close, so it has to exist before the first one finishes.
@@ -271,7 +271,7 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 	}
 
 	const wallMs = performance.now() - startedAt;
-	const snapshot = collector.snapshot();
+	const snapshot = picture.snapshot();
 
 	return {
 		// What the model reads: the outputs, not the chrome.

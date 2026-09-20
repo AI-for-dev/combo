@@ -12,7 +12,7 @@
  * script - and the only contract is that the cell's `options` are spread into
  * it, so every subagent lands on that cell's model and in that cell's directory.
  *
- * Measurement is reused, never reinvented: each cell gets its own collector, its
+ * Measurement is reused, never reinvented: each cell gets its own picture, its
  * `usage.json` is the same document a single run writes, and its whole event
  * stream is kept in `events.jsonl` next to it.
  */
@@ -27,7 +27,7 @@ import {
 } from "./experiment-report.ts";
 import { createRunDir, exportBaseName, usageReport, writeUsageReport } from "./export.ts";
 import type { EventListener } from "./events.ts";
-import { combineReporters, createTuiCollector, recordReporter } from "./reporters/index.ts";
+import { combineReporters, createRunPicture, recordReporter } from "./reporters/index.ts";
 import { abortError } from "./result.ts";
 import { mapConcurrent } from "./workflows/concurrent.ts";
 import type { SpawnFn, WorkflowOptions } from "./workflows/options.ts";
@@ -59,7 +59,7 @@ export type ExperimentCell = {
 	 *
 	 * Spreading it is the contract: it carries the cell's `model` and
 	 * `exportDir`, the experiment's `signal`, `timeoutMs`, `cwd` and `spawn`, and
-	 * an `onEvent` combining the cell's own collector, its `events.jsonl`
+	 * an `onEvent` combining the cell's own picture, its `events.jsonl`
 	 * recorder and the caller's listener. A callback that rebuilds these by hand
 	 * measures something else.
 	 */
@@ -89,7 +89,7 @@ export type ExperimentOptions = {
 	timeoutMs?: number;
 	/** Working directory of every subagent. */
 	cwd?: string;
-	/** A listener over the whole experiment, combined with each cell's collector. */
+	/** A listener over the whole experiment, combined with each cell's picture. */
 	onEvent?: EventListener;
 	/** Defaults to the real `spawn`. The injection point that keeps tests offline. */
 	spawn?: SpawnFn;
@@ -137,7 +137,7 @@ export async function experiment(options: ExperimentOptions): Promise<Experiment
 	return report;
 }
 
-/** One model, one repetition: its own directory, its own collector, its own `usage.json`. */
+/** One model, one repetition: its own directory, its own picture, its own `usage.json`. */
 async function runCell(
 	model: string,
 	repetition: number,
@@ -147,7 +147,7 @@ async function runCell(
 	const dir = path.join(root, exportBaseName(model), `rep-${repetition}`);
 	fs.mkdirSync(dir, { recursive: true });
 
-	const collector = createTuiCollector();
+	const picture = createRunPicture();
 	const cell: ExperimentCell = {
 		model,
 		repetition,
@@ -162,7 +162,7 @@ async function runCell(
 			// The recorder is not optional: a cell whose stream was not kept is a
 			// cell that can only ever be re-run, and a matrix is expensive.
 			onEvent: combineReporters(
-				collector.reporter,
+				picture.reporter,
 				recordReporter(path.join(dir, "events.jsonl")),
 				options.onEvent,
 			),
@@ -180,7 +180,7 @@ async function runCell(
 	}
 	const wallMs = performance.now() - startedAt;
 
-	const usage = usageReport(collector.snapshot(), wallMs);
+	const usage = usageReport(picture.snapshot(), wallMs);
 	writeUsageReport(dir, usage);
 
 	return {

@@ -80,7 +80,7 @@ export default function registerPipelineCommands(pi: ExtensionAPI) {
  * One line per pipeline: its name, where it came from, what it is for.
  *
  * Formatting is kept away from the terminal so it can be asserted on directly -
- * the same split as the TUI collector. The broken files are listed **with the
+ * the same split as the run picture. The broken files are listed **with the
  * good ones**: a file that does not parse is the single most likely reason
  * somebody is running this command at all.
  */

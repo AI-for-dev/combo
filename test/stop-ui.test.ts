@@ -2,23 +2,11 @@ import assert from "node:assert/strict";
 import { afterEach, describe, test } from "node:test";
 import { paintWidget } from "../extension/run-ui.ts";
 import { forgetRun, isAsking, moveSelection, stopCommand, stoppable, watchRun, whileAsking, type KeyUi, type LiveRun } from "../extension/stop.ts";
-import type { SubagentSnapshot, TuiSnapshot } from "../src/index.ts";
-import { emptyUsage } from "../src/index.ts";
+import { emptyUsage, snapshotFrom, type SubagentSnapshot } from "../src/index.ts";
 
-/** A subagent as the collector would have it. */
+/** A subagent as the picture would have it. */
 function one(id: string, status: SubagentSnapshot["status"] = "working", parentId?: string): SubagentSnapshot {
-	return { id, agent: id.split("#")[0] as string, lifetime: "task", status, task: "x", tools: [], output: "", usage: emptyUsage(), parentId };
-}
-
-function snapshotOf(subagents: SubagentSnapshot[]): TuiSnapshot {
-	return {
-		subagents,
-		total: subagents.length,
-		done: subagents.filter((subagent) => subagent.status === "done").length,
-		running: subagents.filter((subagent) => subagent.status === "working").length,
-		failed: 0,
-		usage: emptyUsage(),
-	};
+	return { id, agent: id.split("#")[0] as string, lifetime: "task", status, task: "x", tools: [], output: "", usage: emptyUsage(), parentId, depth: parentId ? 1 : 0 };
 }
 
 /** A run whose switch records what was asked of it, instead of stopping anything. */
@@ -41,7 +29,7 @@ function fakeRun(subagents: SubagentSnapshot[]) {
 				all++;
 			},
 		},
-		snapshot: () => snapshotOf(subagents),
+		snapshot: () => snapshotFrom(subagents),
 		repaint: () => void repaints++,
 	};
 	return {
@@ -104,7 +92,7 @@ afterEach(() => {
 
 describe("stoppable", () => {
 	test("lists what is still running, in the order the widget draws it", () => {
-		const ids = stoppable(snapshotOf([one("explorer#1"), one("scout#1", "done"), one("reader#1", "idle", "explorer#1")]));
+		const ids = stoppable(snapshotFrom([one("explorer#1"), one("scout#1", "done"), one("reader#1", "idle", "explorer#1")]));
 		assert.deepEqual(ids, ["explorer#1", "reader#1"], "a finished subagent is not stoppable, a delegated one is");
 	});
 });
@@ -283,21 +271,21 @@ describe("the widget while a run can be stopped", () => {
 	const plain = { fg: (_colour: string, text: string) => text };
 
 	test("the selected subagent is marked, and only that one", () => {
-		const painted = paintWidget(snapshotOf([one("scout#1"), one("scout#2")]), plain, "scout#2");
+		const painted = paintWidget(snapshotFrom([one("scout#1"), one("scout#2")]), plain, "scout#2");
 
 		assert.match(painted[0] as string, /^● scout#1/);
 		assert.match(painted[2] as string, /^▸ scout#2/);
 	});
 
 	test("a selection the run has left behind is not marked", () => {
-		const painted = paintWidget(snapshotOf([one("scout#1", "done"), one("scout#2")]), plain, "scout#1");
+		const painted = paintWidget(snapshotFrom([one("scout#1", "done"), one("scout#2")]), plain, "scout#1");
 
 		assert.match(painted[0] as string, /^✓ scout#1/, "what has finished cannot be stopped, so it is not pointed at");
 	});
 
 	test("the keys are spelled out while something is running, and not after", () => {
-		const running = paintWidget(snapshotOf([one("scout#1")]), plain);
-		const over = paintWidget(snapshotOf([one("scout#1", "done")]), plain);
+		const running = paintWidget(snapshotFrom([one("scout#1")]), plain);
+		const over = paintWidget(snapshotFrom([one("scout#1", "done")]), plain);
 
 		assert.match(running.at(-1) as string, /esc stops everything/);
 		assert.ok(!(over.at(-1) as string).includes("esc"), "a finished run leaves no advice above the prompt");

@@ -1,185 +1,19 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import type { SubagentEvent } from "../src/events.ts";
+import { createRunPicture } from "../src/reporters/picture.ts";
 import {
 	collapsedLine,
-	createTuiCollector,
 	detailLine,
 	elapsedMs,
 	formatToolCall,
 	progressLine,
 	statusIcon,
 	summaryTable,
-	treeOrder,
 	widgetLines,
 	widgetRows,
-	type SubagentSnapshot,
-	type TuiCollector,
 } from "../src/reporters/tui.ts";
-import { emptyUsage, type Usage } from "../src/usage.ts";
-
-let launch = 0;
-
-const spawned = (id: string, parentId?: string): SubagentEvent => ({
-	type: "spawn",
-	id,
-	agent: id.split("#")[0] as string,
-	order: ++launch,
-	lifetime: "task",
-	openInHerdr: false,
-	parentId,
-});
-
-const closed = (id: string, ok = true, usage: Partial<Usage> = {}): SubagentEvent => ({
-	type: "close",
-	id,
-	result: {
-		agent: id.split("#")[0] as string,
-		output: "",
-		messages: [],
-		ok,
-		error: ok ? undefined : "it broke",
-		usage: { ...emptyUsage(), ...usage },
-	},
-});
-
-/** A snapshot built by hand, for the shapes no event stream can produce. */
-const blank = (id: string): SubagentSnapshot => ({
-	id,
-	agent: id.split("#")[0] as string,
-	lifetime: "task",
-	status: "idle",
-	task: "",
-	tools: [],
-	output: "",
-	usage: emptyUsage(),
-});
-
-/** Replays a sequence into a fresh collector. */
-function replay(...events: SubagentEvent[]): TuiCollector {
-	const collector = createTuiCollector();
-	for (const event of events) collector.reporter(event);
-	return collector;
-}
-
-describe("createTuiCollector", () => {
-	test("builds one entry per subagent, in spawn order", () => {
-		const collector = replay(spawned("scout#1"), spawned("coder#1"), spawned("scout#2"));
-
-		assert.deepEqual(
-			collector.snapshot().subagents.map((one) => one.id),
-			["scout#1", "coder#1", "scout#2"],
-			"a fan-out reads in launch order, not completion order",
-		);
-	});
-
-	test("launch order wins over the order the spawns arrived in", () => {
-		// Sessions come up in whatever order they come up in, and `spawn` waits
-		// for one because it carries the model. Measured in a real pi: three
-		// scouts launched together arrived 2, 1, 3.
-		const late = (id: string, order: number): SubagentEvent => ({
-			type: "spawn",
-			id,
-			agent: id.split("#")[0] as string,
-			order,
-			lifetime: "task",
-			openInHerdr: false,
-		});
-		const collector = replay(late("scout#2", 2), late("scout#1", 1), late("scout#3", 3));
-
-		assert.deepEqual(
-			collector.snapshot().subagents.map((one) => one.id),
-			["scout#1", "scout#2", "scout#3"],
-		);
-	});
-
-	test("accumulates tool calls, text and usage", () => {
-		const collector = replay(
-			spawned("scout#1"),
-			{ type: "tool", id: "scout#1", name: "grep", args: { pattern: "spawn" } },
-			{ type: "tool", id: "scout#1", name: "read", args: { path: "/x/a.ts" } },
-			{ type: "text", id: "scout#1", delta: "found " },
-			{ type: "text", id: "scout#1", delta: "it" },
-			{ type: "usage", id: "scout#1", usage: { ...emptyUsage(), turns: 1, input: 500 } },
-		);
-
-		const one = collector.snapshot().subagents[0]!;
-		assert.deepEqual(
-			one.tools.map((tool) => tool.name),
-			["grep", "read"],
-		);
-		assert.equal(one.output, "found it", "deltas are joined, not replaced");
-		assert.equal(one.usage.input, 500);
-	});
-
-	test("close records the outcome and the final usage", () => {
-		const collector = replay(spawned("scout#1"), closed("scout#1", false, { turns: 2, input: 12_000 }));
-
-		const one = collector.snapshot().subagents[0]!;
-		assert.equal(one.status, "done");
-		assert.equal(one.ok, false);
-		assert.equal(one.error, "it broke");
-		assert.equal(one.usage.input, 12_000, "a failed subagent still spent its tokens");
-	});
-
-	test("events for an unknown id are ignored", () => {
-		const collector = replay({ type: "tool", id: "ghost#1", name: "grep", args: {} });
-		assert.equal(collector.snapshot().total, 0);
-	});
-
-	test("setTask records what the core does not emit", () => {
-		const collector = replay(spawned("scout#1"));
-		collector.setTask("scout#1", "find the auth code");
-		assert.equal(collector.snapshot().subagents[0]?.task, "find the auth code");
-
-		// An unknown id is a no-op, not a crash.
-		assert.doesNotThrow(() => collector.setTask("ghost#1", "x"));
-	});
-
-	test("onChange fires on every event, so the row knows to redraw", () => {
-		const collector = createTuiCollector();
-		let changes = 0;
-		collector.onChange(() => changes++);
-
-		collector.reporter(spawned("scout#1"));
-		collector.reporter({ type: "tool", id: "scout#1", name: "grep", args: {} });
-		collector.setTask("scout#1", "task");
-
-		assert.equal(changes, 3);
-	});
-
-	test("counts running, done and failed independently", () => {
-		const collector = replay(
-			spawned("scout#1"),
-			spawned("scout#2"),
-			spawned("scout#3"),
-			{ type: "status", id: "scout#1", status: "working" },
-			closed("scout#2", true),
-			closed("scout#3", false),
-		);
-
-		const snapshot = collector.snapshot();
-		assert.equal(snapshot.total, 3);
-		assert.equal(snapshot.running, 1);
-		assert.equal(snapshot.done, 2);
-		assert.equal(snapshot.failed, 1, "a failed subagent is done and failed");
-	});
-
-	test("aggregates usage across subagents without inventing wallMs", () => {
-		const collector = replay(
-			spawned("scout#1"),
-			spawned("scout#2"),
-			closed("scout#1", true, { turns: 1, busyMs: 900, input: 100 }),
-			closed("scout#2", true, { turns: 1, busyMs: 800, input: 250 }),
-		);
-
-		const { usage } = collector.snapshot();
-		assert.equal(usage.busyMs, 1_700);
-		assert.equal(usage.input, 350);
-		assert.equal(usage.turns, 2);
-		assert.equal(usage.wallMs, 0, "elapsed time is not the collector's to know");
-	});
-});
+import { emptyUsage } from "../src/usage.ts";
+import { closed, replay, spawned, working } from "./fixtures/picture.ts";
 
 describe("formatToolCall", () => {
 	test("renders built-in tools the way pi does", () => {
@@ -221,60 +55,49 @@ describe("formatToolCall", () => {
 
 describe("collapsedLine", () => {
 	test("shows icon, id, task and the tool in flight", () => {
-		const collector = replay(spawned("scout#1"), { type: "tool", id: "scout#1", name: "grep", args: {} });
-		collector.setTask("scout#1", "find the auth code");
+		const picture = replay(spawned("scout#1"), working("scout#1", "find the auth code"), { type: "tool", id: "scout#1", name: "grep", args: {} });
 
-		const line = collapsedLine(collector.snapshot().subagents[0]!);
+		const line = collapsedLine(picture.snapshot().subagents[0]!);
 		assert.match(line, /^⏳ {2}scout#1/);
 		assert.match(line, /find the auth code/);
 		assert.match(line, /→ grep/);
 	});
 
 	test("a finished subagent shows no tool in flight", () => {
-		const collector = replay(spawned("scout#1"), { type: "tool", id: "scout#1", name: "grep", args: {} }, closed("scout#1"));
-		const line = collapsedLine(collector.snapshot().subagents[0]!);
+		const picture = replay(spawned("scout#1"), { type: "tool", id: "scout#1", name: "grep", args: {} }, closed("scout#1"));
+		const line = collapsedLine(picture.snapshot().subagents[0]!);
 
 		assert.match(line, /^✓/);
 		assert.ok(!line.includes("→"), line);
 	});
 
 	test("a failed subagent shows ✗ and its error", () => {
-		const collector = replay(spawned("scout#1"), closed("scout#1", false));
-		const line = collapsedLine(collector.snapshot().subagents[0]!);
+		const picture = replay(spawned("scout#1"), closed("scout#1", false));
+		const line = collapsedLine(picture.snapshot().subagents[0]!);
 
 		assert.match(line, /^✗/);
 		assert.match(line, /it broke/);
 	});
 
 	test("a long task is truncated to the given width", () => {
-		const collector = replay(spawned("scout#1"));
-		collector.setTask("scout#1", "a ".repeat(80));
+		const picture = replay(spawned("scout#1"), working("scout#1", "a ".repeat(80)));
 
-		const line = collapsedLine(collector.snapshot().subagents[0]!, 20);
+		const line = collapsedLine(picture.snapshot().subagents[0]!, 20);
 		assert.ok(line.length < 60, line);
 	});
 });
 
 describe("the widget above the prompt", () => {
-	const spawnedWith = (id: string, model?: string): SubagentEvent => ({
-		type: "spawn",
-		id,
-		agent: id.split("#")[0] as string,
-		order: ++launch,
-		lifetime: "task",
-		openInHerdr: false,
-		model,
-	});
 
 	test("two lines per subagent: a dot with what it does, then the quiet detail", () => {
-		const collector = replay(
-			spawnedWith("scout#1", "ilaas/qwen-3.6-35b-instruct"),
+		const picture = replay(
+			spawned("scout#1", undefined, "ilaas/qwen-3.6-35b-instruct"),
 			{ type: "status", id: "scout#1", status: "working" },
 			{ type: "tool", id: "scout#1", name: "grep", args: { pattern: "lifetime" } },
 			{ type: "usage", id: "scout#1", usage: { ...emptyUsage(), input: 12_000, output: 209, busyMs: 12_400 } },
 		);
 
-		assert.deepEqual(widgetLines(collector.snapshot()), [
+		assert.deepEqual(widgetLines(picture.snapshot()), [
 			"● scout#1  grep /lifetime/",
 			"  ilaas/qwen-3.6-35b-instruct · ↑12k ↓209 · 12.4s",
 		]);
@@ -290,12 +113,12 @@ describe("the widget above the prompt", () => {
 	});
 
 	test("a subagent that is over takes one line, and its numbers move up beside the tick", () => {
-		const collector = replay(
-			spawnedWith("scout#1", "ilaas/qwen-3.6-35b-instruct"),
+		const picture = replay(
+			spawned("scout#1", undefined, "ilaas/qwen-3.6-35b-instruct"),
 			closed("scout#1", true, { input: 12_000, output: 209, busyMs: 12_400 }),
 		);
 
-		assert.deepEqual(widgetLines(collector.snapshot()), ["✓ scout#1  ilaas/qwen-3.6-35b-instruct · ↑12k ↓209 · 12.4s"]);
+		assert.deepEqual(widgetLines(picture.snapshot()), ["✓ scout#1  ilaas/qwen-3.6-35b-instruct · ↑12k ↓209 · 12.4s"]);
 	});
 
 	test("the activity is the tool in flight, or a word when there is none yet", () => {
@@ -307,8 +130,8 @@ describe("the widget above the prompt", () => {
 	});
 
 	test("one pair of lines per subagent, in launch order", () => {
-		const collector = replay(spawned("scout#1"), spawned("coder#1"));
-		const lines = widgetLines(collector.snapshot());
+		const picture = replay(spawned("scout#1"), spawned("coder#1"));
+		const lines = widgetLines(picture.snapshot());
 
 		assert.equal(lines.length, 4);
 		assert.match(lines[0] as string, /scout#1/);
@@ -316,7 +139,7 @@ describe("the widget above the prompt", () => {
 	});
 
 	test("no subagents means no widget at all", () => {
-		assert.deepEqual(widgetLines(createTuiCollector().snapshot()), []);
+		assert.deepEqual(widgetLines(createRunPicture().snapshot()), []);
 	});
 
 	test("the rows say what they are, so the caller applies colour and we can test layout", () => {
@@ -332,8 +155,8 @@ describe("the widget above the prompt", () => {
 	});
 
 	test("a missing model is simply left out, never guessed", () => {
-		const collector = replay(spawned("scout#1"));
-		const detail = widgetLines(collector.snapshot())[1] as string;
+		const picture = replay(spawned("scout#1"));
+		const detail = widgetLines(picture.snapshot())[1] as string;
 
 		assert.ok(!detail.includes("undefined"), detail);
 		assert.match(detail, /↑0 ↓0/);
@@ -342,8 +165,8 @@ describe("the widget above the prompt", () => {
 	test("the clock counts up while it works, instead of sitting at 0.0s", () => {
 		// busyMs only lands when the turn ends, so a widget that read it alone
 		// would show 0.0s for the whole wait and then jump to the total.
-		const collector = replay(spawned("scout#1"), { type: "status", id: "scout#1", status: "working" });
-		const one = collector.snapshot().subagents[0]!;
+		const picture = replay(spawned("scout#1"), { type: "status", id: "scout#1", status: "working" });
+		const one = picture.snapshot().subagents[0]!;
 
 		const start = one.startedAt as number;
 		assert.equal(typeof start, "number", "a working subagent has a clock");
@@ -352,8 +175,8 @@ describe("the widget above the prompt", () => {
 	});
 
 	test("the clock stops once the turn ends, showing the measured time", () => {
-		const collector = replay(spawned("scout#1"), closed("scout#1", true, { busyMs: 9_200 }));
-		const one = collector.snapshot().subagents[0]!;
+		const picture = replay(spawned("scout#1"), closed("scout#1", true, { busyMs: 9_200 }));
+		const one = picture.snapshot().subagents[0]!;
 
 		assert.equal(one.startedAt, undefined, "a finished subagent has no running clock");
 		assert.equal(elapsedMs(one, 1e12), 9_200, "the answer no longer depends on now");
@@ -370,14 +193,14 @@ describe("the widget above the prompt", () => {
 
 describe("statusIcon", () => {
 	test("failure wins over doneness", () => {
-		const collector = replay(spawned("scout#1"), closed("scout#1", false));
-		assert.equal(statusIcon(collector.snapshot().subagents[0]!), "✗");
+		const picture = replay(spawned("scout#1"), closed("scout#1", false));
+		assert.equal(statusIcon(picture.snapshot().subagents[0]!), "✗");
 	});
 });
 
 describe("progressLine", () => {
 	test("reads n/m while things run", () => {
-		const collector = replay(
+		const picture = replay(
 			spawned("scout#1"),
 			spawned("scout#2"),
 			spawned("scout#3"),
@@ -386,7 +209,7 @@ describe("progressLine", () => {
 			{ type: "status", id: "scout#3", status: "working" },
 		);
 
-		assert.equal(progressLine(collector.snapshot()), "2/3 done, 1 running");
+		assert.equal(progressLine(picture.snapshot()), "2/3 done, 1 running");
 	});
 
 	test("mentions failures only when there are some", () => {
@@ -400,10 +223,10 @@ describe("progressLine", () => {
 
 describe("the widget and the tree", () => {
 	test("a row says how deep it sits, and the plain lines indent it", () => {
-		const collector = replay(spawned("explorer#1"), spawned("scout#1", "explorer#1"));
+		const picture = replay(spawned("explorer#1"), spawned("scout#1", "explorer#1"));
 
 		assert.deepEqual(
-			widgetRows(collector.snapshot())
+			widgetRows(picture.snapshot())
 				.filter((row) => row.kind === "activity")
 				.map((row) => [row.id, row.depth]),
 			[
@@ -412,76 +235,22 @@ describe("the widget and the tree", () => {
 			],
 		);
 
-		const lines = widgetLines(collector.snapshot());
+		const lines = widgetLines(picture.snapshot());
 		assert.match(lines[0] as string, /^● explorer#1/);
 		assert.match(lines[2] as string, /^ {2}● scout#1/);
 	});
 });
 
-describe("treeOrder", () => {
-	test("a child follows the parent it hangs under, however the spawns interleaved", () => {
-		const collector = replay(
-			spawned("explorer#1"),
-			spawned("explorer#2"),
-			spawned("scout#1", "explorer#1"),
-			spawned("scout#2", "explorer#2"),
-			spawned("scout#3", "explorer#1"),
-		);
-
-		assert.deepEqual(
-			treeOrder(collector.snapshot().subagents).map(({ snapshot, depth }) => [snapshot.id, depth]),
-			[
-				["explorer#1", 0],
-				["scout#1", 1],
-				["scout#3", 1],
-				["explorer#2", 0],
-				["scout#2", 1],
-			],
-		);
-	});
-
-	test("a grandchild hangs under the child, not under the root", () => {
-		const collector = replay(spawned("explorer#1"), spawned("splitter#1", "explorer#1"), spawned("scout#1", "splitter#1"));
-
-		assert.deepEqual(
-			treeOrder(collector.snapshot().subagents).map(({ depth }) => depth),
-			[0, 1, 2],
-		);
-	});
-
-	test("a parent nobody saw spawn leaves its child a root rather than losing it", () => {
-		// A reporter attached mid-run: the parent's spawn happened before it
-		// was listening, and a measurement that silently drops a subagent is
-		// worse than one that misplaces it.
-		const collector = replay(spawned("scout#1", "explorer#9"));
-
-		assert.deepEqual(
-			treeOrder(collector.snapshot().subagents).map(({ snapshot, depth }) => [snapshot.id, depth]),
-			[["scout#1", 0]],
-		);
-	});
-
-	test("two subagents pointing at each other are still both reported", () => {
-		const a = { ...blank("a#1"), parentId: "b#1" };
-		const b = { ...blank("b#1"), parentId: "a#1" };
-
-		assert.deepEqual(
-			treeOrder([a, b]).map(({ snapshot }) => snapshot.id),
-			["a#1", "b#1"],
-		);
-	});
-});
-
 describe("summaryTable", () => {
 	test("a delegated subagent is indented under the one that asked for it", () => {
-		const collector = replay(
+		const picture = replay(
 			spawned("explorer#1"),
 			spawned("scout#1", "explorer#1"),
 			closed("explorer#1", true, { turns: 1, busyMs: 100 }),
 			closed("scout#1", true, { turns: 1, busyMs: 400 }),
 		);
 
-		const lines = summaryTable(collector.snapshot(), 500);
+		const lines = summaryTable(picture.snapshot(), 500);
 
 		assert.match(lines[0] as string, /^✓ explorer#1/);
 		assert.match(lines[1] as string, /^✓ {3}scout#1/, "the child is indented under it");
@@ -492,14 +261,14 @@ describe("summaryTable", () => {
 	});
 
 	test("one line per subagent, a total, and the parallelism when there is any", () => {
-		const collector = replay(
+		const picture = replay(
 			spawned("scout#1"),
 			spawned("scout#2"),
 			closed("scout#1", true, { turns: 1, busyMs: 900 }),
 			closed("scout#2", true, { turns: 1, busyMs: 800 }),
 		);
 
-		const lines = summaryTable(collector.snapshot(), 1_000);
+		const lines = summaryTable(picture.snapshot(), 1_000);
 		assert.equal(lines.length, 4, "two subagents, a total, a parallelism line");
 		assert.match(lines[0] as string, /^✓ scout#1/);
 		assert.match(lines[2] as string, /^total/);
@@ -507,8 +276,8 @@ describe("summaryTable", () => {
 	});
 
 	test("no parallelism line when the work was sequential", () => {
-		const collector = replay(spawned("scout#1"), closed("scout#1", true, { busyMs: 500 }));
-		const lines = summaryTable(collector.snapshot(), 1_000);
+		const picture = replay(spawned("scout#1"), closed("scout#1", true, { busyMs: 500 }));
+		const lines = summaryTable(picture.snapshot(), 1_000);
 
 		assert.equal(lines.length, 2);
 		assert.ok(!lines.some((line) => line.includes("parallelism")), lines.join("\n"));

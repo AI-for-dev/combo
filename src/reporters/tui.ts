@@ -1,252 +1,17 @@
 /**
- * State and formatting for the pi TUI, with no pi-tui in sight.
+ * Formatting for the pi TUI, with no pi-tui in sight.
  *
- * The split matters: this file **collects** what happened, the extension
- * **draws** it. Collection is pure, so it is tested by inspecting a snapshot -
- * never by scraping a terminal rendering, which is the rule for every reporter
- * here. It also means the same state feeds a future web view or an export
- * without touching a component.
+ * This file turns a {@link RunSnapshot} into strings and rows; the extension
+ * draws them. Nothing here holds state - the picture is `picture.ts`, folded
+ * once for every reader - so a line is tested by calling the function that
+ * makes it, never by scraping a terminal.
  */
 
-import type { EventListener, SubagentStatus } from "../events.ts";
+import type { SubagentStatus } from "../events.ts";
 import { firstLine, scalar, truncate } from "../text.ts";
-import { compact, emptyUsage, formatUsage, sumUsage, type Usage } from "../usage.ts";
-
-/** A tool call as it happened, kept for the expanded view. */
-export type ToolCall = {
-	/** The tool pi ran, e.g. `read` or `bash`. */
-	name: string;
-	/** Its arguments, untouched: the expanded view formats them, we only keep them. */
-	args: unknown;
-};
-
-/** Everything known about one subagent, at one instant. */
-export type SubagentSnapshot = {
-	/** The subagent, e.g. `scout#1`. Unique for the life of the process. */
-	id: string;
-	/** The agent it came from. Several subagents may share one agent. */
-	agent: string;
-	/** The lifetime it is running with - the row says whether it will remember. */
-	lifetime: string;
-	/** What it is doing right now. `"done"` covers success and failure alike. */
-	status: SubagentStatus;
-	/** The task it was given. Empty until the first `ask`. */
-	task: string;
-	/** Every tool call so far, in order. The last one is what the collapsed row shows. */
-	tools: ToolCall[];
-	/** Assistant text, accumulated from the deltas. */
-	output: string;
-	/** Cumulative since spawn - for a persistent subagent, that is several turns. */
-	usage: Usage;
-	/** `provider/id` as pi resolved it, when it could. */
-	model?: string;
-	/** The subagent that had this one spawned. Absent on a root. */
-	parentId?: string;
-	/**
-	 * Monotonic instant the current turn began, while one is running.
-	 *
-	 * `usage.busyMs` only lands when the turn ends, so without this the widget
-	 * would read `0.0s` for the whole wait and then jump straight to the total.
-	 */
-	startedAt?: number;
-	/** Whether its last turn succeeded. Absent until it has finished one. */
-	ok?: boolean;
-	/** The failure, when there was one - shown on the row rather than swallowed. */
-	error?: string;
-};
-
-/** The whole picture: every subagent, plus what it adds up to. */
-export type TuiSnapshot = {
-	/** In spawn order, so a fan-out reads top to bottom as it was launched. */
-	subagents: SubagentSnapshot[];
-	/** Finished, whatever the outcome. */
-	done: number;
-	/** Currently working. */
-	running: number;
-	/** Finished with `ok: false`. Counted apart: `2/3 done` hides a crash. */
-	failed: number;
-	/** Spawned so far, which is what `done` and `running` are counted against. */
-	total: number;
-	/** Sum over every subagent. `wallMs` is filled in by the caller. */
-	usage: Usage;
-};
-
-/** The live state behind the TUI: subscribe it, then read it on every frame. */
-export type TuiCollector = {
-	/** Subscribe this to the event bus. */
-	reporter: EventListener;
-	/** The current picture. Cheap enough to call on every frame. */
-	snapshot(): TuiSnapshot;
-	/** Called on every event, so the extension knows when to `invalidate()`. */
-	onChange(listener: () => void): void;
-	/**
-	 * Records the task a subagent was given.
-	 *
-	 * The core does not emit it: a task belongs to an `ask`, not to a subagent,
-	 * and a persistent one gets several. The caller knows which task it just
-	 * handed over, so it tells us.
-	 */
-	setTask(id: string, task: string): void;
-};
-
-/**
- * Collects subagent events into a renderable snapshot.
- *
- * A fan-out reads top to bottom in the order the branches were launched, not in
- * the order they finish and not in the order their sessions came up. The last
- * one is why this sorts rather than trusting arrival: `spawn` cannot be emitted
- * before the session exists, since it carries the model pi resolved, and three
- * scouts launched together drew as `scout#2, scout#1, scout#3`.
- */
-export function createTuiCollector(): TuiCollector {
-	const byId = new Map<string, SubagentSnapshot>();
-	/** Apart from the snapshot: where a row is drawn is the display's business. */
-	const launched = new Map<string, number>();
-	const listeners: (() => void)[] = [];
-
-	const touch = () => {
-		for (const listener of listeners) listener();
-	};
-
-	const reporter: EventListener = (event) => {
-		if (event.type === "spawn") {
-			launched.set(event.id, event.order);
-			byId.set(event.id, {
-				id: event.id,
-				agent: event.agent,
-				lifetime: event.lifetime,
-				status: "idle",
-				task: "",
-				tools: [],
-				output: "",
-				usage: emptyUsage(),
-				model: event.model,
-				parentId: event.parentId,
-			});
-			touch();
-			return;
-		}
-
-		const snapshot = byId.get(event.id);
-		if (!snapshot) return;
-
-		switch (event.type) {
-			case "status":
-				snapshot.status = event.status;
-				// The task rides on the "working" transition: a persistent
-				// subagent gets several, and the last one is the current one.
-				if (event.task !== undefined) snapshot.task = event.task;
-				// Start the live clock when it starts working, stop it otherwise.
-				snapshot.startedAt = event.status === "working" ? performance.now() : undefined;
-				break;
-			case "tool":
-				snapshot.tools.push({ name: event.name, args: event.args });
-				break;
-			case "text":
-				snapshot.output += event.delta;
-				break;
-			case "usage":
-				snapshot.usage = event.usage;
-				break;
-			case "close":
-				snapshot.usage = event.result.usage;
-				snapshot.ok = event.result.ok;
-				snapshot.error = event.result.error;
-				snapshot.status = "done";
-				break;
-		}
-		touch();
-	};
-
-	return {
-		reporter,
-		onChange: (listener) => void listeners.push(listener),
-
-		setTask(id, task) {
-			const snapshot = byId.get(id);
-			if (!snapshot) return;
-			snapshot.task = task;
-			touch();
-		},
-
-		snapshot() {
-			const subagents = [...byId.values()].sort(
-				(one, other) => (launched.get(one.id) ?? 0) - (launched.get(other.id) ?? 0),
-			);
-			return {
-				subagents,
-				total: subagents.length,
-				done: subagents.filter((one) => one.status === "done").length,
-				running: subagents.filter((one) => one.status === "working").length,
-				failed: subagents.filter((one) => one.ok === false).length,
-				usage: sumSnapshots(subagents),
-			};
-		},
-	};
-}
-
-function sumSnapshots(subagents: readonly SubagentSnapshot[]): Usage {
-	// `wallMs` stays 0: the collector cannot know it, and the caller passes the
-	// real elapsed time to `formatUsage`/`usageReport` when it has one.
-	return sumUsage(
-		subagents.map((one) => one.usage),
-		0,
-	);
-}
-
-/** One subagent, and how far under a root it sits. */
-export type TreeRow = {
-	/** The subagent itself, untouched. */
-	snapshot: SubagentSnapshot;
-	/** `0` for a root, one more for each level of delegation under it. */
-	depth: number;
-};
-
-/**
- * Spawn order, rearranged so that a child follows the parent it hangs under.
- *
- * The snapshot itself stays flat, and this is why: every existing reader keeps
- * working, and the one that wants a tree asks for it here. A delegating run
- * spawns its children after their parent anyway, so with a single root the
- * order barely moves; with two parents working at once it stops interleaving
- * three readers of one explorer with three of the other.
- *
- * **Nothing is ever dropped.** A subagent whose parent is not in the list - a
- * reporter attached mid-run, a snapshot assembled by hand - reads as a root,
- * and anything the walk could not reach is appended rather than lost. A
- * measurement that silently omits a subagent is worse than one that misplaces
- * it.
- */
-export function treeOrder(subagents: readonly SubagentSnapshot[]): TreeRow[] {
-	const known = new Set(subagents.map((one) => one.id));
-	const childrenOf = new Map<string, SubagentSnapshot[]>();
-	for (const one of subagents) {
-		const parent = one.parentId && known.has(one.parentId) ? one.parentId : ROOT;
-		const siblings = childrenOf.get(parent);
-		if (siblings) siblings.push(one);
-		else childrenOf.set(parent, [one]);
-	}
-
-	const rows: TreeRow[] = [];
-	const seen = new Set<string>();
-	const walk = (parent: string, depth: number) => {
-		for (const one of childrenOf.get(parent) ?? []) {
-			if (seen.has(one.id)) continue;
-			seen.add(one.id);
-			rows.push({ snapshot: one, depth });
-			walk(one.id, depth + 1);
-		}
-	};
-	walk(ROOT, 0);
-
-	for (const one of subagents) {
-		if (!seen.has(one.id)) rows.push({ snapshot: one, depth: 0 });
-	}
-	return rows;
-}
-
-/** The bucket a subagent with no reachable parent goes in. No id can collide with it. */
-const ROOT = "";
+import { compact, formatUsage } from "../usage.ts";
+import type { RunSnapshot, SubagentSnapshot } from "./picture.ts";
+import { treeOrder } from "./tree.ts";
 
 /** `⏳` while it works, `✓` when it succeeded, `✗` when it did not. */
 export function statusIcon(snapshot: SubagentSnapshot): string {
@@ -362,10 +127,10 @@ export type WidgetRow =
  * is how far under a root the subagent sits; the caller turns it into indent,
  * because how wide a level is drawn is a decision about a terminal.
  */
-export function widgetRows(snapshot: TuiSnapshot): WidgetRow[] {
+export function widgetRows(snapshot: RunSnapshot): WidgetRow[] {
 	const rows: WidgetRow[] = [];
 
-	for (const { snapshot: one, depth } of treeOrder(snapshot.subagents)) {
+	for (const one of treeOrder(snapshot.subagents)) {
 		const failed = one.ok === false;
 		const over = failed || one.status === "done";
 		rows.push({
@@ -377,9 +142,9 @@ export function widgetRows(snapshot: TuiSnapshot): WidgetRow[] {
 			// A tick already says "done"; an error says something the tick cannot.
 			activity: over && !failed ? "" : currentActivity(one),
 			...(over ? { detail: detailLine(one) } : {}),
-			depth,
+			depth: one.depth,
 		});
-		if (!over) rows.push({ kind: "detail", text: detailLine(one), depth });
+		if (!over) rows.push({ kind: "detail", text: detailLine(one), depth: one.depth });
 	}
 
 	return rows;
@@ -406,7 +171,7 @@ export function detailLine(snapshot: SubagentSnapshot, now?: number): string {
 }
 
 /** Plain text rows, for a caller with no theme - and for tests. */
-export function widgetLines(snapshot: TuiSnapshot): string[] {
+export function widgetLines(snapshot: RunSnapshot): string[] {
 	return widgetRows(snapshot).map((row) => {
 		const indent = "  ".repeat(row.depth);
 		if (row.kind === "detail") return `${indent}  ${row.text}`;
@@ -415,7 +180,7 @@ export function widgetLines(snapshot: TuiSnapshot): string[] {
 }
 
 /** `2/3 done, 1 running` - what a parallel run looks like while it runs. */
-export function progressLine(snapshot: TuiSnapshot): string {
+export function progressLine(snapshot: RunSnapshot): string {
 	const parts = [`${snapshot.done}/${snapshot.total} done`];
 	if (snapshot.running > 0) parts.push(`${snapshot.running} running`);
 	if (snapshot.failed > 0) parts.push(`${snapshot.failed} failed`);
@@ -425,7 +190,7 @@ export function progressLine(snapshot: TuiSnapshot): string {
 /**
  * The end-of-workflow table: one line per subagent, total at the bottom.
  *
- * `wallMs` is passed in because the collector cannot know it: on a fan-out the
+ * `wallMs` is passed in because a snapshot cannot know it: on a fan-out the
  * elapsed time is not the sum of the branches, and that difference is the
  * whole point of the number.
  *
@@ -433,9 +198,9 @@ export function progressLine(snapshot: TuiSnapshot): string {
  * total is still the sum of every row: what ruins a run is what the tree cost
  * altogether, never what one leaf of it cost.
  */
-export function summaryTable(snapshot: TuiSnapshot, wallMs: number): string[] {
+export function summaryTable(snapshot: RunSnapshot, wallMs: number): string[] {
 	const lines = treeOrder(snapshot.subagents).map(
-		({ snapshot: one, depth }) => `${statusIcon(one)} ${pad(`${"  ".repeat(depth)}${one.id}`, 16)} ${formatUsage(one.usage)}`,
+		(one) => `${statusIcon(one)} ${pad(`${"  ".repeat(one.depth)}${one.id}`, 16)} ${formatUsage(one.usage)}`,
 	);
 	lines.push(`${pad("total", 18)} ${formatUsage({ ...snapshot.usage, wallMs })}`);
 	if (wallMs > 0 && snapshot.usage.busyMs > wallMs) {

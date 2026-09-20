@@ -22,7 +22,7 @@ import {
 	usageReport,
 	writeUsageReport,
 } from "../src/export.ts";
-import { createTuiCollector } from "../src/reporters/tui.ts";
+import { createRunPicture } from "../src/reporters/picture.ts";
 import type { SessionPort } from "../src/session.ts";
 import { spawn } from "../src/subagent.ts";
 import { emptyUsage } from "../src/usage.ts";
@@ -168,10 +168,10 @@ describe("exportSession", () => {
 });
 
 describe("usage.json", () => {
-	/** Two subagents, one of them failed, driven through the collector. */
+	/** Two subagents, one of them failed, driven through the picture. */
 	function snapshot() {
-		const collector = createTuiCollector();
-		const feed = collector.reporter;
+		const picture = createRunPicture();
+		const feed = picture.reporter;
 
 		feed({ type: "spawn", id: "scout#1", agent: "scout", lifetime: "task", openInHerdr: false, order: 1, model: "local/qwen" });
 		feed({ type: "status", id: "scout#1", status: "working", task: "find it" });
@@ -204,7 +204,7 @@ describe("usage.json", () => {
 			},
 		});
 
-		return collector.snapshot();
+		return picture.snapshot();
 	}
 
 	test("aggregates rather than averages, and keeps a failure's tokens", () => {
@@ -223,7 +223,7 @@ describe("usage.json", () => {
 	});
 
 	test("an empty run is zero, not NaN", () => {
-		const report = usageReport(createTuiCollector().snapshot(), 0);
+		const report = usageReport(createRunPicture().snapshot(), 0);
 		assert.equal(report.parallelism, 0);
 		assert.equal(report.total.subagents, 0);
 	});
@@ -242,8 +242,8 @@ describe("usage.json", () => {
 
 	/** An explorer, and the scout it had spawned - which failed. */
 	function tree() {
-		const collector = createTuiCollector();
-		const feed = collector.reporter;
+		const picture = createRunPicture();
+		const feed = picture.reporter;
 		const spent = (busyMs: number, input: number) => ({ ...emptyUsage(), turns: 1, busyMs, input });
 
 		feed({ type: "spawn", id: "explorer#1", agent: "explorer", lifetime: "task", openInHerdr: false, order: 1 });
@@ -258,7 +258,7 @@ describe("usage.json", () => {
 			id: "explorer#1",
 			result: { agent: "explorer", output: "here it is", messages: [], usage: spent(100, 100), ok: true },
 		});
-		return collector.snapshot();
+		return picture.snapshot();
 	}
 
 	test("a delegated subagent is reported under the one that spawned it", () => {
@@ -280,9 +280,9 @@ describe("usage.json", () => {
 	});
 
 	test("a provider that reports nothing gives zero at every level, never an estimate", () => {
-		const collector = createTuiCollector();
-		collector.reporter({ type: "spawn", id: "explorer#1", agent: "explorer", lifetime: "task", openInHerdr: false, order: 1 });
-		collector.reporter({
+		const picture = createRunPicture();
+		picture.reporter({ type: "spawn", id: "explorer#1", agent: "explorer", lifetime: "task", openInHerdr: false, order: 1 });
+		picture.reporter({
 			type: "spawn",
 			id: "scout#1",
 			agent: "scout",
@@ -292,7 +292,7 @@ describe("usage.json", () => {
 			parentId: "explorer#1",
 		});
 
-		const report = usageReport(collector.snapshot(), 100);
+		const report = usageReport(picture.snapshot(), 100);
 
 		assert.deepEqual(
 			report.subagents.map((one) => one.usage.input),
