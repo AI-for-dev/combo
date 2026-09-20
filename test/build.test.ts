@@ -546,6 +546,21 @@ describe("parseBuildArgs", () => {
 		});
 	});
 
+	test("a line continuation between two flags is read as a gap", () => {
+		assert.deepEqual(parseBuildArgs("--pipeline audit \\\n  --model local/qwen add a cache"), {
+			pipeline: "audit",
+			model: "local/qwen",
+			request: "add a cache",
+		});
+	});
+
+	test("a backslash inside the request is the user's, and stays there", () => {
+		assert.deepEqual(parseBuildArgs("--model local/qwen escape the \\\n in the parser"), {
+			model: "local/qwen",
+			request: "escape the \\\n in the parser",
+		});
+	});
+
 	test("an unknown leading flag is free text, not a swallowed argument", () => {
 		assert.deepEqual(parseBuildArgs("--force the issue"), { request: "--force the issue" });
 	});
