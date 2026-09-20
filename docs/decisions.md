@@ -296,6 +296,48 @@ messages, turns, the review a pair kept, the working copy - and the test that
 proves it is now an identity: a full progress through `toBuildState` and back
 is itself, less that trail.
 
+### The record states its own terms
+
+The record joined the verdict to the ledger, and both callers still did the
+same three things around it. They built it alike, reading `declaresVerdict` off
+the agent and wrapping `saysWord` in a one-line predicate each, with its own
+constant. They wrote the same ternary to offer the tool - `record.tool ? … :
+…`, cast included - one to the reviewer alone, one to the auditor. And they
+handed `byTool` and `open` back out to their prompt, where `reviewPrompt` and
+`auditPrompt` each rendered "Still open, from your earlier rounds:" over
+`openList` and the same fork between calling the tool and answering the word
+alone. `auditPrompt` had grown to seven positional parameters carrying it.
+The record was deep on reading a round and shallow on asking for one, which is
+why its interface exposed `byTool`, `open` and `tool` raw.
+
+`reviewRecord(reviewer, { word, approved?, restored? })` now takes the agent
+and the word. Whether it decides by tool is read off the agent here, and a
+caller's own `approved` stands in for the tool and the word alike, because the
+caller's rule is the nearer one. Two things it renders itself. `terms()` is
+what every round ends on: the open lines by id, then the instruction - a call
+to the tool, with the `resolved` sentence when anything is owed, or the word
+alone. `offer(others)` is what goes through `customTools`: the tool to this
+reviewer and nobody else, `others` to everyone else, `others` untouched when
+the reviewer decides in prose. The prompts take `terms` as a string, so they
+stay functions of data: `reviewPrompt(goal, work, round, terms)` and
+`auditPrompt({ brief, tasks, round, maxAuditRounds, verification, workers,
+terms, byTool })`, the latter keeping `byTool` because the fix lines go where
+the decision goes.
+
+Two changes of behaviour rode along, both towards the rule that an agent gets
+what its file names. A pair whose reviewer held the tool offered its worker
+nothing, dropping whatever the caller had passed in `customTools`; and the
+audit's pool dropped the caller's `customTools` whatever the auditor held. Both
+now pass `others` through. The prose instruction reads "Answer WORD alone when
+you have nothing left to ask for" for the auditor as for the reviewer; what
+differed between them was wording, not meaning.
+
+The rules of the ledger are asserted once, in `test/review.test.ts`, where the
+terms and the offer are too. The pair's "an obligation a round does not name
+stays open" and the audit's "a yes over an open obligation does not approve"
+each proved a record rule through a workflow, and are gone; what the two
+workflows still assert is that the terms reach their prompt.
+
 ## Workflows to cover
 
 | Workflow | Shape | Semantics | Status |

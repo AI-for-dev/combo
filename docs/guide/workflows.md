@@ -123,7 +123,9 @@ built.verdict;    // what the reviewer declared, when it declared it through a t
 
 **How the reviewer decides** depends on what its definition asks for. A reviewer
 whose `tools:` names `verdict` is given that tool, and its call is the decision;
-any other reviewer is read from `LGTM` alone on a line.
+any other reviewer is read from `LGTM` alone on a line. Its record states both:
+the terms every round ends on - what is still owed, by id, and how to answer -
+are the record's words, the same for a pair's reviewer and a build's auditor.
 
 Prefer the tool. A word has to be recovered from prose written for a human, and
 the match is only ever as good as the agreement about how to write it. A tool

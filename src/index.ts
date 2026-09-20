@@ -72,10 +72,8 @@ export {
 	APPROVAL,
 	pair,
 	remarksPrompt,
-	reviewPrompt,
 	type PairOptions,
 	type PairResult,
-	type ReviewPromptOptions,
 } from "./workflows/pair.ts";
 export {
 	answerPrompt,
