@@ -8,7 +8,7 @@
  * `confirm` answers when the script runs out.
  */
 
-import type { CommandCtx } from "../../extension/command.ts";
+import type { CommandCtx } from "../../extension/pi.ts";
 import { testTheme } from "./theme.ts";
 
 /** Answers the double gives, in order. Past the end, it falls back to the prefill. */
@@ -51,6 +51,8 @@ export function fakeCtx(answers: ScriptedAnswers = {}) {
 				return confirmAnswers.length ? Boolean(confirmAnswers.shift()) : true;
 			},
 			setEditorText: (text) => void (editorText = text),
+			// A run wires its keys here; the test presses none.
+			onTerminalInput: () => () => {},
 		},
 	};
 

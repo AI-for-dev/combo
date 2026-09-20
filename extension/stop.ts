@@ -16,10 +16,11 @@
  * {@link whileAsking}.
  */
 
-import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+
 import { parseKey } from "@earendil-works/pi-tui";
 import type { StopSwitch, RunSnapshot } from "../src/index.ts";
 import { treeOrder } from "../src/index.ts";
+import type { KeyUi, PiApi, StopCtx } from "./pi.ts";
 
 /** A run that can still be stopped, as the terminal sees it. */
 export type LiveRun = {
@@ -33,21 +34,12 @@ export type LiveRun = {
 	selected?: string;
 };
 
-/** What the key listener needs from pi. Narrow, so a test can stand in for it. */
-export type KeyUi = {
-	onTerminalInput?(handler: (data: string) => { consume?: boolean } | undefined): () => void;
-	notify?(message: string, type?: "info" | "warning" | "error"): void;
-};
-
-/** What `/stop` needs from pi. A key has the same thing to say, through the same words. */
-export type StopCtx = { ui: { notify?(message: string, type?: "info" | "warning" | "error"): void } };
-
 /** Registers `/stop`. The key listener needs no registration: a run brings it. */
-export default function registerStopCommand(pi: ExtensionAPI) {
+export default function registerStopCommand(pi: PiApi) {
 	pi.registerCommand("stop", {
 		description: "Stop the selected subagent - `<id>` names one, `all` stops the run (esc does that too)",
-		handler: async (args: string, ctx: ExtensionCommandContext) => {
-			stopCommand(args, ctx as unknown as StopCtx);
+		handler: async (args, ctx: StopCtx) => {
+			stopCommand(args, ctx);
 		},
 	});
 }

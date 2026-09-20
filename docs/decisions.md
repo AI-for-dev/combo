@@ -1605,6 +1605,36 @@ reaches for. What one command file still imports from another is the design
 and not a leftover: `/build` opens with `/interview`'s function, and `/quote`
 sends the message `/run` sends.
 
+## pi comes in through one door, and nothing casts it on the way
+
+Every command handler took pi's `ExtensionCommandContext` and handed it on `as
+unknown as CommandCtx`, eleven times, and `/stop` did the same into a slice of
+its own. Written when pi's context and ours did not line up, the casts had
+outlived that: an assignment compiles without them today. What they still did
+was keep TypeScript from checking that pi's context has what a command reads,
+which is the one check a fake cannot make - and the five slices of pi's UI the
+extension read were declared in five files, `notify` three times over,
+consistent with one another by luck rather than by construction.
+
+`extension/pi.ts` is where pi comes in, and the only file under `extension/`
+that names pi's context types. `Ui` is the slice of `ctx.ui` the extension
+reads, declared once; `CommandCtx` is what a command is handed; `RunUi`,
+`KeyUi`, `AskUi` and `StopCtx` are picked from `Ui`, narrow so a test's double
+stays small, and never redeclared. `PiApi` is the slice of pi's API the
+extension registers through, and the test's fake is typed as it rather than
+cast `as never`, so a method pi renames fails at compile time. The two wirings
+only the door knows - what the tool body is handed, `mainSessionFile` read off
+pi's session manager included, and how a command reaches the session - are two
+functions, `toolDeps` and `sessionDoors`, and they are tested.
+
+A handler is written against `CommandCtx`. pi hands it the whole context, and
+TypeScript checks at every `registerCommand` and at the tool's `execute` that
+the whole has what the slice reads. That is the door, and it needs no adapter
+function: an identity typed on both sides would be a pass-through, and the
+check it would carry already happens at the assignment. The one cast left is in
+the test that drives a registered handler with the fake, standing in for the
+members pi has and the extension never reads.
+
 ## Asking the user, and touching the world
 
 Two ports, one rule: **the agents produce text, our code performs the act.**

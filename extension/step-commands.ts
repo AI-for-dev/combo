@@ -19,9 +19,9 @@
  * agent. One command takes both, resolved in that order.
  */
 
-import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { checkPipelineAgents, plural } from "../src/index.ts";
-import { checked, loadRoster, refuse, watched, type CommandCtx } from "./command.ts";
+import { checked, loadRoster, refuse, watched } from "./command.ts";
+import { sessionDoors, type CommandCtx, type PiApi } from "./pi.ts";
 import { resolved, type StepDeps } from "./deps.ts";
 import { parseLeadingFlags, switchValue } from "./flags.ts";
 import { PIPELINE_MESSAGE } from "./pipeline-commands.ts";
@@ -43,24 +43,21 @@ import {
 import { resolveTarget, runStage } from "./stage.ts";
 
 /** Registers `/step`, `/chain` and `/quote`. */
-export default function registerStepCommands(pi: ExtensionAPI) {
-	const deps: StepDeps = {
-		sendMessage: (message) => pi.sendMessage(message),
-		appendEntry: (customType, data) => pi.appendEntry(customType, data),
-	};
+export default function registerStepCommands(pi: PiApi) {
+	const deps = sessionDoors(pi);
 
 	pi.registerCommand("step", {
 		description:
 			"Run one agent or pipeline on the previous step's output, without telling this session (`--from <id|last|none>`, `--model <pattern>`, `--agent`, `--worktree`)",
-		handler: async (args: string, ctx: ExtensionCommandContext) => {
-			await runStep(args, ctx as unknown as CommandCtx, deps);
+		handler: async (args, ctx: CommandCtx) => {
+			await runStep(args, ctx, deps);
 		},
 	});
 
 	pi.registerCommand("chain", {
 		description: "List the steps walked so far, or `reset` to start a new chain",
-		handler: async (args: string, ctx: ExtensionCommandContext) => {
-			showChain(args, ctx as unknown as CommandCtx);
+		handler: async (args, ctx: CommandCtx) => {
+			showChain(args, ctx);
 		},
 	});
 
@@ -69,8 +66,8 @@ export default function registerStepCommands(pi: ExtensionAPI) {
 	// better word for what it does.
 	pi.registerCommand("quote", {
 		description: "Quote one step of the chain into this conversation (default: the last)",
-		handler: async (args: string, ctx: ExtensionCommandContext) => {
-			quoteStep(args, ctx as unknown as CommandCtx, deps);
+		handler: async (args, ctx: CommandCtx) => {
+			quoteStep(args, ctx, deps);
 		},
 	});
 }

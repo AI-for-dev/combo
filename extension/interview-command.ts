@@ -7,20 +7,20 @@
  * before it is a command.
  */
 
-import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { findAgent, plural, type InterviewResult } from "../src/index.ts";
 import { createAskUi } from "./ask-ui.ts";
-import { checked, loadRoster, refuse, watched, type CommandCtx } from "./command.ts";
+import { checked, loadRoster, refuse, watched } from "./command.ts";
+import type { CommandCtx, PiApi } from "./pi.ts";
 import { resolved, type CommandDeps } from "./deps.ts";
 import { parseBuildArgs } from "./flags.ts";
 
 /** Registers `/interview`. */
-export default function registerInterviewCommand(pi: ExtensionAPI) {
+export default function registerInterviewCommand(pi: PiApi) {
 	pi.registerCommand("interview", {
 		description: "Turn a vague request into a brief, one question at a time (`--model <pattern>`, `--questions <n>`)",
-		handler: async (args: string, ctx: ExtensionCommandContext) => {
+		handler: async (args, ctx: CommandCtx) => {
 			const { model, questions, request } = parseBuildArgs(args);
-			await runInterview(request, ctx as unknown as CommandCtx, {}, { model, maxQuestions: questions });
+			await runInterview(request, ctx, {}, { model, maxQuestions: questions });
 		},
 	});
 }
