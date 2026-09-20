@@ -214,6 +214,48 @@ usage sums `pair` and `interview` each proved through their own outcome are
 gone; `orchestrate`'s stays, because what it records on its trail is its own
 decision. `swarm` has the cancellation test it was owed.
 
+### Every workflow is a Result
+
+`WorkflowResult` was the contract five combinators honoured - `chain`, `loop`,
+`reduce`, `route`, `pair` - and six did not: `fanOut`, `orchestrate`,
+`deliver`, `interview`, `swarm` and `audit` each returned a shape of their own,
+`usage` and `ok` included but no `output`, no `agent`, no `steps`. The two
+places that read every combinator recoupled the gap by hand and did not agree.
+The pipeline runner made a `Result` out of a fan-out by taking the first failed
+branch or the last one and replacing its output with every branch's joined,
+made one out of an orchestration by naming the planner and copying its
+messages, made a third out of a delivery the same way; the `subagent` tool
+read an orchestration's `planning` when nothing else was there. A fix to what
+a fan-out amounts to reached one of the two.
+
+The reading now lives with the combinator, and both callers do the same thing
+for every kind: keep the result as it came. A fan-out speaks through the branch
+that failed, or the last one, with every branch's output labelled where its own
+would be; an orchestration through its synthesis when it has one and its
+planner otherwise; a delivery through its planner, over every subtask's report;
+an interview through its last turn, whose output is the brief; a swarm through
+the member that failed or the last on the roster, each member's last word
+labelled by the name it posted under; an audit through its last review. `ok`
+keeps its one meaning, every turn ran, and what a workflow says beyond that
+stays in a field of its own - `approved`, `converged`, `plan` - which is why a
+`deliver` step keeps the whole delivery beside its `Result` rather than folding
+`approved` into `ok`.
+
+`joinOutputs` moved from the runner into `result.ts` and learnt to mark a
+failure: the runner's copy printed a failed branch as a heading over nothing,
+and a step reading six sections when eight ran would take the silence for
+completeness. The runner also records each step's result on a `Trail`, so its
+usage is the trail's rather than a sum kept by hand. One pipeline rule stays in
+the runner because it is the pipeline's: a `loop` that never converged fails
+its step, since handing unconverged work to the next step is the silent failure
+`converged` exists to expose.
+
+`FanOutResult.results` survives beside `steps`, the same list under two names,
+because `results` is what every reader of a fan-out already calls its branches
+in task order and `steps` is what the contract calls them. `InterviewResult.brief`
+survives beside `output` for the same reason. Two aliases were judged cheaper
+than a rename through every caller and every page.
+
 ## Workflows to cover
 
 | Workflow | Shape | Semantics | Status |

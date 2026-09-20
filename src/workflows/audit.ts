@@ -19,7 +19,7 @@
 import type { Agent } from "./../agent.ts";
 import { notify } from "./../events.ts";
 import { openList, type Obligation } from "./../ledger.ts";
-import type { Result } from "./../result.ts";
+import type { Result, WorkflowResult } from "./../result.ts";
 import { reviewRecord } from "./../review.ts";
 import type { ToolDefinition } from "./../session.ts";
 import { saysWord } from "./../text.ts";
@@ -69,8 +69,16 @@ export type AuditProgress = {
 	verification?: Verification;
 };
 
-/** The cycle, ended: signed off, or not. */
-export type AuditResult = AuditProgress & {
+/**
+ * The cycle, ended: signed off, or not.
+ *
+ * As a `Result`: the last review, or the auditor with nothing said when no
+ * round ran. `steps` is every review, the rounds a previous run recorded
+ * first, and `usage` their sum over this cycle - the fixes are the caller's
+ * pairs, and counted where the caller keeps them.
+ */
+export type AuditResult = WorkflowResult &
+	AuditProgress & {
 	/**
 	 * Whether the last round signed off with nothing owed and no failing check
 	 * standing. Reaching the cap is not approval, and neither is a yes over a
@@ -141,6 +149,24 @@ export async function audit(options: AuditOptions): Promise<AuditResult> {
 	// `"task"` whatever the caller runs with: the second audit must read the code
 	// as it is now, not remember how it was talked into approving the first time.
 	const pool = new SubagentPool({ ...shared, lifetime: "task", customTools: record.tool ? () => [record.tool as ToolDefinition] : undefined });
+	// What a previous run spent is on this cycle's trail too: resuming continues
+	// the cycle, and its cost.
+	for (const round of rounds) pool.trail.record(round.review);
+	const outcome = (approved: boolean): AuditResult => {
+		const last = pool.trail.steps.at(-1);
+		const broken = pool.trail.broken();
+		return {
+			agent: auditor.name,
+			output: last?.output ?? "",
+			messages: last?.messages ?? [],
+			...(broken ? { error: broken.error } : {}),
+			...progress(),
+			approved,
+			steps: pool.trail.steps,
+			usage: pool.trail.usage(),
+			ok: !broken,
+		};
+	};
 	try {
 		// A resumed run has already spent the rounds it recorded.
 		for (let round = rounds.length + 1; round <= maxAuditRounds; round++) {
@@ -166,14 +192,14 @@ export async function audit(options: AuditOptions): Promise<AuditResult> {
 			}
 			report();
 
-			if (approved && verification?.ok !== false) return { ...progress(), approved: true };
+			if (approved && verification?.ok !== false) return outcome(true);
 			if (!fixed && !(verdict?.resolved.length ?? 0)) break;
 		}
 	} finally {
 		await pool.closeAll();
 	}
 
-	return { ...progress(), approved: false };
+	return outcome(false);
 }
 
 /**

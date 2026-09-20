@@ -19,6 +19,22 @@ describe("fanOut", () => {
 		);
 	});
 
+	test("read as one Result: every branch labelled, and one failed branch fails the whole", async () => {
+		const fake = fakeSpawn((task) => (task === "b" ? { ok: false, error: "b exploded" } : {}));
+		const done = await fanOut({ agent: scout, tasks: ["a", "b", "c"], spawn: fake.spawn });
+
+		assert.equal(done.ok, false);
+		assert.equal(done.error, "b exploded");
+		assert.equal(done.output, "## scout\n\nscout(a)\n\n## scout (failed)\n\nb exploded\n\n## scout\n\nscout(c)");
+		assert.equal(done.steps, done.results, "the trail of a fan-out is its branches, in task order");
+	});
+
+	test("a fan-out of nothing is nobody's turn, and nothing went wrong in it", async () => {
+		const done = await fanOut({ agent: scout, tasks: [], spawn: fakeSpawn().spawn });
+
+		assert.deepEqual({ ok: done.ok, agent: done.agent, output: done.output, results: done.results }, { ok: true, agent: "scout", output: "", results: [] });
+	});
+
 	test("accepts one agent per task", async () => {
 		const fake = fakeSpawn();
 		const { results } = await fanOut({ agents: [scout, coder], tasks: ["a", "b"], spawn: fake.spawn });

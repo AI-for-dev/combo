@@ -140,7 +140,7 @@ Who is on it, what they are told, and how long they have.
 *type*
 
 ```typescript
-export type SwarmResult = {
+export type SwarmResult = WorkflowResult & {
 	/** One per member, in roster order, the ones that failed included. */
 	members: readonly SwarmMember[];
 	/** Every post, in order. The run's social history. */
@@ -149,17 +149,16 @@ export type SwarmResult = {
 	claims: readonly SwarmClaim[];
 	/** How many rounds actually ran. */
 	rounds: number;
-	/** Every turn of every member, over the swarm's own wall time. */
-	usage: Usage;
 	/** Whether `until` fired. Reaching the round cap is not success. */
 	converged: boolean;
 	/** Which cap ended it. */
 	stoppedBy: SwarmEnd;
-	/** Every member ran every round it was asked to, without a model error. */
-	ok: boolean;
-	/** The first failure, when there was one. */
-	error?: string;
 };
 ```
 
 What the swarm did, and what it left behind.
+
+As a `Result`: every member's last turn, labelled by the name it posted
+under, a failed one marked as such; `ok` is false when any member failed or
+was never asked, `error` the first failure's. `steps` is every turn of every
+round, and `usage` their sum over the swarm's own wall time.

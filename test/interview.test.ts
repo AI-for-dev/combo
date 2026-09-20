@@ -35,6 +35,8 @@ describe("interview", () => {
 			["sqlite", "node"],
 		);
 		assert.equal(result.brief, "THE BRIEF");
+		assert.equal(result.output, result.brief, "read as one Result, an interview is its brief");
+		assert.equal(result.agent, "interviewer");
 		assert.equal(result.ok, true);
 		assert.equal(result.submitted, false);
 	});

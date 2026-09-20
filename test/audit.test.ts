@@ -119,6 +119,9 @@ describe("the cycle", () => {
 		assert.equal(result.rounds.length, 2, "the recorded round plus the one it had left");
 		assert.equal(fake.spawned.length, 1);
 		assert.match(fake.asks[0]?.task ?? "", /round 2/);
+		assert.equal(result.steps.length, 2, "read as one Result, the cycle's trail counts the round it inherited");
+		assert.equal(result.output, AUDIT_APPROVAL, "and speaks with its last review");
+		assert.equal(result.agent, "auditor");
 	});
 
 	test("cancellation before the first round audits nothing", async () => {

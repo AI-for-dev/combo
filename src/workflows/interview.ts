@@ -13,9 +13,8 @@
 
 import type { Agent } from "./../agent.ts";
 import type { Answer, AskUser, Choice, Question } from "./../ask.ts";
-import type { Result } from "./../result.ts";
+import type { WorkflowResult } from "./../result.ts";
 import { jsonObjects, saysWord } from "./../text.ts";
-import type { Usage } from "./../usage.ts";
 import type { WorkflowOptions } from "./options.ts";
 import { SubagentPool } from "./pool.ts";
 
@@ -68,22 +67,20 @@ export type InterviewOptions = WorkflowOptions & {
 	parse?: (output: string) => Question | undefined;
 };
 
-/** The brief, and everything that led to it. */
-export type InterviewResult = {
-	/** The consolidated specification. This is what the rest of the pipeline reads. */
+/**
+ * The brief, and everything that led to it.
+ *
+ * As a `Result`: the interviewer's last turn, whose `output` is the brief.
+ * `usage` covers every turn, the brief included; `ok` says every turn ran, and
+ * a short brief can still be `true`.
+ */
+export type InterviewResult = WorkflowResult & {
+	/** The consolidated specification - `output`, under the name the rest of the pipeline reads. */
 	brief: string;
 	/** Everything the user answered, in order. */
 	answers: Answer[];
-	/** Every turn of the agent, for whoever wants the detail. */
-	steps: Result[];
 	/** True when the user submitted before the agent said it was done. */
 	submitted: boolean;
-	/** Aggregate over every turn of the interviewer, the brief included. */
-	usage: Usage;
-	/** Every turn ran without a model error. A short brief can still be `true`. */
-	ok: boolean;
-	/** Set if and only if `ok` is false. */
-	error?: string;
 };
 
 /**
@@ -111,14 +108,19 @@ export async function interview(options: InterviewOptions): Promise<InterviewRes
 	// the caller insists otherwise. After the spread, not before - see `pair`:
 	// an explicit `undefined` from a merging caller must not read as a choice.
 	const pool = new SubagentPool({ ...options, lifetime: options.lifetime ?? "workflow" });
+	// The last turn speaks for the interview: the brief when it was written,
+	// the turn that failed otherwise.
 	const outcome = (brief: string, ok: boolean, error?: string): InterviewResult => ({
+		agent: agent.name,
+		output: brief,
+		messages: pool.trail.steps.at(-1)?.messages ?? [],
+		...(error === undefined ? {} : { error }),
 		brief,
 		answers,
 		steps: pool.trail.steps,
 		submitted,
 		usage: pool.trail.usage(),
 		ok,
-		error,
 	});
 
 	try {
