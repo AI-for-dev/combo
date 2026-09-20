@@ -138,18 +138,6 @@ export type PipelineStep = {
 
 One combinator call. `agents` are names; resolution happens later.
 
-## `STEP_KINDS`
-
-*const*
-
-```typescript
-export const STEP_KINDS = [
-	/* … */
-] as const;
-```
-
-The combinators a pipeline may call, by their exported name.
-
 ## `StepKind`
 
 *type*

@@ -147,13 +147,3 @@ export type PairResult = Result & {
 ```
 
 The worker's last output, plus how the pair got there and whether it was accepted.
-
-## `remarksPrompt`
-
-*function*
-
-```typescript
-export function remarksPrompt(review: string, remaining: number): string { /* … */ }
-```
-
-What the worker gets back: the remarks, and how much room is left.

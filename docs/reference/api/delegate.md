@@ -102,13 +102,3 @@ How deep delegation goes by default: the session, a child, a grandchild.
 Two is where a split stops paying. A grandchild has been handed one slice of
 one slice, and rarely knows enough about the whole to divide it usefully - it
 spends a turn deciding that instead of reading.
-
-## `SUBAGENT_TOOL`
-
-*const*
-
-```typescript
-export const SUBAGENT_TOOL = "subagent";
-```
-
-The name an agent writes in its `tools:` to be allowed children of its own.

@@ -10,22 +10,6 @@ Nothing is estimated. Tokens and cost come from pi
 (`session.getSessionStats()`); the only things we add are **time** - which
 pi does not measure - and **attribution per subagent**.
 
-## `accumulate`
-
-*function*
-
-```typescript
-export function accumulate(total: Usage, turn: Usage): Usage { /* … */ }
-```
-
-A subagent's usage after one more turn.
-
-Counters and busy time add up; `wallMs` is the subagent's own clock and is
-left as it stands; `contextTokens` is a level rather than a counter, so the
-turn's reading replaces the last one - a turn that reports none leaves the
-last known level in place. This is the one rule {@link sumUsage} does not
-have, because a context belongs to one session and a fan-out sums several.
-
 ## `compact`
 
 *function*
@@ -69,23 +53,6 @@ export function formatUsage(usage: Usage): string { /* … */ }
 ```
 
 Compact usage line: `3 turns 12.4s ↑12k ↓2.1k R8k $0.0412 ctx:34k`.
-
-## `snapshotUsage`
-
-*function*
-
-```typescript
-export function snapshotUsage(stats: SessionStats): Usage { /* … */ }
-```
-
-Snapshot of a session's token counters.
-
-Careful: `getSessionStats()` is **cumulative since the start of the
-session**. A snapshot is therefore never the usage of a single turn; it is
-{@link deltaUsage} that extracts one turn, between two snapshots.
-
-A field the provider does not report is `0`. We never estimate it by
-counting characters.
 
 ## `sumUsage`
 
