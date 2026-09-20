@@ -40,10 +40,10 @@ const spawnEvent = (id: string, openInHerdr: boolean, parentId?: string): Subage
 	parentId,
 });
 
-const closeEvent = (id: string): SubagentEvent => ({
+const closeEvent = (id: string, ok = true): SubagentEvent => ({
 	type: "close",
 	id,
-	result: { agent: id, output: "", messages: [], usage: emptyUsage(), ok: true },
+	result: { agent: id, output: "", messages: [], usage: emptyUsage(), ok, ...(ok ? {} : { error: "it broke" }) },
 });
 
 /**
@@ -492,6 +492,16 @@ describe("consoleReporter", () => {
 		assert.match(lines[0] as string, /scout#1/);
 		assert.match(lines[1] as string, /→ grep/);
 		assert.match(lines[2] as string, /^✓ scout#1/);
+	});
+
+	test("a close that failed draws a cross, whatever the event is called", () => {
+		const lines: string[] = [];
+		const report = consoleReporter({ write: (line) => lines.push(line) });
+
+		report(spawnEvent("scout#1", false));
+		report(closeEvent("scout#1", false));
+
+		assert.match(lines[1] as string, /^✗ scout#1/);
 	});
 
 	test("a steer reads as a person's word to one subagent", () => {

@@ -20,16 +20,18 @@ import {
 import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import {
-	collapsedLine,
 	formatToolCall,
 	formatUsage,
 	MAX_DEPTH,
 	plural,
 	snapshotFrom,
+	standingOf,
+	statusColour,
 	statusIcon,
 	summaryTable,
 	treeOrder,
 	truncate,
+	type SubagentSnapshot,
 } from "../src/index.ts";
 import registerAgentCommands from "./agents-command.ts";
 import registerBuildCommand from "./build.ts";
@@ -237,8 +239,7 @@ function renderCollapsed(details: Details, theme: Theme): Container {
 		// A subagent that was delegated sits under the one that asked for it:
 		// three scouts read as an explorer's split rather than as five peers.
 		const indent = "  ".repeat(one.depth);
-		const icon = one.ok === false ? theme.fg("error", "✗") : theme.fg("success", "✓");
-		let line = `${indent}${icon} ${theme.fg("toolTitle", theme.bold(one.id))}`;
+		let line = `${indent}${drawnIcon(one, theme)} ${theme.fg("toolTitle", theme.bold(one.id))}`;
 		if (one.task) line += ` ${theme.fg("dim", truncate(one.task, 50))}`;
 		if (one.error) line += ` ${theme.fg("error", truncate(one.error, 40))}`;
 		container.addChild(new Text(line, 0, 0));
@@ -270,8 +271,7 @@ function renderExpanded(details: Details, theme: Theme): Container {
 	for (const [index, one] of treeOrder(details.subagents).entries()) {
 		if (index > 0) container.addChild(new Spacer(1));
 
-		const icon = one.ok === false ? theme.fg("error", "✗") : theme.fg("success", "✓");
-		container.addChild(new Text(`${"  ".repeat(one.depth)}${icon} ${theme.fg("toolTitle", theme.bold(one.id))}`, 0, 0));
+		container.addChild(new Text(`${"  ".repeat(one.depth)}${drawnIcon(one, theme)} ${theme.fg("toolTitle", theme.bold(one.id))}`, 0, 0));
 
 		if (one.task) {
 			container.addChild(new Text(theme.fg("muted", "─── task ───"), 0, 0));
@@ -317,5 +317,8 @@ function totalLine(details: Details): string {
 	return line;
 }
 
-// Kept so the collapsed helpers stay reachable from a script too.
-export { collapsedLine, statusIcon };
+/** The glyph for how a subagent stands, in the colour that standing is drawn in. */
+function drawnIcon(one: SubagentSnapshot, theme: Theme): string {
+	const standing = standingOf(one);
+	return theme.fg(statusColour(standing), statusIcon(standing));
+}
