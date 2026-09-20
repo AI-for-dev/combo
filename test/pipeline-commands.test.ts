@@ -17,9 +17,9 @@ import {
 	pipelineLines,
 	PIPELINE_MESSAGE,
 	runNamed,
-	type PipelineDeps,
 } from "../extension/pipeline-commands.ts";
 import { parsePipeline } from "../src/pipeline.ts";
+import type { PipelineDeps } from "../extension/deps.ts";
 import { fakeCtx } from "./fixtures/command-ctx.ts";
 import { baseDeps } from "./fixtures/command-deps.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";

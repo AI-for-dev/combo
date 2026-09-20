@@ -178,7 +178,10 @@ spawned, a thrown explanation becoming a refusal; and `watched()`, the live view
 for as long as the work runs, with the `finally` that takes it down and writes
 `usage.json` whatever happened. `/build`, `/run`, `/step`, `/swarm` and
 `/interview` each write their flags, their target and their call, and nothing
-of that shape.
+of that shape. A step of a hand-walked chain is `extension/relay.ts`'s to name
+and to record, whether `/step` or `/swarm` ran it. What one command file still
+takes from another is the design: `/build` opens with `/interview`'s function,
+and `/quote` sends the message `/run` sends.
 
 Each command's own file holds only what that command does, `/build` included:
 the interview it opens with is `interview-command.ts`, which is a command in its

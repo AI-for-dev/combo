@@ -28,6 +28,7 @@ import {
 	untracked,
 	type Verify,
 } from "../src/index.ts";
+import type { StepEntry } from "./relay.ts";
 
 /** Everything a command reaches for, injectable. Defaults are the real thing. */
 export type CommandDeps = {
@@ -59,6 +60,32 @@ export type CommandDeps = {
 	/** Widget repaint period. `0` disables the timer - tests want that. */
 	tickMs?: number;
 };
+
+/**
+ * How a finished run reaches the conversation. Injected, so a test can catch it.
+ *
+ * A **custom** message, and not for want of trying: pi's extension API offers
+ * exactly three doors into a conversation - `sendMessage` (custom, in the
+ * model's context), `sendUserMessage` (a user message, and it always triggers a
+ * turn) and `appendEntry` (drawn, but invisible to the model). There is no
+ * assistant-message injection. A custom message is the only one that lands the
+ * answer in context without launching a turn nobody asked for.
+ */
+export type SendMessage = (message: {
+	customType: string;
+	content: string;
+	display: boolean;
+	details?: unknown;
+}) => void;
+
+/** How a finished step reaches the transcript, and only the transcript. Injected, so a test can catch it. */
+export type AppendEntry = (customType: string, data: StepEntry) => void;
+
+/** {@link CommandDeps}, plus the door into the conversation that `/run` and `/quote` use. */
+export type PipelineDeps = CommandDeps & { sendMessage?: SendMessage };
+
+/** {@link PipelineDeps}, plus the door into the transcript that `/step` and `/swarm` use. */
+export type StepDeps = PipelineDeps & { appendEntry?: AppendEntry };
 
 /** The git a command performs its acts through. */
 export type Git = {

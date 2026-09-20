@@ -19,51 +19,28 @@
  * agent. One command takes both, resolved in that order.
  */
 
-import * as path from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import { checkPipelineAgents, exportBaseName, plural } from "../src/index.ts";
+import { checkPipelineAgents, plural } from "../src/index.ts";
 import { checked, loadRoster, refuse, watched, type CommandCtx } from "./command.ts";
-import { resolved } from "./deps.ts";
+import { resolved, type StepDeps } from "./deps.ts";
 import { parseLeadingFlags, switchValue } from "./flags.ts";
-import { PIPELINE_MESSAGE, type PipelineDeps } from "./pipeline-commands.ts";
+import { PIPELINE_MESSAGE } from "./pipeline-commands.ts";
 import {
 	chainInput,
 	chainLines,
 	currentChain,
+	entryOf,
 	forgetChain,
 	recordStep,
 	startChain,
+	STEP_ENTRY,
 	stepAnswer,
+	stepDir,
 	stepFrom,
 	stepId,
 	type RelayStep,
 } from "./relay.ts";
 import { resolveTarget, runStage } from "./stage.ts";
-
-/** `customType` of the transcript entry a finished step leaves behind. */
-export const STEP_ENTRY = "chain-step";
-
-/** What {@link STEP_ENTRY} carries, and the renderer in `index.ts` draws. */
-export type StepEntry = {
-	/** The step's id in the chain, which is also what `--from` takes. */
-	id: string;
-	/** What ran it: one agent, a pipeline, or a swarm of one agent's copies. */
-	kind: "agent" | "pipeline" | "swarm";
-	/** The step whose output it was handed, when it was handed one. */
-	from?: string;
-	/** What it produced, in full - this is a transcript entry, not a summary. */
-	output: string;
-	/** Turns, so the entry says what it cost without expanding anything. */
-	turns: number;
-	/** Where this step's transcripts landed. */
-	dir: string;
-};
-
-/** How a finished step reaches the transcript. Injected, so a test can catch it. */
-export type AppendEntry = (customType: string, data: StepEntry) => void;
-
-/** {@link PipelineDeps}, plus the one door `/step` uses that `/run` does not. */
-export type StepDeps = PipelineDeps & { appendEntry?: AppendEntry };
 
 /** Registers `/step`, `/chain` and `/quote`. */
 export default function registerStepCommands(pi: ExtensionAPI) {
@@ -140,11 +117,9 @@ export async function runStep(args: string, ctx: CommandCtx, injected: StepDeps 
 		ctx.ui.notify("step: --worktree gives a delivery's workers a copy of the repository - a lone agent gets none", "warning");
 	}
 
-	// One chain, one folder, one step per subfolder: a chain walked by hand is
-	// still a run, and it leaves the same trace as one walked by `/run`.
 	const relay = currentChain() ?? startChain(deps.runDir());
 	const id = stepId(relay, name);
-	const dir = path.join(relay.dir, `${relay.steps.length + 1}-${exportBaseName(id)}`);
+	const dir = stepDir(relay, id);
 	const input = chainInput(instruction, previous);
 
 	const done = await watched(ctx, deps, {
@@ -170,8 +145,8 @@ export async function runStep(args: string, ctx: CommandCtx, injected: StepDeps 
 	}
 
 	const { output, usage } = done;
-	const step = recordStep(relay, { name, kind: target.kind, instruction, from: previous?.id, output, usage, dir });
-	injected.appendEntry?.(STEP_ENTRY, { id: step.id, kind: step.kind, from: step.from, output: step.output, turns: usage.turns, dir });
+	const step = recordStep(relay, { id, name, kind: target.kind, instruction, from: previous?.id, output, usage, dir });
+	injected.appendEntry?.(STEP_ENTRY, entryOf(step));
 	ctx.ui.notify(`${step.id}: ${plural(usage.turns, "turn")} - /step <next> carries it on, /quote puts it in this conversation`, "info");
 	return step;
 }
