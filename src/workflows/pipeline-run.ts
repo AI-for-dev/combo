@@ -34,7 +34,7 @@ import { findAgent } from "../agent.ts";
 import { notify } from "../events.ts";
 import type { Pipeline, PipelineStep } from "../pipeline.ts";
 import { failed, type Result } from "../result.ts";
-import { saysWord } from "../text.ts";
+import { plural, saysWord } from "../text.ts";
 import type { Usage } from "../usage.ts";
 import type { Verify } from "../verify.ts";
 import { chain } from "./chain.ts";
@@ -323,7 +323,7 @@ async function runStep(
 			// letting the next step build on work that never reached its bar is
 			// exactly the silent failure `converged` exists to expose.
 			if (done.ok && until !== undefined && !done.converged) {
-				return entry({ ...done, ok: false, error: `never converged on "${until}" in ${done.iterations} iteration(s)` }, done.steps);
+				return entry({ ...done, ok: false, error: `never converged on "${until}" in ${plural(done.iterations, "iteration")}` }, done.steps);
 			}
 			return entry(done, done.steps);
 		}

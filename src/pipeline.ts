@@ -26,7 +26,7 @@
  */
 
 import { parseFrontmatter } from "@earendil-works/pi-coding-agent";
-import type { Lifetime } from "./agent.ts";
+import { LIFETIMES, type Lifetime } from "./agent.ts";
 import { asBoolean, asString } from "./markdown.ts";
 
 /** The combinators a pipeline may call, by their exported name. */
@@ -125,7 +125,6 @@ export type Pipeline = {
 	filePath: string;
 };
 
-const LIFETIMES: readonly string[] = ["task", "workflow", "session"];
 
 /**
  * Parses a pipeline definition, or throws.
@@ -316,7 +315,7 @@ function asCount(value: unknown, what: string): number | undefined {
 function asLifetime(value: unknown, what: string): Lifetime | undefined {
 	const lifetime = asString(value);
 	if (lifetime === undefined) return undefined;
-	if (!LIFETIMES.includes(lifetime)) {
+	if (!(LIFETIMES as readonly string[]).includes(lifetime)) {
 		throw new Error(`${what}: unknown lifetime "${lifetime}". One of: ${LIFETIMES.join(", ")}.`);
 	}
 	return lifetime as Lifetime;

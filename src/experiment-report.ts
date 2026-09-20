@@ -18,6 +18,7 @@ import path from "node:path";
 import type { ExperimentOutcome } from "./experiment.ts";
 import type { UsageTotal } from "./export.ts";
 import { formatUsage, sumUsage, type Usage } from "./usage.ts";
+import { plural } from "./text.ts";
 
 /** One cell of the matrix: one model, one repetition, once it has run. */
 export type ExperimentRun = {
@@ -131,9 +132,7 @@ function experimentMarkdown(report: ExperimentReport): string {
 	const lines = [
 		`# ${report.name ?? "Experiment"}`,
 		"",
-		`${report.models.length} model${report.models.length > 1 ? "s" : ""} × ${report.repetitions} repetition${
-			report.repetitions > 1 ? "s" : ""
-		}, ${(report.wallMs / 1000).toFixed(1)}s wall, ${report.generatedAt}.`,
+		`${plural(report.models.length, "model")} × ${plural(report.repetitions, "repetition")}, ${(report.wallMs / 1000).toFixed(1)}s wall, ${report.generatedAt}.`,
 		"",
 	];
 	if (report.error) lines.push(`**${report.error}** - this report is partial.`, "");

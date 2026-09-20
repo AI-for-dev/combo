@@ -24,6 +24,7 @@ import type { Agent } from "./agent.ts";
 import { defineTool, type ToolDefinition } from "./session.ts";
 import { fanOut } from "./workflows/fan-out.ts";
 import type { WorkflowOptions } from "./workflows/options.ts";
+import { joinOutputs } from "./result.ts";
 
 /** The name an agent writes in its `tools:` to be allowed children of its own. */
 export const SUBAGENT_TOOL = "subagent";
@@ -139,7 +140,7 @@ export function delegateTool(options: DelegateOptions): ToolDefinition {
 			});
 
 			return {
-				content: [{ type: "text" as const, text: report(done.results) }],
+				content: [{ type: "text" as const, text: joinOutputs(done.results, { numbered: true }) }],
 				details: undefined,
 			};
 		},
@@ -149,15 +150,4 @@ export function delegateTool(options: DelegateOptions): ToolDefinition {
 /** A refusal the model can act on, rather than a failure it has to guess at. */
 function refuse(text: string) {
 	return { content: [{ type: "text" as const, text }], details: undefined, isError: true };
-}
-
-/** What comes back: each branch's answer, labelled, failures included. */
-function report(results: readonly { agent: string; output: string; ok: boolean; error?: string }[]): string {
-	return results
-		.map((one, index) =>
-			one.ok
-				? `## ${index + 1}. ${one.agent}\n${one.output}`
-				: `## ${index + 1}. ${one.agent} (failed)\n${one.error ?? "unknown error"}`,
-		)
-		.join("\n\n");
 }

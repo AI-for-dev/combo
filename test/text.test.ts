@@ -9,13 +9,27 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { firstLine, jsonObjects, plural, saysWord, scalar, truncate } from "../src/text.ts";
+import { firstLine, head, jsonObjects, plural, saysWord, scalar, tail, truncate } from "../src/text.ts";
 
 describe("truncate", () => {
 	test("flattens whitespace and keeps the text under max", () => {
 		assert.equal(truncate("  a\n  b  ", 10), "a b");
 		assert.equal(truncate("abcdefghij", 5), "abcd…");
 		assert.equal(truncate("abcde", 5), "abcde", "exactly max is not shortened");
+	});
+});
+
+describe("head", () => {
+	test("keeps the start and says what was cut, in the name the caller gives it", () => {
+		assert.equal(head("abcdef", 3, "diff"), "abc\n\n[diff truncated at 3 bytes]");
+		assert.equal(head("abc", 3, "diff"), "abc", "nothing cut, nothing said");
+	});
+});
+
+describe("tail", () => {
+	test("keeps the end and says how much went, because the failure is at the end", () => {
+		assert.equal(tail("  abcdef  ", 3), "[…3 bytes cut]\ndef");
+		assert.equal(tail("  abc  ", 3), "abc");
 	});
 });
 

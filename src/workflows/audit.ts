@@ -19,7 +19,7 @@
 import type { Agent } from "./../agent.ts";
 import { notify } from "./../events.ts";
 import type { Obligation } from "./../ledger.ts";
-import type { Result, WorkflowResult } from "./../result.ts";
+import { joinOutputs, type Result, type WorkflowResult } from "./../result.ts";
 import { reviewRecord } from "./../review.ts";
 import type { Verdict } from "./../verdict.ts";
 import type { Verification } from "./../verify.ts";
@@ -277,12 +277,12 @@ export type AuditPromptOptions = {
 /** What the auditor reads: the brief, what each subtask claims, the check, and the terms it answers on. */
 export function auditPrompt(options: AuditPromptOptions): string {
 	const { brief, tasks, round, maxAuditRounds, verification, workers } = options;
-	const reports = tasks
-		.map((task, index) => {
-			const state = task.ok ? (task.approved ? "reviewed and approved" : "reviewed, NOT approved") : `failed: ${task.error}`;
-			return `## ${index + 1}. ${task.agent} (${state})\n${task.output.trim() || "(no output)"}`;
-		})
-		.join("\n\n");
+	// The note says what a review made of each part; a failure says so where
+	// every other report does, with its error where the output would be.
+	const reports = joinOutputs(tasks, {
+		numbered: true,
+		note: (task) => (task.ok ? (task.approved ? "reviewed and approved" : "reviewed, NOT approved") : "failed"),
+	});
 
 	return [
 		round === 1 ? "The work below is finished. Audit it as a whole." : `Audit the work again - round ${round}.`,

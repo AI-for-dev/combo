@@ -36,7 +36,7 @@ export {
 export { run, type RunOptions } from "./run.ts";
 export { spawn, type AskOptions, type CustomToolsFor, type SpawnOptions, type Subagent } from "./subagent.ts";
 export { stopSwitch, type StopSwitch, type StopSwitchOptions } from "./stop.ts";
-export { abortError, failed, type Result, type WorkflowResult } from "./result.ts";
+export { abortError, failed, joinOutputs, type JoinOptions, type Result, type WorkflowResult } from "./result.ts";
 export { accumulate, compact, deltaUsage, emptyUsage, formatUsage, snapshotUsage, sumUsage, type Usage } from "./usage.ts";
 
 // ── The combinators, and the options every one of them shares ────────────────
@@ -55,6 +55,7 @@ export {
 	type SwarmEnd,
 	type SwarmMember,
 	type SwarmOptions,
+	membersOutput,
 	type SwarmResult,
 } from "./workflows/swarm.ts";
 export { loop, type LoopOptions, type LoopResult, type UntilPredicate } from "./workflows/loop.ts";
@@ -147,7 +148,7 @@ export {
 	widgetRows,
 	type WidgetRow,
 } from "./reporters/index.ts";
-export { plural, saysWord, truncate } from "./text.ts";
+export { head, plural, saysWord, tail, truncate } from "./text.ts";
 
 // ── Measuring a run: transcripts on disk, and the matrix above them ──────────
 

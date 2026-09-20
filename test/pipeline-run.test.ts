@@ -183,7 +183,7 @@ describe("runPipeline", () => {
 		});
 
 		assert.equal(done.ok, false);
-		assert.match(done.error ?? "", /never converged on "LGTM" in 2 iteration\(s\)/);
+		assert.match(done.error ?? "", /never converged on "LGTM" in 2 iterations/);
 		assert.equal(done.steps.length, 1, "the next step is not handed unconverged work");
 	});
 

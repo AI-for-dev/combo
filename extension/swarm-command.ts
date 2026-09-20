@@ -25,6 +25,7 @@ import {
 	createClaims,
 	declaresBoard,
 	findAgent,
+	membersOutput,
 	plural,
 	type Board,
 	type Claims,
@@ -158,10 +159,7 @@ export async function runSwarm(args: string, ctx: CommandCtx, injected: StepDeps
 
 /** What the members produced, and what they said to each other while doing it. */
 export function swarmAnswer(done: SwarmResult): string {
-	const parts = done.members.map((one) => {
-		const said = one.result.output.trim() || one.result.error || "(nothing)";
-		return `## ${one.id}${one.result.ok ? "" : " - failed"}\n\n${said}`;
-	});
+	const parts = [membersOutput(done.members)];
 	// The board only when there is one: in a run where nobody posted, a heading
 	// over nothing reads as something lost.
 	if (done.posts.length > 0) parts.push(`## the board\n\n${boardLines(done.posts)}`);

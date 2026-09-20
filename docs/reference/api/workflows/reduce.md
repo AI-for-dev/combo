@@ -14,11 +14,8 @@ Source: [`src/workflows/reduce.ts`](https://github.com/AI-for-dev/combo/blob/mai
 export function formatBranches(results: readonly Result[], input: string): string { /* … */ }
 ```
 
-The default rendering: the instruction, then one titled section per branch.
-
-A failed branch keeps its section and states its error. Numbering is what
-lets the reducer refer to a branch - several branches often share an agent
-name, so the name alone identifies nothing.
+The default rendering: the instruction, then one numbered section per
+branch, failures kept and marked.
 
 ## `reduce`
 

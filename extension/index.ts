@@ -253,7 +253,7 @@ function totalLine(details: Details): string {
 	const snapshot = snapshotFrom(details.subagents);
 	let line = formatUsage({ ...snapshot.usage, wallMs: details.wallMs });
 	if (details.iterations !== undefined) {
-		line += `  ${details.iterations} iteration${details.iterations > 1 ? "s" : ""}`;
+		line += `  ${plural(details.iterations, "iteration")}`;
 		line += details.converged ? "  converged" : "  NOT converged";
 	}
 	if (details.wallMs > 0 && snapshot.usage.busyMs > details.wallMs) {

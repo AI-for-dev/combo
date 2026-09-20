@@ -217,7 +217,7 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 
 	return {
 		...voice.result,
-		output: joinOutputs(reported.map((one) => ({ ...one.result, agent: one.id }))),
+		output: membersOutput(reported),
 		steps: pool.trail.steps,
 		members: reported,
 		posts: board.all(),
@@ -230,6 +230,16 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 		// too. The error is the voice's own, carried by the spread above.
 		ok: reported.every((one) => one.result.ok),
 	};
+}
+
+/**
+ * What every member last said, under the name it posted under.
+ *
+ * The id and not the agent, because three copies of one agent share the name
+ * and a reader finds a member on the board by its id.
+ */
+export function membersOutput(members: readonly SwarmMember[]): string {
+	return joinOutputs(members.map((one) => ({ ...one.result, agent: one.id })));
 }
 
 /** A member, while the swarm runs: who it is, where it has read to, what it last said. */

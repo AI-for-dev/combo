@@ -461,7 +461,7 @@ describe("auditPrompt", () => {
 		});
 
 		assert.match(prompt, /coder \(reviewed and approved\)/);
-		assert.match(prompt, /scribe \(failed: boom\)/);
+		assert.match(prompt, /scribe \(failed\)\n\nboom/, "the failure is marked where every other report is, its error where the output would be");
 	});
 
 	test("a passing check is put to the auditor as evidence, not as a note", () => {

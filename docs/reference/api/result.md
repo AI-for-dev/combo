@@ -40,6 +40,47 @@ Builds a failed `Result`.
 The `usage` is **kept**: a subagent that crashed after 12k tokens really did
 cost 12k tokens, and they must show up in the total.
 
+## `JoinOptions`
+
+*type*
+
+```typescript
+export type JoinOptions<T extends Result> = {
+	/**
+	 * Number the sections.
+	 *
+	 * Several branches often share an agent name, so the name alone identifies
+	 * nothing; the number is what a reader refers to a branch by.
+	 */
+	numbered?: boolean;
+	/**
+	 * The note beside a heading, in parentheses: `(failed)`, `(reviewed and
+	 * approved)`. Defaults to `failed` on a failure and nothing otherwise.
+	 */
+	note?: (result: T) => string | undefined;
+};
+```
+
+How several results are laid out for whoever reads them - a model, mostly.
+
+## `joinOutputs`
+
+*function*
+
+```typescript
+export function joinOutputs<T extends Result>(results: readonly T[], options: JoinOptions<T> = {}): string { /* … */ }
+```
+
+Several outputs read as one text: each under a heading naming its agent, an
+empty output said to be empty, a failure marked as such with its error where
+the output would be.
+
+A failed branch keeps its section rather than vanishing: a synthesis, a
+report or a next step reading six sections when eight ran would take the
+silence for completeness. This was written six times, with four heading
+grammars and three spellings of "nothing"; whoever compared a tool's answer
+with a pipeline's read two conventions for one fact.
+
 ## `Result`
 
 *type*

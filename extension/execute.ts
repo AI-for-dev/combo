@@ -20,9 +20,11 @@ import {
 	delegateTool,
 	fanOut,
 	findAgent,
+	joinOutputs,
 	loadAgents as loadAgentsFromDisk,
 	loop,
 	orchestrate,
+	plural,
 	reduce,
 	route,
 	progressLine,
@@ -242,11 +244,9 @@ async function perform(mode: Mode, params: Params, agents: Agent[], shared: Work
 export function textForModel(results: Result[], converged?: boolean, iterations?: number): string {
 	if (results.length === 0) return "(no subagent ran)";
 
-	const parts = results.map((result) =>
-		result.ok ? `## ${result.agent}\n${result.output}` : `## ${result.agent} (failed)\n${result.error ?? "unknown error"}`,
-	);
+	const parts = [joinOutputs(results)];
 	if (converged !== undefined) {
-		parts.push(converged ? `\n(converged after ${iterations} iteration(s))` : `\n(did NOT converge after ${iterations} iteration(s))`);
+		parts.push(`\n(${converged ? "converged" : "did NOT converge"} after ${plural(iterations ?? 0, "iteration")})`);
 	}
 	return parts.join("\n\n");
 }

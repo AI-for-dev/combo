@@ -1,5 +1,6 @@
 /**
- * Reading what a model wrote: shortening it, and finding the structure in it.
+ * Reading what a model wrote, and cutting what it is handed: shortening text,
+ * and finding the structure in it.
  *
  * One concept, not a grab-bag: every function here takes free-form assistant
  * text and makes something reliable out of it. They were each written three to
@@ -32,6 +33,28 @@ export function plural(count: number, word: string): string {
 export function truncate(text: string, max: number): string {
 	const flat = text.replace(/\s+/g, " ").trim();
 	return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
+}
+
+/**
+ * The first `max` characters, marked when something was cut.
+ *
+ * For what goes into a prompt: the start of a diff says more than its end, and
+ * an agent handed half a megabyte writes a worse message than one handed the
+ * first pages and told they were cut. `what` names the thing in the marker.
+ */
+export function head(text: string, max: number, what = "text"): string {
+	return text.length > max ? `${text.slice(0, max)}\n\n[${what} truncated at ${max} bytes]` : text;
+}
+
+/**
+ * The last `max` characters, marked when something was cut.
+ *
+ * For a check's output: the failure is at the end, after everything that
+ * passed, and the end is what a reader needs.
+ */
+export function tail(text: string, max: number): string {
+	const trimmed = text.trim();
+	return trimmed.length <= max ? trimmed : `[…${trimmed.length - max} bytes cut]\n${trimmed.slice(-max)}`;
 }
 
 /** The first line, or `""`. What a collapsed row shows of a command. */
