@@ -16,12 +16,9 @@ whole reason this file exists rather than the board being handed round: a
 `from` a model can write is a `from` a model can borrow, and a medium where
 anybody can post as anybody is not a record of anything.
 
-Every half goes onto the event bus, so a reporter sees the traffic as it
-happens and `record.ts` writes it down beside everything else. **Reading is
-announced as well as posting**, and that is not symmetry for its own sake:
-the posts say who said what, and an investigation of a run asks who *knew*
-what. Knowing comes from being handed something, so being handed something is
-an event.
+The tool announces nothing itself. The board and the claims it is handed do
+that, whoever acts on them - see `announced.ts` - so what a member did through
+this tool and what the workflow did for it land in the same record.
 
 When the caller gives it a {@link Claims}, the tool also grants and returns
 things. That is a different act from posting a `claim`: a post announces into
@@ -72,8 +69,6 @@ export type BoardToolOptions = {
 	 * cannot reach a closure.
 	 */
 	from: string;
-	/** Where a `post` event goes. Absent, the board still works and nobody watches. */
-	bus?: EventBus;
 	/**
 	 * What there is to take, when anything is.
 	 *
@@ -85,7 +80,7 @@ export type BoardToolOptions = {
 };
 ```
 
-Which board, on whose behalf, and where the traffic is announced.
+Which board, on whose behalf.
 
 ## `declaresBoard`
 

@@ -11,12 +11,9 @@
  * `from` a model can write is a `from` a model can borrow, and a medium where
  * anybody can post as anybody is not a record of anything.
  *
- * Every half goes onto the event bus, so a reporter sees the traffic as it
- * happens and `record.ts` writes it down beside everything else. **Reading is
- * announced as well as posting**, and that is not symmetry for its own sake:
- * the posts say who said what, and an investigation of a run asks who *knew*
- * what. Knowing comes from being handed something, so being handed something is
- * an event.
+ * The tool announces nothing itself. The board and the claims it is handed do
+ * that, whoever acts on them - see `announced.ts` - so what a member did through
+ * this tool and what the workflow did for it land in the same record.
  *
  * When the caller gives it a {@link Claims}, the tool also grants and returns
  * things. That is a different act from posting a `claim`: a post announces into
@@ -28,7 +25,6 @@
 import { Type } from "typebox";
 import { boardLines, type Board, type PostKind } from "./board.ts";
 import type { Claims } from "./claims.ts";
-import type { EventBus } from "./events.ts";
 import { defineTool, type ToolDefinition } from "./session.ts";
 
 /** The name an agent writes in its `tools:` to be allowed on the board. */
@@ -42,12 +38,11 @@ const KINDS: readonly PostKind[] = ["ask", "tell", "result", "claim", "release",
  *
  * A board holds hundreds and a member's context holds one conversation. Handing
  * over everything at once would spend on old traffic the room the work needs,
- * so a read is a page and the member is told when more is waiting. The cursor
- * only moves past what was actually given.
+ * so a read is a page and the member is told when more is waiting.
  */
 const PAGE = 25;
 
-/** Which board, on whose behalf, and where the traffic is announced. */
+/** Which board, on whose behalf. */
 export type BoardToolOptions = {
 	/** The one everybody is posting to. Shared; the cursor into it is not. */
 	board: Board;
@@ -59,8 +54,6 @@ export type BoardToolOptions = {
 	 * cannot reach a closure.
 	 */
 	from: string;
-	/** Where a `post` event goes. Absent, the board still works and nobody watches. */
-	bus?: EventBus;
 	/**
 	 * What there is to take, when anything is.
 	 *
@@ -87,7 +80,7 @@ export function declaresBoard(tools: readonly string[] | undefined): boolean {
  * member whose call vanished tries again.
  */
 export function boardTool(options: BoardToolOptions): ToolDefinition {
-	const { board, from, bus, claims } = options;
+	const { board, from, claims } = options;
 	// This member's place in the log, kept here because it is nobody else's
 	// business: two members read at their own pace and neither waits for the
 	// other.
@@ -133,10 +126,7 @@ export function boardTool(options: BoardToolOptions): ToolDefinition {
 			}
 
 			const outcome = board.post(from, { kind: kind as PostKind, text, ...(params.to ? { to: params.to.trim() } : {}) });
-			if (!outcome.ok) return refuse(outcome.error);
-
-			bus?.emit({ type: "post", id: from, post: outcome.post });
-			return said(`Posted as ${outcome.post.id}.`);
+			return outcome.ok ? said(`Posted as ${outcome.post.id}.`) : refuse(outcome.error);
 		},
 	});
 
@@ -152,16 +142,12 @@ export function boardTool(options: BoardToolOptions): ToolDefinition {
 		if (!key) return refuse("Name what you are taking: give `key`.");
 
 		if (action === "release") {
-			// Who does hold it, before the refusal loses the fact: a record that
-			// says only "refused" cannot tell "not yours" from "no such thing".
 			const holder = claims.owner(key);
 			const gone = claims.release(from, key);
-			bus?.emit({ type: "claim", id: from, key, action, ok: gone, ...(gone || !holder ? {} : { heldBy: holder }) });
 			return gone ? said(`Gave up ${key}.`) : refuse(`You are not holding \`${key}\`${holder ? ` - ${holder} is` : ""}.`);
 		}
 
 		const outcome = claims.take(from, key);
-		bus?.emit({ type: "claim", id: from, key, action, ok: outcome.ok, ...(outcome.ok ? {} : { heldBy: outcome.heldBy }) });
 		if (outcome.ok) return said(`${key} is yours. Release it when you are done.`);
 		return refuse(`${outcome.error}${remaining()}`);
 	}
@@ -175,20 +161,10 @@ export function boardTool(options: BoardToolOptions): ToolDefinition {
 
 	/** What is new for this member, a page at a time. */
 	function read(): string {
-		const reading = board.since(from, cursor);
-		const page = reading.posts.slice(0, PAGE);
-		const waiting = reading.posts.length - page.length;
-
-		// Past what was handed over, never past what was merely looked at: a post
-		// left for the next page must still be there when the member asks again.
-		cursor = page.at(-1)?.id ?? reading.cursor;
-
-		// Every read, the empty ones included: "it looked and there was nothing"
-		// is the only thing that settles what a member could not have known.
-		bus?.emit({ type: "read", id: from, posts: page.map((one) => one.id), waiting });
-
-		if (page.length === 0) return "Nothing new on the board.";
-		return waiting > 0 ? `${boardLines(page)}\n\n(${waiting} more waiting - read again.)` : boardLines(page);
+		const { posts, waiting, cursor: next } = board.since(from, cursor, PAGE);
+		cursor = next;
+		if (posts.length === 0) return "Nothing new on the board.";
+		return waiting > 0 ? `${boardLines(posts)}\n\n(${waiting} more waiting - read again.)` : boardLines(posts);
 	}
 }
 

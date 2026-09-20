@@ -2061,6 +2061,35 @@ being handed something, so being handed something is an event: `read` carries
 the ids delivered and how many were left waiting. The empty read is recorded
 too, being the only thing that settles what a member could not have known.
 
+### The medium announces, whoever acts on it
+
+The tool announced. A member's post, its read and its take went onto the bus
+from `board-tool.ts`, and the decision above said reading was announced as
+loudly as posting. The swarm, meanwhile, read the board itself at the top of
+every round to hand each member what it had not seen, and took back what a
+member that had stopped was holding, and neither act was on the bus: the
+handout that fed every round was in nobody's record, and the console, the board
+pane and `events.jsonl` showed the half of the traffic that went through a
+tool. The code was behind the decision, not against it.
+
+`src/announced.ts` wraps the medium: `announcedBoard` and `announcedClaims`
+return the same `Board` and the same `Claims` with every act on the bus - an
+accepted post, every read with the ids it handed and how many it left waiting,
+every grant and refusal, and one release per key for a member that is gone. The
+swarm wraps what it was given or what it made, once, and hands the wrapped
+medium to the tool and to itself. The tool announces nothing any more.
+
+Wrapped at the swarm rather than built in: a caller hands the swarm a board to
+read afterwards, and `/swarm --claim` builds its claims with no bus in reach.
+A bus baked into `createBoard` would have left both silent. `board.ts` and
+`claims.ts` stay the pure data their headers promise.
+
+Paging moved into the board with it. `since(reader, cursor, limit)` hands back
+a page, says how many wait, and moves the cursor past what it handed and never
+past what it merely looked at - which the tool used to do on its own after the
+fact. A `read` event has to say what was handed over, and only the one that
+decides the page can say it.
+
 ## A claim is granted, never announced
 
 A board lets a member say what it is taking, and that turned out not to be
