@@ -14,10 +14,12 @@ import {
 	chainLines,
 	chainUsage,
 	currentChain,
+	entryOf,
 	forgetChain,
 	recordStep,
 	startChain,
 	stepAnswer,
+	stepDir,
 	stepFrom,
 	stepId,
 	type Relay,
@@ -29,6 +31,7 @@ function chainOf(...steps: { name: string; output?: string; instruction?: string
 	const relay = startChain("runs/2026-01-01_00-00-00");
 	for (const step of steps) {
 		recordStep(relay, {
+			id: stepId(relay, step.name),
 			name: step.name,
 			kind: "agent",
 			instruction: step.instruction ?? `do ${step.name}`,
@@ -65,6 +68,31 @@ describe("step ids", () => {
 	test("the ids stay unique however many times the same agent runs", () => {
 		const relay = chainOf({ name: "coder" }, { name: "coder" }, { name: "coder" });
 		assert.deepEqual(relay.steps.map((step) => step.id), ["coder", "coder-2", "coder-3"]);
+	});
+
+	test("recording a second step under an id the chain holds is a programming error", () => {
+		const relay = chainOf({ name: "coder" });
+		const again = { ...(relay.steps[0] as RelayStep) };
+		assert.throws(() => recordStep(relay, again), /already in this chain/);
+		assert.equal(relay.steps.length, 1);
+	});
+});
+
+describe("where a step exports", () => {
+	test("a numbered subfolder of the chain, named after the id, so the folder and the entry agree", () => {
+		const relay = chainOf({ name: "coder" });
+		assert.equal(stepDir(relay, "coder-2"), "runs/2026-01-01_00-00-00/2-coder-2");
+		assert.equal(stepDir(startChain("runs/y"), "member#1"), "runs/y/1-member-1", "an id is made safe for a path");
+	});
+});
+
+describe("the entry a step leaves", () => {
+	test("says what the transcript shows, and carries less than the chain does", () => {
+		const relay = chainOf({ name: "look" }, { name: "plan", turns: 2 });
+		const plan = { ...(relay.steps[1] as RelayStep), from: "look" };
+
+		assert.deepEqual(entryOf(plan), { id: "plan", kind: "agent", from: "look", output: "plan said something", turns: 2, dir: "runs/x/plan" });
+		assert.ok(!("instruction" in entryOf(plan)), "what a step was asked stays in the chain, not in the session file");
 	});
 });
 

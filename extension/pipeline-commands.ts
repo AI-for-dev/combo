@@ -17,36 +17,20 @@
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { checkPipelineAgents, plural, type PipelineCatalogue, type PipelineRunResult } from "../src/index.ts";
 import { checked, choosePipeline, loadRoster, pipelineVerifier, refuse, watched, type CommandCtx } from "./command.ts";
-import { resolved, type CommandDeps } from "./deps.ts";
+import { resolved, type PipelineDeps, type SendMessage } from "./deps.ts";
 import { parseLeadingFlags, switchValue } from "./flags.ts";
 
 /**
  * `customType` of the message a finished pipeline leaves in the session.
  *
- * A **custom** message, and not for want of trying: pi's extension API offers
- * exactly three doors into a conversation - `sendMessage` (custom, in the
- * model's context), `sendUserMessage` (a user message, and it always triggers a
- * turn) and `appendEntry` (drawn, but invisible to the model). There is no
- * assistant-message injection. A custom message is the only one that lands the
- * answer in context without launching a turn nobody asked for.
- *
- * pi converts it to the **user** role on the way to the model
- * (`convertToLlm`, `role: "custom"` → `role: "user"`), so the content carries a
- * header naming the pipeline: read as something the user typed, an unattributed
- * report is confusing; read as a quoted result, it is exactly right.
+ * A custom message rather than a user one - see {@link SendMessage} for the
+ * three doors pi offers and why this is the only one that fits. pi converts it
+ * to the **user** role on the way to the model (`convertToLlm`,
+ * `role: "custom"` → `role: "user"`), so the content carries a header naming
+ * the pipeline: read as something the user typed, an unattributed report is
+ * confusing; read as a quoted result, it is exactly right.
  */
 export const PIPELINE_MESSAGE = "pipeline-result";
-
-/** How a finished run reaches the conversation. Injected, so a test can catch it. */
-export type SendMessage = (message: {
-	customType: string;
-	content: string;
-	display: boolean;
-	details?: unknown;
-}) => void;
-
-/** {@link CommandDeps}, plus the one thing only these commands do. */
-export type PipelineDeps = CommandDeps & { sendMessage?: SendMessage };
 
 /** Registers `/pipelines` and `/run`. */
 export default function registerPipelineCommands(pi: ExtensionAPI) {

@@ -1534,6 +1534,27 @@ cleared whatever happened, `usage.json` lands in the folder given - and the two
 commands that each proved the widget goes when the run ends lost those tests.
 Their own tests say what each command decides.
 
+### The relay owns the entry a step leaves
+
+`/step` and `/swarm` both end a stage the same way: a numbered subfolder of the
+chain for the transcripts, the step recorded in the relay, an entry appended to
+the transcript. Each had written the folder name and the entry by hand, and
+`/swarm` imported `STEP_ENTRY` and its type from `/step`'s file to do it - one
+command depending on another to know what a step of the chain looks like in the
+session. The two folders were also named differently: `/step` after the id,
+`/swarm` after the agent, so a second swarm of the same member got a folder that
+did not say which step it was.
+
+Both now belong to `relay.ts`, which already owned the chain: `stepDir(relay,
+id)` names the folder, `STEP_ENTRY` and `entryOf(step)` say what the transcript
+gets, and `recordStep` takes the id the step ran under rather than minting one
+afterwards, so the folder and the entry cannot disagree. The doors a command has
+into the session - `SendMessage`, `AppendEntry`, and the `PipelineDeps` and
+`StepDeps` that carry them - are in `deps.ts` with everything else a command
+reaches for. What one command file still imports from another is the design
+and not a leftover: `/build` opens with `/interview`'s function, and `/quote`
+sends the message `/run` sends.
+
 ## Asking the user, and touching the world
 
 Two ports, one rule: **the agents produce text, our code performs the act.**

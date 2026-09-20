@@ -19,14 +19,12 @@
  * nobody asked for, and it is long.
  */
 
-import * as path from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import {
 	agreed,
 	boardLines,
 	createClaims,
 	declaresBoard,
-	exportBaseName,
 	findAgent,
 	plural,
 	type Board,
@@ -35,10 +33,9 @@ import {
 	VOTE_INSTRUCTION,
 } from "../src/index.ts";
 import { checked, loadRoster, refuse, watched, type CommandCtx } from "./command.ts";
-import { resolved } from "./deps.ts";
+import { resolved, type StepDeps } from "./deps.ts";
 import { parseLeadingFlags } from "./flags.ts";
-import { currentChain, recordStep, startChain, type RelayStep } from "./relay.ts";
-import { STEP_ENTRY, type StepDeps } from "./step-commands.ts";
+import { currentChain, entryOf, recordStep, startChain, STEP_ENTRY, stepDir, stepId, type RelayStep } from "./relay.ts";
 
 /** The agent a swarm is made of when the command is not told otherwise. */
 export const DEFAULT_MEMBER = "member";
@@ -117,7 +114,8 @@ export async function runSwarm(args: string, ctx: CommandCtx, injected: StepDeps
 	const keys = keysFrom(flags.claim);
 	const claims = claimsFrom(keys, whole(flags.hold, "hold"));
 	const relay = currentChain() ?? startChain(deps.runDir());
-	const dir = path.join(relay.dir, `${relay.steps.length + 1}-${exportBaseName(member.name)}`);
+	const id = stepId(relay, member.name);
+	const dir = stepDir(relay, id);
 
 	let done: SwarmResult;
 	try {
@@ -159,6 +157,7 @@ export async function runSwarm(args: string, ctx: CommandCtx, injected: StepDeps
 	}
 
 	const step = recordStep(relay, {
+		id,
 		name: member.name,
 		kind: "swarm",
 		instruction: goal,
@@ -166,7 +165,7 @@ export async function runSwarm(args: string, ctx: CommandCtx, injected: StepDeps
 		usage: done.usage,
 		dir,
 	});
-	injected.appendEntry?.(STEP_ENTRY, { id: step.id, kind: step.kind, output: step.output, turns: done.usage.turns, dir });
+	injected.appendEntry?.(STEP_ENTRY, entryOf(step));
 	ctx.ui.notify(swarmLine(step.id, done), done.ok ? "info" : "warning");
 	return step;
 }
