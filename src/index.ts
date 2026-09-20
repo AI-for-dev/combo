@@ -221,6 +221,7 @@ export {
 } from "./git.ts";
 export { scratchWorktree, type Scratch } from "./scratch.ts";
 export { land, landable, type Landed, type Landing } from "./land.ts";
+export { settling, type Settling, type SettleOptions } from "./workflows/settle.ts";
 export {
 	declaresDelegate,
 	delegateTool,
