@@ -867,6 +867,24 @@ reason the decision above gives, and `pair`'s side - one copy for one piece of
 work, released in the `finally`, the path named when it could not be - was
 already the shape a single copy wants. What this settles is the batch.
 
+**Two `git status` on the same tree, kept on purpose.** A review read the
+pre-flight in `settling` and the clean-tree check `land` makes on the first
+landing as one question asked twice, and proposed that `settle` own it once
+and `land` take the answer. They are the same question at two moments. The
+pre-flight answers before any work, so that no subtask is paid for whose patch
+cannot come home; the landing-time check answers on the tree as it stands then,
+minutes later. Nothing of combo's writes into that tree in between - the pairs
+write in copies - but the person whose tree it is may, while `/build` runs,
+and a patch landed onto their edits would make "which patch broke this"
+unanswerable, which is the one question `land` exists to answer. The first
+check is a warning the second can only be anticipated by; removing the second
+would trade the guard for one `git status`. The comment now sits at the call,
+so the next reader does not have to rediscover it.
+
+`settling` keeps returning a `GitResult`. Its refusal is what git said about the
+tree, with both ways out appended; a ninth two-armed outcome type for the same
+fact would be one more shape to learn, not one less.
+
 
 `timeoutMs` has no default in the library, deliberately: it cannot know how long
 a task should take. A command can, and `/interview` has to. The interviewer
