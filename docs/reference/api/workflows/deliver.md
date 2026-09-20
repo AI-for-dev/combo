@@ -126,7 +126,7 @@ The cast of a delivery, and every cap that keeps it affordable.
 *type*
 
 ```typescript
-export type DeliverResult = {
+export type DeliverResult = WorkflowResult & {
 	/** The specification the delivery worked from, as given. */
 	brief: string;
 	/** The subtasks, after validation against the roster. */
@@ -161,13 +161,13 @@ export type DeliverResult = {
 	 * auditor nor a check - there was no bar.
 	 */
 	approved: boolean;
-	/** Aggregate over planning, every pair, the audits and the fixes. */
-	usage: Usage;
-	/** Every turn ran without a model error. Says nothing about quality - read `approved`. */
-	ok: boolean;
-	/** Set if and only if `ok` is false. */
-	error?: string;
 };
 ```
 
 Everything a delivery produced, and the two words that say whether it counts.
+
+As a `Result`: the planner's turn, with every subtask's output labelled
+where its own would be. `steps` is what the delivery paid for - the planning,
+every subtask as a pair's result, every audit's review - and `usage` is their
+sum over the run, fixes included since the audit puts them among the tasks.
+`ok` says every turn ran and nothing about quality: read `approved`.

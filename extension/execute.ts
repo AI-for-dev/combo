@@ -236,8 +236,9 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 				});
 				// The plan is what a reader wants to see: who was asked what.
 				decision = outcome.plan.map((step) => `${step.agent.name}: ${step.task}`).join("; ");
-				results = outcome.answer ? [outcome.answer] : outcome.results;
-				if (!outcome.ok && results.length === 0) results = [outcome.planning];
+				// The synthesis alone when there is one, every subtask otherwise,
+				// and the orchestration's own word when nothing ran.
+				results = outcome.answer ? [outcome.answer] : outcome.results.length > 0 ? outcome.results : [outcome];
 				break;
 			}
 			case "reduce": {

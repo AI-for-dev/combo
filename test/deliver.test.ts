@@ -69,6 +69,15 @@ describe("deliver", () => {
 		);
 	});
 
+	test("read as one Result: the planner's turn, over every subtask's report", async () => {
+		const result = await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: cast().spawn, worktree: false });
+
+		assert.equal(result.agent, "planner");
+		assert.match(result.output, /## coder\n\ncoder did:/);
+		assert.match(result.output, /## scribe\n\nscribe did:/);
+		assert.equal(result.steps.length, 4, "the planning, two subtasks, one audit");
+	});
+
 	test("the auditor is given the names it may hand a fix to", async () => {
 		const fake = cast();
 		await deliver({ planner, workers, reviewer, auditor, brief: "x", spawn: fake.spawn,

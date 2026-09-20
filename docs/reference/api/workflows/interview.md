@@ -88,25 +88,21 @@ Who asks, what about, how it reaches the user, and when it must stop.
 *type*
 
 ```typescript
-export type InterviewResult = {
-	/** The consolidated specification. This is what the rest of the pipeline reads. */
+export type InterviewResult = WorkflowResult & {
+	/** The consolidated specification - `output`, under the name the rest of the pipeline reads. */
 	brief: string;
 	/** Everything the user answered, in order. */
 	answers: Answer[];
-	/** Every turn of the agent, for whoever wants the detail. */
-	steps: Result[];
 	/** True when the user submitted before the agent said it was done. */
 	submitted: boolean;
-	/** Aggregate over every turn of the interviewer, the brief included. */
-	usage: Usage;
-	/** Every turn ran without a model error. A short brief can still be `true`. */
-	ok: boolean;
-	/** Set if and only if `ok` is false. */
-	error?: string;
 };
 ```
 
 The brief, and everything that led to it.
+
+As a `Result`: the interviewer's last turn, whose `output` is the brief.
+`usage` covers every turn, the brief included; `ok` says every turn ran, and
+a short brief can still be `true`.
 
 ## `parseQuestion`
 

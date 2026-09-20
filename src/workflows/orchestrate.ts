@@ -7,8 +7,7 @@
  */
 
 import type { Agent } from "./../agent.ts";
-import type { Result } from "./../result.ts";
-import type { Usage } from "./../usage.ts";
+import { joinOutputs, type Result, type WorkflowResult } from "./../result.ts";
 import { fanOut } from "./fan-out.ts";
 import { makePlan, type PlannedTask, type PlanOptions } from "./plan.ts";
 import { reduce } from "./reduce.ts";
@@ -22,8 +21,16 @@ export type OrchestrateOptions = PlanOptions & {
 	reduceWith?: Agent;
 };
 
-/** The plan, what it produced, and optionally the one answer it was folded into. */
-export type OrchestrateResult = {
+/**
+ * The plan, what it produced, and optionally the one answer it was folded into.
+ *
+ * As a `Result`: the synthesis when `reduceWith` was given, otherwise the
+ * planner's turn with the subtasks' outputs, labelled, where its own would be.
+ * `usage` covers planning, subtasks and synthesis over the whole run; `ok` is
+ * false when the planning failed, produced nothing runnable, or a subtask
+ * failed. `steps` is the planner's turn, every subtask, then the synthesis.
+ */
+export type OrchestrateResult = WorkflowResult & {
 	/** What the planner asked for, after validation. Empty when planning failed. */
 	plan: PlannedTask[];
 	/** The planner's own turn. Kept whatever happened next. */
@@ -32,12 +39,6 @@ export type OrchestrateResult = {
 	results: Result[];
 	/** The synthesis, present only when `reduceWith` was given. */
 	answer?: Result;
-	/** Aggregate over planning, subtasks and synthesis. `wallMs` is the whole run. */
-	usage: Usage;
-	/** False when the planning failed or produced nothing runnable. */
-	ok: boolean;
-	/** Set if and only if `ok` is false. */
-	error?: string;
 };
 
 /**
@@ -59,11 +60,16 @@ export async function orchestrate(options: OrchestrateOptions): Promise<Orchestr
 
 	const done = (planning: Result, plan: PlannedTask[], results: Result[], answer?: Result, error?: string): OrchestrateResult => {
 		const broken = trail.broken();
+		// The synthesis speaks for the whole when there is one; the planner does
+		// otherwise, over what its plan produced.
+		const voice = answer ?? { ...planning, output: joinOutputs(results) };
 		return {
+			...voice,
 			plan,
 			planning,
 			results,
 			answer,
+			steps: trail.steps,
 			usage: trail.usage(),
 			ok: !error && !broken,
 			error: error ?? broken?.error,

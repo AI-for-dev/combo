@@ -143,7 +143,8 @@ How the auditor is asked to answer, and what it still owes.
 *type*
 
 ```typescript
-export type AuditResult = AuditProgress & {
+export type AuditResult = WorkflowResult &
+	AuditProgress & {
 	/**
 	 * Whether the last round signed off with nothing owed and no failing check
 	 * standing. Reaching the cap is not approval, and neither is a yes over a
@@ -154,6 +155,11 @@ export type AuditResult = AuditProgress & {
 ```
 
 The cycle, ended: signed off, or not.
+
+As a `Result`: the last review, or the auditor with nothing said when no
+round ran. `steps` is every review, the rounds a previous run recorded
+first, and `usage` their sum over this cycle - the fixes are the caller's
+pairs, and counted where the caller keeps them.
 
 ## `AuditRound`
 
