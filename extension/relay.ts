@@ -7,9 +7,11 @@
  * on. What was missing for that is exactly one thing - somewhere to keep the
  * output of step *n* so step *n+1* can be handed it. That is this file.
  *
- * It keeps the material, and nothing else: no spawning, no pi, no terminal. The
- * commands in `step-commands.ts` do those. The split is what lets the whole
- * dataflow of a hand-walked chain be asserted on without a session.
+ * It keeps the material, and owns the life of a step around it - begun before
+ * anything runs, finished once it has - and nothing else: no spawning, no pi,
+ * no terminal. The commands in `step-commands.ts` and `swarm-command.ts` do
+ * those. The split is what lets the whole dataflow of a hand-walked chain be
+ * asserted on without a session.
  *
  * **The carried output never reaches the main session's context.** That is the
  * point of the relay rather than the conversation: the window stays a console,
@@ -18,6 +20,7 @@
 
 import * as path from "node:path";
 import { exportBaseName, plural, stepInput, sumUsage, truncate, type Usage } from "../src/index.ts";
+import type { AppendEntry } from "./deps.ts";
 
 /** One step that ran: what it was asked, and what came back. */
 export type RelayStep = {
@@ -111,6 +114,45 @@ export function stepId(relay: Relay, name: string): string {
  */
 export function stepDir(relay: Relay, id: string): string {
 	return path.join(relay.dir, `${relay.steps.length + 1}-${exportBaseName(id)}`);
+}
+
+/** A step begun: the chain it runs in, the id it runs under, and where it exports. */
+export type BegunStep = {
+	relay: Relay;
+	id: string;
+	dir: string;
+};
+
+/**
+ * Begins a step of the chain in this terminal.
+ *
+ * Continues the chain being walked, or starts one in a fresh folder, and names
+ * the step and its export folder **before** anything runs, so the folder, the
+ * record and the entry carry one name whatever happens in between.
+ */
+export function beginStep(name: string, runDir: () => string): BegunStep {
+	const relay = currentChain() ?? startChain(runDir());
+	const id = stepId(relay, name);
+	return { relay, id, dir: stepDir(relay, id) };
+}
+
+/** What a finished step brings to the chain: everything it keeps but what {@link beginStep} named. */
+export type StepOutcome = Omit<RelayStep, "id" | "dir">;
+
+/**
+ * Finishes a step: records it under the id it began with, and leaves its entry
+ * in the transcript through the door it is handed.
+ *
+ * One call, because the two acts belong together. A step recorded and never
+ * drawn is invisible to the person walking the chain; one drawn and never
+ * recorded cannot be carried on. Two commands ended a stage by hand in eight
+ * steps each, reading the door off their raw dependencies where a forgotten
+ * one failed in silence.
+ */
+export function finishStep(begun: BegunStep, outcome: StepOutcome, appendEntry: AppendEntry): RelayStep {
+	const step = recordStep(begun.relay, { ...outcome, id: begun.id, dir: begun.dir });
+	appendEntry(STEP_ENTRY, entryOf(step));
+	return step;
 }
 
 /** `customType` of the transcript entry a finished step leaves behind. */
@@ -215,14 +257,20 @@ export function chainLines(relay: Relay | undefined): string[] {
 }
 
 /**
- * A step, framed for the conversation - what `/quote` sends.
+ * A result, framed for the conversation.
  *
  * pi hands custom messages to the model as **user** messages, and an
- * unattributed report arriving in that slot reads as an instruction. Naming the
- * step and what it was asked turns it back into what it is: a result somebody
- * chose to show.
+ * unattributed report arriving in that slot reads as an instruction. Naming
+ * what ran and what it was asked turns it back into what it is: a result
+ * somebody chose to show. One framing for a step `/quote` sends and a pipeline
+ * `/run` sends, so the two read alike.
  */
+export function framed(what: string, asked: string, output: string): string {
+	const about = asked.trim() ? `, asked to: ${asked.trim()}` : "";
+	return `Result of ${what}${about}.\n\n${output.trim()}`;
+}
+
+/** A step, framed for the conversation - what `/quote` sends. */
 export function stepAnswer(step: RelayStep): string {
-	const asked = step.instruction.trim() ? `, asked to: ${step.instruction.trim()}` : "";
-	return `Result of the \`${step.id}\` step of the chain${asked}.\n\n${step.output.trim()}`;
+	return framed(`the \`${step.id}\` step of the chain`, step.instruction, step.output);
 }

@@ -81,11 +81,19 @@ export type SendMessage = (message: {
 /** How a finished step reaches the transcript, and only the transcript. Injected, so a test can catch it. */
 export type AppendEntry = (customType: string, data: StepEntry) => void;
 
-/** {@link CommandDeps}, plus the door into the conversation that `/run` and `/quote` use. */
-export type PipelineDeps = CommandDeps & { sendMessage?: SendMessage };
+/**
+ * {@link CommandDeps}, plus the door into the conversation that `/run` and
+ * `/quote` use.
+ *
+ * The door is required, and nothing defaults it: a door that quietly did
+ * nothing would be the failure this type exists to prevent - an answer
+ * produced and never shown. pi's is bound in `sessionDoors`; a test hands a
+ * recorder.
+ */
+export type PipelineDeps = CommandDeps & { sendMessage: SendMessage };
 
-/** {@link PipelineDeps}, plus the door into the transcript that `/step` and `/swarm` use. */
-export type StepDeps = PipelineDeps & { appendEntry?: AppendEntry };
+/** {@link PipelineDeps}, plus the door into the transcript that `/step` and `/swarm` use. Required, for the same reason. */
+export type StepDeps = PipelineDeps & { appendEntry: AppendEntry };
 
 /** The git a command performs its acts through. */
 export type Git = {

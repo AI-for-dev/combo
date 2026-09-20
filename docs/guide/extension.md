@@ -189,8 +189,9 @@ spawned, a thrown explanation becoming a refusal; and `watched()`, the live view
 for as long as the work runs, with the `finally` that takes it down and writes
 `usage.json` whatever happened. `/build`, `/run`, `/step`, `/swarm` and
 `/interview` each write their flags, their target and their call, and nothing
-of that shape. A step of a hand-walked chain is `extension/relay.ts`'s to name
-and to record, whether `/step` or `/swarm` ran it. What one command file still
+of that shape. A step of a hand-walked chain is `extension/relay.ts`'s to begin
+and to finish - named before it runs, recorded and drawn in one call after -
+whether `/step` or `/swarm` ran it. What one command file still
 takes from another is the design: `/build` opens with `/interview`'s function,
 and `/quote` sends the message `/run` sends.
 

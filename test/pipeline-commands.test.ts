@@ -49,9 +49,10 @@ Answer.
 	".pi/pipelines/explore.md",
 );
 
-function deps(over: PipelineDeps = {}): PipelineDeps {
+function deps(over: Partial<PipelineDeps> = {}): PipelineDeps {
 	return {
 		...baseDeps(agents, [explore]),
+		sendMessage: () => undefined,
 		runPipeline: (async () => ({
 			pipeline: "explore",
 			steps: [{ id: "look", kind: "fanOut" as const, result: {} as never }],
