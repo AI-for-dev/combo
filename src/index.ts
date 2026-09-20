@@ -36,7 +36,7 @@ export { run, type RunOptions } from "./run.ts";
 export { spawn, type AskOptions, type CustomToolsFor, type SpawnOptions, type Subagent } from "./subagent.ts";
 export { stopSwitch, type StopSwitch, type StopSwitchOptions } from "./stop.ts";
 export { abortError, failed, type Result, type WorkflowResult } from "./result.ts";
-export { compact, deltaUsage, emptyUsage, formatUsage, snapshotUsage, sumUsage, type Usage } from "./usage.ts";
+export { accumulate, compact, deltaUsage, emptyUsage, formatUsage, snapshotUsage, sumUsage, type Usage } from "./usage.ts";
 
 // ── The combinators, and the options every one of them shares ────────────────
 
@@ -150,6 +150,7 @@ export {
 	type SessionExport,
 	type UsageReport,
 	type UsageReportEntry,
+	type UsageTotal,
 } from "./export.ts";
 export {
 	experiment,

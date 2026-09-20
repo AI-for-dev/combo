@@ -1012,6 +1012,27 @@ Rules:
 - **Never** estimate tokens by counting characters. If the provider does not
   report them, the field is `0` and we say so.
 
+### Usage does its own arithmetic
+
+`sumUsage` existed, and four places did not use it. The subagent's cumulative
+usage added a turn field by field; `usage.json` flattened its total into a
+record by naming the fields, leaving two out; the experiment report summed
+those records key by key and turned them back into a `Usage` by naming the
+fields again; and the hand-walked chain summed its steps in a `reduce` of its
+own. A tenth field on `Usage` would have needed six edits and would have
+vanished from the experiment table without a test saying so, and the clamp at
+zero lived in `deltaUsage` alone.
+
+The arithmetic is `usage.ts`'s: `deltaUsage` for a turn, `accumulate` for a
+subagent's life - the one rule `sumUsage` does not have, that a context is a
+level replaced by the latest reading rather than a counter summed - and
+`sumUsage` for several subagents. Nothing outside the file names the field
+list. `usage.json`'s total is a `Usage` with the subagent count beside it, and
+its `wallMs` is the run's; the experiment summary is a `sumUsage` over the
+cells with their wall times added, because they ran one after another, and its
+own `wallMs` field went into the total rather than standing beside it as a
+second copy. `asUsage` is gone with the record it read back.
+
 ## Session export
 
 Two formats, two uses, both provided by pi (`AgentSession`):

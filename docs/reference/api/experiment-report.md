@@ -33,10 +33,8 @@ export type ExperimentModelSummary = {
 	failed: number;
 	/** Per outcome flag, how many cells reported each value. `ok` and `error` excluded. */
 	flags: Record<string, Record<string, number>>;
-	/** Summed wall time over the cells. The mean is a display derivative. */
-	wallMs: number;
-	/** Summed usage over the cells, key by key. */
-	total: Record<string, number>;
+	/** Summed usage over the cells. Its `wallMs` is the cells' summed wall time; a mean is a display derivative. */
+	total: Usage;
 };
 ```
 
@@ -102,7 +100,7 @@ export type ExperimentRun = {
 	/** Wall time of this cell alone, measured around the callback. */
 	wallMs: number;
 	/** The cell's `usage.json` total - what the whole workflow spent. */
-	usage: Record<string, number>;
+	usage: UsageTotal;
 };
 ```
 

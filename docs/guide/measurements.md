@@ -73,7 +73,20 @@ formatUsage(result.usage);
 // 3 turns 12.4s ↑12k ↓2.1k R8k $0.0412 ctx:34k
 ```
 
-`sumUsage` folds several together, which is how a workflow reports its total.
+Three functions do the arithmetic, and nothing else does:
+
+- `deltaUsage(before, after)` is one turn, the difference between two cumulative
+  snapshots, clamped at zero.
+- `accumulate(total, turn)` is a subagent's life so far: counters and busy time
+  add up, its own `wallMs` stands, and the context is the turn's reading rather
+  than a sum.
+- `sumUsage(parts, wallMs)` is several subagents together, which is how a
+  workflow reports its total; the wall time comes from outside because a
+  fan-out's is not the sum of its branches.
+
+`usage.json` writes a `Usage` per subagent and one for the whole run, with the
+subagent count beside it, so what the file holds is the type above and nothing
+hand-picked from it.
 
 ## A delegated run is a tree
 

@@ -18,7 +18,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`events`](events.md) | The event stream: one core, many reporters. | 6 |
 | [`experiment-report`](experiment-report.md) | What an experiment leaves behind: one JSON document, one comparison table. | 6 |
 | [`experiment`](experiment.md) | Running the same work across several models, several times. | 4 |
-| [`export`](export.md) | Exporting a run: `runs/<timestamp>/` with one HTML and one JSONL per subagent, plus a `usage.json`. | 9 |
+| [`export`](export.md) | Exporting a run: `runs/<timestamp>/` with one HTML and one JSONL per subagent, plus a `usage.json`. | 10 |
 | [`git`](git.md) | The git a pipeline is allowed to do - and nothing else. | 11 |
 | [`land`](land.md) | Putting the work of several copies back into one tree. | 4 |
 | [`language`](language.md) | The language a subagent answers in: the one it was asked in. | 4 |
@@ -46,7 +46,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`stop`](stop.md) | The stop switch of a live run: everything at once, or one subagent of it. | 3 |
 | [`subagent`](subagent.md) | A subagent: a live session, a memory, a state. | 5 |
 | [`text`](text.md) | Reading what a model wrote: shortening it, and finding the structure in it. | 3 |
-| [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 7 |
+| [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 8 |
 | [`verdict`](verdict.md) | A verdict given as a tool call, rather than recovered from prose. | 6 |
 | [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 4 |
 | [`workflows/audit`](workflows/audit.md) | The audit: one agent reads the whole of a delivery, and says what is left. | 4 |
