@@ -14,9 +14,9 @@
  * command and it answers that in a second.
  */
 
-import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { checkPipelineAgents, plural, type PipelineCatalogue, type PipelineRunResult } from "../src/index.ts";
-import { checked, choosePipeline, loadRoster, pipelineVerifier, refuse, watched, type CommandCtx } from "./command.ts";
+import { checked, choosePipeline, loadRoster, pipelineVerifier, refuse, watched } from "./command.ts";
+import { sessionDoors, type CommandCtx, type PiApi } from "./pi.ts";
 import { resolved, type PipelineDeps, type SendMessage } from "./deps.ts";
 import { parseLeadingFlags, switchValue } from "./flags.ts";
 
@@ -33,20 +33,20 @@ import { parseLeadingFlags, switchValue } from "./flags.ts";
 export const PIPELINE_MESSAGE = "pipeline-result";
 
 /** Registers `/pipelines` and `/run`. */
-export default function registerPipelineCommands(pi: ExtensionAPI) {
-	const sendMessage: SendMessage = (message) => pi.sendMessage(message);
+export default function registerPipelineCommands(pi: PiApi) {
+	const doors = sessionDoors(pi);
 
 	pi.registerCommand("pipelines", {
 		description: "List the pipelines that are loaded, and where they come from",
-		handler: async (_args: string, ctx: ExtensionCommandContext) => {
-			listPipelines(ctx as unknown as CommandCtx);
+		handler: async (_args, ctx: CommandCtx) => {
+			listPipelines(ctx);
 		},
 	});
 
 	pi.registerCommand("run", {
 		description: "Run a pipeline by name, with no interview and no commit (`--model <pattern>`, `--worktree`)",
-		handler: async (args: string, ctx: ExtensionCommandContext) => {
-			await runNamed(args, ctx as unknown as CommandCtx, { sendMessage });
+		handler: async (args, ctx: CommandCtx) => {
+			await runNamed(args, ctx, doors);
 		},
 	});
 }

@@ -15,7 +15,6 @@ import {
 	getAgentDir,
 	getMarkdownTheme,
 	keyHint,
-	type ExtensionAPI,
 	type Theme,
 } from "@earendil-works/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
@@ -36,6 +35,7 @@ import registerAgentCommands from "./agents-command.ts";
 import registerBuildCommand from "./build.ts";
 import registerHerdrCommand from "./herdr-command.ts";
 import registerInterviewCommand from "./interview-command.ts";
+import { toolDeps, type PiApi } from "./pi.ts";
 import registerPipelineCommands, { PIPELINE_MESSAGE } from "./pipeline-commands.ts";
 import { STEP_ENTRY, type StepEntry } from "./relay.ts";
 import registerStepCommands from "./step-commands.ts";
@@ -101,7 +101,7 @@ const Schema = Type.Object({
 	),
 });
 
-export default function (pi: ExtensionAPI) {
+export default function (pi: PiApi) {
 	// The interactive flows are commands, not tools: an interview owns the
 	// terminal question by question, which a model's turn cannot.
 	registerInterviewCommand(pi);
@@ -183,14 +183,7 @@ export default function (pi: ExtensionAPI) {
 		// The body lives in `execute.ts`, where every dependency is injectable
 		// and therefore testable; this only hands pi's context over.
 		execute(_toolCallId, params: Params, signal, onUpdate, ctx) {
-			return executeSubagent(params, {
-				cwd: ctx.cwd,
-				signal,
-				onUpdate,
-				ui: ctx.ui,
-				// Only this level knows where pi keeps the parent session.
-				mainSessionFile: ctx.sessionManager?.getSessionFile(),
-			});
+			return executeSubagent(params, toolDeps(ctx, signal, onUpdate));
 		},
 
 		renderCall(args: Params, theme: Theme, context) {

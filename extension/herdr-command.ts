@@ -6,9 +6,8 @@
  * debugged.
  */
 
-import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { createHerdrSend, detectHerdr, probeHerdr } from "../src/index.ts";
-import type { CommandCtx } from "./command.ts";
+import type { CommandCtx, PiApi } from "./pi.ts";
 import { watchEverything, watchEverythingIs } from "./run-ui.ts";
 
 /** What `/herdr` needs from the world. Injected so a test answers as a server would. */
@@ -20,11 +19,11 @@ export type HerdrDeps = {
 };
 
 /** Registers `/herdr`. */
-export default function registerHerdrCommand(pi: ExtensionAPI) {
+export default function registerHerdrCommand(pi: PiApi) {
 	pi.registerCommand("herdr", {
 		description: "Watch every subagent in its own herdr split (on | off)",
-		handler: async (args: string, ctx: ExtensionCommandContext) => {
-			await toggleHerdr(args, ctx as unknown as CommandCtx);
+		handler: async (args, ctx: CommandCtx) => {
+			await toggleHerdr(args, ctx);
 		},
 	});
 }

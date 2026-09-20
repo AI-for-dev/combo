@@ -9,24 +9,9 @@
  */
 
 import { commandVerifier, loadAgents, findPipeline, type Agent, type Pipeline, type Verify } from "../src/index.ts";
-import type { AskUi } from "./ask-ui.ts";
 import type { CommandDeps, Deps } from "./deps.ts";
+import type { CommandCtx } from "./pi.ts";
 import { liveRun, STATUS, type LiveRun } from "./run-ui.ts";
-
-/** What these commands need from pi. Narrow on purpose: a test can stand in for it. */
-export type CommandCtx = {
-	cwd: string;
-	hasUI?: boolean;
-	signal?: AbortSignal;
-	ui: AskUi & {
-		notify(message: string, type?: "info" | "warning" | "error"): void;
-		setStatus(key: string, text: string | undefined): void;
-		editor(title: string, prefill?: string): Promise<string | undefined>;
-		confirm(title: string, message: string): Promise<boolean>;
-		setEditorText(text: string): void;
-		setWidget?(key: string, lines: string[] | undefined): void;
-	};
-};
 
 /**
  * The roster every command runs with.

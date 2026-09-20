@@ -9,7 +9,8 @@
  */
 
 import { branchName, type Agent } from "../src/index.ts";
-import { firstLines, refuse, type CommandCtx } from "./command.ts";
+import { firstLines, refuse } from "./command.ts";
+import type { CommandCtx } from "./pi.ts";
 import type { Deps } from "./deps.ts";
 import { STATUS } from "./run-ui.ts";
 

@@ -15,9 +15,10 @@
  * who has to write the brief would be stopped by the same press.
  */
 
-import { DynamicBorder, type Theme } from "@earendil-works/pi-coding-agent";
+import { DynamicBorder } from "@earendil-works/pi-coding-agent";
 import { Container, SelectList, Text, type SelectItem } from "@earendil-works/pi-tui";
 import type { Answer, AskUser, Question } from "../src/index.ts";
+import type { AskUi } from "./pi.ts";
 import { whileAsking } from "./stop.ts";
 
 /**
@@ -29,13 +30,6 @@ import { whileAsking } from "./stop.ts";
  */
 const OTHER = "\u0000other";
 const SUBMIT = "\u0000submit";
-
-/** What this needs from `ctx.ui`; a test passes a double. */
-export type AskUi = {
-	custom<T>(factory: (tui: unknown, theme: Theme, keybindings: unknown, done: (result: T) => void) => unknown): Promise<T>;
-	input(title: string, placeholder?: string): Promise<string | undefined>;
-	readonly theme: Theme;
-};
 
 /** How many options are shown before the list starts scrolling. */
 const MAX_VISIBLE = 8;

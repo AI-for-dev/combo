@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, test } from "node:test";
 import { paintWidget } from "../extension/run-ui.ts";
-import { forgetRun, isAsking, moveSelection, stopCommand, stoppable, watchRun, whileAsking, type KeyUi, type LiveRun } from "../extension/stop.ts";
+import type { KeyUi } from "../extension/pi.ts";
+import { forgetRun, isAsking, moveSelection, stopCommand, stoppable, watchRun, whileAsking, type LiveRun } from "../extension/stop.ts";
 import { emptyUsage, snapshotFrom, type SubagentSnapshot } from "../src/index.ts";
 
 /** A subagent as the picture would have it. */
