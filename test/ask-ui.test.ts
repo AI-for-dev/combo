@@ -9,7 +9,8 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { initTheme } from "@earendil-works/pi-coding-agent";
-import { createAskUi, items, OTHER, SUBMIT, type AskUi } from "../extension/ask-ui.ts";
+import { createAskUi, items, OTHER, SUBMIT } from "../extension/ask-ui.ts";
+import type { AskUi } from "../extension/pi.ts";
 import { isAsking } from "../extension/stop.ts";
 import type { Question } from "../src/ask.ts";
 import { testTheme } from "./fixtures/theme.ts";

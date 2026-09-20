@@ -19,7 +19,6 @@
  * nobody asked for, and it is long.
  */
 
-import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import {
 	agreed,
 	boardLines,
@@ -32,7 +31,8 @@ import {
 	type SwarmResult,
 	VOTE_INSTRUCTION,
 } from "../src/index.ts";
-import { checked, loadRoster, refuse, watched, type CommandCtx } from "./command.ts";
+import { checked, loadRoster, refuse, watched } from "./command.ts";
+import { sessionDoors, type CommandCtx, type PiApi } from "./pi.ts";
 import { resolved, type StepDeps } from "./deps.ts";
 import { parseLeadingFlags } from "./flags.ts";
 import { currentChain, entryOf, recordStep, startChain, STEP_ENTRY, stepDir, stepId, type RelayStep } from "./relay.ts";
@@ -44,17 +44,14 @@ export const DEFAULT_MEMBER = "member";
 export const DEFAULT_MEMBERS = 3;
 
 /** Registers `/swarm`. */
-export default function registerSwarmCommand(pi: ExtensionAPI) {
-	const deps: StepDeps = {
-		sendMessage: (message) => pi.sendMessage(message),
-		appendEntry: (customType, data) => pi.appendEntry(customType, data),
-	};
+export default function registerSwarmCommand(pi: PiApi) {
+	const deps = sessionDoors(pi);
 
 	pi.registerCommand("swarm", {
 		description:
 			"Put several copies of one agent on one job, with a board between them (`--members <n>`, `--claim a,b`, `--hold <n>`, `--until agree`, `--rounds <n>`, `--agent <name>`, `--model <pattern>`)",
-		handler: async (args: string, ctx: ExtensionCommandContext) => {
-			await runSwarm(args, ctx as unknown as CommandCtx, deps);
+		handler: async (args, ctx: CommandCtx) => {
+			await runSwarm(args, ctx, deps);
 		},
 	});
 }

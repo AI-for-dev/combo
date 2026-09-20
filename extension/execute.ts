@@ -35,7 +35,8 @@ import {
 	type SpawnFn,
 	type SubagentSnapshot,
 } from "../src/index.ts";
-import { liveRun, type RunUi } from "./run-ui.ts";
+import type { RunUi } from "./pi.ts";
+import { liveRun } from "./run-ui.ts";
 
 /** The arguments the model sends. Every field optional: the mode is inferred. */
 export type Params = {

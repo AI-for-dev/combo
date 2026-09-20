@@ -27,29 +27,14 @@ import {
 	type RunSnapshot,
 	type SpawnFn,
 } from "../src/index.ts";
-import { forgetRun, watchRun, type KeyUi } from "./stop.ts";
+import type { RunUi, WidgetTheme } from "./pi.ts";
+import { forgetRun, watchRun } from "./stop.ts";
 
 /** Key for the footer status and the widget above the prompt. */
 export const STATUS = "combo";
 
 /** How often the widget repaints while subagents are working, in ms. */
 const TICK_MS = 250;
-
-/** The colour subset of pi's `Theme` the widget needs. */
-export type WidgetTheme = { fg(colour: string, text: string): string };
-
-/**
- * What a caller needs from pi to show a run. A narrow slice, so a test can
- * stand in for it.
- *
- * Both setters are optional: the tool has no footer to write to, and a headless
- * caller has neither.
- */
-export type RunUi = KeyUi & {
-	theme: WidgetTheme;
-	setStatus?(key: string, text: string | undefined): void;
-	setWidget?(key: string, lines: string[] | undefined): void;
-};
 
 /**
  * Session-wide "open a herdr split for every subagent".

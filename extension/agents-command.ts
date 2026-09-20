@@ -12,11 +12,10 @@ import * as path from "node:path";
 import {
 	CONFIG_DIR_NAME,
 	getAgentDir,
-	type ExtensionAPI,
-	type ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
 import type { Agent, AgentSource } from "../src/index.ts";
-import { loadRoster, type CommandCtx } from "./command.ts";
+import { loadRoster } from "./command.ts";
+import type { CommandCtx, PiApi } from "./pi.ts";
 import { resolved, type CommandDeps } from "./deps.ts";
 
 /**
@@ -36,11 +35,11 @@ const SOURCES: { source: AgentSource; where: (cwd: string) => string }[] = [
 export type AgentGroup = { source: AgentSource; where: string; agents: Agent[] };
 
 /** Registers `/agents`. */
-export default function registerAgentCommands(pi: ExtensionAPI) {
+export default function registerAgentCommands(pi: PiApi) {
 	pi.registerCommand("agents", {
 		description: "List the agents that can be spawned, and where they come from",
-		handler: async (_args: string, ctx: ExtensionCommandContext) => {
-			listAgents(ctx as unknown as CommandCtx);
+		handler: async (_args, ctx: CommandCtx) => {
+			listAgents(ctx);
 		},
 	});
 }

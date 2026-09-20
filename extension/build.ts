@@ -25,7 +25,6 @@
  * happen is loading them behind their back.
  */
 
-import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import {
 	commandVerifier,
 	fromBuildState,
@@ -43,7 +42,8 @@ import {
 	type PipelineRunResult,
 	type Verify,
 } from "../src/index.ts";
-import { checked, choosePipeline, firstLines, loadRoster, pipelineVerifier, refuse, watched, type CommandCtx } from "./command.ts";
+import { checked, choosePipeline, firstLines, loadRoster, pipelineVerifier, refuse, watched } from "./command.ts";
+import type { CommandCtx, PiApi } from "./pi.ts";
 import { submit } from "./commit.ts";
 import { resolved, type CommandDeps, type Deps, type Git } from "./deps.ts";
 import { parseBuildArgs } from "./flags.ts";
@@ -56,12 +56,12 @@ import { runInterview } from "./interview-command.ts";
  * opens with owns the terminal until each question is answered, and nobody can
  * answer a question asked inside a model's turn.
  */
-export default function registerBuildCommand(pi: ExtensionAPI) {
+export default function registerBuildCommand(pi: PiApi) {
 	pi.registerCommand("build", {
 		description:
 			"Interview, run the build pipeline, then commit (`--pipeline <name>`, `--model <pattern>`, `--worktree`, `--questions <n>`, or `resume` to carry on)",
-		handler: async (args: string, ctx: ExtensionCommandContext) => {
-			await runBuild(args, ctx as unknown as CommandCtx);
+		handler: async (args, ctx: CommandCtx) => {
+			await runBuild(args, ctx);
 		},
 	});
 }

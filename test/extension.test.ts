@@ -14,31 +14,43 @@ import { initTheme } from "@earendil-works/pi-coding-agent";
 import type { Component } from "@earendil-works/pi-tui";
 import extension from "../extension/index.ts";
 import { PIPELINE_MESSAGE } from "../extension/pipeline-commands.ts";
+import { sessionDoors, toolDeps, type PiApi } from "../extension/pi.ts";
 import { STEP_ENTRY } from "../extension/relay.ts";
 import { emptyUsage } from "../src/usage.ts";
 import type { SubagentSnapshot } from "../src/reporters/picture.ts";
+import { fakeCtx } from "./fixtures/command-ctx.ts";
 import { testTheme } from "./fixtures/theme.ts";
 
 // `getMarkdownTheme()` and `keyHint()` read process-wide state.
 initTheme();
 
-/** Captures everything the extension registers. */
+/**
+ * Captures everything the extension registers.
+ *
+ * The fake is typed as the slice of pi's API the extension declares it uses,
+ * so a method pi renames fails here at compile time rather than in a terminal.
+ */
 function registered() {
 	let tool: any;
-	const commands = new Map<string, any>();
+	const commands = new Map<string, Parameters<PiApi["registerCommand"]>[1]>();
 	const messageRenderers = new Map<string, any>();
 	const entryRenderers = new Map<string, any>();
-	extension({
-		registerTool: (definition: unknown) => void (tool = definition),
-		registerCommand: (name: string, options: unknown) => void commands.set(name, options),
-		registerMessageRenderer: (customType: string, renderer: unknown) => void messageRenderers.set(customType, renderer),
-		registerEntryRenderer: (customType: string, renderer: unknown) => void entryRenderers.set(customType, renderer),
-	} as never);
+	const sent: unknown[] = [];
+	const appended: unknown[] = [];
+	const pi: PiApi = {
+		registerTool: (definition) => void (tool = definition),
+		registerCommand: (name, options) => void commands.set(name, options),
+		registerMessageRenderer: (customType, renderer) => void messageRenderers.set(customType, renderer),
+		registerEntryRenderer: (customType, renderer) => void entryRenderers.set(customType, renderer),
+		sendMessage: (message) => void sent.push(message),
+		appendEntry: (customType, data) => void appended.push({ customType, data }),
+	};
+	extension(pi);
 	assert.ok(tool, "the extension must register a tool");
-	return { tool, commands, messageRenderers, entryRenderers };
+	return { pi, tool, commands, messageRenderers, entryRenderers, sent, appended };
 }
 
-const { tool, commands, messageRenderers, entryRenderers } = registered();
+const { pi, tool, commands, messageRenderers, entryRenderers, appended } = registered();
 const theme = testTheme();
 
 /** A render context with nothing cached, as on the first frame. */
@@ -297,5 +309,42 @@ describe("the step entry renderer", () => {
 
 	test("data it did not write does not make it throw", () => {
 		assert.doesNotThrow(() => render({ customType: STEP_ENTRY, data: { id: "look", kind: "pipeline", output: "", turns: 0, dir: "" } }));
+	});
+});
+
+describe("where pi comes in", () => {
+	test("a registered handler takes the context a test builds, with no cast in between", async () => {
+		// pi hands the whole `ExtensionCommandContext`; the handler is written
+		// against the slice, and the slice is what a test can build. The one cast
+		// is here, at the door, standing in for the members pi has and we never
+		// read.
+		const { ctx, said } = fakeCtx();
+		await commands.get("chain")?.handler("", ctx as never);
+		assert.match(said(), /No chain yet/);
+	});
+
+	test("the tool body is handed pi's working directory, its UI, and where pi keeps the parent session", () => {
+		const { ctx } = fakeCtx();
+		const signal = new AbortController().signal;
+		const onUpdate = () => {};
+
+		const deps = toolDeps({ ...ctx, sessionManager: { getSessionFile: () => "/sessions/main.jsonl" } }, signal, onUpdate);
+
+		assert.equal(deps.cwd, "/repo");
+		assert.equal(deps.ui, ctx.ui);
+		assert.equal(deps.signal, signal);
+		assert.equal(deps.onUpdate, onUpdate);
+		assert.equal(deps.mainSessionFile, "/sessions/main.jsonl");
+	});
+
+	test("a pi that keeps no session file leaves the parent session out, rather than inventing one", () => {
+		const { ctx } = fakeCtx();
+		assert.equal(toolDeps(ctx, undefined, undefined).mainSessionFile, undefined);
+	});
+
+	test("the two doors into the session are pi's own methods, bound", () => {
+		const doors = sessionDoors(pi);
+		doors.appendEntry(STEP_ENTRY, { id: "look", kind: "agent", output: "", turns: 0, dir: "" });
+		assert.deepEqual(appended.at(-1), { customType: STEP_ENTRY, data: { id: "look", kind: "agent", output: "", turns: 0, dir: "" } });
 	});
 });

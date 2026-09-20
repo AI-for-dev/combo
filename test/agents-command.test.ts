@@ -12,8 +12,7 @@ import * as path from "node:path";
 import { describe, test } from "node:test";
 import { getAgentDir, initTheme } from "@earendil-works/pi-coding-agent";
 import { agentLines, groupAgents, listAgents } from "../extension/agents-command.ts";
-import type { CommandCtx } from "../extension/command.ts";
-import type { Agent } from "../src/index.ts";
+import { fakeCtx } from "./fixtures/command-ctx.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
 
 initTheme();
@@ -22,14 +21,6 @@ const shipped = testAgent("coder", { source: "builtin", filePath: "/pkg/combo/ag
 const mine = testAgent("notetaker", { source: "user", filePath: "/home/me/.pi/agent/agents/notetaker.md" });
 const ours = testAgent("scout", { source: "project", filePath: "/repo/.pi/agents/scout.md" });
 
-function fakeCtx(agents: Agent[]) {
-	const notes: string[] = [];
-	const ctx = {
-		cwd: "/repo",
-		ui: { notify: (message: string) => void notes.push(message) },
-	} as unknown as CommandCtx;
-	return { ctx, notes, deps: { loadAgents: () => agents } };
-}
 
 describe("groupAgents", () => {
 	test("splits by source, most specific first, naming the directory each came from", () => {
@@ -91,17 +82,19 @@ describe("agentLines", () => {
 
 describe("listAgents", () => {
 	test("shows the roster the commands themselves load", () => {
-		const { ctx, notes, deps } = fakeCtx([shipped, mine, ours]);
+		const { ctx, notes } = fakeCtx();
+		const deps = { loadAgents: () => [shipped, mine, ours] };
 
 		const lines = listAgents(ctx, deps);
 
 		assert.equal(notes.length, 1);
-		assert.equal(notes[0], lines.join("\n"));
-		assert.match(notes[0] ?? "", /scout/);
+		assert.equal(notes[0]?.message, lines.join("\n"));
+		assert.match(notes[0]?.message ?? "", /scout/);
 	});
 
 	test("an empty roster is a listing of three empty sources, not an error", () => {
-		const { ctx, deps } = fakeCtx([]);
+		const { ctx } = fakeCtx();
+		const deps = { loadAgents: () => [] };
 
 		const lines = listAgents(ctx, deps);
 

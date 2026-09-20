@@ -167,6 +167,17 @@ and registers every command. The tool body lives in `extension/execute.ts`, and
 everything it touches is injectable: agent loading, `spawn`, the second
 reporter, the UI, the repaint timer.
 
+pi comes in through one file, `extension/pi.ts`. It names the slice of pi's API
+the extension registers through (`PiApi`) and the slice of pi's context a
+command reads (`CommandCtx`, with `Ui` declared once and the narrower `RunUi`,
+`KeyUi` and `AskUi` picked from it), and it holds the two wirings only that door
+knows: what the tool body is handed, and how a command reaches the session. A
+handler is written against `CommandCtx`; pi hands it the whole
+`ExtensionCommandContext`, and TypeScript checks at every `registerCommand`
+that the whole has what the slice reads. There is no cast between pi and a
+command, so when pi changes shape the extension compiles red, and the fake a
+test builds stands in for exactly what the code asked of pi.
+
 The commands stand on one floor, in three files. `extension/deps.ts` is what a
 command reaches for: `CommandDeps` are the doubles a test puts in place, and
 `resolved()` fills what was left unsaid with the real thing, once, so a command
