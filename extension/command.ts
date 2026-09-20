@@ -1,84 +1,17 @@
 /**
  * What every command in this extension stands on.
  *
- * `/build`, `/run`, `/step` and `/agents` all need the same four things: the
- * slice of pi they are handed, the doubles a test puts in its place, the roster
- * they run with, and one way of saying no. They used to reach into `build.ts`
- * for them, which made `/agents` depend on the build state machine to know what
- * a command context is.
- *
- * Nothing here knows about any one command. What a command does stays in its
- * own file.
+ * `/build`, `/run`, `/step`, `/swarm` and `/interview` all launch the same
+ * shape of work: a roster, a few checks that must pass before anything is
+ * spawned, a live view for as long as the work runs, and a `finally` that takes
+ * it down and writes what it cost. That shape is written here once. What a
+ * command does inside it stays in its own file.
  */
 
-import {
-	checkModel,
-	commitAll,
-	createBranch,
-	diff,
-	diffStat,
-	findPipeline,
-	interview,
-	isRepository,
-	loadAgents,
-	loadPipelines,
-	findResumableBuild,
-	run,
-	runPipeline,
-	saveBuildState,
-	status,
-	swarm,
-	untracked,
-	type Agent,
-	type Pipeline,
-	type Verify,
-} from "../src/index.ts";
+import { commandVerifier, loadAgents, findPipeline, type Agent, type Pipeline, type Verify } from "../src/index.ts";
 import type { AskUi } from "./ask-ui.ts";
-
-/**
- * Everything a command reaches for, injectable.
- *
- * The same seam as the tool body, for the same reason: the only bugs that ever
- * reached a user through this extension were in the wiring, and wiring is only
- * testable when it can be handed doubles. Defaults are the real thing.
- */
-export type BuildDeps = {
-	loadAgents?: typeof loadAgents;
-	/** Where the pipelines come from. Defaults to `~/.pi/agent/pipelines` and `.pi/pipelines`. */
-	loadPipelines?: typeof loadPipelines;
-	interview?: typeof interview;
-	/** Runs the pipeline. The command's one seam onto the whole of the work. */
-	runPipeline?: typeof runPipeline;
-	/** Runs one throwaway agent: `/build` uses it for the commit message. */
-	run?: typeof run;
-	/** Puts several copies of one agent on one job: `/swarm`'s whole of the work. */
-	swarm?: typeof swarm;
-	/** Every git call, so a test never touches a repository it did not make. */
-	git?: {
-		isRepository: typeof isRepository;
-		status: typeof status;
-		diff: typeof diff;
-		diffStat: typeof diffStat;
-		untracked: typeof untracked;
-		createBranch: typeof createBranch;
-		commitAll: typeof commitAll;
-	};
-	/** Where transcripts land. Defaults to a fresh `runs/<timestamp>/`. */
-	runDir?: () => string;
-	/** The project's own check. Defaults to asking the user for a command. */
-	verify?: Verify;
-	/** Where an interrupted build is looked for. Defaults to `runs/`. */
-	findResumable?: typeof findResumableBuild;
-	/** Persists progress. Defaults to writing `build.json` into the run directory. */
-	saveState?: typeof saveBuildState;
-	/** Validates a `--model` pattern before anything runs. Touches the real pi. */
-	checkModel?: typeof checkModel;
-	/** Widget repaint period. `0` disables the timer - tests want that. */
-	tickMs?: number;
-};
-
-/** The real git, and the default of every `deps.git`. */
-export const REAL_GIT = { isRepository, status, diff, diffStat, untracked, createBranch, commitAll };
+import type { CommandDeps, Deps } from "./deps.ts";
+import { liveRun, STATUS, type LiveRun } from "./run-ui.ts";
 
 /** What these commands need from pi. Narrow on purpose: a test can stand in for it. */
 export type CommandCtx = {
@@ -105,122 +38,58 @@ export type CommandCtx = {
  * name. Written once: three call sites drifting on either flag is how `/build`
  * and `/run` end up disagreeing about who exists.
  */
-export function loadRoster(ctx: CommandCtx, deps: BuildDeps = {}): Agent[] {
-	return (deps.loadAgents ?? loadAgents)({ cwd: ctx.cwd, scope: "both", builtin: true });
-}
-
-/**
- * `/build [--pipeline <name>] [--model <pattern>] <request>`.
- *
- * Flags rather than positional words, because a request is free text: any
- * convention that reads the first word as a pipeline name eventually swallows
- * someone's "build fix the parser". Both flags, in either order.
- */
-export function parseBuildArgs(args: string): {
-	pipeline?: string;
-	model?: string;
-	worktree?: boolean;
-	questions?: number;
-	request: string;
-} {
-	const { flags, rest } = parseLeadingFlags(args, ["pipeline", "model", "questions"], ["worktree"]);
-	const parsed: ReturnType<typeof parseBuildArgs> = { request: rest };
-	if (flags.pipeline) parsed.pipeline = flags.pipeline;
-	if (flags.model) parsed.model = flags.model;
-	// Set only when it was written: an explicit `undefined` spread over a default
-	// silently wins, and the default is the whole point of leaving it unsaid.
-	const worktree = switchValue(flags, "worktree");
-	if (worktree !== undefined) parsed.worktree = worktree;
-
-	// A count that is not one is dropped rather than guessed at: `--questions x`
-	// is a typo, and turning it into 0 would silently skip the interview.
-	const questions = Number(flags.questions);
-	if (Number.isInteger(questions) && questions > 0) parsed.questions = questions;
-	return parsed;
-}
-
-/**
- * What separates two flags: whitespace, and the `\` a wrapped line ends on.
- *
- * A backslash is not `--`, so a parse that skipped only whitespace stopped on
- * it and read the rest as free text: the flags written after the wrap were
- * dropped in silence, and the backslash went into the request. Measured: a
- * `/swarm` wrapped before its `--model` ran every member on pi's own model,
- * and nothing said so.
- *
- * Only between flags. A backslash inside the request is the user's, and stays
- * where they put it.
- */
-const GAP = String.raw`(?:\s|\\\r?\n)*`;
-
-/** A flag name, and the `=value` written against it. */
-const HEAD = new RegExp(String.raw`^${GAP}--([a-z]+)(?:=(\S+))?`, "i");
-
-/** A flag that takes a value, up to and including the gap after it. */
-const VALUED = new RegExp(String.raw`^${GAP}--[a-z]+(?:=|\s+)(\S+)${GAP}`, "i");
-
-/**
- * Reads leading flags off a command line, in any order.
- *
- * Only the given names are consumed: an unknown `--flag` stays in the text,
- * because in free prose it may simply *be* the text. `=` and a space both
- * separate a value, like everywhere in pi.
- *
- * A name in `switches` takes no value and arrives as `"true"`. Which list a
- * name is in has to be decided here rather than guessed from what follows it:
- * in `--worktree add a cache`, `add` is the request and not the flag's value.
- *
- * A {@link GAP} between two flags may hold a line continuation: a command with
- * six flags on it gets written across two lines by whoever has to read it back.
- */
-export function parseLeadingFlags(
-	args: string,
-	names: readonly string[],
-	switches: readonly string[] = [],
-): { flags: Record<string, string>; rest: string } {
-	const flags: Record<string, string> = {};
-	let rest = args;
-
-	for (;;) {
-		// The name first, and an `=value` only if it is written that way. What
-		// follows a space is claimed by a valued flag and left alone by a switch.
-		const head = HEAD.exec(rest);
-		const name = head?.[1]?.toLowerCase();
-		if (!head || !name) break;
-
-		if (switches.includes(name)) {
-			flags[name] = head[2] === "false" ? "false" : "true";
-			rest = rest.slice(head[0].length);
-			continue;
-		}
-		if (!names.includes(name)) break;
-
-		const valued = VALUED.exec(rest);
-		if (!valued?.[1]) break;
-		flags[name] = valued[1];
-		rest = rest.slice(valued[0].length);
-	}
-
-	return { flags, rest: rest.trim() };
-}
-
-/**
- * A switch that can be left unsaid.
- *
- * `--worktree` is `true`, `--worktree=false` is `false`, and absent is
- * `undefined` - which is not the same as `false` any more: it is what lets the
- * workflow decide from the plan it just made. Coercing it here is how the
- * default would be lost on its way through a command.
- */
-export function switchValue(flags: Record<string, string>, name: string): boolean | undefined {
-	const raw = flags[name];
-	return raw === undefined ? undefined : raw === "true";
+export function loadRoster(ctx: CommandCtx, deps: Pick<Deps, "loadAgents"> = { loadAgents }): Agent[] {
+	return deps.loadAgents({ cwd: ctx.cwd, scope: "both", builtin: true });
 }
 
 /** Notifies and returns `undefined` - the shape every refusal in these commands has. */
 export function refuse(ctx: CommandCtx, message: string, level: "info" | "warning" | "error"): undefined {
 	ctx.ui.notify(message, level);
 	return undefined;
+}
+
+/**
+ * The checks that must pass before anything is spawned.
+ *
+ * A typo costs a second here rather than a step of real work. Whatever `check`
+ * throws is an explanation meant for the user: it is shown, and `undefined`
+ * comes back - the same shape as every other refusal.
+ */
+export async function checked<T>(ctx: CommandCtx, check: () => T | Promise<T>): Promise<T | undefined> {
+	try {
+		return await check();
+	} catch (cause) {
+		return refuse(ctx, cause instanceof Error ? cause.message : String(cause), "error");
+	}
+}
+
+/** What a command watches while it works, and where the trace of it lands. */
+export type Watched<T> = {
+	/** The footer while the work runs: `building…`, `running explore…`. */
+	status: string;
+	/** Where `usage.json` is written when it is over. Absent writes none. */
+	dir: string | undefined;
+	/** The work, handed the live run: its `signal`, its `spawn`, its `onEvent`. */
+	work: (live: LiveRun) => Promise<T>;
+};
+
+/**
+ * Runs the work under the dots, and takes them down whatever happens.
+ *
+ * One painter, one `finally`, one clock: the live view goes up, the footer says
+ * what is running, and on the way out - thrown or not - the widget and the
+ * footer are cleared and the run's `usage.json` written with the time this
+ * command measured. A thrown `work` still throws, after the clean-up.
+ */
+export async function watched<T>(ctx: CommandCtx, deps: Pick<CommandDeps, "tickMs">, at: Watched<T>): Promise<T> {
+	const live = liveRun(ctx.ui, { tickMs: deps.tickMs, signal: ctx.signal });
+	ctx.ui.setStatus(STATUS, at.status);
+	const startedAt = performance.now();
+	try {
+		return await at.work(live);
+	} finally {
+		live.stop(at.dir, performance.now() - startedAt);
+	}
 }
 
 /**
@@ -236,8 +105,8 @@ export function refuse(ctx: CommandCtx, message: string, level: "info" | "warnin
  * `findPipeline` exists to make loud. `command` only names the caller in that
  * message - `/run` refuses a broken file for the same reason `/build` does.
  */
-export function choosePipeline(wanted: string | undefined, ctx: CommandCtx, deps: BuildDeps, command = "build"): Pipeline {
-	const catalogue = (deps.loadPipelines ?? loadPipelines)({ cwd: ctx.cwd, scope: "both", builtin: true });
+export function choosePipeline(wanted: string | undefined, ctx: CommandCtx, deps: Pick<Deps, "loadPipelines">, command = "build"): Pipeline {
+	const catalogue = deps.loadPipelines({ cwd: ctx.cwd, scope: "both", builtin: true });
 	const name = wanted ?? "build";
 
 	const broken = catalogue.broken.find((one) => one.name === name);
@@ -250,4 +119,17 @@ export function choosePipeline(wanted: string | undefined, ctx: CommandCtx, deps
 export function firstLines(text: string, n: number): string {
 	const lines = text.trim().split("\n");
 	return lines.length <= n ? lines.join("\n") : `${lines.slice(0, n).join("\n")}\n…`;
+}
+
+/**
+ * The check a pipeline names, as a port. Absent means the pipeline names none.
+ *
+ * A pipeline *names* a command; running one is a decision that belongs to
+ * whoever owns the working tree, which is why this lives beside the commands and
+ * not inside the runner.
+ */
+export function pipelineVerifier(pipeline: Pipeline, cwd: string): Verify | undefined {
+	const parts = pipeline.verify;
+	if (!parts || parts.length === 0) return undefined;
+	return commandVerifier({ cwd, command: parts[0] as string, args: parts.slice(1) });
 }

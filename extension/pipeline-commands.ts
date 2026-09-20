@@ -15,19 +15,10 @@
  */
 
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import {
-	checkModel,
-	checkPipelineAgents,
-	createRunDir,
-	loadPipelines,
-	plural,
-	runPipeline,
-	type Pipeline,
-	type PipelineCatalogue,
-	type PipelineRunResult,
-} from "../src/index.ts";
-import { choosePipeline, loadRoster, parseLeadingFlags, refuse, switchValue, type BuildDeps, type CommandCtx } from "./command.ts";
-import { liveRun, pipelineVerifier, STATUS } from "./run-ui.ts";
+import { checkPipelineAgents, plural, type PipelineCatalogue, type PipelineRunResult } from "../src/index.ts";
+import { checked, choosePipeline, loadRoster, pipelineVerifier, refuse, watched, type CommandCtx } from "./command.ts";
+import { resolved, type CommandDeps } from "./deps.ts";
+import { parseLeadingFlags, switchValue } from "./flags.ts";
 
 /**
  * `customType` of the message a finished pipeline leaves in the session.
@@ -54,8 +45,8 @@ export type SendMessage = (message: {
 	details?: unknown;
 }) => void;
 
-/** {@link BuildDeps}, plus the one thing only these commands do. */
-export type PipelineDeps = BuildDeps & { sendMessage?: SendMessage };
+/** {@link CommandDeps}, plus the one thing only these commands do. */
+export type PipelineDeps = CommandDeps & { sendMessage?: SendMessage };
 
 /** Registers `/pipelines` and `/run`. */
 export default function registerPipelineCommands(pi: ExtensionAPI) {
@@ -107,7 +98,7 @@ export function pipelineLines(catalogue: PipelineCatalogue, cwd: string): string
 
 /** `/pipelines` - what is loaded, from where, and what does not parse. */
 export function listPipelines(ctx: CommandCtx, deps: PipelineDeps = {}): string[] {
-	const catalogue = (deps.loadPipelines ?? loadPipelines)({ cwd: ctx.cwd, scope: "both", builtin: true });
+	const catalogue = resolved(deps).loadPipelines({ cwd: ctx.cwd, scope: "both", builtin: true });
 	const lines = pipelineLines(catalogue, ctx.cwd);
 	ctx.ui.notify(lines.join("\n"), catalogue.broken.length > 0 ? "warning" : "info");
 	return lines;
@@ -126,7 +117,8 @@ export function listPipelines(ctx: CommandCtx, deps: PipelineDeps = {}): string[
  * where the user types means they have to send their own report back to the
  * model before it knows anything about it.
  */
-export async function runNamed(args: string, ctx: CommandCtx, deps: PipelineDeps = {}): Promise<PipelineRunResult | undefined> {
+export async function runNamed(args: string, ctx: CommandCtx, injected: PipelineDeps = {}): Promise<PipelineRunResult | undefined> {
+	const deps = resolved(injected);
 	const { flags, rest: text } = parseLeadingFlags(args, ["model"], ["worktree"]);
 	const model = flags.model;
 	const worktree = switchValue(flags, "worktree");
@@ -142,47 +134,42 @@ export async function runNamed(args: string, ctx: CommandCtx, deps: PipelineDeps
 	}
 
 	const agents = loadRoster(ctx, deps);
-	let pipeline: Pipeline;
-	try {
+	const pipeline = await checked(ctx, async () => {
 		// The same chooser `/build` uses, so a broken file is named here too
 		// rather than reported as an unknown pipeline.
-		pipeline = choosePipeline(name, ctx, deps, "run");
-		// Before anything is spawned, as everywhere: a typo costs a second.
-		checkPipelineAgents(pipeline, agents);
-		if (model) await (deps.checkModel ?? checkModel)(model);
-	} catch (cause) {
-		return refuse(ctx, cause instanceof Error ? cause.message : String(cause), "error");
-	}
+		const chosen = choosePipeline(name, ctx, deps, "run");
+		checkPipelineAgents(chosen, agents);
+		if (model) await deps.checkModel(model);
+		return chosen;
+	});
+	if (!pipeline) return undefined;
 
-	const exportDir = (deps.runDir ?? createRunDir)();
-	const live = liveRun(ctx.ui, { tickMs: deps.tickMs, signal: ctx.signal });
-	ctx.ui.setStatus(STATUS, `running ${pipeline.name}…`);
-
-	let done: PipelineRunResult | undefined;
-	try {
-		done = await (deps.runPipeline ?? runPipeline)({
-			pipeline,
-			agents,
-			input,
-			cwd: ctx.cwd,
-			exportDir,
-			verify: deps.verify ?? pipelineVerifier(pipeline, ctx.cwd),
-			model,
-			worktree,
-			signal: live.signal,
-			spawn: live.spawn,
-			onEvent: live.onEvent,
-		});
-	} finally {
-		live.stop(exportDir, done?.usage.wallMs ?? 0);
-	}
+	const exportDir = deps.runDir();
+	const done = await watched(ctx, deps, {
+		status: `running ${pipeline.name}…`,
+		dir: exportDir,
+		work: (live) =>
+			deps.runPipeline({
+				pipeline,
+				agents,
+				input,
+				cwd: ctx.cwd,
+				exportDir,
+				verify: deps.verify ?? pipelineVerifier(pipeline, ctx.cwd),
+				model,
+				worktree,
+				signal: live.signal,
+				spawn: live.spawn,
+				onEvent: live.onEvent,
+			}),
+	});
 
 	if (!done.ok) {
 		refuse(ctx, `run: ${done.error ?? "unknown error"} - what ran is in ${exportDir}`, "error");
 		return done;
 	}
 
-	deps.sendMessage?.({
+	injected.sendMessage?.({
 		customType: PIPELINE_MESSAGE,
 		content: pipelineAnswer(pipeline.name, input, done.output),
 		display: true,

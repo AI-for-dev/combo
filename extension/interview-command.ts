@@ -8,10 +8,11 @@
  */
 
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import { createRunDir, findAgent, interview, plural, type Agent, type InterviewResult } from "../src/index.ts";
+import { findAgent, plural, type InterviewResult } from "../src/index.ts";
 import { createAskUi } from "./ask-ui.ts";
-import { loadRoster, parseBuildArgs, refuse, type BuildDeps, type CommandCtx } from "./command.ts";
-import { liveRun, STATUS } from "./run-ui.ts";
+import { checked, loadRoster, refuse, watched, type CommandCtx } from "./command.ts";
+import { resolved, type CommandDeps } from "./deps.ts";
+import { parseBuildArgs } from "./flags.ts";
 
 /** Registers `/interview`. */
 export default function registerInterviewCommand(pi: ExtensionAPI) {
@@ -47,9 +48,10 @@ const INTERVIEW_TURN_MS = 300_000;
 export async function runInterview(
 	request: string,
 	ctx: CommandCtx,
-	deps: BuildDeps = {},
+	injected: CommandDeps = {},
 	options: { model?: string; maxQuestions?: number; exportDir?: string } = {},
 ): Promise<InterviewResult | undefined> {
+	const deps = resolved(injected);
 	if (!request.trim()) {
 		return refuse(ctx, "interview: say what you want built, for example /interview add a cache to the loader", "warning");
 	}
@@ -57,45 +59,34 @@ export async function runInterview(
 		return refuse(ctx, "interview: there is nobody to ask outside an interactive session", "error");
 	}
 
-	const agents = loadRoster(ctx, deps);
-	let interviewer: Agent;
-	try {
-		interviewer = findAgent(agents, "interviewer");
-	} catch (cause) {
-		return refuse(ctx, cause instanceof Error ? cause.message : String(cause), "error");
-	}
+	const interviewer = await checked(ctx, () => findAgent(loadRoster(ctx, deps), "interviewer"));
+	if (!interviewer) return undefined;
 
+	const where = options.exportDir ?? deps.runDir();
 	// The same live view the pipeline gets. Without it the first turn is half a
 	// minute of a frozen status line while the interviewer reads the repository,
-	// and a user cannot tell that from a turn that has hung.
-	const live = liveRun(ctx.ui, { tickMs: deps.tickMs, signal: ctx.signal });
-	const startedAt = performance.now();
-	const where = options.exportDir ?? (deps.runDir ?? createRunDir)();
-
-	ctx.ui.setStatus(STATUS, "interviewing…");
-	let result: InterviewResult;
-	try {
-		result = await (deps.interview ?? interview)({
-			agent: interviewer,
-			input: request.trim(),
-			ask: createAskUi(ctx.ui),
-			cwd: ctx.cwd,
-			signal: live.signal,
-			spawn: live.spawn,
-			model: options.model,
-			maxQuestions: options.maxQuestions,
-			timeoutMs: INTERVIEW_TURN_MS,
-			onEvent: live.onEvent,
-			// The transcript outlives the command, and a failed interview needs it
-			// most: it is the only record of what was actually sent.
-			exportDir: where,
-		});
-	} finally {
-		// In a `finally`: a thrown interview must not leave "interviewing…" and a
-		// dead row of dots in the footer for the rest of the session.
-		live.stop(undefined, performance.now() - startedAt);
-		ctx.ui.setStatus(STATUS, undefined);
-	}
+	// and a user cannot tell that from a turn that has hung. No `usage.json` of
+	// its own, though: an interview is the opening of a run, not a run.
+	const result = await watched(ctx, deps, {
+		status: "interviewing…",
+		dir: undefined,
+		work: (live) =>
+			deps.interview({
+				agent: interviewer,
+				input: request.trim(),
+				ask: createAskUi(ctx.ui),
+				cwd: ctx.cwd,
+				signal: live.signal,
+				spawn: live.spawn,
+				model: options.model,
+				maxQuestions: options.maxQuestions,
+				timeoutMs: INTERVIEW_TURN_MS,
+				onEvent: live.onEvent,
+				// The transcript outlives the command, and a failed interview needs it
+				// most: it is the only record of what was actually sent.
+				exportDir: where,
+			}),
+	});
 
 	if (!result.ok) {
 		ctx.ui.notify(

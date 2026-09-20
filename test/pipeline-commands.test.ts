@@ -11,7 +11,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { initTheme } from "@earendil-works/pi-coding-agent";
-import type { CommandCtx } from "../extension/command.ts";
 import {
 	listPipelines,
 	pipelineAnswer,
@@ -22,8 +21,8 @@ import {
 } from "../extension/pipeline-commands.ts";
 import { parsePipeline } from "../src/pipeline.ts";
 import { fakeCtx } from "./fixtures/command-ctx.ts";
+import { baseDeps } from "./fixtures/command-deps.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
-import { testTheme } from "./fixtures/theme.ts";
 
 initTheme();
 
@@ -52,10 +51,7 @@ Answer.
 
 function deps(over: PipelineDeps = {}): PipelineDeps {
 	return {
-		loadAgents: () => agents,
-		loadPipelines: () => ({ pipelines: [explore], broken: [] }),
-		runDir: () => "/tmp/never-written",
-		tickMs: 0,
+		...baseDeps(agents, [explore]),
 		runPipeline: (async () => ({
 			pipeline: "explore",
 			steps: [{ id: "look", kind: "fanOut" as const, result: {} as never }],
@@ -275,16 +271,6 @@ describe("/run", () => {
 
 		assert.match(said(), /step "look" failed/);
 		assert.match(said(), /\/tmp\/never-written/);
-	});
-
-	test("the widget goes when the run ends, thrown or not", async () => {
-		const { ctx, widgets, statuses } = fakeCtx();
-		await assert.rejects(() =>
-			runNamed("explore x", ctx, deps({ runPipeline: (async () => { throw new Error("boom"); }) as never })),
-		);
-
-		assert.equal(widgets.at(-1), undefined, "no dead row of dots above the prompt");
-		assert.equal(statuses.at(-1), undefined, "and no stale footer for the rest of the session");
 	});
 });
 

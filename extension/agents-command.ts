@@ -16,7 +16,8 @@ import {
 	type ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
 import type { Agent, AgentSource } from "../src/index.ts";
-import { loadRoster, type BuildDeps, type CommandCtx } from "./command.ts";
+import { loadRoster, type CommandCtx } from "./command.ts";
+import { resolved, type CommandDeps } from "./deps.ts";
 
 /**
  * The three sources, most specific first, and where each would be read from.
@@ -87,8 +88,8 @@ export function agentLines(agents: Agent[], cwd: string): string[] {
 }
 
 /** `/agents` - what is loaded, and from where. */
-export function listAgents(ctx: CommandCtx, deps: BuildDeps = {}): string[] {
-	const lines = agentLines(loadRoster(ctx, deps), ctx.cwd);
+export function listAgents(ctx: CommandCtx, deps: CommandDeps = {}): string[] {
+	const lines = agentLines(loadRoster(ctx, resolved(deps)), ctx.cwd);
 	ctx.ui.notify(lines.join("\n"), "info");
 	return lines;
 }

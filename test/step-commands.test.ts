@@ -20,6 +20,7 @@ import { quoteStep, runStep, showChain, STEP_ENTRY, type StepDeps, type StepEntr
 import { parsePipeline } from "../src/pipeline.ts";
 import { emptyUsage } from "../src/usage.ts";
 import { fakeCtx } from "./fixtures/command-ctx.ts";
+import { baseDeps } from "./fixtures/command-deps.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
 
 initTheme();
@@ -61,10 +62,7 @@ function deps(over: StepDeps = {}) {
 	const sent: { content: string; details?: unknown }[] = [];
 
 	const base: StepDeps = {
-		loadAgents: () => agents,
-		loadPipelines: () => ({ pipelines: [explore], broken: [] }),
-		runDir: () => runs,
-		tickMs: 0,
+		...baseDeps(agents, [explore], runs),
 		appendEntry: (_customType, data) => void entries.push(data),
 		sendMessage: (message) => void sent.push({ content: message.content, details: message.details }),
 		runPipeline: (async (options: { input: string }) => {
