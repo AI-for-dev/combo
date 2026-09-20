@@ -1593,6 +1593,28 @@ timestamp pi does not have.
   it off. A cell whose stream was not kept can only be re-run, and a matrix is
   expensive. The day someone needs it off is the day the knob is justified.
 
+### How a subagent stands is read once
+
+The glyph that says how a subagent stands was decided in five places. The
+widget rows folded `ok` and `status` into `● / ✓ / ✗`; a helper beside them
+folded the same two into `⏳ / ✓ / ✗` for a collapsed text line; the tool's
+card and its expanded view each wrote `ok === false ? ✗ : ✓`; the widget's
+painter mapped a status to a colour; and the console wrote `✓` on every
+`close`, whatever the result said. That last one is the bug the close event's
+own comment records having fixed once, for every reporter that read the event
+- it survived in the console because the console had a copy of the rule. The
+text line, meanwhile, had no caller in production and a thorough test, which
+is this repository's own trap in miniature.
+
+`standingOf(snapshot)` is the one fold: the status, with a failure outranking
+it. `statusIcon(standing)` and `statusColour(standing)` are the two tables read
+off it, and every reader - the widget rows, the card, the summary table, the
+painter, the console - draws what they give it. `●` while it lives, because
+that is what the widget drew and what the guide shows; the `⏳` the display
+specification above kept for a collapsed row went with the row nobody drew.
+The console keeps `⏳` on its spawn line, which says something else: born, not
+yet working.
+
 ## Stopping a run, and one subagent of it
 
 A run already obeys a `signal`, and that is all it took to call the whole thing

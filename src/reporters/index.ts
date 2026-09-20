@@ -26,12 +26,13 @@ export {
 } from "./picture.ts";
 export { treeOrder } from "./tree.ts";
 export {
-	collapsedLine,
 	currentActivity,
 	detailLine,
 	elapsedMs,
 	formatToolCall,
 	progressLine,
+	standingOf,
+	statusColour,
 	statusIcon,
 	summaryTable,
 	widgetLines,

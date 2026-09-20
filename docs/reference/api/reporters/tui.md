@@ -11,16 +11,6 @@ draws them. Nothing here holds state - the picture is `picture.ts`, folded
 once for every reader - so a line is tested by calling the function that
 makes it, never by scraping a terminal.
 
-## `collapsedLine`
-
-*function*
-
-```typescript
-export function collapsedLine(snapshot: SubagentSnapshot, width = 60): string { /* … */ }
-```
-
-One compact line per subagent: `⏳ scout#1  find auth code  → grep`.
-
 ## `formatToolCall`
 
 *function*
@@ -45,15 +35,39 @@ export function progressLine(snapshot: RunSnapshot): string { /* … */ }
 
 `2/3 done, 1 running` - what a parallel run looks like while it runs.
 
+## `standingOf`
+
+*function*
+
+```typescript
+export function standingOf(snapshot: SubagentSnapshot): Standing { /* … */ }
+```
+
+Reads how a subagent stands off its snapshot.
+
+The one place `ok` and `status` are folded into a word, so that a widget, a
+card, a table and a console cannot each decide differently what a finished
+failure looks like - they did, and one of them drew a tick on it.
+
+## `statusColour`
+
+*function*
+
+```typescript
+export function statusColour(standing: Standing): "error" | "success" | "warning" | "accent" { /* … */ }
+```
+
+The theme colour a standing is drawn in, by the name pi's theme knows it under.
+
 ## `statusIcon`
 
 *function*
 
 ```typescript
-export function statusIcon(snapshot: SubagentSnapshot): string { /* … */ }
+export function statusIcon(standing: Standing): string { /* … */ }
 ```
 
-`⏳` while it works, `✓` when it succeeded, `✗` when it did not.
+`●` while it lives, `✓` once it succeeded, `✗` once it failed.
 
 ## `summaryTable`
 
@@ -82,7 +96,7 @@ export type WidgetRow =
 	| {
 			kind: "activity";
 			icon: string;
-			status: SubagentStatus | "failed";
+			status: Standing;
 			id: string;
 			activity: string;
 			/** Model, tokens and time, when they belong on this line rather than under it. */

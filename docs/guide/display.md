@@ -295,7 +295,9 @@ While the subagents work, a dot per subagent sits just above the prompt:
 ```
 
 `●` while it works, `✓` when it succeeded, `✗` when it failed, coloured by
-status; the dimmed line underneath carries model, tokens and elapsed time,
+status. That reading is made once, by `standingOf`, and the tool's card, the
+summary table and the console draw the glyph it gives them rather than deciding
+their own; the dimmed line underneath carries model, tokens and elapsed time,
 counting up live. Events alone cannot keep that clock - `usage.busyMs` only
 lands when a turn ends - so the widget reads the turn's start and repaints on a
 timer. A subagent thinking for twenty seconds emits nothing, and a frozen clock
