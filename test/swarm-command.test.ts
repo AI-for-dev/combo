@@ -108,6 +108,26 @@ describe("/swarm", () => {
 		assert.equal(claims?.take("member#2", "c.ts").ok, false, "and a key nobody named is not a key");
 	});
 
+	test("a command wrapped before its last flag still carries it", async () => {
+		const { ctx } = fakeCtx();
+		const { deps: injected, asked } = deps();
+		const checked: string[] = [];
+
+		// What anybody writes once a command has six flags on it. The backslash
+		// used to end the parse, so `--model` was read as the first two words of
+		// the goal and the members ran on pi's own model with nothing said.
+		const step = await runSwarm(
+			"--members 3 --claim Python,Rust,Go --hold 1 \\\n       --model local/qwen\nQuel langage pour un service backend ?",
+			ctx,
+			{ ...injected, checkModel: async (pattern) => void checked.push(pattern) },
+		);
+
+		assert.equal(asked[0]?.model, "local/qwen");
+		assert.deepEqual(checked, ["local/qwen"]);
+		assert.equal(asked[0]?.goal, "Quel langage pour un service backend ?", "and the backslash is not part of what they are asked");
+		assert.equal(step?.kind, "swarm");
+	});
+
 	test("a list written with spaces is caught, not half read", async () => {
 		const { ctx, said } = fakeCtx();
 		const { deps: injected, asked } = deps();

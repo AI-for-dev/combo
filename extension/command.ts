@@ -140,6 +140,26 @@ export function parseBuildArgs(args: string): {
 }
 
 /**
+ * What separates two flags: whitespace, and the `\` a wrapped line ends on.
+ *
+ * A backslash is not `--`, so a parse that skipped only whitespace stopped on
+ * it and read the rest as free text: the flags written after the wrap were
+ * dropped in silence, and the backslash went into the request. Measured: a
+ * `/swarm` wrapped before its `--model` ran every member on pi's own model,
+ * and nothing said so.
+ *
+ * Only between flags. A backslash inside the request is the user's, and stays
+ * where they put it.
+ */
+const GAP = String.raw`(?:\s|\\\r?\n)*`;
+
+/** A flag name, and the `=value` written against it. */
+const HEAD = new RegExp(String.raw`^${GAP}--([a-z]+)(?:=(\S+))?`, "i");
+
+/** A flag that takes a value, up to and including the gap after it. */
+const VALUED = new RegExp(String.raw`^${GAP}--[a-z]+(?:=|\s+)(\S+)${GAP}`, "i");
+
+/**
  * Reads leading flags off a command line, in any order.
  *
  * Only the given names are consumed: an unknown `--flag` stays in the text,
@@ -149,6 +169,9 @@ export function parseBuildArgs(args: string): {
  * A name in `switches` takes no value and arrives as `"true"`. Which list a
  * name is in has to be decided here rather than guessed from what follows it:
  * in `--worktree add a cache`, `add` is the request and not the flag's value.
+ *
+ * A {@link GAP} between two flags may hold a line continuation: a command with
+ * six flags on it gets written across two lines by whoever has to read it back.
  */
 export function parseLeadingFlags(
 	args: string,
@@ -161,7 +184,7 @@ export function parseLeadingFlags(
 	for (;;) {
 		// The name first, and an `=value` only if it is written that way. What
 		// follows a space is claimed by a valued flag and left alone by a switch.
-		const head = /^\s*--([a-z]+)(?:=(\S+))?/i.exec(rest);
+		const head = HEAD.exec(rest);
 		const name = head?.[1]?.toLowerCase();
 		if (!head || !name) break;
 
@@ -172,7 +195,7 @@ export function parseLeadingFlags(
 		}
 		if (!names.includes(name)) break;
 
-		const valued = /^\s*--[a-z]+(?:=|\s+)(\S+)\s*/i.exec(rest);
+		const valued = VALUED.exec(rest);
 		if (!valued?.[1]) break;
 		flags[name] = valued[1];
 		rest = rest.slice(valued[0].length);

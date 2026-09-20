@@ -50,6 +50,12 @@ them on a slow model is the whole of `/build` before any work starts. Each turn
 gets a five minute deadline, because pi's agent loop has no step cap and a
 person waiting cannot tell a slow turn from a stuck one.
 
+Flags come first, in any order, and a line may end on a `\` when the command is
+too long for one: what follows the wrap is read like the rest of it. That wrap
+used to end the parse, which is how a `/swarm` written over two lines ran every
+member on pi's own model - its `--model` had become the first two words of the
+goal, and nothing said so.
+
 `--worktree` takes no value, unlike `--model`: a flag that swallowed the word
 after it would eat the first word of the request. Saying nothing is **not** the
 same as saying no: a delivery left to itself gives each of several subtasks a
