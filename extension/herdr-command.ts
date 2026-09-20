@@ -8,7 +8,7 @@
 
 import { createHerdrSend, detectHerdr, probeHerdr } from "../src/index.ts";
 import type { CommandCtx, PiApi } from "./pi.ts";
-import { watchEverything, watchEverythingIs } from "./run-ui.ts";
+import { watchEverything, watchEverythingIs } from "./herdr-switch.ts";
 
 /** What `/herdr` needs from the world. Injected so a test answers as a server would. */
 export type HerdrDeps = {

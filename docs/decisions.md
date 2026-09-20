@@ -1707,6 +1707,40 @@ timestamp pi does not have.
   it off. A cell whose stream was not kept can only be re-run, and a matrix is
   expensive. The day someone needs it off is the day the knob is justified.
 
+### A measured run is the library's
+
+The extension's live view and an experiment's cell assembled the same thing by
+hand: a picture, a composition of listeners on it, a clock, and at the end
+`usageReport(snapshot, wallMs)` written with `writeUsageReport`. The view added
+the parent session's copy and swallowed a failed write; the cell added a
+recorder and let a failed write throw. Two adapters at one seam with no name,
+each free to drift from the other, and the guide's own example of an export
+was a third copy.
+
+`measuredRun({ dir?, record?, listeners?, mainSessionFile? })` in
+`src/measured.ts` is the seam: `onEvent` to subscribe, the `picture`,
+`elapsedMs()`, and `finish()`, which writes `usage.json` with the time measured
+and hands the report back, never throwing, because an export is an observer of
+the run. The view is a measured run with a terminal on top and takes its `dir`
+up front rather than at `stop()`, since `watched` knows it from the start. The
+cell is a measured run with `record: true`, which is where `events.jsonl`
+comes from now. A script that wants `usage.json` is one with nothing added,
+and that is what the export guide shows.
+
+`run-ui.ts` was four concepts at 224 lines: the view, the report, the herdr
+session switch and the widget's paint. The report is the library's now, the
+switch is `herdr-switch.ts` because the command sets it and the view reads it
+and neither should reach into the other for a boolean, and the counter that
+gives escape to a question card is `asking.ts` for the same reason: the card
+sets it, the stop key reads it, and `ask-ui.ts` importing from `stop.ts` for
+it made the card depend on the stop registry.
+
+The assembly is asserted once, in `test/measured.test.ts`. The tool's two
+export tests that proved the parent session's copy and its absence through the
+tool are gone; the tool's tests still say where it exports and that it exports
+nothing unasked, and the experiment's still say each cell gets its own
+directory and its own stream.
+
 ### How a subagent stands is read once
 
 The glyph that says how a subagent stands was decided in five places. The

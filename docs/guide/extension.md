@@ -207,13 +207,15 @@ combinators is where the three worst bugs so far have hidden, each behind a gree
 suite. It is now covered offline.
 
 **One live-run path.** The dots above the prompt, the repaint timer, the herdr
-reporter, the clean-up and `usage.json` are `liveRun()` in
-`extension/run-ui.ts` - one implementation, reached only through `watched()`,
-which the five commands, the `subagent` tool and `/build`'s committer all stand
-on. They must look identical while they run, and several call sites with
-several timers is exactly how the one nobody is watching that day drifts. The
-view keeps the run's clock, so a run's wall time is measured once, where the
-run is watched.
+reporter and the clean-up are `liveRun()` in `extension/run-ui.ts` - one
+implementation, reached only through `watched()`, which the five commands, the
+`subagent` tool and `/build`'s committer all stand on. They must look identical
+while they run, and several call sites with several timers is exactly how the
+one nobody is watching that day drifts. What a view measures - the picture, the
+clock, `usage.json` - is the library's `measuredRun`, the same one an
+experiment's cell stands on; the view only adds a terminal to it. `run-ui.ts`
+paints and nothing else: the herdr session switch is `herdr-switch.ts`, and
+who owns escape while a question card is up is `asking.ts`.
 
 ## Reference
 
