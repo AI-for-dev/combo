@@ -2,17 +2,17 @@
  * The `board` tool: what a member can do with it, and what it is told when it
  * cannot.
  *
- * The board itself is tested next door. What is tested here is the seam - the
- * id in the closure, the paging, the refusals a model reads - and the one
- * property everything else rests on: a member cannot post as another.
+ * The board itself is tested next door, and so is what it announces. What is
+ * tested here is the seam - the id in the closure, the paging, the refusals a
+ * model reads - and the one property everything else rests on: a member cannot
+ * post as another.
  */
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { createBoard, type Post } from "../src/board.ts";
+import { createBoard } from "../src/board.ts";
 import { createClaims } from "../src/claims.ts";
 import { boardTool, declaresBoard, BOARD_TOOL } from "../src/board-tool.ts";
-import { createEventBus, type SubagentEvent } from "../src/events.ts";
 import { callTool } from "./fixtures/call-tool.ts";
 
 /** What the model is shown, whether it went well or not. */
@@ -122,73 +122,6 @@ describe("reading", () => {
 	});
 });
 
-describe("the record", () => {
-	test("every post is announced, so the run can be read back", async () => {
-		const bus = createEventBus();
-		const seen: SubagentEvent[] = [];
-		bus.subscribe((event) => seen.push(event));
-		const tool = boardTool({ board: createBoard(), from: "scout#1", bus });
-
-		await callTool(tool, { action: "post", kind: "claim", text: "taking the parser" });
-
-		assert.equal(seen.length, 1);
-		assert.equal(seen[0]?.type, "post");
-		assert.equal((seen[0] as { id: string }).id, "scout#1");
-		assert.equal((seen[0] as { post: Post }).post.text, "taking the parser");
-	});
-
-	test("being handed something is announced too: the record answers who knew what", async () => {
-		const board = createBoard();
-		board.post("scout#2", { kind: "tell", text: "the parser is in src/pipeline.ts" });
-		const bus = createEventBus();
-		const seen: SubagentEvent[] = [];
-		bus.subscribe((event) => seen.push(event));
-		const tool = boardTool({ board, from: "scout#1", bus });
-
-		await callTool(tool, { action: "read" });
-
-		assert.deepEqual(seen, [{ type: "read", id: "scout#1", posts: ["p1"], waiting: 0 }]);
-	});
-
-	test("a read that was handed nothing is recorded, and says so", async () => {
-		// The strongest thing the record holds about what a member could not have
-		// known is that it looked and there was nothing there.
-		const bus = createEventBus();
-		const seen: SubagentEvent[] = [];
-		bus.subscribe((event) => seen.push(event));
-		const tool = boardTool({ board: createBoard(), from: "scout#1", bus });
-
-		await callTool(tool, { action: "read" });
-
-		assert.deepEqual(seen, [{ type: "read", id: "scout#1", posts: [], waiting: 0 }]);
-	});
-
-	test("a read says how much was left behind, so a member falling behind shows", async () => {
-		const board = createBoard();
-		for (let n = 0; n < 30; n++) board.post("scout#2", { kind: "tell", text: `post ${n}` });
-		const bus = createEventBus();
-		const seen: SubagentEvent[] = [];
-		bus.subscribe((event) => seen.push(event));
-		const tool = boardTool({ board, from: "scout#1", bus });
-
-		await callTool(tool, { action: "read" });
-
-		const read = seen[0] as { posts: readonly string[]; waiting: number };
-		assert.equal(read.posts.length, 25);
-		assert.equal(read.waiting, 5);
-	});
-
-	test("a refused post is not announced", async () => {
-		const bus = createEventBus();
-		const seen: SubagentEvent[] = [];
-		bus.subscribe((event) => seen.push(event));
-		const tool = boardTool({ board: createBoard({ limits: { maxPosts: 0 } }), from: "scout#1", bus });
-
-		await callTool(tool, { action: "post", kind: "tell", text: "anything" });
-		assert.deepEqual(seen, []);
-	});
-});
-
 describe("taking and releasing", () => {
 	const setup = (keys?: readonly string[]) => {
 		const claims = createClaims(keys ? { keys } : {});
@@ -237,19 +170,4 @@ describe("taking and releasing", () => {
 		assert.match(await answer(first, { action: "take" }), /Name what you are taking/);
 	});
 
-	test("every grant and every refusal is recorded", async () => {
-		const claims = createClaims({ keys: ["console.ts"] });
-		const bus = createEventBus();
-		const seen: SubagentEvent[] = [];
-		bus.subscribe((event) => seen.push(event));
-		const board = createBoard();
-
-		await callTool(boardTool({ board, from: "scout#1", claims, bus }), { action: "take", key: "console.ts" });
-		await callTool(boardTool({ board, from: "scout#2", claims, bus }), { action: "take", key: "console.ts" });
-
-		assert.deepEqual(seen, [
-			{ type: "claim", id: "scout#1", key: "console.ts", action: "take", ok: true },
-			{ type: "claim", id: "scout#2", key: "console.ts", action: "take", ok: false, heldBy: "scout#1" },
-		]);
-	});
 });

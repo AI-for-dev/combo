@@ -31,6 +31,7 @@
  */
 
 import type { Agent } from "./../agent.ts";
+import { announcedBoard, announcedClaims } from "./../announced.ts";
 import { boardTool } from "./../board-tool.ts";
 import { boardLines, createBoard, type Board, type Post } from "./../board.ts";
 import { createClaims, type Claims } from "./../claims.ts";
@@ -137,13 +138,16 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 	const roster = options.members.flatMap(({ agent, count }) => Array.from({ length: Math.max(0, count) }, () => agent));
 	if (roster.length === 0) throw new Error("swarm: give it at least one member");
 
-	const board = options.board ?? createBoard();
-	const claims = options.claims ?? createClaims();
 	const concurrency = Math.max(1, options.concurrency ?? 4);
 	const startedAt = performance.now();
 	// The members and the board report on one stream, and the pool would open a
 	// second one of its own if it were handed `onEvent` again.
 	const bus = busFor(options);
+	// Wrapped here, whoever built them: what a member does through its tool and
+	// what this workflow does for it - the handout each round, the keys taken
+	// back from a member that is gone - land in the same record.
+	const board = announcedBoard(options.board ?? createBoard(), bus);
+	const claims = announcedClaims(options.claims ?? createClaims(), bus);
 	const pool = new SubagentPool({
 		...options,
 		bus,
@@ -153,7 +157,7 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 		// once the subagent does, which is what the function form is for.
 		customTools: (agent) => (id: string) => [
 			...(options.customTools?.(agent) as never[] | undefined ?? []),
-			boardTool({ board, from: id, claims, bus }),
+			boardTool({ board, from: id, claims }),
 		],
 	});
 

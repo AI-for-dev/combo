@@ -70,10 +70,12 @@ export type PostOutcome = { ok: true; post: Post } | { ok: false; error: string 
 
 /** What a reader has not been given yet, and what to ask with next time. */
 export type Reading = {
-	/** What came in since the cursor, for this reader only. */
+	/** What came in since the cursor, for this reader only - up to the limit asked for. */
 	posts: readonly Post[];
 	/** Pass it back to {@link Board.since} to be given only what came after. */
 	cursor: string;
+	/** How many more were there for this reader, past the limit. `0` when it was handed everything. */
+	waiting: number;
 };
 
 /**
@@ -102,8 +104,15 @@ export type Board = {
 	 * else with the turn it has left.
 	 */
 	post(from: string, draft: Draft): PostOutcome;
-	/** What `reader` has not been given: everyone's broadcasts, plus its own mail. */
-	since(reader: string, cursor?: string): Reading;
+	/**
+	 * What `reader` has not been given: everyone's broadcasts, plus its own mail.
+	 *
+	 * `limit` is a page: a board holds hundreds and a member's context holds one
+	 * conversation, so a reader may ask for a few and be told how many wait. The
+	 * cursor then moves past what was handed over, never past what was merely
+	 * looked at, so a post left for the next page is still there when asked.
+	 */
+	since(reader: string, cursor?: string, limit?: number): Reading;
 	/** Every post, in the order they went up. The record an investigation reads. */
 	all(): readonly Post[];
 };
@@ -169,18 +178,19 @@ export function createBoard(options: BoardOptions = {}): Board {
 			return { ok: true, post };
 		},
 
-		since(reader, cursor) {
-			// The cursor is the last post that existed when this reader last
-			// looked, not the last it was handed: a post for somebody else must
-			// not be offered again on the next read.
+		since(reader, cursor, limit) {
 			const from = cursor ? Number(cursor.slice(1)) || 0 : 0;
-			const fresh = posts.slice(from);
-			return {
-				// A member has read what it wrote. Handing it back would spend the
-				// context it is meant to save.
-				posts: fresh.filter((one) => one.from !== reader && (one.to === undefined || one.to === reader)),
-				cursor: posts.length > 0 ? `p${posts.length}` : (cursor ?? ""),
-			};
+			// A member has read what it wrote. Handing it back would spend the
+			// context it is meant to save.
+			const mine = posts.slice(from).filter((one) => one.from !== reader && (one.to === undefined || one.to === reader));
+			const page = limit === undefined ? mine : mine.slice(0, Math.max(0, limit));
+			const waiting = mine.length - page.length;
+			// With everything handed over, the cursor is the last post that existed
+			// when this reader looked, not the last it was handed: a post for
+			// somebody else must not be re-examined on every read. With a page left
+			// behind, it is the last post handed, so the rest is still there.
+			const last = waiting > 0 ? (page.at(-1)?.id as string) : posts.length > 0 ? `p${posts.length}` : (cursor ?? "");
+			return { posts: page, cursor: last, waiting };
 		},
 
 		all() {

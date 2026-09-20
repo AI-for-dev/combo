@@ -196,8 +196,12 @@ all of them are. So the first thing anybody says opens one more pane, named
 ⚑ member#2 take console.ts → refused (member#1)
 ```
 
-Each member's own pane shows its half of that as the tool calls it made, the
-way pi shows a tool call. The board's wording is the console reporter's, from
+Everything on it is announced by the board and the claims themselves, whoever
+acted on them - a member through its tool, or the swarm handing a member what it
+has not seen and taking back what a member that stopped was holding - so the
+pane, the console and `events.jsonl` hold the whole of the traffic and not the
+half that went through a tool. Each member's own pane shows its half of that as
+the tool calls it made, the way pi shows a tool call. The board's wording is the console reporter's, from
 one place (`src/reporters/traffic.ts`), because two displays of one run are
 read side by side and a difference between them would read as a difference in
 the run. The board is the one pane that follows a file rather than the mirror:

@@ -63,14 +63,15 @@ function recorder(paneId: string | null = "w1:p") {
 		return paneId === null ? { result: { pane: {} } } : { result: { pane: { pane_id: `${paneId}${++opened}` } } };
 	};
 
-	/** The file the pane named `label` was told to follow. */
-	const logOf = (label: string) => {
+	/** What was typed into the pane named `label`: found by the pane, never by a word in the text. */
+	const inputOf = (label: string) => {
 		const pane = calls.find((call) => call.method === "pane.rename" && call.params.label === label)?.params.pane_id;
-		const run = calls.find((call) => call.method === "pane.send_input" && call.params.pane_id === pane);
-		return /'(.+)'/.exec(String(run?.params.text ?? ""))?.[1] as string;
+		return String(calls.find((call) => call.method === "pane.send_input" && call.params.pane_id === pane)?.params.text ?? "");
 	};
+	/** The file the pane named `label` was told to follow. */
+	const logOf = (label: string) => /'(.+)'/.exec(inputOf(label))?.[1] as string;
 
-	return { send, calls, logOf, methods: () => calls.map((call) => call.method) };
+	return { send, calls, inputOf, logOf, methods: () => calls.map((call) => call.method) };
 }
 
 /** A mirror socket nothing listens on: a reporter test opens no server. */
@@ -217,7 +218,7 @@ describe("herdr reporter", () => {
 
 	test("the members talk on a pane of their own", async () => {
 		const dir = tmpDir();
-		const { send, logOf, calls } = recorder();
+		const { send, logOf, inputOf } = recorder();
 		const report = createHerdrReporterWith(send, { mirror: NOWHERE, dir, all: true });
 
 		report(spawnEvent("member#1", false));
@@ -235,7 +236,7 @@ describe("herdr reporter", () => {
 		assert.match(board, /⇣ member#2 was handed nothing/, "the quiet half is the one a race needs");
 		assert.match(board, /✉ member#1 → member#2 \[ask\] who has console.ts\?/);
 		assert.match(board, /⚑ member#2 take console.ts → refused \(member#1\)/);
-		assert.match(String(calls.find((call) => call.method === "pane.send_input" && String(call.params.text).includes("board"))?.params.text), /^exec tail -n \+1 -f '/, "the board is the one pane that follows a file: nobody types to it");
+		assert.match(inputOf(BOARD_PANE), /^exec tail -n \+1 -f '/, "the board is the one pane that follows a file: nobody types to it");
 	});
 
 	test("a person's word reaches the pane through the mirror, and opens no board", async () => {
