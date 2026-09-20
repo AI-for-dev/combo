@@ -27,17 +27,12 @@
 
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import {
-	checkModel,
-	createRunDir,
 	commandVerifier,
-	findResumableBuild,
 	fromBuildState,
 	findAgent,
 	checkPipelineAgents,
 	missingAgents,
 	plural,
-	runPipeline,
-	saveBuildState,
 	toBuildState,
 	type Agent,
 	type BuildProgress,
@@ -48,19 +43,11 @@ import {
 	type PipelineRunResult,
 	type Verify,
 } from "../src/index.ts";
+import { checked, choosePipeline, firstLines, loadRoster, pipelineVerifier, refuse, watched, type CommandCtx } from "./command.ts";
 import { submit } from "./commit.ts";
+import { resolved, type CommandDeps, type Deps, type Git } from "./deps.ts";
+import { parseBuildArgs } from "./flags.ts";
 import { runInterview } from "./interview-command.ts";
-import {
-	choosePipeline,
-	firstLines,
-	loadRoster,
-	parseBuildArgs,
-	refuse,
-	REAL_GIT,
-	type BuildDeps,
-	type CommandCtx,
-} from "./command.ts";
-import { liveRun, pipelineVerifier, STATUS } from "./run-ui.ts";
 
 /**
  * Registers `/build`.
@@ -100,14 +87,15 @@ const CAST = {
  * still in the editor, the work is still in the working tree. Nothing is undone
  * on the user's behalf.
  */
-export async function runBuild(args: string, ctx: CommandCtx, deps: BuildDeps = {}): Promise<PipelineRunResult | undefined> {
+export async function runBuild(args: string, ctx: CommandCtx, injected: CommandDeps = {}): Promise<PipelineRunResult | undefined> {
+	const deps = resolved(injected);
 	const plan = await validateBuild(args, ctx, deps);
 	if (!plan) return undefined;
 
 	// One run, one folder - and it is made before the interview rather than
 	// after it. An interview that fails used to leave nothing to read, which is
 	// the one moment "what was actually sent" is the only question worth asking.
-	const exportDir = plan.previous ? plan.previous.dir : (deps.runDir ?? createRunDir)();
+	const exportDir = plan.previous ? plan.previous.dir : deps.runDir();
 
 	const started = await loadOrResume(plan, ctx, deps, exportDir);
 	if (!started) return undefined;
@@ -130,7 +118,7 @@ export async function runBuild(args: string, ctx: CommandCtx, deps: BuildDeps = 
 
 /** What a build needs settled before anybody is asked anything. */
 type BuildPlan = {
-	git: typeof REAL_GIT;
+	git: Git;
 	agents: Agent[];
 	pipeline: Pipeline;
 	/** The agent that writes the commit message. Resolved early: it is needed last. */
@@ -153,8 +141,8 @@ type BuildPlan = {
  * checked while the only thing at stake is the user's next second - not the
  * conversation they would otherwise have sat through first.
  */
-async function validateBuild(args: string, ctx: CommandCtx, deps: BuildDeps): Promise<BuildPlan | undefined> {
-	const git = deps.git ?? REAL_GIT;
+async function validateBuild(args: string, ctx: CommandCtx, deps: Deps): Promise<BuildPlan | undefined> {
+	const { git } = deps;
 	const { pipeline: wanted, model, worktree, questions, request } = parseBuildArgs(args);
 
 	// `/build resume` carries on the last interrupted build in this directory:
@@ -163,7 +151,7 @@ async function validateBuild(args: string, ctx: CommandCtx, deps: BuildDeps): Pr
 	// twice and overwriting what a reviewer already accepted.
 	let previous: { dir: string; state: BuildState } | undefined;
 	if (request.trim().toLowerCase() === "resume") {
-		previous = (deps.findResumable ?? findResumableBuild)("runs", ctx.cwd);
+		previous = deps.findResumable("runs", ctx.cwd);
 		if (!previous) return refuse(ctx, "build: no interrupted build to carry on here", "warning");
 	} else if (!request.trim()) {
 		return refuse(ctx, "build: say what you want built, for example /build add a cache to the loader", "warning");
@@ -176,17 +164,15 @@ async function validateBuild(args: string, ctx: CommandCtx, deps: BuildDeps): Pr
 	}
 
 	const agents = loadRoster(ctx, deps);
-	try {
+	return await checked(ctx, async () => {
 		const pipeline = choosePipeline(wanted, ctx, deps);
 		checkPipelineAgents(pipeline, agents);
 		const committer = findAgent(agents, CAST.committer);
 		// Same reasoning as the lines above: a mistyped model must cost a second,
 		// not the interview it would otherwise sit through first.
-		if (model) await (deps.checkModel ?? checkModel)(model);
+		if (model) await deps.checkModel(model);
 		return { git, agents, pipeline, committer, model, worktree, questions, request, previous };
-	} catch (cause) {
-		return refuse(ctx, cause instanceof Error ? cause.message : String(cause), "error");
-	}
+	});
 }
 
 /** The brief a run starts from, and the progress it carries on with. */
@@ -198,12 +184,7 @@ type StartingPoint = { brief: string; resume?: BuildProgress };
  * A resumed build is never re-interviewed - that would ask the user to decide
  * again what they decided an hour ago.
  */
-async function loadOrResume(
-	plan: BuildPlan,
-	ctx: CommandCtx,
-	deps: BuildDeps,
-	exportDir: string,
-): Promise<StartingPoint | undefined> {
+async function loadOrResume(plan: BuildPlan, ctx: CommandCtx, deps: Deps, exportDir: string): Promise<StartingPoint | undefined> {
 	const previous = plan.previous;
 	if (!previous) {
 		const outcome = await runInterview(plan.request, ctx, deps, {
@@ -246,7 +227,7 @@ async function runTheWork(
 	started: StartingPoint,
 	exportDir: string,
 	ctx: CommandCtx,
-	deps: BuildDeps,
+	deps: Deps,
 ): Promise<{ done: PipelineRunResult; exportDir: string; label: string }> {
 	const { previous, pipeline, agents, model } = plan;
 	const { brief } = started;
@@ -258,29 +239,25 @@ async function runTheWork(
 	// an empty answer is a legitimate "there is nothing to run".
 	const verify = deps.verify ?? pipelineVerifier(pipeline, ctx.cwd) ?? (await askForCheck(ctx));
 
-	// The same dots the tool draws, and the same ones `/run` draws.
-	const live = liveRun(ctx.ui, { tickMs: deps.tickMs, signal: ctx.signal });
-
-	let done: PipelineRunResult | undefined;
-	ctx.ui.setStatus(STATUS, "building…");
-	try {
-		done = await (deps.runPipeline ?? runPipeline)({
-			pipeline,
-			agents,
-			input: brief,
-			cwd: ctx.cwd,
-			exportDir,
-			verify,
-			model,
-			worktree: plan.worktree,
-			delivery: deliveryWiring(plan, started, { exportDir, label }, ctx, deps),
-			signal: live.signal,
-			spawn: live.spawn,
-			onEvent: live.onEvent,
-		});
-	} finally {
-		live.stop(exportDir, done?.usage.wallMs ?? 0);
-	}
+	const done = await watched(ctx, deps, {
+		status: "building…",
+		dir: exportDir,
+		work: (live) =>
+			deps.runPipeline({
+				pipeline,
+				agents,
+				input: brief,
+				cwd: ctx.cwd,
+				exportDir,
+				verify,
+				model,
+				worktree: plan.worktree,
+				delivery: deliveryWiring(plan, started, { exportDir, label }, ctx, deps),
+				signal: live.signal,
+				spawn: live.spawn,
+				onEvent: live.onEvent,
+			}),
+	});
 
 	return { done, exportDir, label };
 }
@@ -298,9 +275,8 @@ function deliveryWiring(
 	started: StartingPoint,
 	where: { exportDir: string; label: string },
 	ctx: CommandCtx,
-	deps: BuildDeps,
+	deps: Deps,
 ): NonNullable<PipelineRunOptions["delivery"]> {
-	const save = deps.saveState ?? saveBuildState;
 	const { previous } = plan;
 	const about = { request: where.label, brief: started.brief, cwd: ctx.cwd, startedAt: previous?.state.startedAt };
 
@@ -309,7 +285,7 @@ function deliveryWiring(
 		// approved subtasks.
 		resume: (stepId) =>
 			started.resume && (previous?.state.step ?? stepId) === stepId ? started.resume : undefined,
-		onProgress: (stepId, progress) => void save(where.exportDir, toBuildState(progress, { ...about, step: stepId })),
+		onProgress: (stepId, progress) => void deps.saveState(where.exportDir, toBuildState(progress, { ...about, step: stepId })),
 	};
 }
 

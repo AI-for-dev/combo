@@ -13,19 +13,9 @@
  * on without running anything.
  */
 
-import {
-	findAgent,
-	loadPipelines,
-	run,
-	runPipeline,
-	type Agent,
-	type EventListener,
-	type Pipeline,
-	type SpawnFn,
-	type Usage,
-} from "../src/index.ts";
-import type { BuildDeps, CommandCtx } from "./command.ts";
-import { pipelineVerifier } from "./run-ui.ts";
+import { findAgent, type Agent, type EventListener, type Pipeline, type SpawnFn, type Usage } from "../src/index.ts";
+import { pipelineVerifier, type CommandCtx } from "./command.ts";
+import type { Deps } from "./deps.ts";
 
 /** What a step turned out to name. Resolved before anything is spawned. */
 export type Target = { kind: "pipeline"; pipeline: Pipeline } | { kind: "agent"; agent: Agent };
@@ -45,7 +35,7 @@ export type Stage = {
 	/** The roster the pipeline's step names were resolved against. */
 	agents: Agent[];
 	ctx: CommandCtx;
-	deps: BuildDeps;
+	deps: Deps;
 	/** Where this stage's transcripts and `usage.json` land. */
 	dir: string;
 	/** Beats the pipeline file's model, and the agent's frontmatter. */
@@ -72,10 +62,10 @@ export type Stage = {
  * end. A name held by neither says so in one message rather than sending
  * whoever typed it round two listings.
  */
-export function resolveTarget(name: string, forceAgent: boolean, ctx: CommandCtx, deps: BuildDeps, agents: Agent[]): Target {
+export function resolveTarget(name: string, forceAgent: boolean, ctx: CommandCtx, deps: Deps, agents: Agent[]): Target {
 	if (forceAgent) return { kind: "agent", agent: findAgent(agents, name) };
 
-	const catalogue = (deps.loadPipelines ?? loadPipelines)({ cwd: ctx.cwd, scope: "both", builtin: true });
+	const catalogue = deps.loadPipelines({ cwd: ctx.cwd, scope: "both", builtin: true });
 	const broken = catalogue.broken.find((one) => one.name === name);
 	if (broken) throw new Error(`step: ${broken.filePath} does not parse: ${broken.error}`);
 
@@ -102,7 +92,7 @@ export async function runStage(target: Target, input: string, stage: Stage): Pro
 	const { agents, ctx, deps, dir, model, onEvent, signal, spawn } = stage;
 
 	if (target.kind === "pipeline") {
-		const done = await (deps.runPipeline ?? runPipeline)({
+		const done = await deps.runPipeline({
 			pipeline: target.pipeline,
 			agents,
 			input,
@@ -118,7 +108,7 @@ export async function runStage(target: Target, input: string, stage: Stage): Pro
 		return { output: done.output, usage: done.usage, error: done.ok ? undefined : (done.error ?? "unknown error") };
 	}
 
-	const result = await (deps.run ?? run)(target.agent, input, {
+	const result = await deps.run(target.agent, input, {
 		cwd: ctx.cwd,
 		exportDir: dir,
 		model,

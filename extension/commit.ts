@@ -8,8 +8,9 @@
  * the commit" is a boundary that should be readable in one file.
  */
 
-import { branchName, run, type Agent } from "../src/index.ts";
-import { firstLines, REAL_GIT, refuse, type BuildDeps, type CommandCtx } from "./command.ts";
+import { branchName, type Agent } from "../src/index.ts";
+import { firstLines, refuse, type CommandCtx } from "./command.ts";
+import type { Deps } from "./deps.ts";
 import { STATUS } from "./run-ui.ts";
 
 /**
@@ -25,9 +26,9 @@ export async function submit(
 	approved: boolean,
 	committer: Agent,
 	ctx: CommandCtx,
-	deps: BuildDeps,
+	deps: Deps,
 ): Promise<void> {
-	const git = deps.git ?? REAL_GIT;
+	const { git } = deps;
 	const dirty = await git.status(ctx.cwd);
 	if (!dirty.ok || !dirty.value.trim()) {
 		refuse(ctx, "build: nothing changed on disk, so there is nothing to commit", "warning");
@@ -40,7 +41,7 @@ export async function submit(
 	ctx.ui.setStatus(STATUS, "writing the commit message…");
 	let message: string;
 	try {
-		const written = await (deps.run ?? run)(committer, commitPrompt(brief, patch.ok ? patch.value : "", added), {
+		const written = await deps.run(committer, commitPrompt(brief, patch.ok ? patch.value : "", added), {
 			cwd: ctx.cwd,
 			signal: ctx.signal,
 		});
@@ -79,9 +80,9 @@ async function makeCommit(
 	summary: string,
 	approved: boolean,
 	ctx: CommandCtx,
-	deps: BuildDeps,
+	deps: Deps,
 ): Promise<void> {
-	const git = deps.git ?? REAL_GIT;
+	const { git } = deps;
 	const go = await ctx.ui.confirm(`Commit on ${branch}?`, `${summary}\n\n${firstLines(message, 6)}`);
 	if (!go) {
 		refuse(ctx, `build: no commit - the work is in the working tree, ${approved ? "audited" : "NOT audited"}`, "info");

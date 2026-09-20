@@ -1491,6 +1491,49 @@ way round - making the card's `esc` a cancel, so that both meanings agree - was
 rejected, because it throws the answers away, and the reflex to escape out of a
 dialog is exactly the moment those answers are worth keeping.
 
+## One floor under the commands
+
+Five commands launch work - `/build`, `/run`, `/step`, `/swarm`, `/interview` -
+and each had written the same shape by hand: choose between the double and the
+real thing at every use (`deps.runPipeline ?? runPipeline`, thirty-two times in
+ten files), wrap the pre-spawn checks in the same `try`/`catch` that turns a
+thrown explanation into a refusal (six copies), then `liveRun`, a footer status,
+and a `try`/`finally` that stops the view and writes `usage.json` (five copies,
+one of them clearing a status the stop had already cleared). `command.ts` was
+called the floor they stood on and held the parser, `refuse` and the roster; the
+order things happen in was still every command's own, and so was every way of
+getting it slightly wrong.
+
+The floor is three pieces now, each deep and composable, and deliberately not
+one template function: the five commands have different shapes - three stops
+for `/build`, an editor after the work for `/interview` - and a function taking
+parse, target, work and report as parameters would be a configuration engine
+with five callers. `resolved(deps)` applies the defaults once and hands back
+doubles that are all present, treating a key holding `undefined` as unsaid for
+the same reason `override()` does in `pipeline-run.ts`. `checked(ctx, fn)` runs
+what must pass before a spawn and gives `undefined` back on a thrown
+explanation, the shape every refusal already had. `watched(ctx, deps, { status,
+dir, work })` puts the dots up, says what is running, hands the work its live
+run, and takes everything down in a `finally` with the time this command
+measured - one clock, which is also why a run's `usage.json` now carries the
+command's wall time rather than the workflow's own.
+
+Two moves came with it. `command.ts` was mixing four concepts at 253 lines, so
+what a command reaches for is `deps.ts` and what was typed is `flags.ts`;
+`BuildDeps` is `CommandDeps`, since it never was about one command. And
+`pipelineVerifier` left `run-ui.ts`: three callers, none of which paints.
+
+`checkModel` stays in each command's `checked` block rather than in `watched`:
+`/build` has to refuse a mistyped model before the interview, and the interview
+runs before anything is watched. What a command checks is its own; that it
+checks before it spawns is the floor's.
+
+The contract of the floor is asserted once, in `test/command.test.ts` - a
+thrown work still throws after the clean-up, the footer and the widget are
+cleared whatever happened, `usage.json` lands in the folder given - and the two
+commands that each proved the widget goes when the run ends lost those tests.
+Their own tests say what each command decides.
+
 ## Asking the user, and touching the world
 
 Two ports, one rule: **the agents produce text, our code performs the act.**
