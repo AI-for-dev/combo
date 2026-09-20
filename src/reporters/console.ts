@@ -45,6 +45,7 @@ export function consoleReporter(options: ConsoleReporterOptions = {}): EventList
 			case "post":
 			case "read":
 			case "claim":
+			case "steer":
 				write(`${indent(event.id)}   ${trafficLine(event)}`);
 				break;
 			case "usage":

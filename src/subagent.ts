@@ -13,6 +13,7 @@ import path from "node:path";
 import type { Agent, Lifetime } from "./agent.ts";
 import { busFor, nextSubagentId, type EventBus, type EventListener, type SubagentEvent } from "./events.ts";
 import { exportSession, type SessionExport } from "./export.ts";
+import { registerMirror } from "./mirror.ts";
 import { failed, type Result } from "./result.ts";
 import {
 	createDefaultSession,
@@ -196,6 +197,17 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 	// This subagent's own stop switch, apart from the caller's signal: stopping
 	// one branch must not touch the ones beside it.
 	const stopper = new AbortController();
+	// Reachable from a pane, by id, while it lives: the transcript to look at,
+	// the turn in flight to speak to, and the stop switch.
+	const unregister = registerMirror({
+		id,
+		agent: agent.name,
+		model: modelLabel(session),
+		cwd: options.cwd ?? process.cwd(),
+		session,
+		bus,
+		stop: () => stopper.abort(),
+	});
 	let closed = false;
 	let asking = false;
 	/**
@@ -378,6 +390,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 							ok: true,
 						},
 			});
+			unregister();
 		},
 	};
 

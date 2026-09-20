@@ -266,6 +266,20 @@ describe("herdr reporter", () => {
 		assert.ok(!mine.includes("member#1 → member#2"), "what it was not part of belongs on the board");
 	});
 
+	test("a person's word goes to the member's pane, and opens no board", async () => {
+		const dir = tmpDir();
+		const { send, logOf, calls } = recorder();
+		const report = createHerdrReporterWith(send, { dir });
+
+		report(spawnEvent("scout#1", true));
+		report({ type: "steer", id: "scout#1", text: "look at test/ first" });
+		await settle();
+
+		assert.match(fs.readFileSync(logOf("scout#1"), "utf8"), /⌨ ← look at test\/ first/);
+		assert.ok(!fs.existsSync(logOf(BOARD_PANE)), "the board is what passed between members");
+		assert.equal(calls.filter((call) => call.method === "pane.split").length, 1);
+	});
+
 	test("nobody watching means no board pane either", async () => {
 		const { send, calls } = recorder();
 		const report = createHerdrReporterWith(send, { dir: tmpDir() });
@@ -508,6 +522,12 @@ describe("consoleReporter", () => {
 		assert.match(lines[0] as string, /scout#1/);
 		assert.match(lines[1] as string, /→ grep/);
 		assert.match(lines[2] as string, /^✓ scout#1/);
+	});
+
+	test("a steer reads as a person's word to one subagent", () => {
+		const lines: string[] = [];
+		consoleReporter({ write: (line) => lines.push(line) })({ type: "steer", id: "scout#1", text: "look at test/ first" });
+		assert.match(lines[0] as string, /⌨ scout#1 ← look at test\/ first$/);
 	});
 
 	test("a delegated subagent is written under the one that asked for it", () => {
