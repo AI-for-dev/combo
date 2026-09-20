@@ -24,7 +24,8 @@ against four models to see which one is worth its price.
 - An **explicit lifetime**: disposable, or persistent across a workflow. The
   caller decides, never the library.
 - A **live view** of the work, in [herdr](https://herdr.dev) if it is running and
-  in pi's TUI otherwise, with no change to the calling code.
+  in pi's TUI otherwise, with no change to the calling code. A herdr split
+  reads like a pi session, and takes the keyboard while its subagent works.
 - **Everything measured and exportable**: time and tokens per subagent, plus a
   readable HTML and replayable JSONL export of a whole run.
 - An **answer in the language you asked in**. The definitions are English; what

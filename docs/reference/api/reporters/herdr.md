@@ -6,18 +6,23 @@ Source: [`src/reporters/herdr.ts`](https://github.com/AI-for-dev/combo/blob/main
 
 The herdr reporter: one split per subagent, showing it work.
 
-The trick worth knowing: a herdr pane cannot *host* an in-process subagent -
-there is no process and no TTY to attach. So the pane does not host it, it
-**displays a stream we write**. We append to a file and open a pane running
-`tail -f` on it. The pane is then ours, which is also why we can report agent
-state on it: the main pane's state already belongs to herdr's own pi
-integration, and two sources cannot own one pane.
+A herdr pane cannot *host* an in-process subagent - there is no process and
+no TTY to attach. So the pane hosts a **client of the mirror** instead: the
+pane runs `pane/main.ts`, which attaches to the subagent by id, draws the
+session with pi's own components and sends the keyboard back. The pane is
+then ours, which is also why we can report agent state on it: the main
+pane's state already belongs to herdr's own pi integration, and two sources
+cannot own one pane.
 
-That takes three calls, because herdr has none that does all three:
-`pane.split` makes the pane and hands back its id, `pane.rename` puts the
-subagent's name on it, and `pane.send_input` types the command into the shell
-the split started. `agent.start` sounds like the call that opens one and is
-not: it puts a *recognised* agent into a pane that already exists.
+The board is the one pane that still displays a stream we write: nobody
+works in it, nothing is typed to it, and its lines are `traffic.ts`'s so the
+console and the pane read the same. It gets a file and `tail -f`.
+
+Opening either takes three calls, because herdr has none that does all
+three: `pane.split` makes the pane and hands back its id, `pane.rename` puts
+the name on it, and `pane.send_input` types the command into the shell the
+split started. `agent.start` sounds like the call that opens one and is not:
+it puts a *recognised* agent into a pane that already exists.
 
 ## `createHerdrReporter`
 
@@ -63,8 +68,14 @@ export type HerdrOptions = {
 	focus?: boolean;
 	/** Transport. Injection point for tests; defaults to the real socket. */
 	send?: HerdrSend;
-	/** Directory for the live logs. Defaults to a per-run temp directory. */
+	/** Directory for the board's live log. Defaults to a per-run temp directory. */
 	dir?: string;
+	/**
+	 * The mirror's socket, which a subagent's pane attaches to. Defaults to this
+	 * process's, started on the first pane. Tests name one that nothing listens
+	 * on, so a reporter test opens no socket.
+	 */
+	mirror?: string;
 	/**
 	 * Open a split for **every** subagent, whatever each one asked for.
 	 *

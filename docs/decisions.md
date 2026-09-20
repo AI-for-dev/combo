@@ -1177,6 +1177,33 @@ The console and a herdr pane are read side by side when a run is compared
 against another, and a difference in how they say it would read as a difference
 in what happened.
 
+**Reversed: a subagent's pane hosts a client, not a file.** The `tail -f`
+above was the right answer to a pane that cannot host a subagent, and the
+wrong shape for two things asked of it since: to read like pi, and to take a
+word for the subagent. A text file can do neither. The split now runs
+`pane/main.ts`, a client of the mirror, so what it draws is pi's chat and what
+is typed into it reaches the turn in flight. The three herdr calls are the
+same three, with a different command typed into the shell; the file, the
+one-line tool summary and the usage line the reporter used to write are gone
+from it, because the pane draws them from the session itself. Text, tool and
+usage events still flow on the bus for every other reporter, and the herdr
+reporter reads only `spawn`, `status` and `close` from it: what herdr must be
+told, and nothing the pane already knows.
+
+The command names the binary this process runs on (`process.execPath`) and
+the client where the package keeps it, both quoted, because the split's shell
+may find another `node` or none, and a pane opening on a usage error says
+nothing about why. When this process is not node at all, the shell's `node` is
+the one candidate left.
+
+The board keeps its file. Nobody works in it and nothing is typed to it, and
+its lines are the console's, which is the property worth keeping there. A
+member's own pane no longer repeats its half of the traffic: the tool calls
+it made are drawn as tool calls, which is how pi would show them. The console
+keeps the `⌨` line for a steer, and `traffic.ts` does not carry it, because
+the pane draws a steer as the user message it becomes and two displays of one
+run must not say it twice.
+
 **A reporter that nobody subscribes reports nothing.** `onEvent` takes a single
 listener, so watching in the TUI *and* in herdr means composing them - use
 `combineReporters(collector.reporter, createHerdrReporter())`, which drops the
