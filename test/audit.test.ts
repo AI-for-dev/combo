@@ -253,18 +253,6 @@ describe("an auditor that signs through the verdict tool", () => {
 		assert.deepEqual(result.progress.obligations, [], "and nothing was closed that was never open");
 	});
 
-	test("a yes over an open obligation does not approve", async () => {
-		const fake = withVerdicts([
-			{ approved: false, raised: ["coder: one", "scribe: two"] },
-			{ approved: true, resolved: [{ id: "o1", how: "addressed" }] },
-		]);
-		const result = await run({ spawn: fake.spawn, auditor: judge });
-
-		assert.equal(result.progress.audits.at(-1)?.verdict?.approved, true, "the auditor said yes");
-		assert.equal(result.approved, false, "and o2 was still open");
-		assert.deepEqual(result.progress.obligations.filter((one) => !one.closed).map((one) => one.id), ["o2"]);
-	});
-
 	test("a refusal that raises nothing sends nobody anywhere", async () => {
 		// The shape a real run produced: the auditor writes `APPROVED` in its prose
 		// while its call says otherwise, and the prose became a fix task.

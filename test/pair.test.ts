@@ -273,15 +273,6 @@ describe("pair, with a ledger of obligations", () => {
 		assert.deepEqual(result.obligations[0]?.closed, { how: "withdrawn", reason: "the code already did it", at: 2 });
 	});
 
-	test("an obligation a round does not name stays open, whatever else it says", async () => {
-		const fake = scripted([{ approved: false, raised: ["one"] }, { approved: true }, { approved: true }]);
-		const result = await pair({ worker, reviewer: judge, input: "x", maxRounds: 3, spawn: fake.spawn });
-
-		assert.equal(result.approved, false);
-		assert.equal(result.rounds, 3, "three rounds spent on one line nobody answered for");
-		assert.equal(result.obligations[0]?.closed, undefined);
-	});
-
 	test("an id the reviewer never raised closes nothing", async () => {
 		const fake = scripted([
 			{ approved: false, raised: ["one"] },

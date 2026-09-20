@@ -18,12 +18,10 @@
 
 import type { Agent } from "./../agent.ts";
 import { notify } from "./../events.ts";
-import { openList, type Obligation } from "./../ledger.ts";
+import type { Obligation } from "./../ledger.ts";
 import type { Result, WorkflowResult } from "./../result.ts";
 import { reviewRecord } from "./../review.ts";
-import type { ToolDefinition } from "./../session.ts";
-import { saysWord } from "./../text.ts";
-import { declaresVerdict, type Verdict } from "./../verdict.ts";
+import type { Verdict } from "./../verdict.ts";
 import type { Verification } from "./../verify.ts";
 import type { WorkflowOptions } from "./options.ts";
 import { SubagentPool } from "./pool.ts";
@@ -139,17 +137,13 @@ export async function audit(options: AuditOptions): Promise<AuditResult> {
 
 	// Built once for the cycle although every round gets a fresh auditor: the
 	// record is what carries between rounds, never a context.
-	const record = reviewRecord(auditor.name, {
-		byTool: declaresVerdict(auditor.tools),
-		inProse: (review) => isApproved(review.output),
-		restored: resume?.obligations,
-	});
+	const record = reviewRecord(auditor, { word: AUDIT_APPROVAL, restored: resume?.obligations });
 	const progress = (): AuditProgress => ({ audits: rounds, tasks, obligations: record.all, verification });
 	const report = () => notify(onRound, progress());
 
 	// `"task"` whatever the caller runs with: the second audit must read the code
 	// as it is now, not remember how it was talked into approving the first time.
-	const pool = new SubagentPool({ ...shared, lifetime: "task", customTools: record.tool ? () => [record.tool as ToolDefinition] : undefined });
+	const pool = new SubagentPool({ ...shared, lifetime: "task", customTools: record.offer(shared.customTools) });
 	// What a previous run spent is on this cycle's trail too: resuming continues
 	// the cycle, and its cost.
 	for (const round of rounds) pool.trail.record(round.review);
@@ -175,8 +169,7 @@ export async function audit(options: AuditOptions): Promise<AuditResult> {
 			// turn, and the refusal would be recorded as a round that never ran.
 			if (shared.signal?.aborted) break;
 
-			const prompt = auditPrompt(brief, tasks, round, maxAuditRounds, verification, workers, { open: record.open, byTool: record.byTool });
-			const review = await pool.turn(auditor, prompt);
+			const review = await pool.turn(auditor, auditPrompt({ brief, tasks, round, maxAuditRounds, verification, workers, terms: record.terms(), byTool: record.byTool }));
 			const { verdict, approved, raised } = await record.close(review, round);
 
 			// The auditor names who fixes what, in the plan convention: one parser,
@@ -261,30 +254,29 @@ export function withCheck(task: string, verification?: Verification): string {
 	].join("\n");
 }
 
-/** `APPROVED` on a line of its own, whatever decoration the model added. */
-export function isApproved(output: string): boolean {
-	return saysWord(output, AUDIT_APPROVAL);
-}
-
-/** How the auditor is asked to answer, and what it still owes. */
+/** What one audit round is built from. */
 export type AuditPromptOptions = {
-	/** Obligations still open, which it is asked to answer for by id. */
-	open?: readonly Obligation[];
-	/** Whether the auditor decides through the `verdict` tool. */
-	byTool?: boolean;
+	/** The specification the work is audited against. */
+	brief: string;
+	/** What is audited: every subtask, then every fix that came back. */
+	tasks: readonly PairResult[];
+	/** This round, counted from one. */
+	round: number;
+	/** The cap, so the last round knows it is the last and asks only for what matters. */
+	maxAuditRounds: number;
+	/** The check as it stands, when one ran. */
+	verification?: Verification;
+	/** Who the auditor may hand a fix to. It has to know their names. */
+	workers: readonly Agent[];
+	/** What the auditor still owes and how its decision is read - its record's terms. */
+	terms: string;
+	/** Whether the decision goes through the verdict tool, which is then where the fix lines go too. */
+	byTool: boolean;
 };
 
-/** What the auditor reads: the brief, what each subtask claims, and what is owed. */
-export function auditPrompt(
-	brief: string,
-	tasks: readonly PairResult[],
-	round: number,
-	maxAuditRounds: number,
-	verification?: Verification,
-	workers: readonly Agent[] = [],
-	options: AuditPromptOptions = {},
-): string {
-	const owed = options.open ?? [];
+/** What the auditor reads: the brief, what each subtask claims, the check, and the terms it answers on. */
+export function auditPrompt(options: AuditPromptOptions): string {
+	const { brief, tasks, round, maxAuditRounds, verification, workers } = options;
 	const reports = tasks
 		.map((task, index) => {
 			const state = task.ok ? (task.approved ? "reviewed and approved" : "reviewed, NOT approved") : `failed: ${task.error}`;
@@ -318,15 +310,10 @@ export function auditPrompt(
 					.filter(Boolean)
 					.join("\n")
 			: "",
-		owed.length ? "Still open, from your earlier rounds:" : "",
-		owed.length ? openList(owed) : "",
-		owed.length ? "" : "",
-		options.byTool
-			? "Call the `verdict` tool. Put your fix lines in `raised`, and name in `resolved` every id above you are done with: one you leave out stays open, and the work is not finished while anything is."
-			: `Answer ${AUDIT_APPROVAL} alone if the whole thing holds together.`,
+		options.terms,
 		"",
 		options.byTool
-			? "Each fix line takes this exact form:"
+			? "Each fix you want done goes in `raised`, one line each, in this exact form:"
 			: "Otherwise answer with nothing but fix lines, one per line, in this exact form:",
 		`    ${workers[0]?.name ?? "coder"}: what to do`,
 		workers.length ? `The only names you may use: ${workers.map((agent) => agent.name).join(", ")}.` : "",

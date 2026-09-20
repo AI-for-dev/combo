@@ -59,7 +59,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`workflows/loop`](workflows/loop.md) | `loop`: 1 → 1, repeated until a criterion is met. | 4 |
 | [`workflows/options`](workflows/options.md) | What every combinator shares: the same options, under the same names, with the same defaults. | 2 |
 | [`workflows/orchestrate`](workflows/orchestrate.md) | `orchestrate`: 1 → ?. An agent *decides* the split, then the split runs. | 3 |
-| [`workflows/pair`](workflows/pair.md) | `pair`: one worker, one reviewer, talking until the work is accepted. | 7 |
+| [`workflows/pair`](workflows/pair.md) | `pair`: one worker, one reviewer, talking until the work is accepted. | 5 |
 | [`workflows/pipeline-run`](workflows/pipeline-run.md) | Running a pipeline: the piece `pipeline.ts` describes and deliberately leaves to someone else. | 6 |
 | [`workflows/plan`](workflows/plan.md) | Reading a plan an agent wrote: the prompt, the parser, the validation. | 6 |
 | [`workflows/pool`](workflows/pool.md) | The pool: where a workflow's turns are played. | 3 |
