@@ -26,33 +26,6 @@ a medium that was empty when the member looked, and a take is decided. Both
 are offered, because a member still has to say what it is doing, and only one
 of them settles who does it.
 
-## `BOARD_TOOL`
-
-*const*
-
-```typescript
-export const BOARD_TOOL = "board";
-```
-
-The name an agent writes in its `tools:` to be allowed on the board.
-
-## `boardTool`
-
-*function*
-
-```typescript
-export function boardTool(options: BoardToolOptions): ToolDefinition { /* … */ }
-```
-
-Builds the `board` tool for one member.
-
-Pass it through `SpawnOptions.customTools` in its function form: the member's
-id is minted by `spawn`, so the tool cannot exist before the subagent does.
-
-Both halves refuse in prose the model can act on rather than failing silently.
-A member told "the board is full" can spend its remaining turn on the work; a
-member whose call vanished tries again.
-
 ## `BoardToolOptions`
 
 *type*

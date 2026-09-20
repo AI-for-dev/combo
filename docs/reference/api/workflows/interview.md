@@ -15,26 +15,6 @@ Why one question at a time rather than a form: a good second question depends
 on the first answer. A form has to guess all of them up front, and guesses
 wrong the moment the first answer surprises it.
 
-## `answerPrompt`
-
-*function*
-
-```typescript
-export function answerPrompt(answer: Answer, remaining: number): string { /* … */ }
-```
-
-What the user answered, and how much room is left.
-
-## `briefPrompt`
-
-*function*
-
-```typescript
-export function briefPrompt(input: string, answers: readonly Answer[]): string { /* … */ }
-```
-
-The closing turn: turn the conversation into a specification.
-
 ## `interview`
 
 *function*
@@ -119,16 +99,6 @@ model, so this is lenient about shape - fenced, wrapped in prose, an array
 with one object in it - and strict about content. No `question` string, or no
 usable option, means no question: the caller moves on to the brief rather
 than putting a malformed card in front of the user.
-
-## `questionPrompt`
-
-*function*
-
-```typescript
-export function questionPrompt(input: string, maxQuestions: number): string { /* … */ }
-```
-
-The opening turn: what the user wants, and how to ask about it.
 
 ## `READY`
 

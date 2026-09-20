@@ -25,22 +25,6 @@ export type ProseApproval = (review: Result, round: number) => boolean | Promise
 
 Reads an approval out of prose, for a reviewer that holds no tool.
 
-## `reviewRecord`
-
-*function*
-
-```typescript
-export function reviewRecord(reviewer: Agent, options: ReviewRecordOptions): ReviewRecord { /* … */ }
-```
-
-Builds the record for one reviewer, named as the ledger will name it.
-
-One per reviewer, never shared: the collector behind the tool is how the
-decision gets back, and two agents writing into one would make their answers
-indistinguishable. The tool is wired to the list here, once, so an id the
-list has nothing open for is refused by the tool and named back to the agent
-inside the same turn - the only moment it can still repair the mistake.
-
 ## `ReviewRecord`
 
 *type*

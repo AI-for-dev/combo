@@ -20,16 +20,6 @@ The tool is granted the way every tool is granted: an agent whose `tools:`
 does not name it does not have it, which keeps what an agent can do readable
 in its own file.
 
-## `declaresVerdict`
-
-*function*
-
-```typescript
-export function declaresVerdict(tools: readonly string[] | undefined): boolean { /* … */ }
-```
-
-Whether an agent's definition asks for the tool.
-
 ## `Resolution`
 
 *type*
@@ -71,33 +61,6 @@ export type Verdict = {
 ```
 
 One decision, as the agent that made it declared it.
-
-## `VERDICT_TOOL`
-
-*const*
-
-```typescript
-export const VERDICT_TOOL = "verdict";
-```
-
-The name an agent writes in its `tools:` to be given the tool.
-
-## `verdictTool`
-
-*function*
-
-```typescript
-export function verdictTool(options: VerdictToolOptions = {}): VerdictTool { /* … */ }
-```
-
-Builds a `verdict` tool and the collector behind it.
-
-One per reviewer, never shared: the collector is how the decision gets back,
-so two agents writing into one would make the answers indistinguishable.
-
-The tool body only records. It runs no check and reverses no decision, which
-is what lets the caller treat what comes out of `take()` as exactly what the
-agent said.
 
 ## `VerdictTool`
 

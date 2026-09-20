@@ -65,16 +65,6 @@ Precedence runs from the least specific to the most - shipped, then the
 user's, then the repository's - so writing your own `build.md` replaces ours
 without having to remove anything.
 
-## `loadPipelinesFromDir`
-
-*function*
-
-```typescript
-export function loadPipelinesFromDir(dir: string): PipelineCatalogue { /* … */ }
-```
-
-Reads every `.md` in a directory. A missing or unreadable directory yields nothing.
-
 ## `lookupPipeline`
 
 *function*
@@ -106,13 +96,3 @@ export type PipelineCatalogue = {
 ```
 
 What a directory scan found: what runs, and what cannot.
-
-## `PIPELINES_DIR`
-
-*const*
-
-```typescript
-export const PIPELINES_DIR = "pipelines";
-```
-
-Directory name under `~/.pi/agent/` and under `.pi/`.

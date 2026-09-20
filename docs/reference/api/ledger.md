@@ -57,19 +57,6 @@ export type Closure = {
 
 How an obligation stopped being open.
 
-## `createLedger`
-
-*function*
-
-```typescript
-export function createLedger(restored: readonly Obligation[] = []): Ledger { /* … */ }
-```
-
-A ledger, empty or carrying on from obligations a previous run recorded.
-
-Ids start at `o1` and continue past the highest one restored, so a resumed
-run never hands out an id an agent has already been answering about.
-
 ## `Ledger`
 
 *type*
@@ -117,13 +104,3 @@ export type Obligation = {
 ```
 
 One thing that has to happen before the work is finished.
-
-## `openList`
-
-*function*
-
-```typescript
-export function openList(obligations: readonly Obligation[]): string { /* … */ }
-```
-
-Obligations as the lines an agent is asked to answer for, one id per line.

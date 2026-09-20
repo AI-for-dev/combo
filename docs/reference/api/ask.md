@@ -78,16 +78,3 @@ export type Question = {
 ```
 
 One question, in the shape a card can draw and a script can answer.
-
-## `scriptedAsk`
-
-*function*
-
-```typescript
-export function scriptedAsk(answers: readonly string[]): AskUser & { asked: Question[] } { /* … */ }
-```
-
-An `AskUser` that replays a script, for tests and non-interactive runs.
-
-Runs out of answers → returns `undefined`, which reads as "submit": a script
-that says nothing more ends the interview instead of hanging it.

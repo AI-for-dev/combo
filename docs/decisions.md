@@ -2753,6 +2753,45 @@ Two rules decide whether a symbol belongs on that list at all:
 Both rules are stated at the top of the file, because the next person adding an
 export will read that before they read this.
 
+### A value is public when somebody outside calls it
+
+The two rules decided types and test helpers, and said nothing about a value
+nobody called. The file was touched in twelve of twenty-five commits, every
+time to add, and of 168 exported values 75 were referenced by nothing in the
+extension, the examples or the scripts: every prompt builder, the word
+constants, the four working-copy layers, the record and the ledger, the board
+and its announcing wrappers, the mirror, the event bus, the pipeline directory
+constants. The list had become a measurement of feature count. A reader
+learning the surface learnt a third of it for nothing, and the generated
+reference documented it.
+
+The third rule: **a value is public when somebody outside `src/` calls it** -
+the extension, an example, a guide's code block, or the TSDoc of a public option
+that names it as the default a caller may wrap (`formatBranches` for
+`ReduceOptions.format`, `pickDestination` for `RouteOptions.parse`). Two more
+were kept on the same footing although the rule as computed missed them: the
+guide for writing a combinator tells its reader to open a `Trail` and to compose
+offers with `offerBoth`, and the file's own comment names `createDefaultSession`
+as what a caller wraps to reach pi's session. `succeeded` stays as the pendant
+of `failed`.
+
+Forty-seven values left: `announcedBoard`, `announcedClaims`, `boardTool`,
+`BOARD_TOOL`, `verdictTool`, `declaresVerdict`, `VERDICT_TOOL`, `SUBAGENT_TOOL`,
+`reviewRecord`, `createLedger`, `openList`, `latestVotes`, `scriptedAsk`,
+`busFor`, `createEventBus`, `experimentReport`, `writeExperimentReport`,
+`copyMainSession`, `exportSession`, `applyPatch`, `currentBranch`, `headSha`,
+`landable`, `scratchWorktree`, `settling`, `answerInTheirLanguage`,
+`inTheLanguageOfTheWork`, `ANSWER_IN_THEIR_LANGUAGE`, `mirrorSocket`,
+`registerMirror`, `REFUSED_IDLE`, `loadPipelinesFromDir`, `PIPELINES_DIR`,
+`STEP_KINDS`, `abortError`, `loadBuildState`, `BUILD_STATE_FILE`, `skillDirs`,
+`accumulate`, `snapshotUsage`, `AUDIT_APPROVAL`, `auditPrompt`, `answerPrompt`,
+`briefPrompt`, `questionPrompt`, `remarksPrompt`, `makePlan`. Every one is still
+exported by its own file and reached by its tests there; what changed is what a
+reader is told they may call. The one reference page whose module kept no public
+symbol, `announced`, went with it, and no guide linked to it. The day a script
+needs one of these back, the rule says how: show it in a guide, or call it from
+an example.
+
 ## A default is written after the spread, never before
 
 `pair` and `interview` default their lifetime to `"workflow"` - two agents in a

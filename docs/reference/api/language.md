@@ -45,34 +45,6 @@ here - the library would have to know them all, and a user's own workflow has
 its own - the rule is stated by shape: a word you were told to answer with
 comes back exactly as it was given.
 
-## `ANSWER_IN_THEIR_LANGUAGE`
-
-*const*
-
-```typescript
-export const ANSWER_IN_THEIR_LANGUAGE = [
-	"Answer in the language of the work you are given: the request, the specification, the material, the report of another agent.",
-	"This prompt and the lines that frame each turn - a round number, what is new, what is left to do - are always written in English, so they never decide that language, and neither does any example in them: match the work you were handed.",
-	"What you were told to answer with is not translated: a word asked for exactly, a JSON key, an agent name, an identifier, a path and anything quoted from code all come back as they were given to you.",
-].join(" ");
-```
-
-The standing instruction. Three sentences: the rule, what it points at, and what it never touches.
-
-## `answerInTheirLanguage`
-
-*function*
-
-```typescript
-export function answerInTheirLanguage(systemPrompt: string): string { /* … */ }
-```
-
-The agent's prompt, plus the language rule.
-
-Kept apart from the prompt files so that it reaches a user's agents too, and
-apart from {@link situate} because they answer different questions: one says
-where the agent stands, this one says who it is talking to.
-
 ## `IN_THE_LANGUAGE_OF_THE_WORK`
 
 *const*
@@ -90,19 +62,3 @@ line says, and the exemptions they carry are already in front of the model.
 
 It points *above* itself, which is what puts it last: the work, the framing
 and this line arrive together, and the one nearest the answer wins.
-
-## `inTheLanguageOfTheWork`
-
-*function*
-
-```typescript
-export function inTheLanguageOfTheWork(task: string): string { /* … */ }
-```
-
-A turn, plus the line that closes it.
-
-Applied by `ask()` and nowhere else, so that a combinator cannot forget it
-and a workflow somebody else writes gets it for free. What the event stream
-reports stays the caller's own task: this line is the library's, like the
-system prompt it echoes, and a card drawing it back would be showing a reader
-something they did not write.

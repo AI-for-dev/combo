@@ -41,16 +41,6 @@ because another identical audit would only cost tokens. A yes over a failing
 check keeps going while rounds are left - the check is the one voice here that
 cannot be talked round.
 
-## `AUDIT_APPROVAL`
-
-*const*
-
-```typescript
-export const AUDIT_APPROVAL = "APPROVED";
-```
-
-The word the auditor says when the whole thing holds together.
-
 ## `AuditOptions`
 
 *type*
@@ -104,16 +94,6 @@ export type AuditProgress = {
 ```
 
 The cycle as it stands: what a caller saves after every round.
-
-## `auditPrompt`
-
-*function*
-
-```typescript
-export function auditPrompt(options: AuditPromptOptions): string { /* … */ }
-```
-
-What the auditor reads: the brief, what each subtask claims, the check, and the terms it answers on.
 
 ## `AuditPromptOptions`
 

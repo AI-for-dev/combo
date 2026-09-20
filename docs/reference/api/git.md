@@ -21,25 +21,6 @@ model can produce at runtime.
 git refuse any branch holding commits nothing else reaches, so it can clear
 away a name and never work.
 
-## `applyPatch`
-
-*function*
-
-```typescript
-export async function applyPatch(cwd: string, patch: string): Promise<GitResult<void>> { /* … */ }
-```
-
-Applies a patch to the working tree, or says why it would not.
-
-Checked before it is applied, so a patch that does not fit leaves the tree
-exactly as it was. `--3way` is not used: it writes conflict markers into the
-files and calls that a success, and a caller left to discover markers in a
-tree it thought was clean is worse off than one told the patch was refused.
-
-This writes where the agents were going to write anyway, so it is not the
-kind of act the rest of this file keeps out. It adds no commit and moves no
-ref: what lands stays in the working tree for a human to look at.
-
 ## `branchName`
 
 *function*
@@ -83,16 +64,6 @@ Creates a branch and switches to it.
 on somebody else's branch is exactly what a dedicated branch is meant to
 prevent.
 
-## `currentBranch`
-
-*function*
-
-```typescript
-export async function currentBranch(cwd: string): Promise<string | undefined> { /* … */ }
-```
-
-The current branch, or `undefined` on a detached head.
-
 ## `diff`
 
 *function*
@@ -116,20 +87,6 @@ export async function diffStat(cwd: string): Promise<GitResult<string>> { /* …
 ```
 
 `git diff --stat` over tracked changes, including what is staged.
-
-## `headSha`
-
-*function*
-
-```typescript
-export async function headSha(cwd: string): Promise<GitResult<string>> { /* … */ }
-```
-
-The commit `HEAD` is on, as a sha.
-
-A sha rather than a branch name, for whoever needs to come back to where
-something started: a branch moves, and a diff against one that has moved is a
-diff against work somebody else did.
 
 ## `isRepository`
 

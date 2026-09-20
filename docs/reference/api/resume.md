@@ -15,16 +15,6 @@ saved by name and resolved again on resume, and `Result.messages` are dropped
 entirely. A resumed build re-reads the code, it does not replay a conversation
 - which is also why the file stays small enough to write after every step.
 
-## `BUILD_STATE_FILE`
-
-*const*
-
-```typescript
-export const BUILD_STATE_FILE = "build.json";
-```
-
-The file a build writes into its run directory.
-
 ## `BUILD_STATE_VERSION`
 
 *const*
@@ -107,16 +97,6 @@ Agents are looked up by name: a state whose agents have been renamed or
 deleted comes back with fewer steps rather than with a guess, and the missing
 ones are simply re-planned. `undefined` for a plan step nobody can run means
 the whole plan is refused - a half-plan would silently drop work.
-
-## `loadBuildState`
-
-*function*
-
-```typescript
-export function loadBuildState(file: string): BuildState | undefined { /* … */ }
-```
-
-Reads a state file. `undefined` when it is missing, unreadable or foreign.
 
 ## `missingAgents`
 

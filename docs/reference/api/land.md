@@ -48,21 +48,6 @@ for anything.
 
 Order matters and is the caller's: these are applied as given.
 
-## `landable`
-
-*function*
-
-```typescript
-export async function landable(repo: string): Promise<GitResult<void>> { /* … */ }
-```
-
-Whether `repo` can take a landing at all, asked before anything is written.
-
-The same check {@link land} makes on its way in, exported because a caller
-about to hand out copies of the repository needs the answer *first*: a patch
-that cannot come back is a subtask paid for and thrown away. Both questions
-are one call - git answers "not a repository" and "not clean" the same way.
-
 ## `Landed`
 
 *type*

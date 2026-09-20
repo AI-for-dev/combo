@@ -40,16 +40,6 @@ export type ExperimentModelSummary = {
 
 Everything one model did, across its repetitions.
 
-## `experimentReport`
-
-*function*
-
-```typescript
-export function experimentReport(input: Omit<ExperimentReport, "generatedAt" | "byModel">): ExperimentReport { /* … */ }
-```
-
-Builds the report from the cells that ran, summarising per model.
-
 ## `ExperimentReport`
 
 *type*
@@ -118,13 +108,3 @@ The comparison table, as Markdown lines.
 
 Flag columns are the union of the outcome keys actually seen - a study
 comparing `converged` gets a `converged` column without configuring one.
-
-## `writeExperimentReport`
-
-*function*
-
-```typescript
-export function writeExperimentReport(dir: string, report: ExperimentReport): { json: string; markdown: string } { /* … */ }
-```
-
-Writes `experiment.json` and `experiment.md` into `dir`, and returns their paths.
