@@ -162,6 +162,58 @@ surviving a close that fails - is asserted once in `test/pool.test.ts`, and the
 per-combinator assertions that each proved a forwarded `timeoutMs` are gone. A
 combinator's tests now say what the combinator decides, not what it relays.
 
+### The trail is the pool's too
+
+Playing the turns left each combinator keeping what the turns added up to. Six
+of them held a `steps` array they pushed every turn into, seven kept a
+`performance.now()` of their own, five wrote the same `sumUsage(steps, now -
+startedAt)`, three derived `ok` and `error` from the first failed step, and two
+wrapped their progress hook in the same seven-line `try`/`catch`. None of that
+was the combinator's to decide, and one of the copies had a hole: `turn`
+refused a signal already aborted before spawning, `hold` did not, so `swarm`
+held its whole roster and only then looked at the signal - a swarm called off
+before it started spawned every member. No swarm test said so; the other eight
+combinators each had a cancellation test.
+
+`Trail` (`src/workflows/trail.ts`) is the envelope, written once: the results
+recorded in order, a clock opened when the trail is, `usage()` over that clock,
+`broken()` for the first failure. The pool owns one and records every turn on
+it - a refused turn included, because a chain that was called off should say so
+where the answer would have been. A combinator reads `pool.trail.steps` and
+`pool.trail.usage()` and keeps nothing beside them. `hold` refuses the way
+`turn` does: a held subagent is spawned before it is asked anything, so the
+check on its first `ask` would have come after the session it was meant to
+spare. A refused hold is addressed by its key, since there is no subagent to be
+named after, and every `ask` of it answers the refusal.
+
+The trail is the pool's second constructor argument rather than a member the
+pool creates, for two callers: `pair` opens its trail before its working copy,
+because the time the copy takes is part of what the pair took, and its pool
+cannot exist until the copy does; `orchestrate` has no pool of its own - the
+planner's, the branches' and the reducer's are three - and records the three
+workflows' results on one trail. Making the trail members of the pool would have
+left both keeping their own again.
+
+Of the two abort checks that survived outside the pool, `interview`'s went with
+`hold` refusing. `pair`'s stays, for the working copy. `audit` checks before the
+turn too, for a different reason: a refused turn would be recorded as an audit
+round that never ran. `swarm` still reads the signal between rounds, because
+that is where `stoppedBy: "signal"` is decided. `deliver` keeps its own sum: its
+usage is the build's, kept tasks and recorded audits of a resumed run included,
+and that is a property of the build's progress rather than of the turns this run
+played.
+
+The progress hooks go through `notify` in `events.ts`, the same swallow the bus
+gives every reporter: a hook is an observer, and a throwing observer has never
+been the workflow's problem.
+
+The tests moved with the behaviour. The trail's arithmetic is asserted once in
+`test/trail.test.ts` and its place in the pool - every turn recorded, held turns
+too, refusals too, a refused hold without a spawn - in `test/pool.test.ts`. The
+usage sums `pair` and `interview` each proved through their own outcome are
+gone; `orchestrate`'s stays, because what it records on its trail is its own
+decision. `swarm` has the cancellation test it was owed.
+
 ## Workflows to cover
 
 | Workflow | Shape | Semantics | Status |

@@ -17,6 +17,7 @@
  */
 
 import type { Agent } from "./../agent.ts";
+import { notify } from "./../events.ts";
 import { openList, type Obligation } from "./../ledger.ts";
 import type { Result } from "./../result.ts";
 import { reviewRecord } from "./../review.ts";
@@ -135,13 +136,7 @@ export async function audit(options: AuditOptions): Promise<AuditResult> {
 		restored: resume?.obligations,
 	});
 	const progress = (): AuditProgress => ({ rounds, tasks, obligations: record.all, verification });
-	const report = () => {
-		try {
-			onRound?.(progress());
-		} catch {
-			// a caller's bookkeeping problem is not the workflow's problem
-		}
-	};
+	const report = () => notify(onRound, progress());
 
 	// `"task"` whatever the caller runs with: the second audit must read the code
 	// as it is now, not remember how it was talked into approving the first time.
@@ -149,6 +144,8 @@ export async function audit(options: AuditOptions): Promise<AuditResult> {
 	try {
 		// A resumed run has already spent the rounds it recorded.
 		for (let round = rounds.length + 1; round <= maxAuditRounds; round++) {
+			// Before the turn rather than through it: the pool would refuse the
+			// turn, and the refusal would be recorded as a round that never ran.
 			if (shared.signal?.aborted) break;
 
 			const prompt = auditPrompt(brief, tasks, round, maxAuditRounds, verification, workers, { open: record.open, byTool: record.byTool });

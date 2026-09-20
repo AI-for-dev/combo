@@ -7,9 +7,9 @@ Source: [`src/workflows/pool.ts`](https://github.com/AI-for-dev/combo/blob/main/
 The pool: where a workflow's turns are played.
 
 A combinator says who speaks and what it is asked. The pool does the rest -
-who is spawned, who is reused, who is closed, and with which signal and
-deadline every turn runs. That is written here once, so that a combinator
-cannot forget half of it.
+who is spawned, who is reused, who is closed, with which signal and deadline
+every turn runs, and what the turns add up to. That is written here once, so
+that a combinator cannot forget half of it.
 
 ## `Held`
 
@@ -30,12 +30,16 @@ What a caller gets from {@link SubagentPool.hold}: enough to address it and
 to ask it several things in a row, with the workflow's signal and deadline
 on every turn. Not the `Subagent` itself - closing it stays the pool's job.
 
+A hold refused on a signal already aborted is addressed by its key, and
+every `ask` answers the same refusal without spawning anything.
+
 ## `SubagentPool`
 
 *class*
 
 ```typescript
 export class SubagentPool {
+	readonly trail: Trail;
 	async turn(agent: Agent, task: string, options: TurnOptions = {}): Promise<Result> { /* … */ }
 	async hold(agent: Agent, options: TurnOptions = {}): Promise<Held> { /* … */ }
 	async closeAll(): Promise<void> { /* … */ }

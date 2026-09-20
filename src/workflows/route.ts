@@ -56,21 +56,25 @@ export async function route(options: RouteOptions): Promise<RouteResult> {
 	const pool = new SubagentPool(options);
 	try {
 		const routing = await pool.turn(router, format(input, destinations));
-		if (!routing.ok) return { ...routing, routing, steps: [routing] };
+		if (!routing.ok) return { ...routing, routing, steps: pool.trail.steps };
 
 		const destination = parse(routing.output, destinations) ?? options.fallback;
 		if (!destination) {
-			const unrouted = failed(
-				router.name,
-				`no destination matched: the router answered ${JSON.stringify(truncate(routing.output, 80))}`,
-				routing.usage,
-				routing.messages,
+			// A step of the route, although nobody was asked: what stopped it is
+			// on the trail where the destination's answer would have been.
+			const unrouted = pool.trail.record(
+				failed(
+					router.name,
+					`no destination matched: the router answered ${JSON.stringify(truncate(routing.output, 80))}`,
+					routing.usage,
+					routing.messages,
+				),
 			);
-			return { ...unrouted, routing, steps: [routing, unrouted] };
+			return { ...unrouted, routing, steps: pool.trail.steps };
 		}
 
 		const handled = await pool.turn(destination, input);
-		return { ...handled, destination, routing, steps: [routing, handled] };
+		return { ...handled, destination, routing, steps: pool.trail.steps };
 	} finally {
 		await pool.closeAll();
 	}
