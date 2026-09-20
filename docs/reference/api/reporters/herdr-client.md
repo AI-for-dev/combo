@@ -15,6 +15,20 @@ Opening a pane is not in it - the integration only ever reports on the pane
 it was launched in - so those calls answer to `herdr api schema --json`
 alone, and `scripts/check-herdr.ts` is what holds them to it.
 
+## `createHerdrSend`
+
+*function*
+
+```typescript
+export function createHerdrSend(env: HerdrEnv): HerdrSend { /* … */ }
+```
+
+Builds a sender bound to a herdr socket.
+
+One connection per request, closed as soon as the first response arrives -
+that is what the reference implementation does, and the server expects it.
+A first attempt at 500 ms, then one retry at 1500 ms, then we give up quietly.
+
 ## `detectHerdr`
 
 *function*

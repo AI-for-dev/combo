@@ -520,6 +520,14 @@ and not only this one. Opening one is now `pane.split` for the pane,
 `herdr api schema --json`. Measured after: four panes for three members and a
 board, streaming, and none left behind.
 
+It lasted two releases because `/herdr on` asked the wrong question: whether we
+are inside herdr, never whether herdr would take our request. It asks the second
+one now, with a `pane.split` aimed at a pane no herdr can have - `pane_not_found`
+means yes, anything else is quoted back at the user - and says
+`on, but herdr refused pane.split: … - nothing will open`. Checked against the
+running server on all three answers, including the shape that shipped, with no
+pane opened by any of them.
+
 ## How to verify anything here
 
 ```bash

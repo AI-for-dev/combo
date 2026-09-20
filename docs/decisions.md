@@ -1146,6 +1146,26 @@ way example payloads would; run against the shape that shipped, it names both
 missing fields. `scripts/drive-pi.py` plays the same part for pi: a check a fake
 cannot perform, run by hand.
 
+**`/herdr on` asks herdr, and says what it heard.** Being inside herdr was the
+only question it used to ask, and it is the wrong one on its own: a herdr that
+answers `invalid_request` to everything is indistinguishable from a working one
+until a run opens no panes. Nothing in the reporter may say so, because a
+reporter that warns is a participant, so the command says it instead.
+
+The probe is harmless because of the pane it names. `pane.split` sent with a
+`target_pane_id` no herdr can have separates the two answers: `invalid_request`
+when the request itself is wrong, `pane_not_found` when it was understood and
+only that pane was missing. Neither opens anything, and if some later herdr
+splits anyway, the probe closes what it got. It asks about `pane.split` alone,
+because nothing else runs without the pane id it returns;
+`scripts/check-herdr.ts` covers the other five, against the schema rather than a
+live server. The params come from one function (`splitParams`), so a probe
+cannot go on answering yes about a request the reporter no longer makes.
+
+The preference is set whatever the answer. What a user wants for the session is
+not herdr's to decide, and a `/herdr on` that silently declined to be on would
+be a second way to be surprised by an empty screen.
+
 Two tests asserted that the suite runs outside herdr. It does not, for anyone
 developing this in the window it is written for: both passed for the wrong
 reason there, and one of them opened a pane in the terminal running `npm test`.

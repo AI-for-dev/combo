@@ -12,6 +12,7 @@ import {
 } from "../src/reporters/index.ts";
 import { BOARD_PANE, createHerdrReporterWith } from "../src/reporters/herdr.ts";
 import { detectHerdr, type HerdrSend } from "../src/reporters/herdr-client.ts";
+import { probeHerdr } from "../src/reporters/herdr-probe.ts";
 import type { SubagentEvent } from "../src/events.ts";
 import { emptyUsage } from "../src/usage.ts";
 import { withoutHerdr } from "./fixtures/no-herdr.ts";
@@ -346,6 +347,59 @@ describe("herdr reporter", () => {
 		assert.doesNotThrow(() => report({ type: "tool", id: "never-spawned#1", name: "grep", args: {} }));
 		await settle();
 		assert.deepEqual(calls, []);
+	});
+});
+
+describe("probeHerdr", () => {
+	/** A server that answers `answer` to everything, and remembers what it was asked. */
+	const server = (answer: unknown) => {
+		const calls: { method: string; params: Record<string, unknown> }[] = [];
+		const send: HerdrSend = async (method, params) => {
+			calls.push({ method, params });
+			return answer;
+		};
+		return { send, calls };
+	};
+
+	test("a pane herdr cannot find means the request itself was understood", async () => {
+		const { send, calls } = server({ error: { code: "pane_not_found", message: "pane not found" } });
+
+		assert.equal(await probeHerdr(send), undefined);
+		assert.equal(calls.length, 1, "asking must not open anything");
+		assert.equal(calls[0]?.method, "pane.split");
+		assert.equal(calls[0]?.params.direction, "right", "the probe sends what a run sends");
+		assert.ok(calls[0]?.params.target_pane_id, "a pane that cannot exist is what makes it harmless");
+	});
+
+	test("any other refusal comes back in herdr's own words", async () => {
+		const { send } = server({ error: { code: "invalid_request", message: "missing field `kind`" } });
+
+		assert.equal(await probeHerdr(send), "herdr refused pane.split: missing field `kind`");
+	});
+
+	test("a herdr that answers nothing is not a herdr that agreed", async () => {
+		const { send } = server(undefined);
+
+		assert.equal(await probeHerdr(send), "herdr is not answering");
+	});
+
+	test("a herdr that splits anyway is told to close it again", async () => {
+		const { send, calls } = server({ result: { pane: { pane_id: "w1:p9" } } });
+
+		assert.equal(await probeHerdr(send), undefined, "panes open, which is the question that was asked");
+		assert.deepEqual(
+			calls.map((call) => call.method),
+			["pane.split", "pane.close"],
+			"a probe that leaves a pane behind is worse than no probe",
+		);
+	});
+
+	test("a transport that throws is a reason, not a crash", async () => {
+		const send: HerdrSend = async () => {
+			throw new Error("socket gone");
+		};
+
+		assert.equal(await probeHerdr(send), "socket gone");
 	});
 });
 

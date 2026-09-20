@@ -162,6 +162,23 @@ createHerdrReporter({ all: true });    // from a script
 There is no environment variable for it, and there will not be: configuration is
 an argument or a command, never something a shell exported three days ago.
 
+`/herdr on` **asks herdr** before answering, and says what it heard:
+
+```text
+herdr: every subagent gets its own split
+herdr: on, but pi is not running inside herdr - nothing will open
+herdr: on, but herdr refused pane.split: missing field `kind` - nothing will open
+```
+
+The third line is the one worth having. A herdr that is there and refuses every
+request looks exactly like a herdr that works, and the reporter watching it may
+not warn about anything at all. The command may, so it is where a refusal gets
+said. The probe sends the same `pane.split` a run sends, with a
+`target_pane_id` no herdr can have: `pane_not_found` means the request was
+understood, anything else is the message above, and neither opens a pane. The
+preference is set either way, because what you asked for is not herdr's to
+decide.
+
 ### The board gets a pane of its own
 
 A [swarm](swarm.md) is the case a pane per member does not cover: what one
