@@ -257,6 +257,7 @@ export {
 	type PostOutcome,
 	type Reading,
 } from "./board.ts";
+export { agreed, latestVotes, VOTE_INSTRUCTION } from "./agreement.ts";
 export { scriptedAsk, type Answer, type AskUser, type Choice, type Question } from "./ask.ts";
 export {
 	BUILD_STATE_FILE,
