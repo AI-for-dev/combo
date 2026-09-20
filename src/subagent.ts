@@ -13,6 +13,7 @@ import path from "node:path";
 import type { Agent, Lifetime } from "./agent.ts";
 import { busFor, nextSubagentId, type EventBus, type EventListener, type SubagentEvent } from "./events.ts";
 import { exportSession, type SessionExport } from "./export.ts";
+import { inTheLanguageOfTheWork } from "./language.ts";
 import { registerMirror } from "./mirror.ts";
 import { failed, type Result } from "./result.ts";
 import {
@@ -299,7 +300,10 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 			try {
 				if (!error) {
 					reached = true;
-					await session.prompt(task);
+					// The language rule closes the turn as well as standing behind it:
+					// what a combinator frames the work with is English, and it arrives
+					// in this very message. See `src/language.ts`.
+					await session.prompt(inTheLanguageOfTheWork(task));
 				}
 			} catch (cause) {
 				error = cause instanceof Error ? cause.message : String(cause);

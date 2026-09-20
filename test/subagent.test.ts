@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { getEventListeners } from "node:events";
 import { beforeEach, describe, test } from "node:test";
+import { IN_THE_LANGUAGE_OF_THE_WORK } from "../src/language.ts";
 import { resetSubagentIds, type SubagentEvent } from "../src/events.ts";
 import { run } from "../src/run.ts";
 import { spawn } from "../src/subagent.ts";
@@ -189,6 +190,18 @@ describe("ask", () => {
 		assert.equal(result.error, "stopped", "a person pressing a key is not a deadline, and not a run ending");
 	});
 
+	test("every turn closes with the language rule, and the caller's task is what is reported", async () => {
+		// The rule stands behind the agent too, but a combinator's framing arrives
+		// in this message, and the line nearest the answer is the one that lands.
+		const asked: string[] = [];
+		const { subagent, session } = await spawnWith([{ text: "ok" }], { onEvent: (event) => void (event.type === "status" && event.status === "working" && asked.push(event.task ?? "")) });
+
+		await subagent.ask("Dans quelle langue ?");
+
+		assert.equal(session.prompts[0], `Dans quelle langue ?\n\n${IN_THE_LANGUAGE_OF_THE_WORK}`);
+		assert.deepEqual(asked, ["Dans quelle langue ?"], "a reporter shows what the caller asked, not what the library added");
+	});
+
 	test("a stopped subagent refuses the next turn instead of running it", async () => {
 		const { subagent, session } = await spawnWith([{ text: "first" }, { text: "second" }]);
 		await subagent.ask("a");
@@ -198,7 +211,8 @@ describe("ask", () => {
 
 		assert.equal(result.ok, false);
 		assert.equal(result.error, "stopped");
-		assert.deepEqual(session.prompts, ["a"], "the refused turn must never reach the session");
+		assert.equal(session.prompts.length, 1, "the refused turn must never reach the session");
+		assert.ok(session.prompts[0]?.startsWith("a"));
 		// And a turn nothing was sent for is not a turn: the one that ran is.
 		assert.equal(result.usage.turns, 0);
 		assert.equal(subagent.usage.turns, 1);

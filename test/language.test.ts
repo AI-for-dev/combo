@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { answerInTheirLanguage, ANSWER_IN_THEIR_LANGUAGE } from "../src/language.ts";
+import {
+	answerInTheirLanguage,
+	ANSWER_IN_THEIR_LANGUAGE,
+	inTheLanguageOfTheWork,
+	IN_THE_LANGUAGE_OF_THE_WORK,
+} from "../src/language.ts";
 import { APPROVAL } from "../src/workflows/pair.ts";
 import { AUDIT_APPROVAL } from "../src/workflows/audit.ts";
 import { READY } from "../src/workflows/interview.ts";
@@ -18,7 +23,15 @@ describe("answerInTheirLanguage", () => {
 		// English scaffolding, which is every review, plan and audit. The rule has
 		// to name the material and disown the prompt carrying it.
 		assert.match(ANSWER_IN_THEIR_LANGUAGE, /^Answer in the language of the work you are given/);
-		assert.match(ANSWER_IN_THEIR_LANGUAGE, /These instructions are always written in English/);
+		assert.match(ANSWER_IN_THEIR_LANGUAGE, /This prompt and the lines that frame each turn/);
+	});
+
+	test("it disowns the framing a combinator adds, not only the prompt", () => {
+		// Measured on a swarm asked a French question: round one answered in
+		// French, and every round after it in English - the board lines and the
+		// round number arrive in the same message as the goal, and a rule that
+		// disowned only the system prompt left them deciding the language.
+		assert.match(ANSWER_IN_THEIR_LANGUAGE, /a round number, what is new, what is left to do/);
 	});
 
 	test("it names no language of its own", () => {
@@ -40,5 +53,21 @@ describe("answerInTheirLanguage", () => {
 		for (const sentinel of [READY, APPROVAL, AUDIT_APPROVAL]) {
 			assert.ok(!ANSWER_IN_THEIR_LANGUAGE.includes(sentinel), `${sentinel} is covered by the rule, not named by it`);
 		}
+	});
+});
+
+describe("inTheLanguageOfTheWork", () => {
+	test("closes the turn, after whatever framed it", () => {
+		const turn = inTheLanguageOfTheWork("Quel langage ?\n\nRound 2. Carry on.");
+
+		assert.ok(turn.startsWith("Quel langage ?"), "the work stays first, and untouched");
+		assert.ok(turn.endsWith(IN_THE_LANGUAGE_OF_THE_WORK), "and the rule is the last thing read before the answer");
+	});
+
+	test("it is one sentence, and names no language either", () => {
+		// Repeated every turn, so it pays for every word. The exemptions stay in
+		// the standing rule, which is in front of the model the whole time.
+		assert.equal(IN_THE_LANGUAGE_OF_THE_WORK.split(". ").length, 1);
+		assert.ok(!/\bFrench\b|\bEnglish\b/.test(IN_THE_LANGUAGE_OF_THE_WORK));
 	});
 });

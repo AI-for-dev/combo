@@ -1661,6 +1661,27 @@ prompt beside `situate()`. One place, and it reaches an agent a user wrote
 without ever thinking about the question - which a line added to the nine
 definitions here would not.
 
+**It is said twice, and the second time is where it lands.** The system prompt
+was enough for a single task and stopped being enough as soon as a combinator
+framed one: a swarm tells each member which round it is, what is new on the
+board and what is still free to take, and all of that arrives in the *same
+message* as the goal, which a model weighs far above anything standing behind
+it. So `ask()` closes every turn with the rule again, in one sentence - short,
+because repeating three would spend a paragraph of context saying what one line
+says. Measured on `ilaas/gpt-oss-120b`, a French question put to a swarm of two
+over two rounds, counting the board posts that came back in French:
+
+| | standing rule alone | with the closing line |
+|---|---|---|
+| the wording that disowned only the prompt | 3 of 18 | 9 of 35 |
+| the wording that disowns the framing too | 5 of 19 | 62 of 89 |
+
+Neither half carries it, which is why neither can be dropped as a tidy-up. `ask()` is the one funnel every turn
+of every workflow goes through, so a combinator cannot forget it and a workflow
+somebody else writes gets it for free; the event stream still reports the task
+its caller wrote, since a card drawing the line back would show a reader
+something they did not write.
+
 **It points at the work, not at the prompt.** The first wording said "the
 language of the task you are given", and measured on a small open-weight model
 that loses the case worth having: a reviewer whose French goal is wrapped in

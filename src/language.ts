@@ -19,6 +19,19 @@
  * front of the model on every turn of every agent has its example read as the
  * target, so the rule points at the work and stops there.
  *
+ * **The English is in the turn, not only in the prompt.** A combinator frames
+ * the work it hands over - which round this is, what is new on the board, what
+ * is still free to take - and that framing arrives in the *same message* as the
+ * task, which a model weighs far above anything standing behind it. So the rule
+ * is said twice: once behind the agent, and once at the end of every turn, by
+ * {@link IN_THE_LANGUAGE_OF_THE_WORK}.
+ *
+ * Measured on a French question put to a swarm of two over two rounds, counting
+ * the board posts that came back in French. Standing rule alone: 3 of 18 under
+ * the wording that disowned only the prompt, 5 of 19 under the one that disowns
+ * the framing too. With the closing line as well: 9 of 35, and 62 of 89. Each
+ * half is worth nothing without the other, so neither is a tidy-up.
+ *
  * **What must survive translation is named.** A model told to write French
  * writes `PRÊT` for `READY`, `RAS` for `LGTM`, and translates a JSON key that is
  * read by its name. Each of those is a workflow that never ends or a result
@@ -31,9 +44,35 @@
 /** The standing instruction. Three sentences: the rule, what it points at, and what it never touches. */
 export const ANSWER_IN_THEIR_LANGUAGE = [
 	"Answer in the language of the work you are given: the request, the specification, the material, the report of another agent.",
-	"These instructions are always written in English, so they never decide that language, and neither does any example in them: match the work you were handed.",
+	"This prompt and the lines that frame each turn - a round number, what is new, what is left to do - are always written in English, so they never decide that language, and neither does any example in them: match the work you were handed.",
 	"What you were told to answer with is not translated: a word asked for exactly, a JSON key, an agent name, an identifier, a path and anything quoted from code all come back as they were given to you.",
 ].join(" ");
+
+/**
+ * The rule again, in one sentence, at the end of the turn it governs.
+ *
+ * Short on purpose. The three sentences above belong where they are read once;
+ * repeating them every turn would spend a paragraph of context saying what one
+ * line says, and the exemptions they carry are already in front of the model.
+ *
+ * It points *above* itself, which is what puts it last: the work, the framing
+ * and this line arrive together, and the one nearest the answer wins.
+ */
+export const IN_THE_LANGUAGE_OF_THE_WORK =
+	"Write in the language of the work above, not in the language of these instructions.";
+
+/**
+ * A turn, plus the line that closes it.
+ *
+ * Applied by `ask()` and nowhere else, so that a combinator cannot forget it
+ * and a workflow somebody else writes gets it for free. What the event stream
+ * reports stays the caller's own task: this line is the library's, like the
+ * system prompt it echoes, and a card drawing it back would be showing a reader
+ * something they did not write.
+ */
+export function inTheLanguageOfTheWork(task: string): string {
+	return `${task}\n\n${IN_THE_LANGUAGE_OF_THE_WORK}`;
+}
 
 /**
  * The agent's prompt, plus the language rule.

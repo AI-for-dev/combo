@@ -96,8 +96,10 @@ no enums, no namespaces, no parameter properties.
 
     **What a subagent answers is the exception**, and not a matter of taste: it
     follows the language of the work it was handed, because whoever reads it
-    asked in theirs. That is one standing instruction (`src/language.ts`),
-    appended to every system prompt beside `situate()` - never a line in a
+    asked in theirs. That is one instruction (`src/language.ts`), said **twice**
+    - appended to every system prompt beside `situate()`, and again as the last
+    line of every turn, because what a combinator frames the work with is
+    English and arrives in the same message as the work. Never a line in a
     definition, which would miss every agent a user writes. A word the prompt
     asked for exactly (`READY`, `LGTM`, `APPROVED`, an agent name, a JSON key)
     is not translated, and that exemption is what the wording protects.

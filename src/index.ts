@@ -26,7 +26,12 @@ export {
 	type Lifetime,
 } from "./agent.ts";
 export { resolveSkills, skillDirs, type Skill, type SkillDir } from "./skills.ts";
-export { answerInTheirLanguage, ANSWER_IN_THEIR_LANGUAGE } from "./language.ts";
+export {
+	answerInTheirLanguage,
+	ANSWER_IN_THEIR_LANGUAGE,
+	inTheLanguageOfTheWork,
+	IN_THE_LANGUAGE_OF_THE_WORK,
+} from "./language.ts";
 export { run, type RunOptions } from "./run.ts";
 export { spawn, type AskOptions, type CustomToolsFor, type SpawnOptions, type Subagent } from "./subagent.ts";
 export { stopSwitch, type StopSwitch, type StopSwitchOptions } from "./stop.ts";
