@@ -45,8 +45,12 @@ export function consoleReporter(options: ConsoleReporterOptions = {}): EventList
 			case "post":
 			case "read":
 			case "claim":
-			case "steer":
 				write(`${indent(event.id)}   ${trafficLine(event)}`);
+				break;
+			// A person's word to a working subagent. Not board traffic: the pane
+			// it was typed in draws it as pi draws a user message.
+			case "steer":
+				write(`${indent(event.id)}   ⌨ ${event.id} ← ${event.text}`);
 				break;
 			case "usage":
 				write(`${indent(event.id)}   ${event.id}  ${formatUsage(event.usage)}`);

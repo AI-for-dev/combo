@@ -116,15 +116,18 @@ await fanOut({
 ```
 
 A herdr pane cannot *host* an in-process subagent: there is no process and no TTY
-to attach. So the pane does not host the subagent, it **displays a stream we
-write**: the library appends to a file and opens a pane running `tail -n +1 -f`
-on it, showing tool calls, streamed text and a final usage line. Splits close on
-their own when their subagent does, so a fan-out leaves no orphan panes.
+to attach. So the pane hosts a **client of the [mirror](#reaching-in-the-mirror)**
+instead: it runs `pane/main.ts`, which attaches to the subagent by id, draws
+the session with pi's own components and sends the keyboard back. What you see
+in the split is the task, the answer as Markdown and each tool call in its box,
+the way pi shows its own session, and what you type into it reaches the
+subagent while it works. Splits close on their own when their subagent does,
+so a fan-out leaves no orphan panes.
 
 Opening one takes three calls, because herdr has no single call that does all
 three: `pane.split` makes the pane beside ours and answers with its id,
 `pane.rename` puts the subagent's name on it, and `pane.send_input` types the
-`tail` into the shell the split started. `agent.start` sounds like the call
+client's command into the shell the split started. `agent.start` sounds like the call
 that opens one and is not: it puts a *recognised* agent into a pane that already
 exists, and mistaking the two is how `/herdr on` once opened nothing at all
 ([decisions](../decisions.md)). `node scripts/check-herdr.ts` holds every one of
@@ -193,11 +196,12 @@ all of them are. So the first thing anybody says opens one more pane, named
 ⚑ member#2 take console.ts → refused (member#1)
 ```
 
-Each member's own pane keeps its half of that, without its own name in front of
-it - the pane header above already says who it is. The wording is the console
-reporter's, from one place (`src/reporters/traffic.ts`), because two displays of
-one run are read side by side and a difference between them would read as a
-difference in the run.
+Each member's own pane shows its half of that as the tool calls it made, the
+way pi shows a tool call. The board's wording is the console reporter's, from
+one place (`src/reporters/traffic.ts`), because two displays of one run are
+read side by side and a difference between them would read as a difference in
+the run. The board is the one pane that follows a file rather than the mirror:
+nobody works in it, so there is nothing to type to.
 
 The pane opens only when the run is being watched at all, closes with the last
 member, and carries no herdr *agent*: nobody works in it, so there is nothing to
@@ -237,8 +241,9 @@ and queues nothing. `abort` is `stop()`, safe at any moment, and the turn comes
 back `stopped` like `/stop`.
 
 Every steer that went through is also a `steer` event on the run's stream, so
-the record, the console (`⌨ scout#1 ← look at test/ first`) and a herdr pane
-hold that a person spoke. A run somebody steered is not the run they would
+the record and the console (`⌨ scout#1 ← look at test/ first`) hold that a
+person spoke; the pane it was typed in draws it as pi draws a user message,
+once the subagent takes it. A run somebody steered is not the run they would
 have got by watching, and two identical `events.jsonl` must not describe two
 different runs.
 

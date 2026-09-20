@@ -528,16 +528,17 @@ means yes, anything else is quoted back at the user - and says
 running server on all three answers, including the shape that shipped, with no
 pane opened by any of them.
 
-## 11. A pane that is a pi session - mirror and pane are in, herdr is not
+## 11. A pane that is a pi session - done, and not yet seen inside herdr
 
-The herdr split shows a text file and takes no keyboard. The way to a pane
-that looks like pi and answers to one is a client of the session, drawn with
-pi's own components. Two of the three pieces landed: the mirror
-(`src/mirror.ts`), every live subagent on one unix socket, transcript replayed
-on attach, pi's events forwarded, `steer` and `abort` taken back; and the pane
-(`pane/main.ts`), pi's chat components over that socket with an editor under
-them. Run by hand in a pty against `ilaas/gemma-4-31b`, it drew the turn as pi
-draws it, and a line typed one second in came back as `Result.output`.
+A herdr split used to show a text file and take no keyboard. It now runs a
+client of the session, drawn with pi's own components: the mirror
+(`src/mirror.ts`) puts every live subagent on one unix socket, replays the
+transcript on attach, forwards pi's events and takes `steer` and `abort` back;
+the pane (`pane/main.ts`) draws that with pi's chat components and an editor
+under them; the herdr reporter types the pane's command into the split instead
+of `tail`. Run by hand in a pty against `ilaas/gemma-4-31b`, the pane drew the
+turn as pi draws it, and a line typed one second in came back as
+`Result.output`.
 
 What the probe settled before it, on pi 0.80.10 and 0.85.1 alike: a steer
 mid-turn lands after the tool call in flight and stays in the transcript; a
@@ -545,9 +546,11 @@ steer or follow-up queued while idle is delivered into the **next** `ask` and
 changes what the workflow reads back. So the mirror refuses a word between
 tasks and queues nothing, and `followUp` is nowhere in the library.
 
-Left: `herdr.ts` opening the pane instead of `tail`. One thing to check in a
-real pi before trusting it: that `process.execPath` is node, since that is what
-the split will be told to run the pane with.
+What no sandbox here could do is open it inside herdr. Two things to look at
+in a real one, in this order: that a split opens on the pane rather than on a
+usage error, which is `process.execPath` being node and the quoting holding;
+and that `esc` in a split stops the subagent and nothing else, since herdr
+may read some keys before the pane does.
 
 Two things a frame showed and nobody has judged in a real terminal yet: the
 thinking block is drawn as text, not in pi's muted style, and the pane has no

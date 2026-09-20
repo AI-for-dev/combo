@@ -1,26 +1,32 @@
 /**
  * The herdr reporter: one split per subagent, showing it work.
  *
- * The trick worth knowing: a herdr pane cannot *host* an in-process subagent -
- * there is no process and no TTY to attach. So the pane does not host it, it
- * **displays a stream we write**. We append to a file and open a pane running
- * `tail -f` on it. The pane is then ours, which is also why we can report agent
- * state on it: the main pane's state already belongs to herdr's own pi
- * integration, and two sources cannot own one pane.
+ * A herdr pane cannot *host* an in-process subagent - there is no process and
+ * no TTY to attach. So the pane hosts a **client of the mirror** instead: the
+ * pane runs `pane/main.ts`, which attaches to the subagent by id, draws the
+ * session with pi's own components and sends the keyboard back. The pane is
+ * then ours, which is also why we can report agent state on it: the main
+ * pane's state already belongs to herdr's own pi integration, and two sources
+ * cannot own one pane.
  *
- * That takes three calls, because herdr has none that does all three:
- * `pane.split` makes the pane and hands back its id, `pane.rename` puts the
- * subagent's name on it, and `pane.send_input` types the command into the shell
- * the split started. `agent.start` sounds like the call that opens one and is
- * not: it puts a *recognised* agent into a pane that already exists.
+ * The board is the one pane that still displays a stream we write: nobody
+ * works in it, nothing is typed to it, and its lines are `traffic.ts`'s so the
+ * console and the pane read the same. It gets a file and `tail -f`.
+ *
+ * Opening either takes three calls, because herdr has none that does all
+ * three: `pane.split` makes the pane and hands back its id, `pane.rename` puts
+ * the name on it, and `pane.send_input` types the command into the shell the
+ * split started. `agent.start` sounds like the call that opens one and is not:
+ * it puts a *recognised* agent into a pane that already exists.
  */
 
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { EventListener, SubagentEvent, SubagentStatus } from "../events.ts";
-import { plural, scalar, truncate } from "../text.ts";
-import { formatUsage } from "../usage.ts";
+import { mirrorSocket } from "../mirror.ts";
+import { plural } from "../text.ts";
 import { trafficLine } from "./traffic.ts";
 import { createHerdrSend, detectHerdr, HERDR_SOURCE, nextSeq, paneIdOf, type HerdrSend } from "./herdr-client.ts";
 
@@ -43,8 +49,14 @@ export type HerdrOptions = {
 	focus?: boolean;
 	/** Transport. Injection point for tests; defaults to the real socket. */
 	send?: HerdrSend;
-	/** Directory for the live logs. Defaults to a per-run temp directory. */
+	/** Directory for the board's live log. Defaults to a per-run temp directory. */
 	dir?: string;
+	/**
+	 * The mirror's socket, which a subagent's pane attaches to. Defaults to this
+	 * process's, started on the first pane. Tests name one that nothing listens
+	 * on, so a reporter test opens no socket.
+	 */
+	mirror?: string;
 	/**
 	 * Open a split for **every** subagent, whatever each one asked for.
 	 *
@@ -76,16 +88,16 @@ export function createHerdrReporter(options: HerdrOptions = {}): EventListener |
 
 /** The reporter proper, with the transport already chosen. Exported for tests. */
 export function createHerdrReporterWith(send: HerdrSend, options: HerdrOptions = {}): EventListener {
-	const dir = options.dir ?? fs.mkdtempSync(path.join(os.tmpdir(), "combo-"));
-	fs.mkdirSync(dir, { recursive: true });
 	const all = options.all ?? false;
+	let dir: string | undefined;
+	const logDir = () => (dir ??= options.dir ?? fs.mkdtempSync(path.join(os.tmpdir(), "combo-")));
 
 	const panes = new Map<string, Pane>();
 	// The board is a pane of the **run**, not of a member: what one said is in
 	// its own pane, and who it was talking to is only legible where all of them
 	// are. Opened on the first thing anybody says, so a run with no board never
 	// grows a window for one.
-	let board: Pane | undefined;
+	let board: BoardPane | undefined;
 	let lines = 0;
 
 	return (event) => {
@@ -102,51 +114,36 @@ export function createHerdrReporterWith(send: HerdrSend, options: HerdrOptions =
 		if (event.type === "spawn") {
 			// Opt-in per subagent, unless the whole run was asked to be watched.
 			if (!event.openInHerdr && !all) return;
-			panes.set(event.id, openPane(send, dir, event.id, options));
+			panes.set(event.id, openPane(send, event.id, options, paneCommand(event.id, options.mirror ?? mirrorSocket())));
 			return;
 		}
 
-		// A person's word to one member is that member's alone: the board is what
-		// passed between members, and a steer on it would open one for a run that
-		// never had a board.
-		if (event.type === "steer") {
-			panes.get(event.id)?.write(`${trafficLine(event, { self: event.id })}\n`);
-			return;
-		}
-
+		// What passed between members. Each member's own pane draws its half as
+		// the tool calls it made; the board is where the exchange reads in order.
 		const traffic = trafficLine(event);
 		if (traffic !== undefined) {
 			lines += 1;
 			boardPane()?.write(`${traffic}\n`);
-			// The same line in the member's own pane, without its own name: the
-			// header above it already says who this is.
-			panes.get(event.id)?.write(`${trafficLine(event, { self: event.id })}\n`);
 			return;
 		}
 
 		const pane = panes.get(event.id);
 		if (!pane) return; // a subagent that did not ask for a split
 
+		// Text, tool calls and usage reach the pane through the mirror, not
+		// through us: the pane draws the session, this only keeps herdr told.
 		switch (event.type) {
-			case "tool":
-				pane.write(`$ ${event.name}${formatArgs(event.args)}\n`);
-				break;
-			case "text":
-				pane.write(event.delta);
-				break;
 			case "status":
 				pane.report(event.status);
 				break;
-			case "usage":
-				pane.write(`\n${formatUsage(event.usage)}\n`);
-				break;
 			case "close":
 				panes.delete(event.id);
-				pane.finish(formatUsage(event.result.usage));
+				pane.finish();
 				// The board goes when the last member does: it belongs to the run,
 				// and a pane left behind is one the next run opens beside.
 				if (panes.size === 0 && board) {
-					board.finish(`${plural(lines, "line")} between them`);
+					board.write(`\n--\n${plural(lines, "line")} between them\n`);
+					board.finish();
 					board = undefined;
 				}
 				break;
@@ -154,47 +151,37 @@ export function createHerdrReporterWith(send: HerdrSend, options: HerdrOptions =
 	}
 
 	/** The board's pane, opened on demand - and only when this run is watched. */
-	function boardPane(): Pane | undefined {
+	function boardPane(): BoardPane | undefined {
 		// Nobody watching any member is nobody watching the run: a board pane on
 		// its own would be a window that was never asked for.
-		if (!board && (all || panes.size > 0)) board = openPane(send, dir, BOARD_PANE, options);
+		if (!board && (all || panes.size > 0)) board = openBoard(send, logDir(), options);
 		return board;
 	}
 }
 
 type Pane = {
-	write(text: string): void;
+	/** Tells herdr what the subagent in this pane is doing. */
 	report(status: SubagentStatus): void;
-	finish(usageLine: string): void;
+	/** Releases the agent if one was reported, then closes the pane. */
+	finish(): void;
+};
+
+type BoardPane = Pane & {
+	/** Appends to the stream the pane follows. */
+	write(text: string): void;
 };
 
 /**
- * Opens one split and returns the handle used to feed it.
+ * Opens one split running `command`, and returns the handle used to keep herdr told.
  *
- * `agent.start` is asynchronous, but events arrive immediately: everything is
+ * `pane.split` is asynchronous, but events arrive immediately: everything is
  * queued behind the pending pane id, so nothing is lost and nothing blocks.
  */
-function openPane(send: HerdrSend, dir: string, id: string, options: HerdrOptions): Pane {
-	const logPath = path.join(dir, `${id.replace(/[^\w.#-]/g, "_")}.log`);
+function openPane(send: HerdrSend, id: string, options: HerdrOptions, command: string): Pane {
 	// Only a pane that had an agent reported on it has one to release. The board
 	// is a pane and not an agent, and releasing one herdr never heard of is a
 	// call that can only go wrong.
 	let reported = false;
-	// The name, over a cleared screen. The clear belongs to the stream and not
-	// to the command, because the shell that runs the command is still starting
-	// up and writes over anything the command printed before it finished -
-	// measured, as a zsh history warning sitting on top of a member's first turn.
-	fs.writeFileSync(logPath, `\u001b[2J\u001b[H${id}\n\n`);
-
-	// Writes are appended synchronously and in order. Interleaved async appends
-	// would scramble a token stream, which is precisely what we are displaying.
-	const write = (text: string) => {
-		try {
-			fs.appendFileSync(logPath, text);
-		} catch {
-			// the pane may already be gone; that is not a workflow error
-		}
-	};
 
 	// Split, then type the command into the shell the split started - herdr
 	// opens a pane at a prompt, it does not open one running a command.
@@ -208,7 +195,7 @@ function openPane(send: HerdrSend, dir: string, id: string, options: HerdrOption
 		// A split is an anonymous shell. The name is how three member panes are
 		// told apart, and the board's is the only thing saying what it is.
 		await send("pane.rename", { pane_id: paneId, label: id });
-		await send("pane.send_input", { pane_id: paneId, text: follow(logPath), keys: ["enter"] });
+		await send("pane.send_input", { pane_id: paneId, text: command, keys: ["enter"] });
 		return paneId;
 	})().catch(() => undefined);
 
@@ -219,8 +206,6 @@ function openPane(send: HerdrSend, dir: string, id: string, options: HerdrOption
 	};
 
 	return {
-		write,
-
 		report(status) {
 			reported = true;
 			onPane((paneId) =>
@@ -237,23 +222,50 @@ function openPane(send: HerdrSend, dir: string, id: string, options: HerdrOption
 			);
 		},
 
-		finish(usageLine) {
-			write(`\n--\n${usageLine}\n`);
+		finish() {
 			onPane((paneId) =>
 				(reported
 					? send("pane.release_agent", { pane_id: paneId, source: HERDR_SOURCE, agent: id, seq: nextSeq() })
 					: Promise.resolve(undefined))
 					// Close after the release, not in parallel: closing first would
 					// leave herdr holding an agent on a pane that no longer exists.
-					.then(() => send("pane.close", { pane_id: paneId }))
-					.then(() => {
-						try {
-							fs.rmSync(logPath, { force: true });
-						} catch {
-							// best effort; the temp directory goes away anyway
-						}
-					}),
+					.then(() => send("pane.close", { pane_id: paneId })),
 			);
+		},
+	};
+}
+
+/**
+ * The board: a pane following a file we append to.
+ *
+ * The name, over a cleared screen, is written into the file rather than run as
+ * a command, because the shell that runs the command is still starting up and
+ * writes over anything printed before it finished - measured, as a zsh history
+ * warning sitting on top of a member's first turn.
+ */
+function openBoard(send: HerdrSend, dir: string, options: HerdrOptions): BoardPane {
+	const logPath = path.join(dir, `${BOARD_PANE}.log`);
+	fs.writeFileSync(logPath, `\u001b[2J\u001b[H${BOARD_PANE}\n\n`);
+	const pane = openPane(send, BOARD_PANE, options, follow(logPath));
+
+	return {
+		...pane,
+		// Writes are appended synchronously and in order: interleaved async
+		// appends would scramble the exchange, which is precisely what is shown.
+		write(text) {
+			try {
+				fs.appendFileSync(logPath, text);
+			} catch {
+				// the pane may already be gone; that is not a workflow error
+			}
+		},
+		finish() {
+			pane.finish();
+			try {
+				fs.rmSync(logPath, { force: true });
+			} catch {
+				// best effort; the temp directory goes away anyway
+			}
 		},
 	};
 }
@@ -274,23 +286,24 @@ export function splitParams(options: HerdrOptions): Record<string, unknown> {
 }
 
 /**
- * What the pane is told to run.
+ * What a subagent's pane runs: the pane client, on the node this process runs.
  *
- * `exec` because the pane should *be* the stream: what it is following is then
- * its own foreground process, and closing one closes both. `-n +1` shows the
- * file from the top, so the clear and the name written above are the first
- * thing that reaches the terminal.
+ * `exec`, so the pane *is* the client and closing one closes both. The binary
+ * is ours rather than whatever `node` the split's shell finds, so the pane runs
+ * the TypeScript the way this process does - unless this process is not node
+ * at all, in which case the shell's `node` is the only candidate left.
  */
-function follow(logPath: string): string {
-	return `exec tail -n +1 -f '${logPath.replace(/'/g, "'\\''")}'`;
+export function paneCommand(id: string, socket: string): string {
+	const node = process.versions.node ? process.execPath : "node";
+	const main = fileURLToPath(new URL("../../pane/main.ts", import.meta.url));
+	return `exec ${quote(node)} ${quote(main)} --socket ${quote(socket)} --id ${quote(id)}`;
 }
 
-/** A one-line hint of what a tool was called with. The pane is narrow. */
-function formatArgs(args: unknown): string {
-	if (!args || typeof args !== "object") return "";
-	const summary = Object.entries(args as Record<string, unknown>)
-		.filter(([, value]) => value !== undefined && value !== null && value !== "")
-		.map(([key, value]) => `${key}=${truncate(scalar(value), 40)}`)
-		.join(" ");
-	return summary ? ` ${summary}` : "";
+/** What the board's pane runs: the file from the top, then everything appended. */
+function follow(logPath: string): string {
+	return `exec tail -n +1 -f ${quote(logPath)}`;
+}
+
+function quote(word: string): string {
+	return `'${word.replace(/'/g, "'\\''")}'`;
 }

@@ -10,7 +10,7 @@ import {
 	recordReporter,
 	silentReporter,
 } from "../src/reporters/index.ts";
-import { BOARD_PANE, createHerdrReporterWith } from "../src/reporters/herdr.ts";
+import { BOARD_PANE, createHerdrReporterWith, paneCommand } from "../src/reporters/herdr.ts";
 import { detectHerdr, type HerdrSend } from "../src/reporters/herdr-client.ts";
 import { probeHerdr } from "../src/reporters/herdr-probe.ts";
 import type { SubagentEvent } from "../src/events.ts";
@@ -73,6 +73,9 @@ function recorder(paneId: string | null = "w1:p") {
 	return { send, calls, logOf, methods: () => calls.map((call) => call.method) };
 }
 
+/** A mirror socket nothing listens on: a reporter test opens no server. */
+const NOWHERE = "/nowhere/combo.sock";
+
 /** Lets the reporter's fire-and-forget promises settle. */
 const settle = () => new Promise((resolve) => setTimeout(resolve, 5));
 
@@ -100,7 +103,7 @@ describe("detectHerdr", () => {
 describe("herdr reporter", () => {
 	test("opens a split per subagent that asked for one", async () => {
 		const { send, calls } = recorder();
-		const report = createHerdrReporterWith(send, { dir: tmpDir(), pane: "w1:p1" });
+		const report = createHerdrReporterWith(send, { mirror: NOWHERE, dir: tmpDir(), pane: "w1:p1" });
 
 		report(spawnEvent("scout#1", true));
 		await settle();
@@ -116,14 +119,14 @@ describe("herdr reporter", () => {
 		assert.equal(calls[1]?.params.label, "scout#1");
 		assert.match(
 			String(calls[2]?.params.text),
-			/^exec tail -n \+1 -f '/,
-			"the pane displays a stream we write, it does not host the subagent",
+			/^exec '.+' '.+\/pane\/main\.ts' --socket '\/nowhere\/combo\.sock' --id 'scout#1'$/,
+			"the pane hosts a client of the mirror, not the subagent",
 		);
 	});
 
 	test("a subagent without openInHerdr produces no request at all", async () => {
 		const { send, calls } = recorder();
-		const report = createHerdrReporterWith(send, { dir: tmpDir() });
+		const report = createHerdrReporterWith(send, { mirror: NOWHERE, dir: tmpDir() });
 
 		report(spawnEvent("scout#1", false));
 		report({ type: "tool", id: "scout#1", name: "grep", args: {} });
@@ -136,7 +139,7 @@ describe("herdr reporter", () => {
 
 	test("the full life of a split: start, report, release, close", async () => {
 		const { send, methods } = recorder();
-		const report = createHerdrReporterWith(send, { dir: tmpDir() });
+		const report = createHerdrReporterWith(send, { mirror: NOWHERE, dir: tmpDir() });
 
 		report(spawnEvent("scout#1", true));
 		await settle();
@@ -160,7 +163,7 @@ describe("herdr reporter", () => {
 
 	test('"done" is reported as idle: herdr\'s PaneAgentState has no done', async () => {
 		const { send, calls } = recorder();
-		const report = createHerdrReporterWith(send, { dir: tmpDir() });
+		const report = createHerdrReporterWith(send, { mirror: NOWHERE, dir: tmpDir() });
 
 		report(spawnEvent("scout#1", true));
 		await settle();
@@ -173,7 +176,7 @@ describe("herdr reporter", () => {
 
 	test("blocked and working pass through unchanged", async () => {
 		const { send, calls } = recorder();
-		const report = createHerdrReporterWith(send, { dir: tmpDir() });
+		const report = createHerdrReporterWith(send, { mirror: NOWHERE, dir: tmpDir() });
 
 		report(spawnEvent("scout#1", true));
 		await settle();
@@ -189,7 +192,7 @@ describe("herdr reporter", () => {
 
 	test("seq increases monotonically, so herdr can order our reports", async () => {
 		const { send, calls } = recorder();
-		const report = createHerdrReporterWith(send, { dir: tmpDir() });
+		const report = createHerdrReporterWith(send, { mirror: NOWHERE, dir: tmpDir() });
 
 		report(spawnEvent("scout#1", true));
 		await settle();
@@ -204,46 +207,18 @@ describe("herdr reporter", () => {
 		}
 	});
 
-	test("tool calls and text land in the file the pane tails", async () => {
-		const dir = tmpDir();
-		const { send, logOf } = recorder();
-		const report = createHerdrReporterWith(send, { dir });
-
-		report(spawnEvent("scout#1", true));
-		report({ type: "tool", id: "scout#1", name: "grep", args: { pattern: "spawn" } });
-		report({ type: "text", id: "scout#1", delta: "found it" });
-		await settle();
-
-		const content = fs.readFileSync(logOf("scout#1"), "utf8");
-		assert.match(content, /scout#1/);
-		assert.match(content, /\$ grep pattern=spawn/);
-		assert.match(content, /found it/);
+	test("the pane runs on the node this process runs, and the client is where the package keeps it", () => {
+		const command = paneCommand("scout#1", "/tmp/combo.sock");
+		assert.ok(command.startsWith(`exec '${process.execPath}' '`), "the shell's node may be another version, or none");
+		const main = /^exec '[^']+' '([^']+)'/.exec(command)?.[1] as string;
+		assert.ok(fs.existsSync(main), `${main} must exist, or every pane opens on a usage error`);
+		assert.match(command, / --socket '\/tmp\/combo\.sock' --id 'scout#1'$/);
 	});
 
-	test("the final usage line is written before the pane closes", async () => {
+	test("the members talk on a pane of their own", async () => {
 		const dir = tmpDir();
-		const { send, logOf } = recorder();
-		const report = createHerdrReporterWith(send, { dir });
-
-		report(spawnEvent("scout#1", true));
-		await settle();
-		const logPath = logOf("scout#1");
-
-		report({
-			type: "close",
-			id: "scout#1",
-			result: { agent: "scout", output: "", messages: [], ok: true, usage: { ...emptyUsage(), turns: 2, busyMs: 1_500 } },
-		});
-		// Read before the async close removes the file.
-		const content = fs.readFileSync(logPath, "utf8");
-		assert.match(content, /2 turns 1\.5s/);
-		await settle();
-	});
-
-	test("the members talk on a pane of their own, and each keeps its half", async () => {
-		const dir = tmpDir();
-		const { send, logOf } = recorder();
-		const report = createHerdrReporterWith(send, { dir, all: true });
+		const { send, logOf, calls } = recorder();
+		const report = createHerdrReporterWith(send, { mirror: NOWHERE, dir, all: true });
 
 		report(spawnEvent("member#1", false));
 		report(spawnEvent("member#2", false));
@@ -260,29 +235,23 @@ describe("herdr reporter", () => {
 		assert.match(board, /⇣ member#2 was handed nothing/, "the quiet half is the one a race needs");
 		assert.match(board, /✉ member#1 → member#2 \[ask\] who has console.ts\?/);
 		assert.match(board, /⚑ member#2 take console.ts → refused \(member#1\)/);
-
-		const mine = fs.readFileSync(logOf("member#2"), "utf8");
-		assert.match(mine, /⚑ take console.ts → refused \(member#1\)/, "its own name is in the header above");
-		assert.ok(!mine.includes("member#1 → member#2"), "what it was not part of belongs on the board");
+		assert.match(String(calls.find((call) => call.method === "pane.send_input" && String(call.params.text).includes("board"))?.params.text), /^exec tail -n \+1 -f '/, "the board is the one pane that follows a file: nobody types to it");
 	});
 
-	test("a person's word goes to the member's pane, and opens no board", async () => {
-		const dir = tmpDir();
-		const { send, logOf, calls } = recorder();
-		const report = createHerdrReporterWith(send, { dir });
+	test("a person's word reaches the pane through the mirror, and opens no board", async () => {
+		const { send, calls } = recorder();
+		const report = createHerdrReporterWith(send, { mirror: NOWHERE, dir: tmpDir() });
 
 		report(spawnEvent("scout#1", true));
 		report({ type: "steer", id: "scout#1", text: "look at test/ first" });
 		await settle();
 
-		assert.match(fs.readFileSync(logOf("scout#1"), "utf8"), /⌨ ← look at test\/ first/);
-		assert.ok(!fs.existsSync(logOf(BOARD_PANE)), "the board is what passed between members");
-		assert.equal(calls.filter((call) => call.method === "pane.split").length, 1);
+		assert.equal(calls.filter((call) => call.method === "pane.split").length, 1, "the board is what passed between members");
 	});
 
 	test("nobody watching means no board pane either", async () => {
 		const { send, calls } = recorder();
-		const report = createHerdrReporterWith(send, { dir: tmpDir() });
+		const report = createHerdrReporterWith(send, { mirror: NOWHERE, dir: tmpDir() });
 
 		report(spawnEvent("member#1", false));
 		report({ type: "post", id: "member#1", post: { id: "p1", from: "member#1", kind: "tell", text: "hello", at: 1 } });
@@ -293,7 +262,7 @@ describe("herdr reporter", () => {
 
 	test("the board closes with the last member, and releases no agent it never had", async () => {
 		const { send, calls, methods } = recorder();
-		const report = createHerdrReporterWith(send, { dir: tmpDir(), all: true });
+		const report = createHerdrReporterWith(send, { mirror: NOWHERE, dir: tmpDir(), all: true });
 
 		report(spawnEvent("member#1", false));
 		report({ type: "status", id: "member#1", status: "working" });
@@ -326,7 +295,7 @@ describe("herdr reporter", () => {
 
 	test("a herdr that never returns a pane id degrades to writing only", async () => {
 		const { send, methods } = recorder(null);
-		const report = createHerdrReporterWith(send, { dir: tmpDir() });
+		const report = createHerdrReporterWith(send, { mirror: NOWHERE, dir: tmpDir() });
 
 		report(spawnEvent("scout#1", true));
 		await settle();
@@ -338,7 +307,7 @@ describe("herdr reporter", () => {
 
 	test("several subagents get independent splits", async () => {
 		const { send, calls } = recorder();
-		const report = createHerdrReporterWith(send, { dir: tmpDir() });
+		const report = createHerdrReporterWith(send, { mirror: NOWHERE, dir: tmpDir() });
 
 		report(spawnEvent("scout#1", true));
 		report(spawnEvent("scout#2", true));
@@ -356,7 +325,7 @@ describe("herdr reporter", () => {
 
 	test("events for an unknown id are ignored, not crashed on", async () => {
 		const { send, calls } = recorder();
-		const report = createHerdrReporterWith(send, { dir: tmpDir() });
+		const report = createHerdrReporterWith(send, { mirror: NOWHERE, dir: tmpDir() });
 
 		assert.doesNotThrow(() => report({ type: "tool", id: "never-spawned#1", name: "grep", args: {} }));
 		await settle();
@@ -435,7 +404,7 @@ describe("autoReporter", () => {
 describe("watching every subagent", () => {
 	test("all: true opens a split for a subagent that never asked", () => {
 		const { send, calls } = recorder();
-		const reporter = createHerdrReporterWith(send, { dir: tmpDir(), all: true });
+		const reporter = createHerdrReporterWith(send, { mirror: NOWHERE, dir: tmpDir(), all: true });
 
 		reporter(spawnEvent("scout#1", false));
 		assert.equal(calls.filter((call) => call.method === "pane.split").length, 1);
@@ -443,7 +412,7 @@ describe("watching every subagent", () => {
 
 	test("without it, opt-in still governs - a fan-out must not carpet the screen", () => {
 		const { send, calls } = recorder();
-		const reporter = createHerdrReporterWith(send, { dir: tmpDir() });
+		const reporter = createHerdrReporterWith(send, { mirror: NOWHERE, dir: tmpDir() });
 
 		reporter(spawnEvent("scout#1", false));
 		reporter(spawnEvent("scout#2", true));
