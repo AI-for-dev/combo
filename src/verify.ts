@@ -15,6 +15,7 @@
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { tail } from "./text.ts";
 
 const run = promisify(execFile);
 
@@ -66,11 +67,4 @@ export function commandVerifier(options: CommandVerifierOptions): Verify {
 			return { ok: false, output: tail(output, maxBytes), command: label };
 		}
 	};
-}
-
-/** The last `maxBytes` of text, marked when something was cut. */
-function tail(text: string, maxBytes: number): string {
-	const trimmed = text.trim();
-	if (trimmed.length <= maxBytes) return trimmed;
-	return `[…${trimmed.length - maxBytes} bytes cut]\n${trimmed.slice(-maxBytes)}`;
 }

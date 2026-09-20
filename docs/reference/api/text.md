@@ -4,7 +4,8 @@
 
 Source: [`src/text.ts`](https://github.com/AI-for-dev/combo/blob/main/src/text.ts)
 
-Reading what a model wrote: shortening it, and finding the structure in it.
+Reading what a model wrote, and cutting what it is handed: shortening text,
+and finding the structure in it.
 
 One concept, not a grab-bag: every function here takes free-form assistant
 text and makes something reliable out of it. They were each written three to
@@ -15,6 +16,20 @@ did not, two identical brace scanners maintained apart.
 A model does not answer in a format. It answers in prose with the format
 somewhere inside, decorated with whatever markdown it felt like adding, which
 is why these are lenient by design.
+
+## `head`
+
+*function*
+
+```typescript
+export function head(text: string, max: number, what = "text"): string { /* … */ }
+```
+
+The first `max` characters, marked when something was cut.
+
+For what goes into a prompt: the start of a diff says more than its end, and
+an agent handed half a megabyte writes a worse message than one handed the
+first pages and told they were cut. `what` names the thing in the marker.
 
 ## `plural`
 
@@ -45,6 +60,19 @@ the reason it is lenient: a model that has been told to answer with one word
 still writes `**LGTM**`, `## APPROVED` or `READY.`, and a strict match would
 loop forever waiting for a verdict already given. Decoration is stripped, case
 is ignored; a line with anything else on it still does not count.
+
+## `tail`
+
+*function*
+
+```typescript
+export function tail(text: string, max: number): string { /* … */ }
+```
+
+The last `max` characters, marked when something was cut.
+
+For a check's output: the failure is at the end, after everything that
+passed, and the end is what a reader needs.
 
 ## `truncate`
 

@@ -3,7 +3,7 @@
  */
 
 import type { Agent } from "./../agent.ts";
-import type { Result, WorkflowResult } from "./../result.ts";
+import { joinOutputs, type Result, type WorkflowResult } from "./../result.ts";
 import type { WorkflowOptions } from "./options.ts";
 import { SubagentPool } from "./pool.ts";
 
@@ -62,18 +62,9 @@ export async function reduce(options: ReduceOptions): Promise<WorkflowResult> {
 }
 
 /**
- * The default rendering: the instruction, then one titled section per branch.
- *
- * A failed branch keeps its section and states its error. Numbering is what
- * lets the reducer refer to a branch - several branches often share an agent
- * name, so the name alone identifies nothing.
+ * The default rendering: the instruction, then one numbered section per
+ * branch, failures kept and marked.
  */
 export function formatBranches(results: readonly Result[], input: string): string {
-	const sections = results.map((result, index) => {
-		const title = `## ${index + 1}. ${result.agent}${result.ok ? "" : " (failed)"}`;
-		const body = result.ok ? result.output.trim() || "(no output)" : `This branch failed: ${result.error ?? "unknown error"}`;
-		return `${title}\n${body}`;
-	});
-
-	return `${input.trim()}\n\n${sections.join("\n\n")}`;
+	return `${input.trim()}\n\n${joinOutputs(results, { numbered: true })}`;
 }

@@ -58,17 +58,42 @@ export type WorkflowResult = Result & {
 	steps: Result[];
 };
 
+/** How several results are laid out for whoever reads them - a model, mostly. */
+export type JoinOptions<T extends Result> = {
+	/**
+	 * Number the sections.
+	 *
+	 * Several branches often share an agent name, so the name alone identifies
+	 * nothing; the number is what a reader refers to a branch by.
+	 */
+	numbered?: boolean;
+	/**
+	 * The note beside a heading, in parentheses: `(failed)`, `(reviewed and
+	 * approved)`. Defaults to `failed` on a failure and nothing otherwise.
+	 */
+	note?: (result: T) => string | undefined;
+};
+
 /**
- * Several outputs read as one text: each under a heading naming its agent, a
- * failure marked as such with its error where the output would be.
+ * Several outputs read as one text: each under a heading naming its agent, an
+ * empty output said to be empty, a failure marked as such with its error where
+ * the output would be.
  *
  * A failed branch keeps its section rather than vanishing: a synthesis, a
  * report or a next step reading six sections when eight ran would take the
- * silence for completeness.
+ * silence for completeness. This was written six times, with four heading
+ * grammars and three spellings of "nothing"; whoever compared a tool's answer
+ * with a pipeline's read two conventions for one fact.
  */
-export function joinOutputs(results: readonly Result[]): string {
+export function joinOutputs<T extends Result>(results: readonly T[], options: JoinOptions<T> = {}): string {
+	const note = options.note ?? ((result: T) => (result.ok ? undefined : "failed"));
 	return results
-		.map((result) => (result.ok ? `## ${result.agent}\n\n${result.output}` : `## ${result.agent} (failed)\n\n${result.error ?? "unknown error"}`))
+		.map((result, index) => {
+			const aside = note(result);
+			const title = `## ${options.numbered ? `${index + 1}. ` : ""}${result.agent}${aside ? ` (${aside})` : ""}`;
+			const body = result.ok ? result.output.trim() || "(no output)" : (result.error ?? "unknown error");
+			return `${title}\n\n${body}`;
+		})
 		.join("\n\n");
 }
 

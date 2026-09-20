@@ -475,6 +475,38 @@ The rule that survives is the one that made the original call defensible: **a
 shared helper takes the part that is identical, never the part that is
 interpretation.**
 
+### Writing for a model lives in one place too
+
+The other direction had the same history. "Several results, laid out for a
+reader" was written six times - the tool's answer, the runner's join, the
+delegate's report, `reduce`'s branches, the audit's reports, the swarm's
+answer - with four heading grammars (numbered or not, `(failed)` or `- failed`,
+one blank line after the heading or none) and three spellings of nothing
+(`unknown error`, `(nothing)`, `(no output)`). Whoever compared a `/run`
+answer with a tool result read two conventions for one fact. Beside it, four
+truncations with a marker, two identical but for a word; `plural` written and
+then walked past at four sites, one of them in a file that imported it; and
+the list of lifetimes kept in three places, each checking it its own way.
+
+`joinOutputs(results, { numbered?, note? })` in `result.ts` is the one layout:
+a heading naming the agent, numbered when the caller says so, a note in
+parentheses that defaults to `failed` on a failure, a blank line, then the
+output or `(no output)` or the error. The two knobs are the two things the six
+sites varied for a reason - a reducer refers to branches by number, an audit
+says what a review made of each part - and nothing else was. The swarm's
+answer labels by member id through `membersOutput`, shared with the swarm's own
+`Result`. `head` and `tail` in `text.ts` are the two cuts, one for what goes
+into a prompt and one for a check's output, and `git.ts`, `worktree.ts` and
+`verify.ts` call them. The four counts go through `plural`. `pipeline.ts`
+reads `LIFETIMES` from `agent.ts`, so the tool's schema, the definition parser
+and the pipeline parser name the same three words.
+
+Two visible changes rode along. Every heading is followed by a blank line, as
+Markdown wants, where the tool and the delegate had none; and an audit's failed
+report says `(failed)` beside the name with the error where the output would
+be, as every other failed section does, rather than `(failed: error)` over
+`(no output)`.
+
 ### A verdict is a tool call, and prose is the argument for it
 
 A reviewer's answer carries two things: an argument, which is prose and belongs
