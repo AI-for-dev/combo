@@ -80,12 +80,12 @@ export type Watcher = { ui?: RunUi; signal?: AbortSignal };
  * measured. A thrown `work` still throws, after the clean-up.
  */
 export async function watched<T>(ctx: Watcher, deps: Pick<CommandDeps, "tickMs">, at: Watched<T>): Promise<T> {
-	const live = liveRun(ctx.ui, { ...at.live, tickMs: deps.tickMs, signal: ctx.signal });
+	const live = liveRun(ctx.ui, { ...at.live, dir: at.dir, tickMs: deps.tickMs, signal: ctx.signal });
 	if (at.status) ctx.ui?.setStatus?.(STATUS, at.status);
 	try {
 		return await at.work(live);
 	} finally {
-		live.stop(at.dir);
+		live.stop();
 	}
 }
 

@@ -13,21 +13,8 @@
  * for none of them.
  */
 
-import {
-	combineReporters,
-	copyMainSession,
-	createHerdrReporter,
-	createRunPicture,
-	statusColour,
-	stopSwitch,
-	usageReport,
-	widgetRows,
-	writeUsageReport,
-	type EventListener,
-	type RunPicture,
-	type RunSnapshot,
-	type SpawnFn,
-} from "../src/index.ts";
+import { createHerdrReporter, measuredRun, statusColour, stopSwitch, widgetRows, type EventListener, type RunPicture, type RunSnapshot, type SpawnFn } from "../src/index.ts";
+import { watchEverything } from "./herdr-switch.ts";
 import type { RunUi, WidgetTheme } from "./pi.ts";
 import { forgetRun, watchRun } from "./stop.ts";
 
@@ -36,27 +23,6 @@ export const STATUS = "combo";
 
 /** How often the widget repaints while subagents are working, in ms. */
 const TICK_MS = 250;
-
-/**
- * Session-wide "open a herdr split for every subagent".
- *
- * A module-level switch rather than an argument threaded everywhere: it is a
- * preference about this terminal, it survives across tool calls and commands,
- * and `/herdr on` is how a user sets it without touching a single call site.
- * It starts off: nothing ambient turns it on.
- */
-let watchAll = false;
-
-/** Whether every subagent currently gets a split. */
-export function watchEverything(): boolean {
-	return watchAll;
-}
-
-/** Turns session-wide watching on or off. Returns the new state. */
-export function watchEverythingIs(on: boolean): boolean {
-	watchAll = on;
-	return watchAll;
-}
 
 /** What a caller may vary about a live run. Everything else is the same everywhere. */
 export type LiveRunOptions = {
@@ -90,13 +56,9 @@ export type LiveRunOptions = {
 	signal?: AbortSignal;
 	/** The `spawn` the run should use. Defaults to the real one. */
 	spawn?: SpawnFn;
-	/**
-	 * The parent session's JSONL, from `ctx.sessionManager.getSessionFile()`.
-	 *
-	 * Copied in beside the subagents' transcripts, because an export that lost
-	 * the parent session would be half a story - and the extension is the only
-	 * place that knows this path.
-	 */
+	/** Where `usage.json` lands when the run is over. Absent writes none. */
+	dir?: string;
+	/** The parent session's JSONL, from `ctx.sessionManager.getSessionFile()`, copied in beside the subagents' transcripts. */
 	mainSessionFile?: string;
 };
 
@@ -113,26 +75,27 @@ export type LiveRun = {
 	/** How long the view has been up. The run's wall time, measured once, here. */
 	elapsedMs(): number;
 	/**
-	 * Clears the footer and the widget, and writes the run's `usage.json` with
-	 * the time this view measured.
+	 * Clears the footer and the widget, and closes the measurement: the run's
+	 * `usage.json`, with the time this view measured, when a `dir` was given.
 	 *
 	 * Call it in a `finally`: a thrown workflow must not leave a dead row of dots
 	 * above the prompt for the rest of the session, and a run that was cancelled
 	 * still has work worth keeping.
 	 */
-	stop(exportDir: string | undefined): void;
+	stop(): void;
 };
 
 /** Starts painting a run. `ui` is absent for a headless caller: nothing is drawn. */
 export function liveRun(ui: RunUi | undefined, options: LiveRunOptions = {}): LiveRun {
-	const startedAt = performance.now();
-	const picture = createRunPicture();
-	const onEvent = combineReporters(
-		picture.reporter,
-		// `herdrAll` belongs to the reporter, not to the spawn: whether a pane
-		// opens is a display decision, and the workflow runs identically either way.
-		options.reporter ?? createHerdrReporter({ all: options.herdrAll || watchEverything() }),
-	);
+	// A view is a measured run with a terminal on top. `herdrAll` belongs to the
+	// reporter, not to the spawn: whether a pane opens is a display decision,
+	// and the workflow runs identically either way.
+	const run = measuredRun({
+		dir: options.dir,
+		mainSessionFile: options.mainSessionFile,
+		listeners: [options.reporter ?? createHerdrReporter({ all: options.herdrAll || watchEverything() })],
+	});
+	const { picture } = run;
 
 	const stopping = stopSwitch({ signal: options.signal, spawn: options.spawn });
 	const paint = () => ui?.setWidget?.(STATUS, paintWidget(picture.snapshot(), ui.theme, watched.selected));
@@ -150,15 +113,13 @@ export function liveRun(ui: RunUi | undefined, options: LiveRunOptions = {}): Li
 	const tick = tickMs > 0 ? setInterval(paint, tickMs) : undefined;
 	tick?.unref?.();
 
-	const elapsedMs = () => performance.now() - startedAt;
 	return {
-		onEvent,
+		onEvent: run.onEvent,
 		picture,
 		signal: stopping.signal,
 		spawn: stopping.spawn,
-		elapsedMs,
-		stop(exportDir) {
-			const wallMs = elapsedMs();
+		elapsedMs: run.elapsedMs,
+		stop() {
 			forgetRun(watched);
 			if (tick) clearInterval(tick);
 			ui?.setStatus?.(STATUS, undefined);
@@ -166,25 +127,9 @@ export function liveRun(ui: RunUi | undefined, options: LiveRunOptions = {}): Li
 			// up, in the tool row, and nothing should pile up above the prompt
 			// between two requests.
 			ui?.setWidget?.(STATUS, undefined);
-			if (exportDir) writeRunReport(exportDir, picture.snapshot(), wallMs, options.mainSessionFile);
+			run.finish();
 		},
 	};
-}
-
-/**
- * Writes the artefacts only this level can write: `usage.json`, and the parent
- * session's JSONL when the caller knows where it is.
- *
- * Swallows its own failures - a full disk must not turn a finished workflow into
- * an error the model has to reason about.
- */
-export function writeRunReport(dir: string, snapshot: RunSnapshot, wallMs: number, mainSessionFile?: string): void {
-	try {
-		const main = mainSessionFile ? [copyMainSession(mainSessionFile, dir)] : undefined;
-		writeUsageReport(dir, usageReport(snapshot, wallMs, main));
-	} catch {
-		// an export is an observer of the run, never a participant
-	}
 }
 
 /**

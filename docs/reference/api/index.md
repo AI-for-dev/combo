@@ -24,6 +24,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`land`](land.md) | Putting the work of several copies back into one tree. | 4 |
 | [`language`](language.md) | The language a subagent answers in: the one it was asked in. | 4 |
 | [`ledger`](ledger.md) | What is left to do, as a list nobody can lose track of. | 6 |
+| [`measured`](measured.md) | A run that measures itself: the picture it is drawn from, the stream it may keep, and the `usage.json` it leaves behind. | 3 |
 | [`mirror`](mirror.md) | The mirror: a live subagent's session, on a unix socket. | 7 |
 | [`pipeline-load`](pipeline-load.md) | Finding the pipelines a user wrote, wherever they put them. | 7 |
 | [`pipeline`](pipeline.md) | A pipeline is *data*: an ordered list of combinator calls, declared as YAML frontmatter + Markdown, following the same convention as an agent. | 5 |
@@ -89,6 +90,7 @@ git
 land
 language
 ledger
+measured
 mirror
 pipeline-load
 pipeline

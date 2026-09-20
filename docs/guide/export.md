@@ -5,15 +5,21 @@ closes. Two formats, both produced by pi itself: a readable HTML page and a
 replayable JSONL. We render neither.
 
 ```typescript
-import { createRunDir, createRunPicture, fanOut, usageReport, writeUsageReport } from "combo";
+import { createRunDir, fanOut, measuredRun } from "combo";
 
 const dir = createRunDir();               // runs/<timestamp>/
-const picture = createRunPicture();
+const run = measuredRun({ dir });         // the clock starts here
 
-const startedAt = performance.now();
-await fanOut({ agent: scout, tasks, exportDir: dir, onEvent: picture.reporter });
-writeUsageReport(dir, usageReport(picture.snapshot(), performance.now() - startedAt));
+await fanOut({ agent: scout, tasks, exportDir: dir, onEvent: run.onEvent });
+run.finish();                             // usage.json, with the time measured
 ```
+
+`measuredRun` is the one assembly of a picture, a clock and the report: the pi
+extension's live view is one with a terminal on top, an experiment's cell is
+one with a recorder beside (`record: true` keeps `events.jsonl`), and a script
+that wants `usage.json` is one with nothing added. `usageReport` and
+`writeUsageReport` are still there for whoever builds the report from a
+snapshot of their own.
 
 ```
 runs/

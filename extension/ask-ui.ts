@@ -19,7 +19,7 @@ import { DynamicBorder } from "@earendil-works/pi-coding-agent";
 import { Container, SelectList, Text, type SelectItem } from "@earendil-works/pi-tui";
 import type { Answer, AskUser, Question } from "../src/index.ts";
 import type { AskUi } from "./pi.ts";
-import { whileAsking } from "./stop.ts";
+import { whileAsking } from "./asking.ts";
 
 /**
  * Sentinels for the two entries we add ourselves.
