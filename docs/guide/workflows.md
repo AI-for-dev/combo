@@ -162,8 +162,11 @@ See [Deliver a change](build.md).
 
 ### `deliver` - brief in, audited work out
 
-Plan, a pair per subtask, the project's own check, an audit, fixes. See
-[Deliver a change](build.md).
+Plan, a pair per subtask, the project's own check, then the audit cycle: one
+auditor reads the whole, asks for fixes, and reads them again until it holds
+together. The cycle is `audit` on its own, handed a function that runs a fix
+and says what the tree is afterwards; `deliver` is what puts the work in the
+tree. See [Deliver a change](build.md).
 
 ### `swarm` - several members, one job, nobody dividing it
 
