@@ -247,6 +247,34 @@ session; the mirror is a port of the core, beside `ask` and `verify`, and it is
 opened by the same act that opens a pane. Unplug every reporter, attach nobody,
 and the result is identical.
 
+### The pane
+
+`pane/main.ts` is the client a split runs:
+
+```bash
+node pane/main.ts --socket <mirror socket> --id scout#1
+```
+
+It draws the session with pi's own components, so it reads like pi: the task
+in a user box, the answer as Markdown, each tool call in its box with the
+result folded under it, and a prompt at the bottom. Two dim lines under the
+prompt say who this is and what it spent (`scout#1 · provider/model · 1 turn
+5.7s ↑15k ↓385`), then what it is doing and what the keys do:
+
+| Key | While it works | Once it is done |
+| --- | --- | --- |
+| `enter` | steers: the line reaches the subagent after the tool call in flight | `done - nobody is listening` |
+| `esc` | stops it, like `/stop` | closes the pane |
+| `ctrl+c` | leaves the pane; the subagent does not notice | the same |
+
+A line typed between tasks is answered under the prompt with the mirror's
+refusal, and nothing is queued. A closed subagent leaves its transcript on
+screen, so the last thing it said is not lost with the window.
+
+The pane's theme is the user's, read the way pi reads it. That is not the
+subagent inheriting anything: the pane is the user's window, and its colours
+are theirs.
+
 ## The pi TUI
 
 While the subagents work, a dot per subagent sits just above the prompt:

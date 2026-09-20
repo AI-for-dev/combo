@@ -15,6 +15,7 @@
 	"files": [
 		"src",
 		"extension",
+		"pane",
 		"agents",
 		"pipelines",
 		"README.md",
