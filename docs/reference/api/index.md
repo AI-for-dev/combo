@@ -48,6 +48,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`stop`](stop.md) | The stop switch of a live run: everything at once, or one subagent of it. | 3 |
 | [`subagent`](subagent.md) | A subagent: a live session, a memory, a state. | 5 |
 | [`text`](text.md) | Reading what a model wrote, and cutting what it is handed: shortening text, and finding the structure in it. | 5 |
+| [`tool`](tool.md) | The constant parts of a tool combo defines: whether an agent asked for it, and the two shapes of answer a model reads. | 3 |
 | [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 8 |
 | [`verdict`](verdict.md) | A verdict given as a tool call, rather than recovered from prose. | 6 |
 | [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 4 |
@@ -58,7 +59,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`workflows/fan-out`](workflows/fan-out.md) | `fanOut`: 1 → N. N subtasks in parallel, with bounded concurrency. | 4 |
 | [`workflows/interview`](workflows/interview.md) | `interview`: a conversation with the *user*, ending in a brief. | 8 |
 | [`workflows/loop`](workflows/loop.md) | `loop`: 1 → 1, repeated until a criterion is met. | 4 |
-| [`workflows/options`](workflows/options.md) | What every combinator shares: the same options, under the same names, with the same defaults. | 2 |
+| [`workflows/options`](workflows/options.md) | What every combinator shares: the same options, under the same names, with the same defaults. | 4 |
 | [`workflows/orchestrate`](workflows/orchestrate.md) | `orchestrate`: 1 → ?. An agent *decides* the split, then the split runs. | 3 |
 | [`workflows/pair`](workflows/pair.md) | `pair`: one worker, one reviewer, talking until the work is accepted. | 5 |
 | [`workflows/pipeline-run`](workflows/pipeline-run.md) | Running a pipeline: the piece `pipeline.ts` describes and deliberately leaves to someone else. | 6 |
@@ -114,6 +115,7 @@ skills
 stop
 subagent
 text
+tool
 usage
 verdict
 verify

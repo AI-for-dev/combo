@@ -25,6 +25,7 @@ import { defineTool, type ToolDefinition } from "./session.ts";
 import { fanOut } from "./workflows/fan-out.ts";
 import type { WorkflowOptions } from "./workflows/options.ts";
 import { joinOutputs } from "./result.ts";
+import { declares, refuse, said } from "./tool.ts";
 
 /** The name an agent writes in its `tools:` to be allowed children of its own. */
 export const SUBAGENT_TOOL = "subagent";
@@ -70,7 +71,7 @@ export type DelegateOptions = Omit<WorkflowOptions, "customTools" | "lifetime"> 
 
 /** Whether an agent's definition asks to be allowed children of its own. */
 export function declaresDelegate(tools: readonly string[] | undefined): boolean {
-	return tools?.includes(SUBAGENT_TOOL) ?? false;
+	return declares(tools, SUBAGENT_TOOL);
 }
 
 /**
@@ -139,15 +140,7 @@ export function delegateTool(options: DelegateOptions): ToolDefinition {
 						: undefined,
 			});
 
-			return {
-				content: [{ type: "text" as const, text: joinOutputs(done.results, { numbered: true }) }],
-				details: undefined,
-			};
+			return said(joinOutputs(done.results, { numbered: true }));
 		},
 	});
-}
-
-/** A refusal the model can act on, rather than a failure it has to guess at. */
-function refuse(text: string) {
-	return { content: [{ type: "text" as const, text }], details: undefined, isError: true };
 }

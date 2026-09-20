@@ -42,7 +42,7 @@ export { accumulate, compact, deltaUsage, emptyUsage, formatUsage, snapshotUsage
 // ── The combinators, and the options every one of them shares ────────────────
 
 export { mapConcurrent } from "./workflows/concurrent.ts";
-export { type SpawnFn, type WorkflowOptions } from "./workflows/options.ts";
+export { offerBoth, type SpawnFn, type ToolOffer, type WorkflowOptions } from "./workflows/options.ts";
 export { SubagentPool, type Held, type TurnOptions } from "./workflows/pool.ts";
 export { Trail } from "./workflows/trail.ts";
 export { chain, type ChainOptions } from "./workflows/chain.ts";
@@ -261,6 +261,7 @@ export {
 } from "./ledger.ts";
 export { announcedBoard, announcedClaims } from "./announced.ts";
 export { boardTool, declaresBoard, BOARD_TOOL, type BoardToolOptions } from "./board-tool.ts";
+export { declares, refuse, said } from "./tool.ts";
 export {
 	createClaims,
 	heldList,

@@ -34,6 +34,17 @@ import { accumulate, deltaUsage, emptyUsage, snapshotUsage, type Usage } from ".
  */
 export type CustomToolsFor = (id: string) => ToolDefinition[] | undefined;
 
+/**
+ * What an offer amounts to for the subagent about to get `id`.
+ *
+ * The one reader of {@link SpawnOptions.customTools}'s two shapes: `spawn`
+ * reads through it, and so does anything that composes two offers or asserts
+ * on one. A list is a list; a function is asked, now that the id exists.
+ */
+export function toolsOffered(offer: SpawnOptions["customTools"], id: string): ToolDefinition[] {
+	return (typeof offer === "function" ? offer(id) : offer) ?? [];
+}
+
 /** Everything that can be decided about a subagent before it exists. */
 export type SpawnOptions = {
 	/** Overrides the lifetime declared by the agent. Defaults to `"task"`. */
@@ -188,7 +199,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 		cwd: options.cwd,
 		sessionDir,
 		model: options.model ?? agent.model,
-		customTools: typeof options.customTools === "function" ? options.customTools(id) : options.customTools,
+		customTools: toolsOffered(options.customTools, id),
 	});
 
 	// Monotonic clock: `Date.now()` jumps when the system clock is adjusted,
