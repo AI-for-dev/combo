@@ -23,6 +23,8 @@ import type { PipelineDeps } from "../extension/deps.ts";
 import { fakeCtx } from "./fixtures/command-ctx.ts";
 import { baseDeps } from "./fixtures/command-deps.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
+import { pipelineRunResult } from "./fixtures/results.ts";
+import { succeeded } from "../src/result.ts";
 
 initTheme();
 
@@ -53,13 +55,12 @@ function deps(over: Partial<PipelineDeps> = {}): PipelineDeps {
 	return {
 		...baseDeps(agents, [explore]),
 		sendMessage: () => undefined,
-		runPipeline: (async () => ({
-			pipeline: "explore",
-			steps: [{ id: "look", kind: "fanOut" as const, result: {} as never }],
-			output: "what it found",
-			usage: { wallMs: 1, busyMs: 1, turns: 3, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
-			ok: true,
-		})) as never,
+		runPipeline: async () =>
+			pipelineRunResult({
+				steps: [{ id: "look", kind: "fanOut", result: succeeded("scout", "") }],
+				output: "what it found",
+				usage: { wallMs: 1, busyMs: 1, turns: 3 },
+			}),
 		...over,
 	};
 }
@@ -108,10 +109,10 @@ describe("/run", () => {
 		let input: string | undefined;
 
 		const done = await runNamed("explore what does this repository do", ctx, deps({
-			runPipeline: (async (options: { input: string }) => {
+			runPipeline: async (options: { input: string }) => {
 				input = options.input;
-				return { pipeline: "explore", steps: [], output: "the answer", usage: { turns: 2 }, ok: true };
-			}) as never,
+				return pipelineRunResult({ output: "the answer", usage: { turns: 2 } });
+			},
 		}));
 
 		assert.equal(input, "what does this repository do");
@@ -129,11 +130,11 @@ describe("/run", () => {
 			ctx,
 			deps({
 				checkModel: async (pattern) => void order.push(`check:${pattern}`),
-				runPipeline: (async (options: { input: string; model?: string }) => {
+				runPipeline: async (options: { input: string; model?: string }) => {
 					order.push("run");
 					seen = options.model;
-					return { pipeline: "explore", steps: [], output: "x", usage: { turns: 1 }, ok: true };
-				}) as never,
+					return pipelineRunResult({ output: "x", usage: { turns: 1 } });
+				},
 			}),
 		);
 
@@ -146,10 +147,10 @@ describe("/run", () => {
 		// that if the command did not answer for it.
 		const { ctx } = fakeCtx();
 		const seen: unknown[] = [];
-		const run = (async (options: { worktree?: boolean }) => {
+		const run = async (options: { worktree?: boolean }) => {
 			seen.push(options.worktree);
-			return { pipeline: "explore", steps: [], output: "x", usage: { turns: 1 }, ok: true };
-		}) as never;
+			return pipelineRunResult({ output: "x", usage: { turns: 1 } });
+		};
 
 		await runNamed("explore what is here", ctx, deps({ runPipeline: run }));
 		await runNamed("--worktree explore what is here", ctx, deps({ runPipeline: run }));
@@ -168,7 +169,7 @@ describe("/run", () => {
 				checkModel: async () => {
 					throw new Error('No model found for "local/nope"');
 				},
-				runPipeline: (async () => ((ran = true), {})) as never,
+				runPipeline: async () => ((ran = true), pipelineRunResult()),
 			}),
 		);
 
@@ -183,7 +184,7 @@ describe("/run", () => {
 
 		await runNamed("explore what does this do", ctx, deps({
 			sendMessage: (message) => void sent.push(message),
-			runPipeline: (async () => ({ pipeline: "explore", steps: [], output: "the answer", usage: {}, ok: true })) as never,
+			runPipeline: async () => pipelineRunResult({ output: "the answer" }),
 		}));
 
 		assert.equal(sent.length, 1);
@@ -199,7 +200,7 @@ describe("/run", () => {
 
 		await runNamed("explore x", ctx, deps({
 			sendMessage: (message) => void sent.push(message),
-			runPipeline: (async () => ({ pipeline: "explore", steps: [], output: "", usage: {}, ok: false, error: "boom" })) as never,
+			runPipeline: async () => pipelineRunResult({ ok: false, error: "boom" }),
 		}));
 
 		assert.deepEqual(sent, [], "a failure is reported, never handed to the model as a finding");
@@ -208,7 +209,7 @@ describe("/run", () => {
 	test("no name says how to find one instead of guessing", async () => {
 		const { ctx, said } = fakeCtx();
 		let ran = false;
-		await runNamed("", ctx, deps({ runPipeline: (async () => ((ran = true), {})) as never }));
+		await runNamed("", ctx, deps({ runPipeline: async () => ((ran = true), pipelineRunResult()) }));
 
 		assert.equal(ran, false);
 		assert.match(said(), /\/pipelines lists them/);
@@ -217,7 +218,7 @@ describe("/run", () => {
 	test("a name with nothing after it is refused: an empty request costs real tokens", async () => {
 		const { ctx, said } = fakeCtx();
 		let ran = false;
-		await runNamed("explore", ctx, deps({ runPipeline: (async () => ((ran = true), {})) as never }));
+		await runNamed("explore", ctx, deps({ runPipeline: async () => ((ran = true), pipelineRunResult()) }));
 
 		assert.equal(ran, false);
 		assert.match(said(), /say what explore should work on/);
@@ -231,7 +232,7 @@ describe("/run", () => {
 			ctx,
 			deps({
 				loadPipelines: () => ({ pipelines: [], broken: [{ name: "explore", filePath: ".pi/pipelines/explore.md", error: "no steps" }] }),
-				runPipeline: (async () => ((ran = true), {})) as never,
+				runPipeline: async () => ((ran = true), pipelineRunResult()),
 			}),
 		);
 
@@ -242,7 +243,7 @@ describe("/run", () => {
 	test("an unknown name stops before anything is spawned", async () => {
 		const { ctx, said } = fakeCtx();
 		let ran = false;
-		await runNamed("ghost do something", ctx, deps({ runPipeline: (async () => ((ran = true), {})) as never }));
+		await runNamed("ghost do something", ctx, deps({ runPipeline: async () => ((ran = true), pipelineRunResult()) }));
 
 		assert.equal(ran, false);
 		assert.match(said(), /Unknown pipeline "ghost"/);
@@ -257,7 +258,7 @@ describe("/run", () => {
 		);
 		await runNamed("explore x", ctx, deps({
 			loadPipelines: () => ({ pipelines: [ghosts], broken: [] }),
-			runPipeline: (async () => ((ran = true), {})) as never,
+			runPipeline: async () => ((ran = true), pipelineRunResult()),
 		}));
 
 		assert.equal(ran, false);
@@ -267,7 +268,7 @@ describe("/run", () => {
 	test("a failing run says where what ran was kept", async () => {
 		const { ctx, said } = fakeCtx();
 		await runNamed("explore x", ctx, deps({
-			runPipeline: (async () => ({ pipeline: "explore", steps: [], output: "", usage: {}, ok: false, error: "step \"look\" failed" })) as never,
+			runPipeline: async () => pipelineRunResult({ ok: false, error: "step \"look\" failed" }),
 		}));
 
 		assert.match(said(), /step "look" failed/);

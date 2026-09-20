@@ -104,6 +104,20 @@ export type Result = {
 
 One turn of work.
 
+## `succeeded`
+
+*function*
+
+```typescript
+export function succeeded(agent: string, output: string, usage: Usage = emptyUsage(), messages: AgentMessage[] = []): Result { /* … */ }
+```
+
+Builds a `Result` for a turn that ran: what the agent said, over what it cost.
+
+The pendant of {@link failed}. Written here so a `Result` is built in one
+place and a field added to it is added once: the six-field literal had been
+spelled out in the core, a workflow, a resume and three fixtures.
+
 ## `WorkflowResult`
 
 *type*

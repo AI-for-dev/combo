@@ -15,7 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Agent } from "./agent.ts";
 import type { Obligation } from "./ledger.ts";
-import type { Result } from "./result.ts";
+import { failed, succeeded, type Result } from "./result.ts";
 import type { Usage } from "./usage.ts";
 import type { Verdict } from "./verdict.ts";
 import type { Verification } from "./verify.ts";
@@ -160,8 +160,10 @@ export function fromBuildState(state: BuildState, agents: readonly Agent[]): Bui
 	}
 
 	const audits: AuditRound[] = state.audits.map((round) => {
-		const review: Result = { agent: round.agent, output: round.output, messages: [], usage: round.usage, ok: round.ok };
-		if (round.error !== undefined) review.error = round.error;
+		// A failed review keeps what it said: its text is the evidence behind the round.
+		const review: Result = round.ok
+			? succeeded(round.agent, round.output, round.usage)
+			: { ...failed(round.agent, round.error ?? "unknown error", round.usage), output: round.output };
 		return {
 			review,
 			...(round.verdict === undefined ? {} : { verdict: round.verdict }),

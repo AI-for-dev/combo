@@ -19,8 +19,8 @@
 import type { Agent } from "./../agent.ts";
 import { notify } from "./../events.ts";
 import type { Landed } from "./../land.ts";
-import { joinOutputs, type Result, type WorkflowResult } from "./../result.ts";
-import { emptyUsage, sumUsage } from "./../usage.ts";
+import { joinOutputs, succeeded, type Result, type WorkflowResult } from "./../result.ts";
+import { sumUsage } from "./../usage.ts";
 import type { Verify } from "./../verify.ts";
 import { audit, type AuditProgress } from "./audit.ts";
 import { mapConcurrent } from "./concurrent.ts";
@@ -298,11 +298,5 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
  * being continued. The output says so rather than pretending to be model text.
  */
 function reusedPlanning(planner: Agent, plan: readonly PlannedTask[]): Result {
-	return {
-		agent: planner.name,
-		output: `(plan reused from an interrupted run)\n${plan.map((step) => `${step.agent.name}: ${step.task}`).join("\n")}`,
-		messages: [],
-		usage: emptyUsage(),
-		ok: true,
-	};
+	return succeeded(planner.name, `(plan reused from an interrupted run)\n${plan.map((step) => `${step.agent.name}: ${step.task}`).join("\n")}`);
 }
