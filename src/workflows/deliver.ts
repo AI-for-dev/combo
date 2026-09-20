@@ -4,8 +4,9 @@
  * Plan the split, run each subtask as a worker↔reviewer {@link pair}, then have
  * one auditor read the whole thing and send back what still needs fixing. It is
  * the composition the rest of this library was built for: plan, work, audit,
- * settle. The audit cycle lives next door in `audit.ts`; what this file adds is
- * how the work reaches the tree, and the check on it.
+ * settle. The audit cycle lives next door in `audit.ts` and how the work
+ * reaches the tree in `settle.ts`; what this file holds is the order they
+ * happen in, and what a resumed run keeps of a previous one.
  *
  * Why a {@link Verify} on top of the audit: in a real run a pair wrote a
  * helper with its tests, the reviewer approved and the auditor approved, while
@@ -16,10 +17,9 @@
  */
 
 import type { Agent } from "./../agent.ts";
-import { land, landable, type Landed } from "./../land.ts";
+import type { Landed } from "./../land.ts";
 import type { Obligation } from "./../ledger.ts";
 import type { Result } from "./../result.ts";
-import { truncate } from "./../text.ts";
 import { emptyUsage, sumUsage, type Usage } from "./../usage.ts";
 import type { BuildProgress } from "./../resume.ts";
 import type { Verification, Verify } from "./../verify.ts";
@@ -28,6 +28,7 @@ import { mapConcurrent } from "./concurrent.ts";
 import type { WorkflowOptions } from "./options.ts";
 import { pair, type PairResult } from "./pair.ts";
 import { makePlan, type PlannedTask } from "./plan.ts";
+import { settling, type Settling } from "./settle.ts";
 
 /** The cast of a delivery, and every cap that keeps it affordable. */
 export type DeliverOptions = WorkflowOptions & {
@@ -185,7 +186,9 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 	// auditor it is reported as it came.
 	let obligations: readonly Obligation[] = resume?.obligations ?? [];
 	let verification: Verification | undefined = resume?.verification;
-	const landings: Landed[] = [];
+	// Set once the plan says how many will write; until then, nothing landed.
+	let tree: Settling | undefined;
+	const landings = (): readonly Landed[] => tree?.landings ?? [];
 
 	// A reporting hook is an observer: a listener that throws must not take the
 	// build down, exactly like a reporter on the event bus.
@@ -208,12 +211,12 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 			tasks: [...tasks],
 			audits: [...audits],
 			verification,
-			landings,
+			landings: landings(),
 			obligations,
 			// A failing check outranks every opinion above it, an obligation nobody
 			// closed outranks the auditor's own yes, and work that never reached
 			// the tree is not delivered whatever was said about the reports.
-			approved: signedOff && obligations.every((one) => one.closed) && verification?.ok !== false && landings.every((one) => one.ok),
+			approved: signedOff && obligations.every((one) => one.closed) && verification?.ok !== false && (tree?.landed ?? true),
 			usage: sumUsage(usages, performance.now() - startedAt),
 			ok: !error && planning.ok && !broken,
 			error: error ?? broken?.error ?? planning.error,
@@ -228,55 +231,14 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 	if (!planned.ok) return outcome([], planned.planning, false, planned.error);
 	report(planned.plan);
 
-	// Decided here because here is where the number of writers is first known.
-	// Two subagents in one directory read each other, so more than one subtask
-	// gets a copy each; one subtask writes where it was told to.
-	const isolate = worktree ?? planned.plan.length > 1;
-
-	// Isolation nobody asked for has to be possible *before* the work starts.
-	// Asked for explicitly it stays the caller's problem and fails where it
-	// always did - at the copy - but a delivery that chose this itself must not
-	// pay for two subtasks and then discover their patches cannot come home.
-	if (isolate && worktree === undefined) {
-		const ready = await landable(shared.cwd ?? process.cwd());
-		if (!ready.ok) {
-			const why = `${planned.plan.length} subtasks need a copy of the repository each, and ${ready.error}`;
-			// Both spellings, because both kinds of caller hit this: a script sets
-			// the option, and whoever typed a command has only the flag.
-			const how = "commit or stash what is there, or say worktree: false (`--worktree=false`) to let them share one tree";
-			return outcome([], planned.planning, false, `${why}. ${how}`);
-		}
-	}
+	// Decided here because here is where the number of writers is first known,
+	// and refused here when the tree cannot take what it would have to take back.
+	const ready = await settling({ cwd: shared.cwd ?? process.cwd(), worktree, writers: planned.plan.length, verify });
+	if (!ready.ok) return outcome([], planned.planning, false, ready.error);
+	tree = ready.value;
 
 	const run = (step: PlannedTask) =>
-		pair({ ...shared, worker: step.agent, reviewer, input: step.task, maxRounds, worktree: isolate });
-
-	/**
-	 * Runs the check, and first puts the copies' work back when there were any.
-	 *
-	 * One call rather than two at each of the two places a batch of pairs
-	 * finishes: with nobody isolated this is the check on its own, and with the
-	 * copies it is what `land` ran between the patches. What comes back is the
-	 * tree as it stands.
-	 */
-	const settle = async (batch: readonly PairResult[]): Promise<Verification | undefined> => {
-		if (!isolate) return await verify?.();
-
-		const landed = await land(
-			shared.cwd ?? process.cwd(),
-			// A short label, not the subtask: a report naming three patches by their
-			// full text is one nobody reads.
-			batch.map((one) => ({ label: truncate(one.input, 60), patch: one.patch ?? "" })),
-			// Only the first landing of a delivery meets a tree it did not write.
-			// Refusing the later ones would break the option on any audit that
-			// asks for a fix.
-			{ verify, requireCleanTree: landings.length === 0 },
-		);
-		landings.push(landed);
-		// The last check `land` ran is the tree as it stands. With nothing to land
-		// it ran none, and the check still has to be asked.
-		return landed.checks.at(-1) ?? (await verify?.());
-	};
+		pair({ ...shared, worker: step.agent, reviewer, input: step.task, maxRounds, worktree: tree?.isolate });
 
 	// Only what was **approved** survives a resume: a subtask still being argued
 	// over left the tree in a state nobody signed off on, so it runs again.
@@ -289,7 +251,7 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 		const task = kept.get(step.task) ?? byTask.get(step.task);
 		return task ? [task] : [];
 	});
-	verification = await settle(done);
+	verification = await tree.settle(done);
 	report(planned.plan);
 
 	if (!auditor) {
@@ -315,7 +277,7 @@ export async function deliver(options: DeliverOptions): Promise<DeliverResult> {
 		resume: resume ? { rounds: resume.audits, obligations: resume.obligations } : undefined,
 		fix: async (fixes) => {
 			const results = await mapConcurrent(fixes, concurrency, run);
-			return { results, verification: await settle(results) };
+			return { results, verification: await ready.value.settle(results) };
 		},
 		onRound: (progress) => {
 			take(progress);

@@ -584,7 +584,29 @@ It still does not combine with `resume`. A resumed delivery finds a tree holding
 what a previous process landed, which it has no record of, so it cannot tell
 that work from somebody else's. That refusal is right rather than missing.
 
-### A command picks the deadline the library refuses to
+### How the work reaches the tree is one policy, asked once
+
+`deliver` decided its copies in five places: whether to isolate, from the
+number of writers; the pre-flight on the tree, only when that decision was its
+own, with a refusal in two spellings; the `worktree` it handed each pair; a
+`settle` that landed a batch or only ran the check; and a list of landings whose
+first entry alone had to meet a clean tree, and whose every entry weighed on
+`approved`. Five rules of one concept, between the plan and the audit.
+
+`settle.ts` is the concept. `settling({ cwd, worktree, writers, verify })`
+decides, pre-flights and refuses; what it returns says whether pairs are
+isolated, settles a batch and answers with the tree's check, and keeps the
+landings and whether every patch reached the tree. `deliver` asks once after
+the plan, hands `isolate` to `pair`, settles after the subtasks and after each
+round of fixes through the audit's `fix`, and reads `landings` and `landed` for
+the result. It names neither `land` nor `landable` any more: `land.ts` stays the
+mechanism any caller may use, and this is what a delivery does with it.
+
+The `worktree` knob does not move. It is `pair`'s and `deliver`'s, for the
+reason the decision above gives, and `pair`'s side - one copy for one piece of
+work, released in the `finally`, the path named when it could not be - was
+already the shape a single copy wants. What this settles is the batch.
+
 
 `timeoutMs` has no default in the library, deliberately: it cannot know how long
 a task should take. A command can, and `/interview` has to. The interviewer
