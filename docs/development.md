@@ -205,6 +205,11 @@ nobody edits either by hand.
 conventional commit titles landed on `main` and writes the next release: the
 changelog, the two version numbers, nothing else.
 
+The package has never been published, so the manifest starts from `0.0.0` and
+Release Please treats the next one as an initial release. An initial release
+takes whatever `initial-version` names, `1.0.0` when nothing does, which is why
+the configuration names `0.1.0`.
+
 Releasing takes two runs of `.github/workflows/release-please.yml`, both started
 by hand from the Actions tab. The first opens the release pull request. Once
 that pull request is merged, the second tags the release, writes the GitHub

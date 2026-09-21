@@ -4,6 +4,7 @@
 	"include-component-in-tag": false,
 	"include-v-in-tag": true,
 	"bump-minor-pre-major": true,
+	"initial-version": "0.1.0",
 	"changelog-path": "CHANGELOG.md",
 	"bootstrap-sha": "e9c76dd4d7fb9954ddf9b52fe47ba1ce808fc420",
 	"changelog-sections": [
