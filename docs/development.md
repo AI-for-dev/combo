@@ -233,6 +233,12 @@ is a library and a pi package, `exports` answering
 `import … from "@ai-for-dev/combo"` and the `pi` manifest answering
 `pi install npm:@ai-for-dev/combo`. `npm pack --dry-run` says what would be sent.
 
+`files` names directories, so whatever a build drops inside one travels with the
+package: `docs/_build/` and the Sphinx configuration's `docs/__pycache__/` went
+out with 0.1.0 that way, 480 files of generated site in a package of 235.
+A whitelist cannot say "except whatever was generated", so both are subtracted
+by name, and publishing happens on a fresh checkout in CI where neither exists.
+
 ## Conventions
 
 - TypeScript, ESM, tabs, double quotes - like pi's own code.
