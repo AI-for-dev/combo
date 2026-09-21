@@ -18,10 +18,8 @@
 
 import type { Agent } from "../../agent.ts";
 import { notify } from "../../events.ts";
-import type { Obligation } from "../../ledger.ts";
+import { reviewRecord, type Obligation, type Verdict } from "../../review/index.ts";
 import { joinOutputs, type Result, type WorkflowResult } from "../../result.ts";
-import { reviewRecord } from "../../review.ts";
-import type { Verdict } from "../../verdict.ts";
 import type { Verification } from "../../verify.ts";
 import type { WorkflowOptions } from "../options.ts";
 import { SubagentPool } from "../pool.ts";

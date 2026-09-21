@@ -11,12 +11,12 @@
  * decision is read, in the same words for every reviewer.
  */
 
-import type { Agent } from "./agent.ts";
+import type { Agent } from "../agent.ts";
 import { createLedger, openList, type Obligation } from "./ledger.ts";
-import type { Result } from "./result.ts";
-import { saysWord } from "./text.ts";
+import type { Result } from "../result.ts";
+import { saysWord } from "../text.ts";
 import { declaresVerdict, VERDICT_TOOL, verdictTool, type Verdict } from "./verdict.ts";
-import type { WorkflowOptions } from "./workflows/options.ts";
+import type { WorkflowOptions } from "../workflows/options.ts";
 
 /** Reads an approval out of prose, for a reviewer that holds no tool. */
 export type ProseApproval = (review: Result, round: number) => boolean | Promise<boolean>;

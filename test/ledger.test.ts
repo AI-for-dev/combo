@@ -7,7 +7,7 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { createLedger, openList } from "../src/ledger.ts";
+import { createLedger, openList } from "../src/review/ledger.ts";
 
 describe("createLedger", () => {
 	test("an obligation keeps the id it was given, round after round", () => {

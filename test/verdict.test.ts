@@ -7,7 +7,7 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { declaresVerdict, verdictTool } from "../src/verdict.ts";
+import { declaresVerdict, verdictTool } from "../src/review/verdict.ts";
 import { callTool as call } from "./fixtures/call-tool.ts";
 
 describe("verdictTool", () => {

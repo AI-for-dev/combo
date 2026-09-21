@@ -17,8 +17,8 @@
  */
 
 import { Type } from "typebox";
-import { defineTool, type ToolDefinition } from "./session.ts";
-import { declares, refuse, said } from "./tool.ts";
+import { defineTool, type ToolDefinition } from "../session.ts";
+import { declares, refuse, said } from "../tool.ts";
 
 /** The name an agent writes in its `tools:` to be given the tool. */
 export const VERDICT_TOOL = "verdict";

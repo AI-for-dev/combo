@@ -219,18 +219,19 @@ export {
 	type DelegateOptions,
 } from "./delegate.ts";
 export { commandVerifier, type CommandVerifierOptions, type Verification, type Verify } from "./verify.ts";
-export { type ProseApproval, type ReviewRecord, type ReviewRecordOptions, type ReviewRound } from "./review.ts";
-export {
-	type Resolution,
-	type Verdict,
-	type VerdictTool,
-} from "./verdict.ts";
 export {
 	type Closure,
 	type CloseOutcome,
 	type Ledger,
 	type Obligation,
-} from "./ledger.ts";
+	type ProseApproval,
+	type Resolution,
+	type ReviewRecord,
+	type ReviewRecordOptions,
+	type ReviewRound,
+	type Verdict,
+	type VerdictTool,
+} from "./review/index.ts";
 
 export { declaresBoard, type BoardToolOptions } from "./board/index.ts";
 export { declares, refuse, said } from "./tool.ts";
