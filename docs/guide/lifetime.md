@@ -69,6 +69,49 @@ try {
 of a workflow is already the "export what was done" path, interruptions
 included. See [Export](export.md).
 
+## Who opens and closes inside a combinator
+
+No combinator spawns or closes anything itself. Each one plays its turns
+through a `SubagentPool` built from the options it was handed, and the rule
+above lives there, in one place:
+
+- `"task"`: a fresh subagent per turn, closed as soon as the turn is over.
+- anything else: one subagent per `key`, reused, closed by `closeAll()`.
+
+`key` is who shares a memory, and it defaults to the agent's name. A chain keys
+by name, so in `"workflow"` the reviewer of the third step is the one that
+reviewed the first. A fan-out keys by branch, because two branches must never
+share a context.
+
+```typescript
+const pool = new SubagentPool(options);
+try {
+	const plan = await pool.turn(planner, task);
+	return await pool.turn(coder, plan.output);
+} finally {
+	await pool.closeAll();     // whoever opens, closes - cancellation included
+}
+```
+
+A turn asked for after the signal was aborted spawns nothing. It comes back as
+a failed `Result` and is recorded anyway, so a workflow that was called off
+says so where its answer would have been.
+
+### A held subagent outlives the turn
+
+`pool.hold()` is for a conversation rather than a task: it hands back an `id`
+and an `ask`, and what it holds lives until `closeAll()` **whatever the
+lifetime**. `interview` holds its interviewer, `swarm` holds its members. An
+interviewer that forgot the previous question, or a member renamed at every
+round, would not be a conversation.
+
+That is the one case where `"task"` does not mean one subagent per turn, and
+the caller asked for it by calling `hold` instead of `turn`.
+
+`closeAll()` ends the subagents, not the record: what their turns produced is
+on the pool's `trail`, which is read after the closing and not before. Writing
+a combinator of your own is [Workflows](workflows.md#writing-one-in-typescript).
+
 ## Stopping is not closing
 
 `subagent.stop()` cuts the turn in flight short and makes every later `ask`
@@ -99,3 +142,5 @@ see [Display](display.md#stopping-what-you-are-watching).
 - [`run`](../reference/api/run.md) - the disposable form, where the lifetime is forced to `"task"`.
 - [`stop`](../reference/api/stop.md) - `stopSwitch`, the run's two halves.
 - [`agent`](../reference/api/agent.md) - `Lifetime`.
+- [`workflows/pool`](../reference/api/workflows/pool.md) - `SubagentPool`, `turn`, `hold`, `closeAll`.
+- [`workflows/trail`](../reference/api/workflows/trail.md) - `Trail`, what the turns add up to.
