@@ -106,9 +106,8 @@ under it:
 
 ```text
 ◇ scout agent  1 turn  outside this conversation - /quote puts it in
-  The ledger records obligations, which are specific things that must be
-  addressed before a piece of work can be considered finished
-  (src/ledger.ts:27-38).
+  The ledger records obligations, which are "things that must happen before
+  the work is finished" (src/review/ledger.ts:31).
   …
 ```
 
