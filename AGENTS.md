@@ -123,6 +123,8 @@ src/                the library
                     announced); index.ts is its door
   pipeline/         pipeline (the file), load (where it is), run (our code
                     walks the steps); index.ts is its door
+  review/           review (the record), verdict (a decision as a tool call),
+                    ledger (what is owed); index.ts is its door
   workflows/        chain fan-out loop reduce route orchestrate
                     interview plan swarm;
                     options.ts pool.ts (turn, hold, closeAll) concurrent.ts

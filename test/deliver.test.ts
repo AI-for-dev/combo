@@ -8,7 +8,7 @@ import { AUDIT_APPROVAL, auditPrompt } from "../src/workflows/deliver/audit.ts";
 import { deliver } from "../src/workflows/deliver/deliver.ts";
 import { APPROVAL } from "../src/workflows/deliver/pair.ts";
 import { emptyUsage } from "../src/usage.ts";
-import { VERDICT_TOOL } from "../src/verdict.ts";
+import { VERDICT_TOOL } from "../src/review/verdict.ts";
 import { callTool } from "./fixtures/call-tool.ts";
 import { fakeSpawn, offeredTools, testAgent } from "./fixtures/fake-subagent.ts";
 

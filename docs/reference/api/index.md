@@ -24,7 +24,6 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`git/scratch`](git/scratch.md) | A working copy with a lifetime: made for one piece of work, and released when that work is done. | 1 |
 | [`git/worktree`](git/worktree.md) | Working copies, so two agents can write at once without writing over each other. | 6 |
 | [`language`](language.md) | The language a subagent answers in: the one it was asked in. | 1 |
-| [`ledger`](ledger.md) | What is left to do, as a list nobody can lose track of. | 4 |
 | [`measured`](measured.md) | A run that measures itself: the picture it is drawn from, the stream it may keep, and the `usage.json` it leaves behind. | 3 |
 | [`mirror`](mirror.md) | The mirror: a live subagent's session, on a unix socket. | 4 |
 | [`pipeline/load`](pipeline/load.md) | Finding the pipelines a user wrote, wherever they put them. | 5 |
@@ -41,7 +40,9 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`reporters/tree`](reporters/tree.md) | A run as a tree: a delegated subagent drawn under the one that asked for it. | 1 |
 | [`reporters/tui`](reporters/tui.md) | Formatting for the pi TUI, with no pi-tui in sight. | 8 |
 | [`result`](result.md) | `Result`: the single contract shared by everything else. | 6 |
-| [`review`](review.md) | The review record: what one reviewer decided, and what it is still owed. | 4 |
+| [`review/ledger`](review/ledger.md) | What is left to do, as a list nobody can lose track of. | 4 |
+| [`review/review`](review/review.md) | The review record: what one reviewer decided, and what it is still owed. | 4 |
+| [`review/verdict`](review/verdict.md) | A verdict given as a tool call, rather than recovered from prose. | 3 |
 | [`run`](run.md) | `run()`: the disposable form. Spawn, ask, close. | 2 |
 | [`session`](session.md) | The whole pi API lives here, and nowhere else. | 9 |
 | [`skills`](skills.md) | The skills an agent may load, and where they are looked up. | 2 |
@@ -50,7 +51,6 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`text`](text.md) | Reading what a model wrote, and cutting what it is handed: shortening text, and finding the structure in it. | 5 |
 | [`tool`](tool.md) | The constant parts of a tool combo defines: whether an agent asked for it, and the two shapes of answer a model reads. | 3 |
 | [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 6 |
-| [`verdict`](verdict.md) | A verdict given as a tool call, rather than recovered from prose. | 3 |
 | [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 4 |
 | [`workflows/chain`](workflows/chain.md) | `chain`: 1 → 1 → 1. The output of step *n* is the input of step *n+1*. | 2 |
 | [`workflows/concurrent`](workflows/concurrent.md) | Running several things at once, but not all of them: a subtask is a session, and N sessions opening together is the bill nobody meant to pay. | 1 |
@@ -90,7 +90,6 @@ git/land
 git/scratch
 git/worktree
 language
-ledger
 measured
 mirror
 pipeline/load
@@ -107,7 +106,9 @@ reporters/silent
 reporters/tree
 reporters/tui
 result
-review
+review/ledger
+review/review
+review/verdict
 run
 session
 skills
@@ -116,7 +117,6 @@ subagent
 text
 tool
 usage
-verdict
 verify
 workflows/chain
 workflows/concurrent

@@ -8,9 +8,9 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import type { Obligation } from "../src/ledger.ts";
+import type { Obligation } from "../src/review/ledger.ts";
 import { emptyUsage } from "../src/usage.ts";
-import { VERDICT_TOOL } from "../src/verdict.ts";
+import { VERDICT_TOOL } from "../src/review/verdict.ts";
 import type { Verification } from "../src/verify.ts";
 import { audit, AUDIT_APPROVAL, type AuditOptions, type Fixed } from "../src/workflows/deliver/audit.ts";
 import type { PairResult } from "../src/workflows/deliver/pair.ts";

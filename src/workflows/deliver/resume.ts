@@ -14,10 +14,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Agent } from "../../agent.ts";
-import type { Obligation } from "../../ledger.ts";
+import type { Obligation, Verdict } from "../../review/index.ts";
 import { failed, succeeded, type Result } from "../../result.ts";
 import type { Usage } from "../../usage.ts";
-import type { Verdict } from "../../verdict.ts";
 import type { Verification } from "../../verify.ts";
 import type { AuditRound } from "./audit.ts";
 import type { BuildProgress } from "./deliver.ts";

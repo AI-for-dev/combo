@@ -12,11 +12,9 @@
  */
 
 import type { Agent } from "../../agent.ts";
-import type { Obligation } from "../../ledger.ts";
+import { reviewRecord, type Obligation, type Verdict } from "../../review/index.ts";
 import { scratchWorktree, type Scratch } from "../../git/index.ts";
 import { failed, type Result } from "../../result.ts";
-import { reviewRecord } from "../../review.ts";
-import type { Verdict } from "../../verdict.ts";
 import type { WorkflowOptions } from "../options.ts";
 import { SubagentPool } from "../pool.ts";
 import { Trail } from "../trail.ts";

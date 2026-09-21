@@ -2879,6 +2879,23 @@ although only `scratch.ts` calls them inside the library, because the
 worktree guide teaches them in its first code block; the rule for the surface
 is what somebody outside calls, and a guide is somebody outside.
 
+### The review record's door was already in the barrel
+
+`review.ts` said in its header that it was "the one place that joins" the
+verdict and the ledger, and the code agreed: `verdictTool`, `declaresVerdict`,
+`createLedger` and `openList` had no caller but `review.ts`, and the barrel
+exported the types of all three files and the function of one. The interface
+was visible everywhere except in the listing, where the three sat among
+thirty-nine files with `resume.ts` and `run.ts` between them.
+
+`src/review/` now holds the three, and its index lists what the barrel already
+did: `reviewRecord` and the types a result names. Its three callers are the
+delivery - `pair`, `audit`, and `resume` for the types - which is why it could
+have gone under `workflows/deliver/`; it did not, because a verdict as a tool
+call is one of the three tools combo hands a subagent, beside the board's and
+the delegation's, and that family reads better from the root. `tool.ts`, the
+words those three share, stays at the root for the same reason.
+
 ## The public surface: one entry point, grouped as it is learnt
 
 `src/index.ts` is the only door - the examples and the extension import from it,
