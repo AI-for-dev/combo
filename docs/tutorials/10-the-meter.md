@@ -51,7 +51,10 @@ tool does with `export true`. Take [the explore run](02-three-scouts.md):
 ```
 
 One entry like that per subagent, four in this run, and a total underneath
-that is the sum of them.
+that is the sum of them. The entry above is cut short: the real one also says
+which lifetime the subagent ran with, its last status, the task it was given,
+and - for a subagent another one spawned - the `parentId` it hangs under.
+[`measure/export`](../reference/api/measure/export.md) has the whole shape.
 
 `parallelism` is busy over wall: 98.8 seconds of work in 63.5. A fan-out of
 three that reads 1.56 has its slowest branch setting the pace, and that ratio
