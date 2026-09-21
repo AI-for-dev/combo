@@ -10,9 +10,9 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { createBoard } from "../src/board.ts";
-import { createClaims } from "../src/claims.ts";
-import { boardTool, declaresBoard, BOARD_TOOL } from "../src/board-tool.ts";
+import { createBoard } from "../src/board/board.ts";
+import { createClaims } from "../src/board/claims.ts";
+import { boardTool, declaresBoard, BOARD_TOOL } from "../src/board/tool.ts";
 import { callTool } from "./fixtures/call-tool.ts";
 
 /** What the model is shown, whether it went well or not. */

@@ -31,10 +31,17 @@
  */
 
 import type { Agent } from "./../agent.ts";
-import { announcedBoard, announcedClaims } from "./../announced.ts";
-import { boardTool } from "./../board-tool.ts";
-import { boardLines, createBoard, type Board, type Post } from "./../board.ts";
-import { createClaims, type Claims } from "./../claims.ts";
+import {
+	announcedBoard,
+	announcedClaims,
+	boardLines,
+	boardTool,
+	createBoard,
+	createClaims,
+	type Board,
+	type Claims,
+	type Post,
+} from "../board/index.ts";
 import { busFor } from "./../events.ts";
 import { failed, joinOutputs, type Result, type WorkflowResult } from "./../result.ts";
 import { mapConcurrent } from "./concurrent.ts";

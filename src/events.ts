@@ -7,7 +7,7 @@
  */
 
 import type { Lifetime } from "./agent.ts";
-import type { Post } from "./board.ts";
+import type { Post } from "./board/index.ts";
 import type { Result } from "./result.ts";
 import type { Usage } from "./usage.ts";
 

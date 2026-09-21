@@ -9,8 +9,8 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { agreed, latestVotes, VOTE_INSTRUCTION } from "../src/agreement.ts";
-import { createBoard, type Board } from "../src/board.ts";
+import { agreed, latestVotes, VOTE_INSTRUCTION } from "../src/board/agreement.ts";
+import { createBoard, type Board } from "../src/board/board.ts";
 
 /** A board with the given posts on it, from the members that wrote them. */
 function boardOf(...said: [from: string, text: string][]): Board {

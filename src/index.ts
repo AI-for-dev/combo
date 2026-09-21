@@ -236,7 +236,7 @@ export {
 	type Obligation,
 } from "./ledger.ts";
 
-export { declaresBoard, type BoardToolOptions } from "./board-tool.ts";
+export { declaresBoard, type BoardToolOptions } from "./board/index.ts";
 export { declares, refuse, said } from "./tool.ts";
 export {
 	createClaims,
@@ -245,7 +245,7 @@ export {
 	type ClaimsOptions,
 	type Holding,
 	type TakeOutcome,
-} from "./claims.ts";
+} from "./board/index.ts";
 export {
 	boardLines,
 	createBoard,
@@ -257,8 +257,8 @@ export {
 	type PostKind,
 	type PostOutcome,
 	type Reading,
-} from "./board.ts";
-export { agreed, VOTE_INSTRUCTION } from "./agreement.ts";
+} from "./board/index.ts";
+export { agreed, VOTE_INSTRUCTION } from "./board/index.ts";
 export { type Answer, type AskUser, type Choice, type Question } from "./ask.ts";
 export {
 	BUILD_STATE_VERSION,
