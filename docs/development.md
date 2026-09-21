@@ -212,10 +212,14 @@ the configuration names `0.1.0`.
 
 Releasing takes two runs of `.github/workflows/release-please.yml`, both started
 by hand from the Actions tab. The first opens the release pull request. Once
-that pull request is merged, the second tags the release, writes the GitHub
-release and publishes the tarball to npm with provenance. An ordinary merge
-starts neither, which is the point. The two secrets they need are named at the
-top of that file.
+that pull request is merged, the second tags the release and writes the GitHub
+release. An ordinary merge starts neither, which is the point.
+
+Writing the release is what `.github/workflows/publish.yml` waits for. It runs
+the typecheck and the suite on the tag, then publishes to npm with provenance
+and no token: npm recognises the workflow by the OIDC identity GitHub gives it.
+A publish that failed is run again on its own, with the tag as its input, which
+is why it is a workflow of its own and not a second job beside the release.
 
 Pull requests are squashed here, so the pull request title becomes the commit
 title Release Please reads. `feat:` gives a minor version, `fix:` a patch, and a

@@ -3178,10 +3178,18 @@ Release Please reads the conventional commits landed on `main` and opens a pull
 request that is the next release. **Its workflow starts by hand, never on a
 merge**, so an ordinary pull request leaves nothing behind it. The price is that
 a release takes two runs: the first opens the pull request, and the second,
-after it has been merged, tags the release and publishes the tarball with
-provenance, on a commit `ci.yml` has already typechecked and tested. Running on
-every push would have removed that second run, and would have put a release pull
-request in the way of every merge. That is the more expensive of the two.
+after it has been merged, tags the release. Running on every push would have
+removed that second run, and would have put a release pull request in the way of
+every merge. That is the more expensive of the two.
+
+**Publishing is a workflow of its own**, woken by the release event and by a tag
+handed to it. As a second job beside the release it was reachable only while
+that one run existed, and the first release proved why that matters: the tag was
+written, the publish failed on a credential, and nothing but re-running that
+exact run could finish it. It carries no npm token either. Trusted publishing
+authenticates it by the identity GitHub gives the run, which is one fewer secret
+to hold and to rotate, and the provenance attestation follows from the same
+identity.
 
 The cost is a vocabulary. Pull requests are squashed here, so each title becomes
 a commit title, and `feat:` or `fix:` has to be written on it rather than
