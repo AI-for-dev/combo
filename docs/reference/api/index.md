@@ -25,8 +25,9 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`ledger`](ledger.md) | What is left to do, as a list nobody can lose track of. | 4 |
 | [`measured`](measured.md) | A run that measures itself: the picture it is drawn from, the stream it may keep, and the `usage.json` it leaves behind. | 3 |
 | [`mirror`](mirror.md) | The mirror: a live subagent's session, on a unix socket. | 4 |
-| [`pipeline-load`](pipeline-load.md) | Finding the pipelines a user wrote, wherever they put them. | 5 |
-| [`pipeline`](pipeline.md) | A pipeline is *data*: an ordered list of combinator calls, declared as YAML frontmatter + Markdown, following the same convention as an agent. | 4 |
+| [`pipeline/load`](pipeline/load.md) | Finding the pipelines a user wrote, wherever they put them. | 5 |
+| [`pipeline/pipeline`](pipeline/pipeline.md) | A pipeline is *data*: an ordered list of combinator calls, declared as YAML frontmatter + Markdown, following the same convention as an agent. | 4 |
+| [`pipeline/run`](pipeline/run.md) | Running a pipeline: the piece `pipeline.ts` describes and deliberately leaves to someone else. | 6 |
 | [`reporters/console`](reporters/console.md) | A plain console reporter: one line per event that matters. | 2 |
 | [`reporters/herdr-client`](reporters/herdr-client.md) | Detection and transport for herdr's socket API. Nothing else lives here. | 4 |
 | [`reporters/herdr-probe`](reporters/herdr-probe.md) | Asking herdr whether it would open a pane, without opening one. | 1 |
@@ -62,7 +63,6 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`workflows/loop`](workflows/loop.md) | `loop`: 1 → 1, repeated until a criterion is met. | 4 |
 | [`workflows/options`](workflows/options.md) | What every combinator shares: the same options, under the same names, with the same defaults. | 4 |
 | [`workflows/orchestrate`](workflows/orchestrate.md) | `orchestrate`: 1 → ?. An agent *decides* the split, then the split runs. | 3 |
-| [`workflows/pipeline-run`](workflows/pipeline-run.md) | Running a pipeline: the piece `pipeline.ts` describes and deliberately leaves to someone else. | 6 |
 | [`workflows/plan`](workflows/plan.md) | Reading a plan an agent wrote: the prompt, the parser, the validation. | 5 |
 | [`workflows/pool`](workflows/pool.md) | The pool: where a workflow's turns are played. | 3 |
 | [`workflows/reduce`](workflows/reduce.md) | `reduce`: N → 1. One agent synthesises the results of a fan-out. | 3 |
@@ -91,8 +91,9 @@ language
 ledger
 measured
 mirror
-pipeline-load
-pipeline
+pipeline/load
+pipeline/pipeline
+pipeline/run
 reporters/console
 reporters/herdr-client
 reporters/herdr-probe
@@ -128,7 +129,6 @@ workflows/interview
 workflows/loop
 workflows/options
 workflows/orchestrate
-workflows/pipeline-run
 workflows/plan
 workflows/pool
 workflows/reduce

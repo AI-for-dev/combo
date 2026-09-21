@@ -171,26 +171,22 @@ export {
 // ── Pipelines: a workflow written down, found, and run ───────────────────────
 
 export {
-	parsePipeline,
-	type Pipeline,
-	type PipelineStep,
-	type StepKind,
-} from "./pipeline.ts";
-export {
+	checkPipelineAgents,
 	findPipeline,
 	loadPipelines,
 	lookupPipeline,
-	type BrokenPipeline,
-	type PipelineCatalogue,
-} from "./pipeline-load.ts";
-export {
-	checkPipelineAgents,
+	parsePipeline,
 	runPipeline,
 	stepInput,
+	type BrokenPipeline,
+	type Pipeline,
+	type PipelineCatalogue,
 	type PipelineRunOptions,
 	type PipelineRunResult,
+	type PipelineStep,
 	type PipelineStepResult,
-} from "./workflows/pipeline-run.ts";
+	type StepKind,
+} from "./pipeline/index.ts";
 
 // ── The ports that touch the world: git, a check, a question, a saved build ──
 

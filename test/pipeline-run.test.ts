@@ -10,8 +10,8 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { parsePipeline } from "../src/pipeline.ts";
-import { runPipeline, stepInput } from "../src/workflows/pipeline-run.ts";
+import { parsePipeline } from "../src/pipeline/pipeline.ts";
+import { runPipeline, stepInput } from "../src/pipeline/run.ts";
 import { fakeSpawn, testAgent } from "./fixtures/fake-subagent.ts";
 
 const agents = ["scout", "coder", "reviewer", "planner", "synthesiser", "router"].map((name) => testAgent(name));

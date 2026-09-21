@@ -224,6 +224,6 @@ covered in [Deliver a change](build.md).
 
 ## Reference
 
-- [`pipeline`](../reference/api/pipeline.md) - `parsePipeline`, `Pipeline`, `PipelineStep`, `STEP_KINDS`.
-- [`pipeline-load`](../reference/api/pipeline-load.md) - `loadPipelines`, `findPipeline`.
-- [`workflows/pipeline-run`](../reference/api/workflows/pipeline-run.md) - `runPipeline`, `checkPipelineAgents`.
+- [`pipeline/pipeline`](../reference/api/pipeline/pipeline.md) - `parsePipeline`, `Pipeline`, `PipelineStep`, `STEP_KINDS`.
+- [`pipeline/load`](../reference/api/pipeline/load.md) - `loadPipelines`, `findPipeline`.
+- [`pipeline/run`](../reference/api/pipeline/run.md) - `runPipeline`, `checkPipelineAgents`.

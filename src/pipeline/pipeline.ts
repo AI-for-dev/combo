@@ -26,8 +26,8 @@
  */
 
 import { parseFrontmatter } from "@earendil-works/pi-coding-agent";
-import { LIFETIMES, type Lifetime } from "./agent.ts";
-import { asBoolean, asString } from "./markdown.ts";
+import { LIFETIMES, type Lifetime } from "../agent.ts";
+import { asBoolean, asString } from "../markdown.ts";
 
 /** The combinators a pipeline may call, by their exported name. */
 export const STEP_KINDS = [
