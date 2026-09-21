@@ -17,9 +17,9 @@
 
 import * as path from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir } from "@earendil-works/pi-coding-agent";
-import type { AgentScope } from "./agent.ts";
-import { BUILTIN_PIPELINES_DIR } from "./builtin.ts";
-import { findProjectDir, readMarkdownDir } from "./markdown.ts";
+import type { AgentScope } from "../agent.ts";
+import { BUILTIN_PIPELINES_DIR } from "../builtin.ts";
+import { findProjectDir, readMarkdownDir } from "../markdown.ts";
 import { parsePipeline, type Pipeline } from "./pipeline.ts";
 
 /** Directory name under `~/.pi/agent/` and under `.pi/`. */

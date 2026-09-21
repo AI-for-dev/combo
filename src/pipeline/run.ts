@@ -32,21 +32,20 @@
 import type { Agent } from "../agent.ts";
 import { findAgent } from "../agent.ts";
 import { notify } from "../events.ts";
-import type { Pipeline, PipelineStep } from "../pipeline.ts";
+import type { Pipeline, PipelineStep } from "./pipeline.ts";
 import { failed, type Result } from "../result.ts";
 import { plural, saysWord } from "../text.ts";
 import type { Usage } from "../usage.ts";
 import type { Verify } from "../verify.ts";
-import { chain } from "./chain.ts";
-import type { WorkflowOptions } from "./options.ts";
-import { deliver, type BuildProgress, type DeliverResult } from "./deliver/index.ts";
-import { fanOut } from "./fan-out.ts";
-import { loop } from "./loop.ts";
-import { orchestrate } from "./orchestrate.ts";
-import { pair } from "./deliver/index.ts";
-import { reduce } from "./reduce.ts";
-import { route } from "./route.ts";
-import { Trail } from "./trail.ts";
+import { chain } from "../workflows/chain.ts";
+import type { WorkflowOptions } from "../workflows/options.ts";
+import { deliver, pair, type BuildProgress, type DeliverResult } from "../workflows/deliver/index.ts";
+import { fanOut } from "../workflows/fan-out.ts";
+import { loop } from "../workflows/loop.ts";
+import { orchestrate } from "../workflows/orchestrate.ts";
+import { reduce } from "../workflows/reduce.ts";
+import { route } from "../workflows/route.ts";
+import { Trail } from "../workflows/trail.ts";
 
 /** What one step produced, kept whole so a report can show the shape of the run. */
 export type PipelineStepResult = {

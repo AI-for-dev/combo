@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { parsePipeline, STEP_KINDS } from "../src/pipeline.ts";
+import { parsePipeline, STEP_KINDS } from "../src/pipeline/pipeline.ts";
 
 function pipeline(frontmatter: string, body: string): string {
 	return ["---", frontmatter.trim(), "---", "", body.trim(), ""].join("\n");
