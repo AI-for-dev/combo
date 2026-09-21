@@ -1,6 +1,6 @@
 {
 	"name": "@ai-for-dev/combo",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Write pi subagents and compose workflows, simply",
 	"license": "MIT",
 	"author": "AI-for-dev team",
