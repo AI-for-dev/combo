@@ -12,6 +12,12 @@
 # OIDC identity GitHub gives it, which npm matches against the repository and
 # the file name declared on the package page, and the provenance attestation
 # comes with it.
+#
+# The publish is **staged, not direct**. npm asks for proof of presence on a
+# write to this package, and a workflow has no second factor to offer, so this
+# run uploads the tarball and stops there. What puts the version on npm is
+# `npm stage list` and then `npm stage approve <id>`, run from a machine that
+# can answer for a person. Nothing is installable until somebody does.
 name: publish
 
 on:
@@ -51,4 +57,4 @@ jobs:
       # Trusted publishing needs a newer npm than the one the runner's Node
       # carries, and the runner's version moves on its own.
       - run: npm install -g npm@^11.5.1
-      - run: npm publish
+      - run: npm stage publish

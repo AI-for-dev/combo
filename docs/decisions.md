@@ -3201,13 +3201,21 @@ removed that second run, and would have put a release pull request in the way of
 every merge. That is the more expensive of the two.
 
 **Publishing is a workflow of its own**, woken by the release event and by a tag
-handed to it. As a second job beside the release it was reachable only while
+handed to it, and it stages rather than publishes. As a second job beside the release it was reachable only while
 that one run existed, and the first release proved why that matters: the tag was
 written, the publish failed on a credential, and nothing but re-running that
 exact run could finish it. It carries no npm token either. Trusted publishing
 authenticates it by the identity GitHub gives the run, which is one fewer secret
 to hold and to rotate, and the provenance attestation follows from the same
 identity.
+
+What no credential supplies is proof of presence, and npm asks for it on a write
+to this package. `npm stage publish` is the shape that admits it: the run builds
+and uploads the tarball, and `npm stage approve` finishes the job from a machine
+where somebody can answer. The alternative was a token allowed to bypass the
+second factor, which is what npm is in the middle of taking away, so the manual
+step is not a workaround to be removed later. It is where a release genuinely
+stops being automatic.
 
 The cost is a vocabulary. Pull requests are squashed here, so each title becomes
 a commit title, and `feat:` or `fix:` has to be written on it rather than

@@ -216,10 +216,23 @@ that pull request is merged, the second tags the release and writes the GitHub
 release. An ordinary merge starts neither, which is the point.
 
 Writing the release is what `.github/workflows/publish.yml` waits for. It runs
-the typecheck and the suite on the tag, then publishes to npm with provenance
-and no token: npm recognises the workflow by the OIDC identity GitHub gives it.
-A publish that failed is run again on its own, with the tag as its input, which
-is why it is a workflow of its own and not a second job beside the release.
+the typecheck and the suite on the tag, then stages the tarball on npm with
+provenance and no token: npm recognises the workflow by the OIDC identity GitHub
+gives it. A publish that failed is run again on its own, with the tag as its
+input, which is why it is a workflow of its own and not a second job beside the
+release.
+
+Staged, because npm asks for proof of presence on a write and a workflow has no
+second factor. The version is not installable until a person finishes it:
+
+```bash
+npm stage list                  # what the workflow left, with its id
+npm stage view <id>             # what is in it
+npm stage approve <id>          # this is the publication
+```
+
+`npm stage reject <id>` throws it away instead, which is the way back from a
+tarball that should not have been built.
 
 Pull requests are squashed here, so the pull request title becomes the commit
 title Release Please reads. `feat:` gives a minor version, `fix:` a patch, and a
