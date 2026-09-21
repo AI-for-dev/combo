@@ -35,6 +35,8 @@
 		"LICENSE",
 		"README.md",
 		"docs",
+		"!docs/_build",
+		"!docs/__pycache__",
 		"!docs/conf.py",
 		"!docs/Makefile",
 		"!docs/requirements.txt",
