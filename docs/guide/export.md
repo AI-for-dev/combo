@@ -101,5 +101,5 @@ model, `rep-<n>/` inside it, and each cell writing the very same `usage.json`.
 
 ## Reference
 
-- [`export`](../reference/api/export.md) - `createRunDir`, `exportSession`, `usageReport`, `writeUsageReport`.
+- [`measure/export`](../reference/api/measure/export.md) - `createRunDir`, `exportSession`, `usageReport`, `writeUsageReport`.
 - [`subagent`](../reference/api/subagent.md) - `Subagent.export`, `SpawnOptions.exportDir`.

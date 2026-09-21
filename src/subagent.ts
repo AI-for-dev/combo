@@ -12,7 +12,7 @@
 import path from "node:path";
 import type { Agent, Lifetime } from "./agent.ts";
 import { busFor, nextSubagentId, type EventBus, type EventListener, type SubagentEvent } from "./events.ts";
-import { exportSession, type SessionExport } from "./export.ts";
+import { exportSession, type SessionExport } from "./measure/index.ts";
 import { inTheLanguageOfTheWork } from "./language.ts";
 import { registerMirror } from "./mirror.ts";
 import { failed, succeeded, type Result } from "./result.ts";

@@ -12,8 +12,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, test } from "node:test";
-import { experiment, type ExperimentCell } from "../src/experiment.ts";
-import { experimentTable } from "../src/experiment-report.ts";
+import { experiment, type ExperimentCell } from "../src/measure/experiment.ts";
+import { experimentTable } from "../src/measure/report.ts";
 import { chain } from "../src/workflows/chain.ts";
 import { fakeSpawn, testAgent } from "./fixtures/fake-subagent.ts";
 

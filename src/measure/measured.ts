@@ -10,9 +10,9 @@
  */
 
 import path from "node:path";
-import type { EventListener } from "./events.ts";
+import type { EventListener } from "../events.ts";
 import { copyMainSession, usageReport, writeUsageReport, type UsageReport } from "./export.ts";
-import { combineReporters, createRunPicture, recordReporter, type RunPicture } from "./reporters/index.ts";
+import { combineReporters, createRunPicture, recordReporter, type RunPicture } from "../reporters/index.ts";
 
 /** What a measured run may vary. Everything else is the same everywhere. */
 export type MeasuredRunOptions = {

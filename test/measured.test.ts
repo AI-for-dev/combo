@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, test } from "node:test";
 import type { SubagentEvent } from "../src/events.ts";
-import { measuredRun } from "../src/measured.ts";
+import { measuredRun } from "../src/measure/measured.ts";
 import { closed, spawned } from "./fixtures/picture.ts";
 
 const scratch: string[] = [];

@@ -22,29 +22,16 @@ import path from "node:path";
 import {
 	experimentReport,
 	writeExperimentReport,
+	type ExperimentOutcome,
 	type ExperimentReport,
 	type ExperimentRun,
-} from "./experiment-report.ts";
+} from "./report.ts";
 import { createRunDir, exportBaseName } from "./export.ts";
-import type { EventListener } from "./events.ts";
+import type { EventListener } from "../events.ts";
 import { measuredRun } from "./measured.ts";
-import { abortError } from "./result.ts";
-import { mapConcurrent } from "./workflows/concurrent.ts";
-import type { SpawnFn, WorkflowOptions } from "./workflows/options.ts";
-
-/**
- * What a cell reports back: a verdict, plus the flat flags the study compares.
- *
- * `converged`, `approved`, `iterations`, `rounds` - whatever the callback
- * chooses. They become the table's columns, so they are scalars: anything the
- * comparison needs is put here, anything else stays in the cell's transcripts.
- */
-export type ExperimentOutcome = {
-	/** Did this cell do the work? The one flag with a column of its own. */
-	ok: boolean;
-	/** What went wrong. Never a column: distinct sentences compare nothing. */
-	error?: string;
-} & Record<string, string | number | boolean | undefined>;
+import { abortError } from "../result.ts";
+import { mapConcurrent } from "../workflows/concurrent.ts";
+import type { SpawnFn, WorkflowOptions } from "../workflows/options.ts";
 
 /** One cell of the matrix, handed to the callback. */
 export type ExperimentCell = {

@@ -15,10 +15,23 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import type { ExperimentOutcome } from "./experiment.ts";
 import type { UsageTotal } from "./export.ts";
-import { formatUsage, sumUsage, type Usage } from "./usage.ts";
-import { plural } from "./text.ts";
+import { formatUsage, sumUsage, type Usage } from "../usage.ts";
+import { plural } from "../text.ts";
+
+/**
+ * What a cell reports back: a verdict, plus the flat flags the study compares.
+ *
+ * `converged`, `approved`, `iterations`, `rounds` - whatever the callback
+ * chooses. They become the table's columns, so they are scalars: anything the
+ * comparison needs is put here, anything else stays in the cell's transcripts.
+ */
+export type ExperimentOutcome = {
+	/** Did this cell do the work? The one flag with a column of its own. */
+	ok: boolean;
+	/** What went wrong. Never a column: distinct sentences compare nothing. */
+	error?: string;
+} & Record<string, string | number | boolean | undefined>;
 
 /** One cell of the matrix: one model, one repetition, once it has run. */
 export type ExperimentRun = {

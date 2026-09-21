@@ -109,11 +109,13 @@ no enums, no namespaces, no parameter properties.
 ```
 src/                the library
   session.ts        the whole pi API, and nowhere else
-  agent.ts subagent.ts run.ts result.ts usage.ts events.ts export.ts
+  agent.ts subagent.ts run.ts result.ts usage.ts events.ts
   text.ts           reading what a model wrote: truncate, saysWord, jsonObjects
   markdown.ts       finding and reading a .md with frontmatter
   skills.ts         resolving what an agent's `skills:` names, nearest first
-  experiment.ts experiment-report.ts    one workflow, M models, N repetitions
+  measure/          export (runs/<timestamp>/), measured (a run that measures
+                    itself), experiment (M models, N repetitions), report;
+                    index.ts is its door
   ask.ts verify.ts                      the ports that touch the world
   git/              run (git itself), git (what a pipeline may do), worktree
                     and scratch (the copies), land (patches come home);

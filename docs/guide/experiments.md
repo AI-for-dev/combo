@@ -124,5 +124,5 @@ turn that would not end is a cell missing from the comparison.
 
 ## Reference
 
-- [`experiment`](../reference/api/experiment.md) - `experiment`, `ExperimentCell`, `ExperimentOptions`.
-- [`experiment-report`](../reference/api/experiment-report.md) - the report, the table, the writes.
+- [`measure/experiment`](../reference/api/measure/experiment.md) - `experiment`, `ExperimentCell`, `ExperimentOptions`.
+- [`measure/report`](../reference/api/measure/report.md) - the report, the table, the writes.

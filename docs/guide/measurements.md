@@ -125,4 +125,4 @@ Comparing these numbers across models, over repeated runs, is what
 ## Reference
 
 - [`usage`](../reference/api/usage.md) - `Usage`, `deltaUsage`, `sumUsage`, `formatUsage`, `compact`.
-- [`export`](../reference/api/export.md) - `usageReport`, the `usage.json` document.
+- [`measure/export`](../reference/api/measure/export.md) - `usageReport`, the `usage.json` document.
