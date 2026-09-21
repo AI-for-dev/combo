@@ -3,6 +3,7 @@
 	"version": "0.1.0",
 	"description": "Write pi subagents and compose workflows, simply",
 	"license": "MIT",
+	"author": "AI-for-dev team",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/AI-for-dev/combo.git"
