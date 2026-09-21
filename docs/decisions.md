@@ -2822,6 +2822,24 @@ One arrow still crosses from `ui/` into `commands/`: the live view tells `/stop`
 which run is on screen. That is the sign that `stop.ts` holds a key and a
 command at once, and it is left in view rather than papered over.
 
+### The board is one module with one caller
+
+Five files at the root of `src/` - `board.ts`, `claims.ts`, `announced.ts`,
+`board-tool.ts`, `agreement.ts` - had one caller inside the library,
+`workflows/swarm.ts`, which imported nine names from four of them. Their headers
+already read as one text: `claims.ts` calls itself "pure data, like `ledger.ts`
+next door", `board-tool.ts` sends the reader to `announced.ts` for the bus, and
+following "a member claims a file" meant four files in the order the headers
+pointed. `agreement.ts` is a policy over a `Board`, the way `settle.ts` is a
+policy over `land`, and its one caller is the `/swarm` command.
+
+`src/board/` now holds the five, `board-tool.ts` renamed `tool.ts` since the
+directory says whose. Its index lists what `swarm` builds and hands out, and
+the vote the command reads; `latestVotes` stays behind it, counted only by the
+agreement. The one arrow into the module from the core is `events.ts` naming
+`Post`, because a board's traffic is an event like any other; a directory makes
+that arrow readable where a flat listing hid it.
+
 ## The public surface: one entry point, grouped as it is learnt
 
 `src/index.ts` is the only door - the examples and the extension import from it,

@@ -5,7 +5,7 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { createClaims, heldList } from "../src/claims.ts";
+import { createClaims, heldList } from "../src/board/claims.ts";
 
 describe("taking", () => {
 	test("first to ask holds it, and the second is told who does", () => {

@@ -116,6 +116,8 @@ src/                the library
   experiment.ts experiment-report.ts    one workflow, M models, N repetitions
   ask.ts verify.ts git.ts               the ports that touch the world
   pipeline.ts pipeline-load.ts builtin.ts
+  board/            the swarm's board (board, claims, tool, agreement,
+                    announced); index.ts is its door
   workflows/        chain fan-out loop reduce route orchestrate
                     interview plan swarm pipeline-run;
                     options.ts pool.ts (turn, hold, closeAll) concurrent.ts

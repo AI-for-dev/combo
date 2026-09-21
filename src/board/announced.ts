@@ -17,7 +17,7 @@
 
 import type { Board } from "./board.ts";
 import type { Claims } from "./claims.ts";
-import type { EventBus } from "./events.ts";
+import type { EventBus } from "../events.ts";
 
 /** The same board, with every accepted post and every read on the bus. */
 export function announcedBoard(board: Board, bus: EventBus): Board {
