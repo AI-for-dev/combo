@@ -3,13 +3,21 @@
 ## Install
 
 ```bash
+npm install @ai-for-dev/combo       # the library
+pi install npm:@ai-for-dev/combo    # the same package, loaded into pi
+```
+
+Node 23.6 or later is required: it runs TypeScript natively, and there is no
+build step. The package ships the TypeScript it was written in, and `tsc` is
+used only to typecheck.
+
+From a clone, the same three commands the CI runs:
+
+```bash
 npm install
 npm test          # offline, no network calls
 npm run typecheck
 ```
-
-Node 23.6 or later is required: it runs TypeScript natively, and there is no
-build step. `tsc` is used only to typecheck.
 
 A model is needed for anything that actually talks to a provider. pi resolves it
 the usual way, and the examples take `--model` on the command line:
@@ -27,7 +35,7 @@ and that is deliberate: nothing here is estimated by counting characters. See
 The high level form is disposable: it spawns, asks, and closes.
 
 ```typescript
-import { findAgent, loadAgents, run } from "combo";
+import { findAgent, loadAgents, run } from "@ai-for-dev/combo";
 
 const agents = loadAgents();
 const scout = findAgent(agents, "scout");
@@ -45,7 +53,7 @@ and an `error`, and the usage it managed to spend is still filled in.
 The low level form gives you the object, and you decide how long it lives.
 
 ```typescript
-import { spawn } from "combo";
+import { spawn } from "@ai-for-dev/combo";
 
 const coder = await spawn(coderAgent, { lifetime: "workflow" });
 try {
@@ -68,7 +76,7 @@ Combinators take agents and give back results. They compose because they all
 speak the same `Result`.
 
 ```typescript
-import { chain, fanOut, loop, saysWord } from "combo";
+import { chain, fanOut, loop, saysWord } from "@ai-for-dev/combo";
 
 await chain({ steps: [scout, reviewer], input: "Explain how usage is measured" });
 

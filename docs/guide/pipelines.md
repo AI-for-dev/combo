@@ -200,7 +200,7 @@ always - see [Agents](agents.md).
 From a script:
 
 ```typescript
-import { checkPipelineAgents, findPipeline, loadAgents, loadPipelines, runPipeline } from "combo";
+import { checkPipelineAgents, findPipeline, loadAgents, loadPipelines, runPipeline } from "@ai-for-dev/combo";
 
 const agents = loadAgents({ scope: "both" });
 const pipeline = findPipeline(loadPipelines({ scope: "both" }), "build");

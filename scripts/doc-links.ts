@@ -97,8 +97,12 @@ export function navigationPaths(root: string): string[] {
 }
 
 /**
- * Symbols imported from `combo` in a code fence that the library does not
+ * Symbols imported from the package in a code fence that the library does not
  * export.
+ *
+ * The name comes from `package.json` rather than from a literal here: a page
+ * importing from the old name after a rename would otherwise stop being read
+ * at all, and the check would pass by never looking.
  *
  * This is the check that earns its keep: an example calling a renamed function
  * looks perfectly plausible to a reader, and is the one kind of documentation
@@ -106,11 +110,13 @@ export function navigationPaths(root: string): string[] {
  */
 export function unknownImports(root: string, pages: string[]): string[] {
 	const known = new Set(publicNames(join(root, "src/index.ts")));
+	const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).name as string;
+	const from = new RegExp(`import\\s*\\{([^}]*)\\}\\s*from\\s*"${pkg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`, "g");
 	const unknown: string[] = [];
 
 	for (const page of pages) {
 		const text = readFileSync(join(root, page), "utf8");
-		for (const [, names] of text.matchAll(/import\s*\{([^}]*)\}\s*from\s*"combo"/g)) {
+		for (const [, names] of text.matchAll(from)) {
 			for (const raw of (names as string).split(",")) {
 				const name = raw.replace(/^\s*type\s+/, "").trim();
 				if (name && !known.has(name)) unknown.push(`${page}: ${name}`);

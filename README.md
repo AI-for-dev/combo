@@ -34,14 +34,17 @@ against four models to see which one is worth its price.
 ## Getting started
 
 ```bash
-npm install
-npm test          # offline, no network calls
+npm install @ai-for-dev/combo       # the library
+pi install npm:@ai-for-dev/combo    # the same package, loaded into pi
 ```
 
-Node 23.6 or later runs TypeScript natively: there is no build step.
+Node 23.6 or later runs TypeScript natively: there is no build step, and the
+package ships the TypeScript it was written in.
+
+From a clone, `npm install` then `npm test` - offline, no network calls.
 
 ```typescript
-import { findAgent, loadAgents, run } from "combo";
+import { findAgent, loadAgents, run } from "@ai-for-dev/combo";
 
 const agents = loadAgents();
 const result = await run(findAgent(agents, "scout"), "Find the authentication code");
@@ -136,8 +139,8 @@ See [Deliver a change](docs/guide/build.md) and [Pipelines](docs/guide/pipelines
 ## Using it from pi
 
 ```bash
-pi -e extension          # this session only
-pi install ./extension   # permanently, via settings
+pi install npm:@ai-for-dev/combo   # the tool, the commands, the agents
+pi -e extension                    # from a clone, this session only
 ```
 
 ```

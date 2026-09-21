@@ -197,6 +197,33 @@ code. When a decision is reversed, the reversal is written there with its reason
 violate - and the rest of this directory explains how to use what those decisions
 produced.
 
+## Releasing
+
+The version sits in `package.json` and in `.release-please-manifest.json`, and
+nobody edits either by hand.
+[Release Please](https://github.com/googleapis/release-please) reads the
+conventional commit titles landed on `main` and writes the next release: the
+changelog, the two version numbers, nothing else.
+
+Releasing takes two runs of `.github/workflows/release-please.yml`, both started
+by hand from the Actions tab. The first opens the release pull request. Once
+that pull request is merged, the second tags the release, writes the GitHub
+release and publishes the tarball to npm with provenance. An ordinary merge
+starts neither, which is the point. The two secrets they need are named at the
+top of that file.
+
+Pull requests are squashed here, so the pull request title becomes the commit
+title Release Please reads. `feat:` gives a minor version, `fix:` a patch, and a
+`!` or a `BREAKING CHANGE:` footer gives a major one once the package reaches
+1.0. `.github/workflows/check-pr-title.yml` refuses a title outside that
+vocabulary, rather than letting a change vanish from the changelog.
+
+What goes out is this tree, with no build step: `src/`, `extension/`, `pane/`,
+`agents/`, `pipelines/` and these pages, as `files` lists them. The same tarball
+is a library and a pi package, `exports` answering
+`import … from "@ai-for-dev/combo"` and the `pi` manifest answering
+`pi install npm:@ai-for-dev/combo`. `npm pack --dry-run` says what would be sent.
+
 ## Conventions
 
 - TypeScript, ESM, tabs, double quotes - like pi's own code.
@@ -205,4 +232,9 @@ produced.
 - **Dependencies kept to a strict minimum**: the pi SDK, and nothing else without
   discussion. Never import pi's transitive packages directly; derive what you
   need from the public surface.
+- The three packages pi bundles - `@earendil-works/pi-coding-agent`,
+  `@earendil-works/pi-tui` and `typebox` - are **peer dependencies** with a `*`
+  range, which is what pi's packaging documentation asks for. An installed copy
+  must bind to the pi it is loaded into, not to a second one of its own: that is
+  the same trap as `buildRegistry` choosing by the presence of an export.
 - Before adding a layer of configuration, ask whether a function call would do.

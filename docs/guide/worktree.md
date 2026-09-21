@@ -14,7 +14,7 @@ question about the tasks rather than about the filesystem.
 `src/git/worktree.ts` is the git side of it. It does four things and no more.
 
 ```typescript
-import { createWorktree, listWorktrees, removeWorktree, worktreePatch } from "combo";
+import { createWorktree, listWorktrees, removeWorktree, worktreePatch } from "@ai-for-dev/combo";
 
 const made = await createWorktree(repo, { path: "/tmp/one", branch: "combo/one", base: "main" });
 const patch = await worktreePatch("/tmp/one", "main");
@@ -59,7 +59,7 @@ order, written once: a copy made for one piece of work, and released when the
 work is done.
 
 ```typescript
-import { scratchWorktree } from "combo";
+import { scratchWorktree } from "@ai-for-dev/combo";
 
 const made = await scratchWorktree(repo, "add a slugify helper");
 if (!made.ok) return;                     // no copy, no work - the caller decides

@@ -37,7 +37,7 @@ learn it, and until it did, every collapsed row in the TUI showed a blank task.
 composing:
 
 ```typescript
-import { combineReporters, createHerdrReporter, createRunPicture } from "combo";
+import { combineReporters, createHerdrReporter, createRunPicture } from "@ai-for-dev/combo";
 
 const picture = createRunPicture();
 onEvent: combineReporters(picture.reporter, createHerdrReporter());
@@ -55,7 +55,7 @@ models thinking alike until the three reads before them are in the stream.
 ## Picking a reporter
 
 ```typescript
-import { autoReporter, consoleReporter, silentReporter } from "combo";
+import { autoReporter, consoleReporter, silentReporter } from "@ai-for-dev/combo";
 
 onEvent: autoReporter();   // herdr when it is running, silent otherwise
 ```
@@ -80,7 +80,7 @@ shows subagents rather than traffic, and says nothing about a board.
 ## Keeping the stream
 
 ```typescript
-import { combineReporters, recordReporter } from "combo";
+import { combineReporters, recordReporter } from "@ai-for-dev/combo";
 
 onEvent: combineReporters(autoReporter(), recordReporter("runs/latest/events.jsonl"));
 ```

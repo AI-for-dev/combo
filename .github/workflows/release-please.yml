@@ -1,0 +1,69 @@
+# Release Please reads the conventional commits landed since the last tag and
+# opens a pull request that is the next release: `CHANGELOG.md`, the version in
+# `package.json` and in `.release-please-manifest.json`, nothing else.
+#
+# It starts by hand and never on a merge, so an ordinary pull request leaves no
+# release pull request behind it. A release therefore takes two runs. The first
+# opens the pull request; merging that pull request does nothing on its own, and
+# the second run is what tags the release, writes the GitHub release and
+# publishes the tarball.
+#
+# Two secrets, both set in the repository settings:
+#
+# - `RELEASE_PLEASE`, a personal access token allowed to write contents and pull
+#   requests. The default `GITHUB_TOKEN` does the same work, except that a push
+#   made with it starts no further workflow, which would leave the release pull
+#   request with no checks on it.
+# - `NPM_TOKEN`, an npm granular access token allowed to publish the package.
+name: release-please
+
+on: workflow_dispatch
+
+permissions: {}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      released: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.RELEASE_PLEASE }}
+
+  publish:
+    # Only the run that follows the merged release pull request has something
+    # to publish. The run that opened it has not.
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # npm provenance signs the tarball with this run's OIDC token, so the
+      # registry can show which commit and which workflow built it.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm ci
+
+      # The tag is what people will install, so it passes the same checks a
+      # pull request does before it goes out.
+      - run: npm run typecheck
+      - run: npm test
+
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
