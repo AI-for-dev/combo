@@ -16,6 +16,7 @@ import {
 	getMarkdownTheme,
 } from "@earendil-works/pi-coding-agent";
 import { Container, Spacer, type TUI } from "@earendil-works/pi-tui";
+import { toolDefinition } from "./renderers.ts";
 
 /** A transcript entry, read the way pi's chat reads it. */
 export type Message = {
@@ -156,9 +157,9 @@ export class Chat {
 	}
 
 	#box(name: string, id: string, args: unknown): ToolExecutionComponent {
-		// No tool definition of ours: pi falls back to its built-in renderers by
-		// name, and draws a tool combo defined with the generic one.
-		const box = new ToolExecutionComponent(name, id, args, {}, undefined, this.#ui, this.#cwd);
+		// A tool of ours has no definition here, and pi draws it with the generic
+		// box - which is what a subagent tool should look like.
+		const box = new ToolExecutionComponent(name, id, args, {}, toolDefinition(name, this.#cwd), this.#ui, this.#cwd);
 		box.setExpanded(false);
 		this.#add(box);
 		return box;

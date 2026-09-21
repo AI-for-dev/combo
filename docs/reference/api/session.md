@@ -199,7 +199,9 @@ export class StaticResourceLoader implements ResourceLoader {
 	getThemes() { /* … */ }
 	getAgentsFiles() { /* … */ }
 	getSystemPrompt() { /* … */ }
+	getSystemPromptSource() { /* … */ }
 	getAppendSystemPrompt() { /* … */ }
+	getAppendSystemPromptSources() { /* … */ }
 	extendResources() { /* … */ }
 	async reload() { /* … */ }
 }

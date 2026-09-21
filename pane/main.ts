@@ -9,8 +9,9 @@
  */
 
 import { getAgentDir, initTheme, SettingsManager } from "@earendil-works/pi-coding-agent";
-import { ProcessTerminal, TUI } from "@earendil-works/pi-tui";
+import { ProcessTerminal } from "@earendil-works/pi-tui";
 import { attachTo } from "./client.ts";
+import { createTui } from "./tui.ts";
 import { createScreen, type Screen } from "./screen.ts";
 
 const args = process.argv.slice(2);
@@ -29,7 +30,7 @@ try {
 	initTheme();
 }
 
-const ui = new TUI(new ProcessTerminal());
+const ui = createTui(new ProcessTerminal());
 let screen: Screen | undefined;
 
 const leave = () => {

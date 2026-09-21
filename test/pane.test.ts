@@ -1,15 +1,28 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { initTheme } from "@earendil-works/pi-coding-agent";
-import { TUI, type Terminal } from "@earendil-works/pi-tui";
+import type { Terminal } from "@earendil-works/pi-tui";
 import { Chat } from "../pane/chat.ts";
+import { createTui } from "../pane/tui.ts";
 import { createScreen } from "../pane/screen.ts";
 import { emptyUsage } from "../src/usage.ts";
 
-/** A terminal nobody looks at: the components render to strings regardless. */
-function headless(): Terminal {
+/**
+ * A terminal nobody looks at: the components render to strings regardless.
+ *
+ * It keeps the handler the TUI registers, which is how a keystroke gets in.
+ * Reaching into the TUI for that was how this test used to press a key, and the
+ * method it reached for is private now.
+ */
+function headless(): Terminal & { press(data: string): void } {
+	let onInput: (data: string) => void = () => {};
 	return {
-		start() {},
+		start(handler) {
+			onInput = handler;
+		},
+		press(data) {
+			onInput(data);
+		},
 		stop() {},
 		async drainInput() {},
 		write() {},
@@ -34,7 +47,7 @@ initTheme();
 
 describe("pane chat", () => {
 	test("a replayed transcript reads as pi draws it: the task, the answer, each tool with its result", () => {
-		const chat = new Chat(new TUI(headless()), "/repo");
+		const chat = new Chat(createTui(headless()), "/repo");
 		chat.replay({ role: "user", content: "Where is the wall time measured?" });
 		chat.replay({
 			role: "assistant",
@@ -57,7 +70,7 @@ describe("pane chat", () => {
 	});
 
 	test("a live turn: streamed text grows in place, a tool box fills in when its result lands", () => {
-		const chat = new Chat(new TUI(headless()), "/repo");
+		const chat = new Chat(createTui(headless()), "/repo");
 		chat.live({ type: "message_start", message: { role: "user", content: "Read a.ts" } });
 		chat.live({ type: "message_start", message: { role: "assistant", content: [] } });
 		chat.live({ type: "message_update", message: { role: "assistant", content: [{ type: "text", text: "Read" }] } });
@@ -83,7 +96,7 @@ describe("pane chat", () => {
 	});
 
 	test("a turn that died marks its open tool boxes with pi's own words", () => {
-		const chat = new Chat(new TUI(headless()), "/repo");
+		const chat = new Chat(createTui(headless()), "/repo");
 		chat.replay({
 			role: "assistant",
 			content: [{ type: "toolCall", id: "c1", name: "bash", arguments: { command: "sleep 100" } }],
@@ -93,7 +106,7 @@ describe("pane chat", () => {
 	});
 
 	test("a tool pi cannot name is drawn under a question mark, not under nothing", () => {
-		const chat = new Chat(new TUI(headless()), "/repo");
+		const chat = new Chat(createTui(headless()), "/repo");
 		chat.live({ type: "tool_execution_start", toolCallId: "c1", toolName: "", args: { path: "a.ts" } });
 		assert.match(plain(chat.container.render(80)), /\?/);
 	});
@@ -101,7 +114,9 @@ describe("pane chat", () => {
 
 describe("pane screen", () => {
 	function screenWith(actions: Partial<Parameters<typeof createScreen>[3]> = {}) {
-		const ui = new TUI(headless());
+		const terminal = headless();
+		const ui = createTui(terminal);
+		ui.start();
 		const said: string[] = [];
 		const screen = createScreen(ui, "scout#1", "/repo", {
 			steer: (text) => said.push(`steer ${text}`),
@@ -109,7 +124,7 @@ describe("pane screen", () => {
 			leave: () => said.push("leave"),
 			...actions,
 		});
-		return { ui, screen, said, text: () => plain(ui.render(80)) };
+		return { ui, terminal, screen, said, text: () => plain(ui.render(80)) };
 	}
 
 	test("the footer says who this is, what it runs on, what it spent and what the keys do", () => {
@@ -135,9 +150,9 @@ describe("pane screen", () => {
 	});
 
 	test("enter steers, esc stops, ctrl+c leaves - and once done, esc leaves too", () => {
-		const { ui, screen, said } = screenWith();
+		const { ui, terminal, screen, said } = screenWith();
 		// What the terminal would hand the TUI, byte for byte.
-		const press = (data: string) => (ui as unknown as { handleInput(data: string): void }).handleInput(data);
+		const press = (data: string) => terminal.press(data);
 		const editor = (ui as unknown as { children: { onSubmit?: (text: string) => void }[] }).children.find((c) => c.onSubmit);
 		editor?.onSubmit?.("look at test/ first");
 		assert.deepEqual(said, ["steer look at test/ first"]);

@@ -288,7 +288,15 @@ export class StaticResourceLoader implements ResourceLoader {
 	getSystemPrompt() {
 		return this.#systemPrompt;
 	}
+	// The prompt is built from the definition and held in memory, so there is no
+	// file for pi to name when it reports where a system prompt came from.
+	getSystemPromptSource() {
+		return undefined;
+	}
 	getAppendSystemPrompt() {
+		return [];
+	}
+	getAppendSystemPromptSources() {
 		return [];
 	}
 	extendResources() {}

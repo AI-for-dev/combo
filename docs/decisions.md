@@ -2236,6 +2236,24 @@ rather than by version string: a version number can be patched or mis-set, a
 missing export cannot be faked. See `buildRegistry`, which is exported precisely
 so the choice is testable.
 
+**0.86 moved three more things, and the same rule answers all three.** `TUI` was
+the class pi-tui exported through 0.80.x; it is the interface now, and the
+implementations are `TuiMainScreen`, drawing inline where `TUI` drew, and
+`TuiAltScreen`. `pane/tui.ts` takes whichever is exported. `ResourceLoader` grew
+`getSystemPromptSource` and `getAppendSystemPromptSources`, which only pi's
+interactive mode calls: a subagent never noticed, and nothing but the typecheck
+did. And `ToolExecutionComponent`, handed no definition, stopped recognising
+pi's own tools by name, so the pane drew a box of JSON where it had drawn
+`grep /x/ in a.ts`. That third one is not adapted but removed:
+`pane/renderers.ts` names the definitions through `create*ToolDefinition`, which
+both versions export, because a fallback that has moved once is not a thing to
+lean on twice.
+
+Standing still is not free either. 0.80.10 pins an `undici` and a
+`brace-expansion` with advisories against them, and the newer pi is the only
+place they are fixed, so a lockfile left alone is a lockfile that starts failing
+`npm audit`.
+
 This is the failure mode to remember: 158 tests were green while the extension
 died on `undefined.create()` in a real pi, because every test injects a fake
 `SessionPort` and none of them ever touches pi's real module. **A fake session
