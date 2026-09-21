@@ -23,22 +23,24 @@ the extension, and kept out of the model's context until you put it there.
 One dot, then the report appears in the transcript:
 
 ```
-The wall time of a subagent is measured in src/subagent.ts by taking the
-difference between the current time and the moment the subagent was spawned
-using performance.now().
+◇ scout agent  1 turn  outside this conversation - /quote puts it in
+  The wall time of a subagent is measured in src/subagent.ts by tracking the elapsed
+  time since the subagent was spawned.
 
-Specifically:
-- src/subagent.ts:154: The spawn time is recorded: const spawnedAt = performance.now();.
-- src/subagent.ts:178-181: The usage getter calculates the elapsed wall time on
-  demand: wallMs: performance.now() - spawnedAt.
-- src/subagent.ts:269: The final wall time is captured when the subagent is
-  closed: const finalUsage = { ...usage, wallMs: performance.now() - spawnedAt };.
+  - src/subagent.ts:183: Captures the start time using performance.now() when the
+    subagent is spawned.
+  - src/subagent.ts:223-226: The usage getter calculates the current wall time as
+    performance.now() - spawnedAt.
+  - src/subagent.ts:312: The final wall time is captured using the same calculation when
+    the subagent is closed.
 
 scout: 1 turn - /step <next> carries it on, /quote puts it in this conversation
 ```
 
-Read the last line. It is the whole contract: the next step will be handed
-this, and the conversation has not been.
+The header and the last line carry the whole contract between them: the report
+is outside this conversation, and the next step is what gets handed it. The
+body is indented under the header rather than drawn flush left, because flush
+left and full width is exactly how an answer the session gave is drawn.
 
 ```
 /chain
@@ -46,7 +48,7 @@ this, and the conversation has not been.
 
 ```
 1. scout  agent where is the wall time of a subagent me…  1 turn
-1 step, 1 turn - exported to /…/combo/runs/2026-09-19_10-29-57
+1 step, 1 turn - exported to /…/runs/2026-09-21_06-15-15
 ```
 
 Now the second step, with no instruction beyond a question. It receives the
@@ -57,7 +59,8 @@ scout's report as its input:
 ```
 
 ```
-LGTM
+◇ reviewer agent ←scout  1 turn  outside this conversation - /quote puts it in
+  LGTM
 
 reviewer: 1 turn - /step <next> carries it on, /quote puts it in this conversation
 ```
@@ -69,7 +72,7 @@ reviewer: 1 turn - /step <next> carries it on, /quote puts it in this conversati
 ```
 1. scout     agent where is the wall time of a subagent me…  1 turn
 2. reviewer  agent ←scout is the measurement trustworthy  1 turn
-2 steps, 2 turns - exported to /…/combo/runs/2026-09-19_10-29-57
+2 steps, 2 turns - exported to /…/runs/2026-09-21_06-15-15
 ```
 
 The arrow says what the reviewer was handed. Both steps were exported into one

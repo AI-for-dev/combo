@@ -143,8 +143,14 @@ pi install ./extension   # permanently, via settings
 ```
 > /build add a slugify helper with tests
 > use subagent to review src/usage.ts with coder then reviewer, looping until LGTM
+> /swarm --members 3 describe each file under src/reporters/, in two sentences
 > /agents        # who can be spawned here, and from which directory
 ```
+
+`/swarm` puts several copies of one agent on one job, with a board between
+them and nobody dividing the work: they take what they will do. It ends on
+coverage of what `--claim` names, or on the members voting the same way with
+`--until agree`. See [Swarms](docs/guide/swarm.md).
 
 While the subagents work, a dot per subagent sits above the prompt with its
 model, tokens and a clock counting up live; the tool row below holds the record.
