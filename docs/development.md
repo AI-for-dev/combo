@@ -197,6 +197,29 @@ code. When a decision is reversed, the reversal is written there with its reason
 violate - and the rest of this directory explains how to use what those decisions
 produced.
 
+## Releasing
+
+The version sits in `package.json` and in `.release-please-manifest.json`, and
+nobody edits either by hand.
+[Release Please](https://github.com/googleapis/release-please) reads the
+conventional commit titles landed on `main` and keeps one pull request open that
+is the next release: the changelog, the two version numbers, nothing else.
+Merging it tags the release, and `.github/workflows/release-please.yml` then
+publishes the tarball to npm with provenance. The two secrets it needs are named
+at the top of that file.
+
+Pull requests are squashed here, so the pull request title becomes the commit
+title Release Please reads. `feat:` gives a minor version, `fix:` a patch, and a
+`!` or a `BREAKING CHANGE:` footer gives a major one once the package reaches
+1.0. `.github/workflows/check-pr-title.yml` refuses a title outside that
+vocabulary, rather than letting a change vanish from the changelog.
+
+What goes out is this tree, with no build step: `src/`, `extension/`, `pane/`,
+`agents/`, `pipelines/` and these pages, as `files` lists them. The same tarball
+is a library and a pi package, `exports` answering
+`import … from "@ai-for-dev/combo"` and the `pi` manifest answering
+`pi install npm:@ai-for-dev/combo`. `npm pack --dry-run` says what would be sent.
+
 ## Conventions
 
 - TypeScript, ESM, tabs, double quotes - like pi's own code.
