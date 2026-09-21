@@ -9,10 +9,10 @@
  * the mechanism any caller may use, this is what `deliver` does with it.
  */
 
-import type { GitResult } from "./../git.ts";
-import { land, landable, type Landed } from "./../land.ts";
-import { truncate } from "./../text.ts";
-import type { Verification, Verify } from "./../verify.ts";
+import type { GitResult } from "../../git.ts";
+import { land, landable, type Landed } from "../../land.ts";
+import { truncate } from "../../text.ts";
+import type { Verification, Verify } from "../../verify.ts";
 import type { PairResult } from "./pair.ts";
 
 /** What a delivery says about its copies before any work runs. */

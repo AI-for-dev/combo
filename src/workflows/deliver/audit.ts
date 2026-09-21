@@ -16,17 +16,17 @@
  * caller's - `deliver.ts` hands it a function for that.
  */
 
-import type { Agent } from "./../agent.ts";
-import { notify } from "./../events.ts";
-import type { Obligation } from "./../ledger.ts";
-import { joinOutputs, type Result, type WorkflowResult } from "./../result.ts";
-import { reviewRecord } from "./../review.ts";
-import type { Verdict } from "./../verdict.ts";
-import type { Verification } from "./../verify.ts";
-import type { WorkflowOptions } from "./options.ts";
-import { SubagentPool } from "./pool.ts";
+import type { Agent } from "../../agent.ts";
+import { notify } from "../../events.ts";
+import type { Obligation } from "../../ledger.ts";
+import { joinOutputs, type Result, type WorkflowResult } from "../../result.ts";
+import { reviewRecord } from "../../review.ts";
+import type { Verdict } from "../../verdict.ts";
+import type { Verification } from "../../verify.ts";
+import type { WorkflowOptions } from "../options.ts";
+import { SubagentPool } from "../pool.ts";
 import type { PairResult } from "./pair.ts";
-import { parsePlan, type PlannedTask } from "./plan.ts";
+import { parsePlan, type PlannedTask } from "../plan.ts";
 
 /** The word the auditor says when the whole thing holds together. */
 export const AUDIT_APPROVAL = "APPROVED";

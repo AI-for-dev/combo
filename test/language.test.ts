@@ -6,8 +6,8 @@ import {
 	inTheLanguageOfTheWork,
 	IN_THE_LANGUAGE_OF_THE_WORK,
 } from "../src/language.ts";
-import { APPROVAL } from "../src/workflows/pair.ts";
-import { AUDIT_APPROVAL } from "../src/workflows/audit.ts";
+import { APPROVAL } from "../src/workflows/deliver/pair.ts";
+import { AUDIT_APPROVAL } from "../src/workflows/deliver/audit.ts";
 import { READY } from "../src/workflows/interview.ts";
 
 describe("answerInTheirLanguage", () => {

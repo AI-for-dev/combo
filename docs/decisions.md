@@ -2744,6 +2744,53 @@ copies cannot reach each other. That is a fan-out, which is precisely the arm a
 swarm has to be compared against, and refusing it would remove the control from
 the one place someone can try it in a second.
 
+## A directory is a module, and its index is the door
+
+`src/` had thirty-nine files at its root, and the ones that formed a module
+together said so only in their headers: `scratch.ts` names `worktree.ts`,
+`board-tool.ts` sends the reader to `announced.ts`, `settle.ts` says it is
+"what `deliver` does with" `land.ts`. A reader who wanted one concept opened
+five files, in the order the headers pointed, out of a flat listing that gave
+no hint which five.
+
+The rule: **files whose headers name each other sit in one directory, and its
+`index.ts` is the only file anything outside imports**. What the index lists is
+the module's interface; what it does not list is implementation, and the
+directory is what makes that distinction visible in a listing rather than in
+prose. Tests are the one exception, and a deliberate one: they reach past every
+door, so a helper exported for a test never has to appear on an index.
+
+Two things about the generated reference made this cheap. `npm run docs` follows
+`export … from` transitively and names each page after the **declaring** file,
+so re-exporting a directory's index from `src/index.ts` changes nothing on the
+public surface and moves the module's pages under its directory. And the
+reference's toctree is generated, so a page that moves takes its navigation
+with it; only the hand-written links in `docs/guide/` have to follow. What a
+move cannot lean on is a test: two constants compute a path from their own
+depth, `PACKAGE_ROOT` in `builtin.ts` and the pane's entry in
+`reporters/herdr.ts`, and nothing offline reads either. That is why
+`builtin.ts` stays at the root whatever moves around it.
+
+### The delivery owns its git policy and its saved state
+
+The first module to become a directory was the one whose two files pointed the
+wrong way. `resume.ts` sat at the root and imported four files from
+`workflows/` - `audit`, `deliver`, `pair`, `plan` - while none imported it back:
+every arrow left the root and went down. `settle.ts` sat in `workflows/` and
+was not a workflow by this repository's own definition - it takes `{ cwd,
+worktree, writers, verify }`, no `spawn`, no lifetime, no signal - and its
+header said whose it was: "this is what `deliver` does with it". They are also,
+with `pair.ts` and `audit.ts`, the most edited files under `src/` after the
+barrel and `subagent.ts`, and `deliver` and `pair` change together in most of
+those commits.
+
+`src/workflows/deliver/` now holds the combinator, its two stages, `settle.ts`
+and `resume.ts`. Its index lists what the barrel and `pipeline-run.ts` reach:
+`deliver`, `pair`, `audit`, the saved-build functions, and the two `settle`
+types a `DeliverOptions` names. `settling` itself is not on it; the delivery is
+its one caller. `plan.ts` stays in `workflows/`, because `orchestrate` plans
+too.
+
 ## The public surface: one entry point, grouped as it is learnt
 
 `src/index.ts` is the only door - the examples and the extension import from it,

@@ -75,7 +75,7 @@ export {
 	pair,
 	type PairOptions,
 	type PairResult,
-} from "./workflows/pair.ts";
+} from "./workflows/deliver/index.ts";
 export {
 	interview,
 	parseQuestion,
@@ -83,7 +83,7 @@ export {
 	type InterviewOptions,
 	type InterviewResult,
 } from "./workflows/interview.ts";
-export { deliver, type BuildProgress, type DeliverOptions, type DeliverResult } from "./workflows/deliver.ts";
+export { deliver, type BuildProgress, type DeliverOptions, type DeliverResult } from "./workflows/deliver/index.ts";
 export {
 	audit,
 	type AuditOptions,
@@ -92,7 +92,7 @@ export {
 	type AuditResult,
 	type AuditRound,
 	type Fixed,
-} from "./workflows/audit.ts";
+} from "./workflows/deliver/index.ts";
 
 // ── Watching a run: reporters, and the picture they read ─────────────────────
 
@@ -207,7 +207,7 @@ export {
 } from "./git.ts";
 export { type Scratch } from "./scratch.ts";
 export { land, type Landed, type Landing } from "./land.ts";
-export { type Settling, type SettleOptions } from "./workflows/settle.ts";
+export { type Settling, type SettleOptions } from "./workflows/deliver/index.ts";
 export {
 	declaresDelegate,
 	delegateTool,
@@ -268,7 +268,7 @@ export {
 	saveBuildState,
 	toBuildState,
 	type BuildState,
-} from "./resume.ts";
+} from "./workflows/deliver/index.ts";
 
 // ── Reaching a live subagent from outside: the mirror a pane attaches to ─────
 

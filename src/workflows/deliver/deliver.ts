@@ -16,17 +16,17 @@
  * check a success.
  */
 
-import type { Agent } from "./../agent.ts";
-import { notify } from "./../events.ts";
-import type { Landed } from "./../land.ts";
-import { joinOutputs, succeeded, type Result, type WorkflowResult } from "./../result.ts";
-import { sumUsage } from "./../usage.ts";
-import type { Verify } from "./../verify.ts";
+import type { Agent } from "../../agent.ts";
+import { notify } from "../../events.ts";
+import type { Landed } from "../../land.ts";
+import { joinOutputs, succeeded, type Result, type WorkflowResult } from "../../result.ts";
+import { sumUsage } from "../../usage.ts";
+import type { Verify } from "../../verify.ts";
 import { audit, type AuditProgress } from "./audit.ts";
-import { mapConcurrent } from "./concurrent.ts";
-import type { WorkflowOptions } from "./options.ts";
+import { mapConcurrent } from "../concurrent.ts";
+import type { WorkflowOptions } from "../options.ts";
 import { pair, type PairResult } from "./pair.ts";
-import { makePlan, type PlannedTask } from "./plan.ts";
+import { makePlan, type PlannedTask } from "../plan.ts";
 import { settling, type Settling } from "./settle.ts";
 
 /** The cast of a delivery, and every cap that keeps it affordable. */

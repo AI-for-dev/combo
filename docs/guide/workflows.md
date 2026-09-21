@@ -387,7 +387,7 @@ sequential, use `chain`.
 
 - [`workflows/chain`](../reference/api/workflows/chain.md), [`fan-out`](../reference/api/workflows/fan-out.md), [`loop`](../reference/api/workflows/loop.md), [`reduce`](../reference/api/workflows/reduce.md)
 - [`workflows/route`](../reference/api/workflows/route.md), [`orchestrate`](../reference/api/workflows/orchestrate.md), [`plan`](../reference/api/workflows/plan.md)
-- [`workflows/pair`](../reference/api/workflows/pair.md), [`interview`](../reference/api/workflows/interview.md), [`deliver`](../reference/api/workflows/deliver.md), [`audit`](../reference/api/workflows/audit.md)
+- [`workflows/pair`](../reference/api/workflows/deliver/pair.md), [`interview`](../reference/api/workflows/interview.md), [`deliver`](../reference/api/workflows/deliver/deliver.md), [`audit`](../reference/api/workflows/deliver/audit.md)
 - [`workflows/options`](../reference/api/workflows/options.md) - `WorkflowOptions`, what every combinator takes.
 - [`workflows/pool`](../reference/api/workflows/pool.md) - `SubagentPool`, where a workflow's turns are played.
 - [`workflows/trail`](../reference/api/workflows/trail.md) - `Trail`, what the turns add up to.

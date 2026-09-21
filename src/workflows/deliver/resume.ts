@@ -13,16 +13,16 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import type { Agent } from "./agent.ts";
-import type { Obligation } from "./ledger.ts";
-import { failed, succeeded, type Result } from "./result.ts";
-import type { Usage } from "./usage.ts";
-import type { Verdict } from "./verdict.ts";
-import type { Verification } from "./verify.ts";
-import type { AuditRound } from "./workflows/audit.ts";
-import type { BuildProgress } from "./workflows/deliver.ts";
-import type { PairResult } from "./workflows/pair.ts";
-import type { PlannedTask } from "./workflows/plan.ts";
+import type { Agent } from "../../agent.ts";
+import type { Obligation } from "../../ledger.ts";
+import { failed, succeeded, type Result } from "../../result.ts";
+import type { Usage } from "../../usage.ts";
+import type { Verdict } from "../../verdict.ts";
+import type { Verification } from "../../verify.ts";
+import type { AuditRound } from "./audit.ts";
+import type { BuildProgress } from "./deliver.ts";
+import type { PairResult } from "./pair.ts";
+import type { PlannedTask } from "../plan.ts";
 
 /** The file a build writes into its run directory. */
 export const BUILD_STATE_FILE = "build.json";

@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, test } from "node:test";
-import { APPROVAL, pair } from "../src/workflows/pair.ts";
+import { APPROVAL, pair } from "../src/workflows/deliver/pair.ts";
 import { VERDICT_TOOL } from "../src/verdict.ts";
 import { callTool } from "./fixtures/call-tool.ts";
 import { fakeSpawn, offeredTools, testAgent } from "./fixtures/fake-subagent.ts";
