@@ -17,8 +17,8 @@
  * module performs on anyone's behalf.
  */
 
-import { git, type GitResult } from "./git-run.ts";
-import { head } from "./text.ts";
+import { git, type GitResult } from "./run.ts";
+import { head } from "../text.ts";
 
 /** One working copy, as git reports it. */
 export type Worktree = {
