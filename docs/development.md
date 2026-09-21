@@ -202,11 +202,15 @@ produced.
 The version sits in `package.json` and in `.release-please-manifest.json`, and
 nobody edits either by hand.
 [Release Please](https://github.com/googleapis/release-please) reads the
-conventional commit titles landed on `main` and keeps one pull request open that
-is the next release: the changelog, the two version numbers, nothing else.
-Merging it tags the release, and `.github/workflows/release-please.yml` then
-publishes the tarball to npm with provenance. The two secrets it needs are named
-at the top of that file.
+conventional commit titles landed on `main` and writes the next release: the
+changelog, the two version numbers, nothing else.
+
+Releasing takes two runs of `.github/workflows/release-please.yml`, both started
+by hand from the Actions tab. The first opens the release pull request. Once
+that pull request is merged, the second tags the release, writes the GitHub
+release and publishes the tarball to npm with provenance. An ordinary merge
+starts neither, which is the point. The two secrets they need are named at the
+top of that file.
 
 Pull requests are squashed here, so the pull request title becomes the commit
 title Release Please reads. `feat:` gives a minor version, `fix:` a patch, and a

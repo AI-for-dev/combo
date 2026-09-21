@@ -3174,10 +3174,14 @@ and an installed copy is exactly where that stops being true.
 
 ## The version comes from the commit titles
 
-Release Please reads the conventional commits landed on `main` and keeps one
-pull request open that is the next release. Merging it is the release: the tag,
-the GitHub release and the npm publish with provenance all follow from that one
-act, on a commit `ci.yml` has already typechecked and tested.
+Release Please reads the conventional commits landed on `main` and opens a pull
+request that is the next release. **Its workflow starts by hand, never on a
+merge**, so an ordinary pull request leaves nothing behind it. The price is that
+a release takes two runs: the first opens the pull request, and the second,
+after it has been merged, tags the release and publishes the tarball with
+provenance, on a commit `ci.yml` has already typechecked and tested. Running on
+every push would have removed that second run, and would have put a release pull
+request in the way of every merge. That is the more expensive of the two.
 
 The cost is a vocabulary. Pull requests are squashed here, so each title becomes
 a commit title, and `feat:` or `fix:` has to be written on it rather than

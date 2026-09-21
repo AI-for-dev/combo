@@ -1,12 +1,12 @@
-# Release Please keeps one pull request open that is the next release: it reads
-# the conventional commits landed since the last tag, writes `CHANGELOG.md` and
-# the new version into `package.json`, and merging it tags the release. Nothing
-# reaches npm until somebody merges that pull request.
+# Release Please reads the conventional commits landed since the last tag and
+# opens a pull request that is the next release: `CHANGELOG.md`, the version in
+# `package.json` and in `.release-please-manifest.json`, nothing else.
 #
-# It runs on every push to `main` so that merging is the whole act: the same
-# workflow then finds the release commit, creates the tag and the GitHub
-# release, and the second job publishes the tarball. `workflow_dispatch` is
-# there to refresh the pull request by hand.
+# It starts by hand and never on a merge, so an ordinary pull request leaves no
+# release pull request behind it. A release therefore takes two runs. The first
+# opens the pull request; merging that pull request does nothing on its own, and
+# the second run is what tags the release, writes the GitHub release and
+# publishes the tarball.
 #
 # Two secrets, both set in the repository settings:
 #
@@ -17,10 +17,7 @@
 # - `NPM_TOKEN`, an npm granular access token allowed to publish the package.
 name: release-please
 
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:
+on: workflow_dispatch
 
 permissions: {}
 
@@ -40,8 +37,8 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE }}
 
   publish:
-    # Only the run that merged the release pull request has something to
-    # publish. Every other run has merely groomed it.
+    # Only the run that follows the merged release pull request has something
+    # to publish. The run that opened it has not.
     needs: release
     if: needs.release.outputs.released == 'true'
     runs-on: ubuntu-latest
