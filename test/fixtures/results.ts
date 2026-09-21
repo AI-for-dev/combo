@@ -9,7 +9,7 @@
 
 import { succeeded } from "../../src/result.ts";
 import { emptyUsage, type Usage } from "../../src/usage.ts";
-import type { DeliverResult } from "../../src/workflows/deliver.ts";
+import type { DeliverResult } from "../../src/workflows/deliver/deliver.ts";
 import type { InterviewResult } from "../../src/workflows/interview.ts";
 import type { PipelineRunResult } from "../../src/workflows/pipeline-run.ts";
 

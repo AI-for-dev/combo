@@ -19,10 +19,10 @@ import {
 	loadBuildState,
 	saveBuildState,
 	toBuildState,
-} from "../src/resume.ts";
+} from "../src/workflows/deliver/resume.ts";
 import { emptyUsage } from "../src/usage.ts";
-import type { BuildProgress } from "../src/workflows/deliver.ts";
-import type { PairResult } from "../src/workflows/pair.ts";
+import type { BuildProgress } from "../src/workflows/deliver/deliver.ts";
+import type { PairResult } from "../src/workflows/deliver/pair.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
 
 const coder = testAgent("coder");

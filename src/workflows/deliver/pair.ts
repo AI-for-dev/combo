@@ -11,15 +11,15 @@
  *   and collapsing the two would hide the only thing worth knowing.
  */
 
-import type { Agent } from "./../agent.ts";
-import type { Obligation } from "./../ledger.ts";
-import { scratchWorktree, type Scratch } from "./../scratch.ts";
-import { failed, type Result } from "./../result.ts";
-import { reviewRecord } from "./../review.ts";
-import type { Verdict } from "./../verdict.ts";
-import type { WorkflowOptions } from "./options.ts";
-import { SubagentPool } from "./pool.ts";
-import { Trail } from "./trail.ts";
+import type { Agent } from "../../agent.ts";
+import type { Obligation } from "../../ledger.ts";
+import { scratchWorktree, type Scratch } from "../../scratch.ts";
+import { failed, type Result } from "../../result.ts";
+import { reviewRecord } from "../../review.ts";
+import type { Verdict } from "../../verdict.ts";
+import type { WorkflowOptions } from "../options.ts";
+import { SubagentPool } from "../pool.ts";
+import { Trail } from "../trail.ts";
 
 /** The word a reviewer that holds no verdict tool says when it is satisfied. */
 export const APPROVAL = "LGTM";
