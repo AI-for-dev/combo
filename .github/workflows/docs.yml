@@ -18,11 +18,18 @@ on:
 permissions:
   contents: read
 
-# One deployment at a time, and never cancel one in flight: a half-published site
-# is worse than a late one.
+# One run per branch, not one run for the repository. The single `pages` group
+# belongs to the deployment and is declared on that job: held here it covered
+# the build as well, and GitHub keeps one pending run per group - so opening
+# four pull requests at once left two of them cancelled before they ever ran,
+# with nothing to say about the pages they changed.
+#
+# A pull request supersedes its own earlier build, because only the last push
+# is the one being reviewed. A run on `main` never is: it is the one that
+# publishes.
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: docs-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -63,6 +70,11 @@ jobs:
     if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
+    # One deployment at a time, and never cancel one in flight: a half-published
+    # site is worse than a late one.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     permissions:
       pages: write
       id-token: write
