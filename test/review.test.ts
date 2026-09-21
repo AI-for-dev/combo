@@ -10,10 +10,10 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import type { Result } from "../src/result.ts";
-import { reviewRecord, type ReviewRecord } from "../src/review.ts";
+import { reviewRecord, type ReviewRecord } from "../src/review/review.ts";
 import type { ToolDefinition } from "../src/session.ts";
 import { emptyUsage } from "../src/usage.ts";
-import { VERDICT_TOOL } from "../src/verdict.ts";
+import { VERDICT_TOOL } from "../src/review/verdict.ts";
 import { callTool } from "./fixtures/call-tool.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
 

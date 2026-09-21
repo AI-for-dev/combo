@@ -20,6 +20,7 @@ src/                 the library - the only thing that matters
   board/             the swarm's shared board and its arbiter
   git/               the working copy: git, worktrees, landing patches
   pipeline/          a workflow written down: read, found, run
+  review/            the review record: a verdict and a ledger, read together
   workflows/         the combinators
     deliver/         the delivery, its git policy and its saved state
   reporters/         herdr, pi TUI, console, silent
