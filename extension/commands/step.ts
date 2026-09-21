@@ -19,13 +19,13 @@
  * agent. One command takes both, resolved in that order.
  */
 
-import { checkPipelineAgents, plural } from "../src/index.ts";
-import { checked, loadRoster, refuse, watched } from "./command.ts";
-import { sessionDoors, type CommandCtx, type PiApi } from "./pi.ts";
-import { resolved, type StepDeps } from "./deps.ts";
-import { parseLeadingFlags, switchValue } from "./flags.ts";
-import { PIPELINE_MESSAGE } from "./pipeline-commands.ts";
-import { beginStep, chainInput, chainLines, currentChain, finishStep, forgetChain, stepAnswer, stepFrom, type RelayStep } from "./relay.ts";
+import { checkPipelineAgents, plural } from "../../src/index.ts";
+import { checked, loadRoster, refuse, watched } from "../command.ts";
+import { sessionDoors, type CommandCtx, type PiApi } from "../pi.ts";
+import { resolved, type StepDeps } from "../deps.ts";
+import { parseLeadingFlags, switchValue } from "../flags.ts";
+import { PIPELINE_MESSAGE } from "./pipeline.ts";
+import { beginStep, chainInput, chainLines, currentChain, finishStep, forgetChain, stepAnswer, stepFrom, type RelayStep } from "../relay.ts";
 import { resolveTarget, runStage } from "./stage.ts";
 
 /** Registers `/step`, `/chain` and `/quote`. */

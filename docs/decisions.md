@@ -2791,6 +2791,37 @@ types a `DeliverOptions` names. `settling` itself is not on it; the delivery is
 its one caller. `plan.ts` stays in `workflows/`, because `orchestrate` plans
 too.
 
+### The extension: commands, the terminal, and the floor
+
+`extension/` had twenty-two files at one level, and the suffix was doing the
+directory's job: six ended in `-command`, two in `-ui`, and `build.ts`,
+`stop.ts`, `commit.ts` and `stage.ts` carried nothing, so a reader could not
+tell a command from what it stood on without opening it. `src/stop.ts` and
+`extension/stop.ts` were unrelated files with one name, told apart only by
+their tests being called `stop.test` and `stop-ui.test`.
+
+The split follows what a file does with pi. `commands/` holds every file that
+registers a slash command, plus the two helpers only one command uses -
+`commit.ts` for `/build`, `stage.ts` for `/step`. `ui/` holds what paints or
+reads the terminal without registering anything: the live view, the question
+card, and the two module-level switches a card and a key share. The root keeps
+the floor - `pi.ts`, `deps.ts`, `command.ts`, `flags.ts`, `params.ts`,
+`relay.ts` - with `index.ts` and `execute.ts`, because the tool is what the
+extension *is* and the floor is what every command stands on. The suffixes
+went with the move: the path now says what the name used to.
+
+Two type-only cycles between the floor and its leaves went at the same time,
+because a directory makes an arrow's direction visible and both pointed up.
+`pi.ts` imported `ExecuteDeps` from the tool body to type what it handed the
+tool; `ToolDeps` now lives in `pi.ts`, as the slice of pi's context the tool
+reads, and `execute.ts` widens it with what a test may replace. `deps.ts` and
+`relay.ts` each held one half of `AppendEntry`; the relay owns the entry a step
+leaves, so it owns the door it leaves it through as well.
+
+One arrow still crosses from `ui/` into `commands/`: the live view tells `/stop`
+which run is on screen. That is the sign that `stop.ts` holds a key and a
+command at once, and it is left in view rather than papered over.
+
 ## The public surface: one entry point, grouped as it is learnt
 
 `src/index.ts` is the only door - the examples and the extension import from it,

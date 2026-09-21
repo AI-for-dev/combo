@@ -15,7 +15,7 @@ import path from "node:path";
 import { describe, test } from "node:test";
 import { executeSubagent, textForModel } from "../extension/execute.ts";
 import { inferMode } from "../extension/params.ts";
-import { paintWidget, STATUS } from "../extension/run-ui.ts";
+import { paintWidget, STATUS } from "../extension/ui/run.ts";
 import type { SubagentEvent } from "../src/events.ts";
 import type { Details } from "../extension/execute.ts";
 import { SUBAGENT_TOOL } from "../src/delegate.ts";

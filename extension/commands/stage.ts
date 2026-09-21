@@ -13,10 +13,10 @@
  * on without running anything.
  */
 
-import { findAgent, lookupPipeline, type Agent, type EventListener, type Pipeline, type SpawnFn, type Usage } from "../src/index.ts";
-import { loadCatalogue, pipelineVerifier } from "./command.ts";
-import type { Deps } from "./deps.ts";
-import type { CommandCtx } from "./pi.ts";
+import { findAgent, lookupPipeline, type Agent, type EventListener, type Pipeline, type SpawnFn, type Usage } from "../../src/index.ts";
+import { loadCatalogue, pipelineVerifier } from "../command.ts";
+import type { Deps } from "../deps.ts";
+import type { CommandCtx } from "../pi.ts";
 
 /** What a step turned out to name. Resolved before anything is spawned. */
 export type Target = { kind: "pipeline"; pipeline: Pipeline } | { kind: "agent"; agent: Agent };

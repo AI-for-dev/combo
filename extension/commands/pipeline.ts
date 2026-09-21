@@ -14,12 +14,12 @@
  * command and it answers that in a second.
  */
 
-import { checkPipelineAgents, plural, type PipelineCatalogue, type PipelineRunResult } from "../src/index.ts";
-import { checked, choosePipeline, loadCatalogue, loadRoster, pipelineVerifier, refuse, watched } from "./command.ts";
-import { sessionDoors, type CommandCtx, type PiApi } from "./pi.ts";
-import { resolved, type CommandDeps, type PipelineDeps, type SendMessage } from "./deps.ts";
-import { parseLeadingFlags, switchValue } from "./flags.ts";
-import { framed } from "./relay.ts";
+import { checkPipelineAgents, plural, type PipelineCatalogue, type PipelineRunResult } from "../../src/index.ts";
+import { checked, choosePipeline, loadCatalogue, loadRoster, pipelineVerifier, refuse, watched } from "../command.ts";
+import { sessionDoors, type CommandCtx, type PiApi } from "../pi.ts";
+import { resolved, type CommandDeps, type PipelineDeps, type SendMessage } from "../deps.ts";
+import { parseLeadingFlags, switchValue } from "../flags.ts";
+import { framed } from "../relay.ts";
 
 /**
  * `customType` of the message a finished pipeline leaves in the session.

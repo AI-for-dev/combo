@@ -17,8 +17,8 @@
 
 import { DynamicBorder } from "@earendil-works/pi-coding-agent";
 import { Container, SelectList, Text, type SelectItem } from "@earendil-works/pi-tui";
-import type { Answer, AskUser, Question } from "../src/index.ts";
-import type { AskUi } from "./pi.ts";
+import type { Answer, AskUser, Question } from "../../src/index.ts";
+import type { AskUi } from "../pi.ts";
 import { whileAsking } from "./asking.ts";
 
 /**
