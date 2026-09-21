@@ -20,7 +20,6 @@
 
 import * as path from "node:path";
 import { exportBaseName, plural, stepInput, sumUsage, truncate, type Usage } from "../src/index.ts";
-import type { AppendEntry } from "./deps.ts";
 
 /** One step that ran: what it was asked, and what came back. */
 export type RelayStep = {
@@ -157,6 +156,9 @@ export function finishStep(begun: BegunStep, outcome: StepOutcome, appendEntry: 
 
 /** `customType` of the transcript entry a finished step leaves behind. */
 export const STEP_ENTRY = "chain-step";
+
+/** How a finished step reaches the transcript, and only the transcript. Injected, so a test can catch it. */
+export type AppendEntry = (customType: string, data: StepEntry) => void;
 
 /**
  * What {@link STEP_ENTRY} carries, and the renderer in `index.ts` draws.

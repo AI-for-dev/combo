@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import * as path from "node:path";
 import { describe, test } from "node:test";
 import { getAgentDir, initTheme } from "@earendil-works/pi-coding-agent";
-import { agentLines, groupAgents, listAgents } from "../extension/agents-command.ts";
+import { agentLines, groupAgents, listAgents } from "../extension/commands/agents.ts";
 import { fakeCtx } from "./fixtures/command-ctx.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
 

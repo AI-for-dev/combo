@@ -162,16 +162,21 @@ pi.
 
 ## How it is split
 
-`extension/index.ts` keeps only what genuinely needs a terminal - the renderers -
-and registers every command. The tool body lives in `extension/execute.ts`, and
-everything it touches is injectable: agent loading, `spawn`, the second
-reporter, the UI, the repaint timer.
+`extension/` is three places. Its root is the floor: `index.ts`, which keeps
+only what genuinely needs a terminal - the renderers - and registers every
+command; `execute.ts`, the tool body, where everything it touches is
+injectable: agent loading, `spawn`, the second reporter, the UI, the repaint
+timer; and the files below that every command stands on. `extension/commands/`
+holds one file per slash command. `extension/ui/` holds what paints or reads the
+terminal without registering anything. Each of the two has an `index.ts`, and
+that index is the only file anything outside the directory imports.
 
 pi comes in through one file, `extension/pi.ts`. It names the slice of pi's API
 the extension registers through (`PiApi`) and the slice of pi's context a
 command reads (`CommandCtx`, with `Ui` declared once and the narrower `RunUi`,
 `KeyUi` and `AskUi` picked from it), and it holds the two wirings only that door
-knows: what the tool body is handed, and how a command reaches the session. A
+knows: what the tool body is handed (`ToolDeps`, which `execute.ts` widens with
+what a test may replace), and how a command reaches the session. A
 handler is written against `CommandCtx`; pi hands it the whole
 `ExtensionCommandContext`, and TypeScript checks at every `registerCommand`
 that the whole has what the slice reads. There is no cast between pi and a
@@ -191,14 +196,15 @@ for as long as the work runs, with the `finally` that takes it down and writes
 `/interview` each write their flags, their target and their call, and nothing
 of that shape. A step of a hand-walked chain is `extension/relay.ts`'s to begin
 and to finish - named before it runs, recorded and drawn in one call after -
-whether `/step` or `/swarm` ran it. What one command file still
+whether `/step` or `/swarm` ran it; the entry a step leaves and the door it
+leaves it through are both declared there. What one command file still
 takes from another is the design: `/build` opens with `/interview`'s function,
 and `/quote` sends the message `/run` sends.
 
-Each command's own file holds only what that command does, `/build` included:
-the interview it opens with is `interview-command.ts`, which is a command in its
-own right, the commit it ends on is `commit.ts`, and `build.ts` is the order
-they happen in. The two stops sit apart from the state machine on purpose -
+Each command's own file under `commands/` holds only what that command does,
+`/build` included: the interview it opens with is `interview.ts`, which is a
+command in its own right, the commit it ends on is `commit.ts`, and `build.ts`
+is the order they happen in. The two stops sit apart from the state machine on purpose -
 "the agent writes the message, this code makes the commit" is a boundary that
 should be readable in one file.
 
@@ -207,15 +213,17 @@ combinators is where the three worst bugs so far have hidden, each behind a gree
 suite. It is now covered offline.
 
 **One live-run path.** The dots above the prompt, the repaint timer, the herdr
-reporter and the clean-up are `liveRun()` in `extension/run-ui.ts` - one
+reporter and the clean-up are `liveRun()` in `extension/ui/run.ts` - one
 implementation, reached only through `watched()`, which the five commands, the
 `subagent` tool and `/build`'s committer all stand on. They must look identical
 while they run, and several call sites with several timers is exactly how the
 one nobody is watching that day drifts. What a view measures - the picture, the
 clock, `usage.json` - is the library's `measuredRun`, the same one an
-experiment's cell stands on; the view only adds a terminal to it. `run-ui.ts`
-paints and nothing else: the herdr session switch is `herdr-switch.ts`, and
-who owns escape while a question card is up is `asking.ts`.
+experiment's cell stands on; the view only adds a terminal to it. `ui/run.ts`
+paints and nothing else: the herdr session switch is `ui/herdr-switch.ts`, and
+who owns escape while a question card is up is `ui/asking.ts`. The one thing the
+view reaches in `commands/` is `/stop`'s `watchRun`, because a run has to be
+known to the stop key for as long as it lasts.
 
 ## Reference
 

@@ -28,7 +28,7 @@ import {
 	untracked,
 	type Verify,
 } from "../src/index.ts";
-import type { StepEntry } from "./relay.ts";
+import type { AppendEntry } from "./relay.ts";
 
 /** Everything a command reaches for, injectable. Defaults are the real thing. */
 export type CommandDeps = {
@@ -77,9 +77,6 @@ export type SendMessage = (message: {
 	display: boolean;
 	details?: unknown;
 }) => void;
-
-/** How a finished step reaches the transcript, and only the transcript. Injected, so a test can catch it. */
-export type AppendEntry = (customType: string, data: StepEntry) => void;
 
 /**
  * {@link CommandDeps}, plus the door into the conversation that `/run` and
