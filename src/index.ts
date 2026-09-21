@@ -199,6 +199,7 @@ export {
 	land,
 	listWorktrees,
 	removeWorktree,
+	scratchWorktree,
 	status,
 	untracked,
 	worktreePatch,

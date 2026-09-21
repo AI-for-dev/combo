@@ -36,3 +36,21 @@ export type Scratch = {
 ```
 
 A copy made for one piece of work, and the way to get the work back out.
+
+## `scratchWorktree`
+
+*function*
+
+```typescript
+export async function scratchWorktree(repo: string, label: string): Promise<GitResult<Scratch>> { /* … */ }
+```
+
+A copy of `repo` for one piece of work, outside the repository.
+
+Outside on purpose: a copy inside the tree its own patch is taken against
+would show up in that patch. It lives under the system's temporary directory
+and is removed by {@link Scratch.release}.
+
+The base is resolved to a commit rather than kept as a branch name, so the
+patch is against what the work actually started from even if the branch has
+moved since.
