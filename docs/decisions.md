@@ -584,7 +584,7 @@ something that parses" and "the model decided" stay the same event.
 **A tool call**, which is what was taken. It is a discrete event with a schema,
 on its own channel, so *did it decide* and *what did it decide* are separate
 closed questions. It costs the `customTools` seam in `src/session.ts` and one
-file, `src/verdict.ts`.
+file, `src/review/verdict.ts`.
 
 Three consequences worth stating plainly.
 
@@ -631,9 +631,10 @@ correctly and approved a function that computes `a - b` while claiming to add. A
 clean channel does nothing about a wrong judgement, so `approved` stops being
 what the reviewer said.
 
-Everything a reviewer raises becomes an **obligation** in `src/ledger.ts`, with
-an id combo assigns and that never changes. Finished means the reviewer has
-nothing further to ask *and* nothing it raised is still open.
+Everything a reviewer raises becomes an **obligation** in
+`src/review/ledger.ts`, with an id combo assigns and that never changes.
+Finished means the reviewer has nothing further to ask *and* nothing it raised
+is still open.
 
 The ledger belongs to this code rather than to the agent. Asking a reviewer to
 re-emit its remarks each round puts us back to matching one round's prose against
@@ -695,10 +696,10 @@ its closures, raise what it raised, decide `said && settled`. `pair` had it in a
 helper, `deliver` inline. The rule that makes the join safe, closures before
 raises, was tested through `pair` and nowhere near `deliver`.
 
-`src/review.ts` is the record: one per reviewer, both the tool and the list.
-`reviewRecord(name, { byTool, inProse, restored })` builds the ledger and, when
-the reviewer decides by tool, the tool wired to it. `record.tool` is what the
-reviewer is offered, `record.open` what a round is asked about, `record.all`
+`src/review/review.ts` is the record: one per reviewer, both the tool and the
+list. `reviewRecord(name, { byTool, inProse, restored })` builds the ledger and,
+when the reviewer decides by tool, the tool wired to it. `record.tool` is what
+the reviewer is offered, `record.open` what a round is asked about, `record.all`
 what a result reports, and `record.close(review, round)` answers the one
 question a round has: what was declared, whether the reviewer said yes, whether
 that finishes anything, and what was raised. A review that did not run to
@@ -1095,8 +1096,8 @@ it is used.
 
 ## Pipelines: a workflow written down
 
-`src/pipeline.ts` parses one, `src/pipeline-load.ts` finds it, and
-`src/workflows/pipeline-run.ts` walks it. `/build` runs one.
+`src/pipeline/pipeline.ts` parses one, `src/pipeline/load.ts` finds it, and
+`src/pipeline/run.ts` walks it. `/build` runs one.
 
 - **`/build` has no built-in behaviour any more, it has a default file.**
   `DEFAULT_BUILD_PIPELINE` is a pipeline like any other, parsed by the same
@@ -1203,7 +1204,7 @@ it is used.
   project that has none is worse than asking, and `/build` asks when the pipeline
   is silent.
 - **`/build` and `/run` paint the same run the same way**, through one
-  `liveRun` in `extension/run-ui.ts`: two call sites, two timers and two ways of
+  `liveRun` in `extension/ui/run.ts`: two call sites, two timers and two ways of
   clearing a widget is exactly how the one nobody is watching that day drifts.
 
 ## A chain walked by hand
@@ -1342,8 +1343,8 @@ await session.exportToHtml(outputPath?);  // → path of the HTML file, readable
 session.exportToJsonl(outputPath?);       // → JSONL of the current branch, replayable
 ```
 
-Implemented in `src/export.ts`, wired into `spawn` and every workflow through
-`exportDir`.
+Implemented in `src/measure/export.ts`, wired into `spawn` and every workflow
+through `exportDir`.
 
 - **An export covering the parent session *and* all its subagents.** An
   orchestration export that lost the subagents' work would be useless. What lands
@@ -1788,7 +1789,7 @@ each free to drift from the other, and the guide's own example of an export
 was a third copy.
 
 `measuredRun({ dir?, record?, listeners?, mainSessionFile? })` in
-`src/measured.ts` is the seam: `onEvent` to subscribe, the `picture`,
+`src/measure/measured.ts` is the seam: `onEvent` to subscribe, the `picture`,
 `elapsedMs()`, and `finish()`, which writes `usage.json` with the time measured
 and hands the report back, never throwing, because an export is an observer of
 the run. The view is a measured run with a terminal on top and takes its `dir`
@@ -1912,10 +1913,10 @@ the two meanings collided the first time somebody pressed it: measured on
 `/build`, `esc` on the first card ended with `interview failed: stopped`. The
 card resolved to a submit, the listener stopped every subagent of the run, and
 the interviewer that had to write the brief was one of them. So `whileAsking`
-in `extension/stop.ts` holds the stop for the length of a question, free-text
-box included, and `escape` falls through to pi as before. Held rather than
-dropped, because the run's subagents are idle while a question waits: there is
-nothing running that the key would have been pressed to call off. The other
+in `extension/commands/stop.ts` holds the stop for the length of a question,
+free-text box included, and `escape` falls through to pi as before. Held rather
+than dropped, because the run's subagents are idle while a question waits: there
+is nothing running that the key would have been pressed to call off. The other
 way round - making the card's `esc` a cancel, so that both meanings agree - was
 rejected, because it throws the answers away, and the reflex to escape out of a
 dialog is exactly the moment those answers are worth keeping.
@@ -2116,16 +2117,16 @@ rule is not an audit in this repository's sense, and it had one caller.
 Two ports, one rule: **the agents produce text, our code performs the act.**
 
 - `src/ask.ts` - `AskUser`, one question at a time. The pi implementation is a
-  select card (`extension/ask-ui.ts`), an example uses readline, the tests use a
+  select card (`extension/ui/ask.ts`), an example uses readline, the tests use a
   scripted array. Returning `undefined` is the **submit**, not a cancel: what was
   already answered still counts, and the brief is still written. `esc` maps to it
   for the same reason.
 - `src/verify.ts` - `Verify`, a command we run with `execFile` and no shell. Its
   output is evidence the agents read and cannot argue with.
-- `src/git.ts` - the git a pipeline may do, as functions. There is no `push`, no
-  `reset`, no `rebase`, no `--force`, and no shell: arguments are arrays and the
-  commit message is piped to `git commit -F -`, so a message containing
-  `rm -rf /` is committed rather than executed.
+- `src/git/git.ts` - the git a pipeline may do, as functions. There is no
+  `push`, no `reset`, no `rebase`, no `--force`, and no shell: arguments are
+  arrays and the commit message is piped to `git commit -F -`, so a message
+  containing `rm -rf /` is committed rather than executed.
 
 **Why the committer has no `bash`.** It was the obvious design - give the agent
 git and tell it what not to do - and it is exactly what "a prompt is not a
@@ -2175,8 +2176,9 @@ says so the moment the worker runs it.
 ## Resuming a build
 
 A delivery is long, it costs money and it writes to a working tree. `deliver`
-therefore takes `onProgress` and `resume`, and `src/resume.ts` turns the one
-into the other through `runs/<timestamp>/build.json`.
+therefore takes `onProgress` and `resume`, and
+`src/workflows/deliver/resume.ts` turns the one into the other through
+`runs/<timestamp>/build.json`.
 
 - **Only what was approved survives.** A subtask still being argued over left the
   tree in a state nobody signed off on, so it runs again. Approval is the only
@@ -2574,8 +2576,9 @@ handout that fed every round was in nobody's record, and the console, the board
 pane and `events.jsonl` showed the half of the traffic that went through a
 tool. The code was behind the decision, not against it.
 
-`src/announced.ts` wraps the medium: `announcedBoard` and `announcedClaims`
-return the same `Board` and the same `Claims` with every act on the bus - an
+`src/board/announced.ts` wraps the medium: `announcedBoard` and
+`announcedClaims` return the same `Board` and the same `Claims` with every act
+on the bus - an
 accepted post, every read with the ids it handed and how many it left waiting,
 every grant and refusal, and one release per key for a member that is gone. The
 swarm wraps what it was given or what it made, once, and hands the wrapped
@@ -2728,8 +2731,8 @@ parsed more exactly and comes back fenced or explained from a small model, where
 a line is what one writes correctly on its first turn. Putting the request in an
 agent definition instead would have every other run of that agent posting a vote
 nobody counts, and would miss any agent a user writes. So the instruction lives
-beside the parser that reads it, in `src/agreement.ts`: told in one file and
-read in another, the two drift the first time either is edited.
+beside the parser that reads it, in `src/board/agreement.ts`: told in one file
+and read in another, the two drift the first time either is edited.
 
 Measured in a real pi, three members on one question: 3 rounds and 9 turns with
 the cap alone, 1 round and 3 turns with the condition. What they agreed on is

@@ -111,8 +111,12 @@ src/                the library
   session.ts        the whole pi API, and nowhere else
   agent.ts subagent.ts run.ts result.ts usage.ts events.ts
   text.ts           reading what a model wrote: truncate, saysWord, jsonObjects
+  tool.ts           a tool we offer: what an agent declared, how a call refuses
+  delegate.ts       the subagent tool, for an agent whose `tools:` names it
+  stop.ts           stopSwitch: one branch of a run, or the whole of it
   markdown.ts       finding and reading a .md with frontmatter
   skills.ts         resolving what an agent's `skills:` names, nearest first
+  mirror.ts         a live subagent on a socket; mirror-wire.ts is the wire
   measure/          export (runs/<timestamp>/), measured (a run that measures
                     itself), experiment (M models, N repetitions), report;
                     index.ts is its door
@@ -133,8 +137,9 @@ src/                the library
     deliver/        deliver pair audit, settle (how the work reaches the
                     tree) and resume (build.json); index.ts is its door
   reporters/        picture (the stream folded once, for every reader), tree,
-                    tui (formats, draws nothing), herdr, console, silent,
-                    record (the event stream on disk)
+                    tui (formats, draws nothing), herdr and the probe that
+                    asks it first, console, silent, record (the event stream
+                    on disk), traffic (what passes on a board, worded once)
 extension/          the pi extension: index.ts (tool, renderers), execute.ts
                     (the tool body) and the floor the commands stand on:
                     pi.ts deps.ts command.ts flags.ts params.ts relay.ts
@@ -142,6 +147,7 @@ extension/          the pi extension: index.ts (tool, renderers), execute.ts
                     and /step, the commands that use them
   ui/               run (the live view), ask (the question card), asking and
                     herdr-switch (two switches a card and a key share)
+pane/               the client a herdr split runs, attached to the mirror
 agents/ pipelines/  shipped definitions (symlinked into .pi/)
 examples/ scripts/ test/
 docs/               guide/ (task by task), reference/ (api/, generated), the
