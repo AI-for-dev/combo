@@ -53,7 +53,7 @@ card's and the rule has to reach an interviewer you wrote yourself.
 From a script, without the interview:
 
 ```typescript
-import { commandVerifier, deliver } from "combo";
+import { commandVerifier, deliver } from "@ai-for-dev/combo";
 
 const built = await deliver({
 	planner,

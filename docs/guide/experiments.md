@@ -6,7 +6,7 @@ requires the model to be an argument, and comparing them honestly requires the
 run to be repeated.
 
 ```typescript
-import { experiment, experimentTable, loop } from "combo";
+import { experiment, experimentTable, loop } from "@ai-for-dev/combo";
 
 const report = await experiment({
 	models: ["anthropic/claude-sonnet-5", "local/qwen/qwen3-coder-next"],

@@ -5,7 +5,7 @@ closes. Two formats, both produced by pi itself: a readable HTML page and a
 replayable JSONL. We render neither.
 
 ```typescript
-import { createRunDir, fanOut, measuredRun } from "combo";
+import { createRunDir, fanOut, measuredRun } from "@ai-for-dev/combo";
 
 const dir = createRunDir();               // runs/<timestamp>/
 const run = measuredRun({ dir });         // the clock starts here

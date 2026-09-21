@@ -1,5 +1,8 @@
 node_modules/
 
+# Worktrees kept inside the repository, one directory per branch
+worktree/
+
 # Session exports produced by workflow runs
 runs/
 

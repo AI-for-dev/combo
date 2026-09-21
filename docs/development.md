@@ -205,4 +205,9 @@ produced.
 - **Dependencies kept to a strict minimum**: the pi SDK, and nothing else without
   discussion. Never import pi's transitive packages directly; derive what you
   need from the public surface.
+- The three packages pi bundles - `@earendil-works/pi-coding-agent`,
+  `@earendil-works/pi-tui` and `typebox` - are **peer dependencies** with a `*`
+  range, which is what pi's packaging documentation asks for. An installed copy
+  must bind to the pi it is loaded into, not to a second one of its own: that is
+  the same trap as `buildRegistry` choosing by the presence of an export.
 - Before adding a layer of configuration, ask whether a function call would do.

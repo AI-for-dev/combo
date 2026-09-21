@@ -148,14 +148,14 @@ Several members on one job, a board between them, and nobody dividing it.
 ## In one page
 
 ```bash
-npm install
-npm test          # offline, no network calls
+npm install @ai-for-dev/combo       # the library
+pi install npm:@ai-for-dev/combo    # the same package, loaded into pi
 ```
 
 ```{code-block} typescript
 :caption: One subagent, then two of them arguing until they agree
 
-import { findAgent, loadAgents, loop, run, saysWord } from "combo";
+import { findAgent, loadAgents, loop, run, saysWord } from "@ai-for-dev/combo";
 
 const agents = loadAgents();
 const scout = findAgent(agents, "scout");

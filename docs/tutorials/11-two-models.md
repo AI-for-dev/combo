@@ -108,7 +108,7 @@ runs on the repository it ships in.
 Its shape is short enough to copy:
 
 ```typescript
-import { experiment, experimentTable, loop, saysWord } from "combo";
+import { experiment, experimentTable, loop, saysWord } from "@ai-for-dev/combo";
 
 const report = await experiment({
 	models: ["provider/model-a", "provider/model-b"],
