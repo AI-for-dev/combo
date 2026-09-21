@@ -124,6 +124,11 @@ round of audit fixes. Only the first meets a tree it did not write, and the
 later ones say so, or the option would stop working the moment an audit asked
 for anything.
 
+All of that is one decision, taken once before any work runs: `settling()`
+answers whether the pairs are isolated, puts a batch's work back, and keeps
+what became of each landing. A delivery asks it, rather than each place a batch
+of pairs finishes deciding for itself.
+
 **It does not combine with `resume` yet.** A resumed delivery starts on a tree
 that holds what landed in a previous process, which is not the same as one it
 filled itself, and it has no record of what that was. The landing refuses it,
@@ -184,8 +189,8 @@ and the suite says so the moment it runs.
 ## The commit
 
 The committer agent has **no `bash`**. It reads the brief and the diff, and it
-writes a message. The branch and the commit are made by `src/git.ts`, which has
-no `push`, no `reset`, no `rebase`, no `--force`, and no shell. The commit
+writes a message. The branch and the commit are made by `src/git/git.ts`, which
+has no `push`, no `reset`, no `rebase`, no `--force`, and no shell. The commit
 message is piped to `git commit -F -`, so a message containing `rm -rf /` is
 committed rather than executed.
 
@@ -254,4 +259,5 @@ registered as commands.
 - [`ask`](../reference/api/ask.md) - `AskUser`, `Question`, `Answer`, `scriptedAsk`.
 - [`verify`](../reference/api/verify.md) - `Verify`, `commandVerifier`.
 - [`git/git`](../reference/api/git/git.md) - the git a pipeline may do.
+- [`workflows/deliver/settle`](../reference/api/workflows/deliver/settle.md) - `settling`, how the work reaches the tree.
 - [`resume`](../reference/api/workflows/deliver/resume.md) - `build.json`, what survives and what deliberately does not.

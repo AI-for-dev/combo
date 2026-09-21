@@ -18,7 +18,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`events`](events.md) | The event stream: one core, many reporters. | 4 |
 | [`git/git`](git/git.md) | The git a pipeline is allowed to do - and nothing else. | 8 |
 | [`git/land`](git/land.md) | Putting the work of several copies back into one tree. | 3 |
-| [`git/scratch`](git/scratch.md) | A working copy with a lifetime: made for one piece of work, and released when that work is done. | 1 |
+| [`git/scratch`](git/scratch.md) | A working copy with a lifetime: made for one piece of work, and released when that work is done. | 2 |
 | [`git/worktree`](git/worktree.md) | Working copies, so two agents can write at once without writing over each other. | 6 |
 | [`language`](language.md) | The language a subagent answers in: the one it was asked in. | 1 |
 | [`measure/experiment`](measure/experiment.md) | Running the same work across several models, several times. | 3 |

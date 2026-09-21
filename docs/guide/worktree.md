@@ -11,7 +11,7 @@ Two subagents writing to one directory is the constraint behind `deliver`'s
 being a promise a planner can keep. A working copy each turns that into a
 question about the tasks rather than about the filesystem.
 
-`src/worktree.ts` is the git side of it. It does four things and no more.
+`src/git/worktree.ts` is the git side of it. It does four things and no more.
 
 ```typescript
 import { createWorktree, listWorktrees, removeWorktree, worktreePatch } from "combo";
@@ -22,9 +22,9 @@ await removeWorktree(repo, "/tmp/one", { patched: patch.ok });
 ```
 
 Every call gives back a `GitResult<T>`: a value, or git's own words about why
-not. That is the same contract `git.ts` uses, for the same reason a workflow
-turns a model failure into `ok: false`. A copy that could not be made is an
-outcome the caller decides about.
+not. That is the same contract `src/git/git.ts` uses, for the same reason a
+workflow turns a model failure into `ok: false`. A copy that could not be made
+is an outcome the caller decides about.
 
 ## A copy nobody captured is not removed
 
@@ -50,6 +50,37 @@ worse than a touched index.
 
 The patch is capped, like every other text that ends up in a prompt, and says so
 where it was cut.
+
+## The three calls that only ever happen together
+
+Making a copy, taking its patch and removing it are never done apart, and the
+order they go in is the whole safety of the thing. `scratchWorktree` is that
+order, written once: a copy made for one piece of work, and released when the
+work is done.
+
+```typescript
+import { scratchWorktree } from "combo";
+
+const made = await scratchWorktree(repo, "add a slugify helper");
+if (!made.ok) return;                     // no copy, no work - the caller decides
+
+const scratch = made.value;
+scratch.path;                             // what a subagent gets as its cwd
+scratch.branch;                           // named after the work, so `git branch` reads
+const patch = await scratch.release();    // the work out, the copy gone
+```
+
+It lives under the system's temporary directory, outside the repository: a copy
+made inside the tree its own patch is taken against would show up in that
+patch. The base is a commit rather than a branch name, so the patch is against
+what the work really started from even if the branch has moved since.
+
+`release()` is idempotent and safe in a `finally`. A second call gives back the
+patch the first one took rather than an empty one, so releasing explicitly and
+again in a `finally` cannot lose it. It commits the work on the branch before
+the copy goes, deletes a branch nobody wrote on, and on a patch it could not
+take leaves everything where it is: the caller gets the error and the work
+stays on disk.
 
 ## A copy per piece of work, not per subagent
 
@@ -116,8 +147,12 @@ for a human to read.
 `deliver` does all of this for a whole delivery, by default from two subtasks
 up: a copy per subtask, then a landing per batch of them. `landable()` is the
 question it asks first - whether this tree can take the patches back at all -
-because a copy whose patch cannot come home is a subtask paid for twice. See
-[Deliver a change](build.md).
+because a copy whose patch cannot come home is a subtask paid for twice.
+
+Which of the two it is doing is `settling()`, decided once for the whole
+delivery: whether the pairs are isolated, what putting a batch back means, and
+what became of each landing. With a shared tree, settling a batch is the
+project's check and nothing else. See [Deliver a change](build.md).
 
 `examples/13-concurrent-writers.ts` runs two pairs at once on two subtasks and
 prints the two patches, leaving the repository it was pointed at untouched.
@@ -125,6 +160,7 @@ prints the two patches, leaving the repository it was pointed at untouched.
 ## What has no function here
 
 No `push`, no `merge`, no `rebase`, nothing that rewrites history. The rule is
-`git.ts`'s own: adding one of those is a decision somebody takes in a diff, not
+`src/git/git.ts`'s own: adding one of those is a decision somebody takes in a
+diff, not
 an argument a model produces at runtime. See
 [Design decisions](../decisions.md).

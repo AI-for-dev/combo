@@ -138,6 +138,13 @@ a call rather than as a word in its prose.
 children of its own. Two levels deep by default, and the roster it may reach is
 the caller's to pass.
 
+`board` is the third, and a [swarm](swarm.md) hands it to every member whose
+`tools:` names it: post what you found, read what the others posted, take a key
+before writing to it. Who is posting is in the closure rather than in the
+parameters, so a member cannot post as another one. A member that does not name
+`board` still runs, and cannot reach the others, which makes that run a
+fan-out.
+
 **How wide it splits is the agent's own**, declared as `concurrency:` in its
 frontmatter:
 
