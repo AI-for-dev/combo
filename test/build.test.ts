@@ -11,13 +11,13 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { initTheme } from "@earendil-works/pi-coding-agent";
-import { runBuild } from "../extension/build.ts";
-import { toggleHerdr } from "../extension/herdr-command.ts";
-import { runInterview } from "../extension/interview-command.ts";
+import { runBuild } from "../extension/commands/build.ts";
+import { toggleHerdr } from "../extension/commands/herdr.ts";
+import { runInterview } from "../extension/commands/interview.ts";
 import type { CommandDeps } from "../extension/deps.ts";
 import type { EventListener } from "../src/events.ts";
 import { parsePipeline } from "../src/pipeline.ts";
-import { watchEverything, watchEverythingIs } from "../extension/herdr-switch.ts";
+import { watchEverything, watchEverythingIs } from "../extension/ui/herdr-switch.ts";
 import { BUILD_STATE_VERSION, type BuildState } from "../src/workflows/deliver/resume.ts";
 import type { BuildProgress, DeliverResult } from "../src/workflows/deliver/deliver.ts";
 import type { PipelineRunResult } from "../src/workflows/pipeline-run.ts";

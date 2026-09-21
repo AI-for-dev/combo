@@ -32,18 +32,21 @@ import {
 	truncate,
 	type SubagentSnapshot,
 } from "../src/index.ts";
-import registerAgentCommands from "./agents-command.ts";
-import registerBuildCommand from "./build.ts";
-import registerHerdrCommand from "./herdr-command.ts";
-import registerInterviewCommand from "./interview-command.ts";
-import { toolDeps, type PiApi } from "./pi.ts";
-import registerPipelineCommands, { PIPELINE_MESSAGE } from "./pipeline-commands.ts";
-import { STEP_ENTRY, type StepEntry } from "./relay.ts";
-import registerStepCommands from "./step-commands.ts";
-import registerSwarmCommand from "./swarm-command.ts";
-import registerStopCommand from "./stop.ts";
+import {
+	PIPELINE_MESSAGE,
+	registerAgentCommands,
+	registerBuildCommand,
+	registerHerdrCommand,
+	registerInterviewCommand,
+	registerPipelineCommands,
+	registerStepCommands,
+	registerStopCommand,
+	registerSwarmCommand,
+} from "./commands/index.ts";
 import { executeSubagent, type Details } from "./execute.ts";
 import { inferMode, Schema, type Params } from "./params.ts";
+import { toolDeps, type PiApi } from "./pi.ts";
+import { STEP_ENTRY, type StepEntry } from "./relay.ts";
 
 /** How many tool lines the collapsed view shows before it starts eliding. */
 const COLLAPSED_TOOLS = 3;

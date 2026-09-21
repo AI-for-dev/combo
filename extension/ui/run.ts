@@ -13,10 +13,10 @@
  * for none of them.
  */
 
-import { createHerdrReporter, measuredRun, statusColour, stopSwitch, widgetRows, type EventListener, type RunPicture, type RunSnapshot, type SpawnFn } from "../src/index.ts";
+import { createHerdrReporter, measuredRun, statusColour, stopSwitch, widgetRows, type EventListener, type RunPicture, type RunSnapshot, type SpawnFn } from "../../src/index.ts";
 import { watchEverything } from "./herdr-switch.ts";
-import type { RunUi, WidgetTheme } from "./pi.ts";
-import { forgetRun, watchRun } from "./stop.ts";
+import type { RunUi, WidgetTheme } from "../pi.ts";
+import { forgetRun, watchRun } from "../commands/index.ts";
 
 /** Key for the footer status and the widget above the prompt. */
 export const STATUS = "combo";

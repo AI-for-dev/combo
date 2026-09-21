@@ -13,7 +13,7 @@ import { describe, test } from "node:test";
 import { initTheme } from "@earendil-works/pi-coding-agent";
 import type { Component } from "@earendil-works/pi-tui";
 import extension from "../extension/index.ts";
-import { PIPELINE_MESSAGE } from "../extension/pipeline-commands.ts";
+import { PIPELINE_MESSAGE } from "../extension/commands/pipeline.ts";
 import { sessionDoors, toolDeps, type PiApi } from "../extension/pi.ts";
 import { STEP_ENTRY } from "../extension/relay.ts";
 import { emptyUsage } from "../src/usage.ts";

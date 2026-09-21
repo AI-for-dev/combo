@@ -39,7 +39,7 @@ import {
 } from "../src/index.ts";
 import { watched } from "./command.ts";
 import { inferMode, type Mode, type Params } from "./params.ts";
-import type { RunUi } from "./pi.ts";
+import type { ToolDeps } from "./pi.ts";
 
 /** What `renderResult` needs, and nothing the LLM has to read. */
 export type Details = {
@@ -54,21 +54,14 @@ export type Details = {
 	exportDir?: string;
 };
 
-/** A streamed update: text for the model, no details until the run is over. */
-export type ToolUpdate = { content: { type: "text"; text: string }[]; details: undefined };
-
 /** The tool's final answer: what the model reads, plus what the renderers draw. */
 export type ToolOutput = {
 	content: { type: "text"; text: string }[];
 	details: Details;
 };
 
-/** Everything the tool body reaches for. Defaults are the real thing. */
-export type ExecuteDeps = {
-	cwd?: string;
-	signal?: AbortSignal;
-	onUpdate?: (update: ToolUpdate) => void;
-	ui?: RunUi;
+/** Everything the tool body reaches for: what pi handed it, and what a test may replace. Defaults are the real thing. */
+export type ExecuteDeps = Partial<ToolDeps> & {
 	/** Defaults to reading the agent directories from disk. */
 	loadAgents?: (options: { cwd?: string; scope?: AgentScope; builtin?: boolean }) => Agent[];
 	/** Defaults to the real `spawn`, through the combinators. */
@@ -82,13 +75,6 @@ export type ExecuteDeps = {
 	tickMs?: number;
 	/** Where an export lands. Defaults to a fresh `runs/<timestamp>/`. */
 	runDir?: () => string;
-	/**
-	 * The parent session's JSONL, from `ctx.sessionManager.getSessionFile()`.
-	 *
-	 * An orchestration export that lost the parent session would be half a
-	 * story - and the extension is the only place that knows this path.
-	 */
-	mainSessionFile?: string;
 };
 
 /**

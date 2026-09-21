@@ -7,12 +7,12 @@
  * before it is a command.
  */
 
-import { findAgent, plural, type InterviewResult } from "../src/index.ts";
-import { createAskUi } from "./ask-ui.ts";
-import { checked, loadRoster, refuse, watched } from "./command.ts";
-import type { CommandCtx, PiApi } from "./pi.ts";
-import { resolved, type CommandDeps } from "./deps.ts";
-import { parseBuildArgs } from "./flags.ts";
+import { findAgent, plural, type InterviewResult } from "../../src/index.ts";
+import { createAskUi } from "../ui/index.ts";
+import { checked, loadRoster, refuse, watched } from "../command.ts";
+import type { CommandCtx, PiApi } from "../pi.ts";
+import { resolved, type CommandDeps } from "../deps.ts";
+import { parseBuildArgs } from "../flags.ts";
 
 /** Registers `/interview`. */
 export default function registerInterviewCommand(pi: PiApi) {

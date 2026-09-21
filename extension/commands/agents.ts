@@ -13,10 +13,10 @@ import {
 	CONFIG_DIR_NAME,
 	getAgentDir,
 } from "@earendil-works/pi-coding-agent";
-import type { Agent, AgentSource } from "../src/index.ts";
-import { loadRoster } from "./command.ts";
-import type { CommandCtx, PiApi } from "./pi.ts";
-import { resolved, type CommandDeps } from "./deps.ts";
+import type { Agent, AgentSource } from "../../src/index.ts";
+import { loadRoster } from "../command.ts";
+import type { CommandCtx, PiApi } from "../pi.ts";
+import { resolved, type CommandDeps } from "../deps.ts";
 
 /**
  * The three sources, most specific first, and where each would be read from.

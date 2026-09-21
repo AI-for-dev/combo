@@ -18,10 +18,10 @@
 
 
 import { parseKey } from "@earendil-works/pi-tui";
-import type { StopSwitch, RunSnapshot } from "../src/index.ts";
-import { treeOrder } from "../src/index.ts";
-import { isAsking } from "./asking.ts";
-import type { KeyUi, PiApi, StopCtx } from "./pi.ts";
+import type { StopSwitch, RunSnapshot } from "../../src/index.ts";
+import { treeOrder } from "../../src/index.ts";
+import { isAsking } from "../ui/index.ts";
+import type { KeyUi, PiApi, StopCtx } from "../pi.ts";
 
 /** A run that can still be stopped, as the terminal sees it. */
 export type LiveRun = {

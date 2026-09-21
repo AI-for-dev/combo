@@ -11,7 +11,7 @@
 import { commandVerifier, findPipeline, loadAgents, loadPipelines, type Agent, type Pipeline, type PipelineCatalogue, type Verify } from "../src/index.ts";
 import type { CommandDeps, Deps } from "./deps.ts";
 import type { CommandCtx, RunUi } from "./pi.ts";
-import { liveRun, STATUS, type LiveRun, type LiveRunOptions } from "./run-ui.ts";
+import { liveRun, STATUS, type LiveRun, type LiveRunOptions } from "./ui/index.ts";
 
 /**
  * The roster every command runs with.

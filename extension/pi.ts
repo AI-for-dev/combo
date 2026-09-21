@@ -13,7 +13,6 @@
 
 import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
 import type { StepDeps } from "./deps.ts";
-import type { ExecuteDeps } from "./execute.ts";
 
 /** The slice of pi's API this extension registers through, and speaks to a session with. */
 export type PiApi = Pick<
@@ -82,12 +81,29 @@ export type ToolCtx = {
 	sessionManager?: { getSessionFile(): string | undefined };
 };
 
+/** What pi shows while a tool call is in flight: text for the model, nothing for the renderers. */
+export type ToolUpdate = { content: { type: "text"; text: string }[]; details: undefined };
+
+/**
+ * What the tool body reads off pi's tool context. `execute.ts` takes these and
+ * more, all optional there; here they are what pi has, as pi has it.
+ */
+export type ToolDeps = {
+	cwd: string;
+	signal: AbortSignal | undefined;
+	onUpdate: ((update: ToolUpdate) => void) | undefined;
+	ui: RunUi;
+	/**
+	 * The parent session's JSONL, from `ctx.sessionManager.getSessionFile()`.
+	 *
+	 * An orchestration export that lost the parent session would be half a
+	 * story - and the extension is the only place that knows this path.
+	 */
+	mainSessionFile: string | undefined;
+};
+
 /** The tool body's dependencies, read off what pi handed the tool. */
-export function toolDeps(
-	ctx: ToolCtx,
-	signal: AbortSignal | undefined,
-	onUpdate: ExecuteDeps["onUpdate"],
-): Pick<ExecuteDeps, "cwd" | "signal" | "onUpdate" | "ui" | "mainSessionFile"> {
+export function toolDeps(ctx: ToolCtx, signal: AbortSignal | undefined, onUpdate: ToolDeps["onUpdate"]): ToolDeps {
 	return { cwd: ctx.cwd, signal, onUpdate, ui: ctx.ui, mainSessionFile: ctx.sessionManager?.getSessionFile() };
 }
 

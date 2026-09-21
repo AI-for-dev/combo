@@ -41,13 +41,13 @@ import {
 	type PipelineRunOptions,
 	type PipelineRunResult,
 	type Verify,
-} from "../src/index.ts";
-import { checked, choosePipeline, firstLines, loadRoster, pipelineVerifier, refuse, watched } from "./command.ts";
-import type { CommandCtx, PiApi } from "./pi.ts";
+} from "../../src/index.ts";
+import { checked, choosePipeline, firstLines, loadRoster, pipelineVerifier, refuse, watched } from "../command.ts";
+import type { CommandCtx, PiApi } from "../pi.ts";
 import { submit } from "./commit.ts";
-import { resolved, type CommandDeps, type Deps, type Git } from "./deps.ts";
-import { parseBuildArgs } from "./flags.ts";
-import { runInterview } from "./interview-command.ts";
+import { resolved, type CommandDeps, type Deps, type Git } from "../deps.ts";
+import { parseBuildArgs } from "../flags.ts";
+import { runInterview } from "./interview.ts";
 
 /**
  * Registers `/build`.

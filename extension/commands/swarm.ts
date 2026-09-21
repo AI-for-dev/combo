@@ -31,12 +31,12 @@ import {
 	type Claims,
 	type SwarmResult,
 	VOTE_INSTRUCTION,
-} from "../src/index.ts";
-import { checked, loadRoster, refuse, watched } from "./command.ts";
-import { sessionDoors, type CommandCtx, type PiApi } from "./pi.ts";
-import { resolved, type StepDeps } from "./deps.ts";
-import { parseLeadingFlags } from "./flags.ts";
-import { beginStep, finishStep, type RelayStep } from "./relay.ts";
+} from "../../src/index.ts";
+import { checked, loadRoster, refuse, watched } from "../command.ts";
+import { sessionDoors, type CommandCtx, type PiApi } from "../pi.ts";
+import { resolved, type StepDeps } from "../deps.ts";
+import { parseLeadingFlags } from "../flags.ts";
+import { beginStep, finishStep, type RelayStep } from "../relay.ts";
 
 /** The agent a swarm is made of when the command is not told otherwise. */
 export const DEFAULT_MEMBER = "member";

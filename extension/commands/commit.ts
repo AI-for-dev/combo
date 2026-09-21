@@ -8,10 +8,10 @@
  * the commit" is a boundary that should be readable in one file.
  */
 
-import { branchName, type Agent } from "../src/index.ts";
-import { firstLines, refuse, watched } from "./command.ts";
-import type { CommandCtx } from "./pi.ts";
-import type { Deps } from "./deps.ts";
+import { branchName, type Agent } from "../../src/index.ts";
+import { firstLines, refuse, watched } from "../command.ts";
+import type { CommandCtx } from "../pi.ts";
+import type { Deps } from "../deps.ts";
 
 /**
  * The last step: a message written by an agent, a commit performed by us.
