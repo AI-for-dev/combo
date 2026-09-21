@@ -18,6 +18,7 @@ src/                 the library - the only thing that matters
   session.ts         the whole pi API, and nowhere else
   subagent.ts        spawn() -> Subagent { ask, usage, close }
   workflows/         the combinators
+    deliver/         the delivery, its git policy and its saved state
   reporters/         herdr, pi TUI, console, silent
 extension/           the pi extension: tool, commands, renderers
 agents/              example agent definitions (symlinked into .pi/agents/)
@@ -29,6 +30,12 @@ docs/                this documentation: guide/ task by task, reference/ to look
 ```
 
 **One file, one concept.** Past roughly 200 lines, it is mixing two.
+
+**One directory, one module.** When several files' headers name each other,
+they are one module, and they sit in a directory whose `index.ts` is the only
+file anything outside it imports. Tests are the exception: they reach past
+every door, by design. The generated reference follows the file that declares a
+symbol, so a module's pages land under its directory.
 
 **The pi API lives in one file.** `src/session.ts` is the only place that imports
 from the pi package. Everything else talks to `SessionPort`, a minimal subset of

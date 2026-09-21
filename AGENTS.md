@@ -114,11 +114,13 @@ src/                the library
   markdown.ts       finding and reading a .md with frontmatter
   skills.ts         resolving what an agent's `skills:` names, nearest first
   experiment.ts experiment-report.ts    one workflow, M models, N repetitions
-  ask.ts verify.ts git.ts resume.ts     the ports that touch the world
+  ask.ts verify.ts git.ts               the ports that touch the world
   pipeline.ts pipeline-load.ts builtin.ts
   workflows/        chain fan-out loop reduce route orchestrate
-                    interview pair deliver audit plan swarm pipeline-run;
+                    interview plan swarm pipeline-run;
                     options.ts pool.ts (turn, hold, closeAll) concurrent.ts
+    deliver/        deliver pair audit, settle (how the work reaches the
+                    tree) and resume (build.json); index.ts is its door
   reporters/        picture (the stream folded once, for every reader), tree,
                     tui (formats, draws nothing), herdr, console, silent,
                     record (the event stream on disk)
@@ -131,6 +133,11 @@ docs/               guide/ (task by task), reference/ (api/, generated), the
 ```
 
 **One file, one concept.** Past roughly 200 lines it is mixing two.
+
+**One directory, one module.** Files whose headers name each other belong in a
+directory, and its `index.ts` is the only file anything outside it imports -
+tests excepted, they reach past every door. What the index does not list is
+implementation, and stays so.
 
 Every workflow is an exported **function** taking `{ lifetime, signal,
 timeoutMs, openInHerdr, onEvent, bus, cwd, sessionDir, exportDir, spawn }` plus

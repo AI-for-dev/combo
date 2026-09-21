@@ -15,8 +15,8 @@ import path from "node:path";
 import { afterEach, describe, test } from "node:test";
 import { emptyUsage } from "../src/usage.ts";
 import type { Verification } from "../src/verify.ts";
-import type { PairResult } from "../src/workflows/pair.ts";
-import { settling } from "../src/workflows/settle.ts";
+import type { PairResult } from "../src/workflows/deliver/pair.ts";
+import { settling } from "../src/workflows/deliver/settle.ts";
 
 const scratch: string[] = [];
 afterEach(() => {
