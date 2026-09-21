@@ -19,8 +19,10 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`experiment-report`](experiment-report.md) | What an experiment leaves behind: one JSON document, one comparison table. | 4 |
 | [`experiment`](experiment.md) | Running the same work across several models, several times. | 4 |
 | [`export`](export.md) | Exporting a run: `runs/<timestamp>/` with one HTML and one JSONL per subagent, plus a `usage.json`. | 8 |
-| [`git`](git.md) | The git a pipeline is allowed to do - and nothing else. | 8 |
-| [`land`](land.md) | Putting the work of several copies back into one tree. | 3 |
+| [`git/git`](git/git.md) | The git a pipeline is allowed to do - and nothing else. | 8 |
+| [`git/land`](git/land.md) | Putting the work of several copies back into one tree. | 3 |
+| [`git/scratch`](git/scratch.md) | A working copy with a lifetime: made for one piece of work, and released when that work is done. | 1 |
+| [`git/worktree`](git/worktree.md) | Working copies, so two agents can write at once without writing over each other. | 6 |
 | [`language`](language.md) | The language a subagent answers in: the one it was asked in. | 1 |
 | [`ledger`](ledger.md) | What is left to do, as a list nobody can lose track of. | 4 |
 | [`measured`](measured.md) | A run that measures itself: the picture it is drawn from, the stream it may keep, and the `usage.json` it leaves behind. | 3 |
@@ -41,7 +43,6 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`result`](result.md) | `Result`: the single contract shared by everything else. | 6 |
 | [`review`](review.md) | The review record: what one reviewer decided, and what it is still owed. | 4 |
 | [`run`](run.md) | `run()`: the disposable form. Spawn, ask, close. | 2 |
-| [`scratch`](scratch.md) | A working copy with a lifetime: made for one piece of work, and released when that work is done. | 1 |
 | [`session`](session.md) | The whole pi API lives here, and nowhere else. | 9 |
 | [`skills`](skills.md) | The skills an agent may load, and where they are looked up. | 2 |
 | [`stop`](stop.md) | The stop switch of a live run: everything at once, or one subagent of it. | 3 |
@@ -69,7 +70,6 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`workflows/route`](workflows/route.md) | `route`: 1 → 1. A classifier agent picks who should do the work. | 5 |
 | [`workflows/swarm`](workflows/swarm.md) | Several members on one job, for as many rounds as you allow. | 8 |
 | [`workflows/trail`](workflows/trail.md) | The trail: every result a workflow produced so far, over its own clock. | 1 |
-| [`worktree`](worktree.md) | Working copies, so two agents can write at once without writing over each other. | 6 |
 
 ```{toctree}
 :hidden:
@@ -85,8 +85,10 @@ events
 experiment-report
 experiment
 export
-git
-land
+git/git
+git/land
+git/scratch
+git/worktree
 language
 ledger
 measured
@@ -107,7 +109,6 @@ reporters/tui
 result
 review
 run
-scratch
 session
 skills
 stop
@@ -135,5 +136,4 @@ workflows/reduce
 workflows/route
 workflows/swarm
 workflows/trail
-worktree
 ```

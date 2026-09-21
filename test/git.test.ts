@@ -12,8 +12,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, test } from "node:test";
-import { branchName, commitAll, createBranch, currentBranch, diff, diffStat, isRepository, status, untracked } from "../src/git.ts";
-import { gitWithInput } from "../src/git-run.ts";
+import { branchName, commitAll, createBranch, currentBranch, diff, diffStat, isRepository, status, untracked } from "../src/git/git.ts";
+import { gitWithInput } from "../src/git/run.ts";
 
 const scratch: string[] = [];
 

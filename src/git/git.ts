@@ -17,8 +17,8 @@
  * away a name and never work.
  */
 
-import { git, gitWithInput, type GitResult } from "./git-run.ts";
-import { head } from "./text.ts";
+import { git, gitWithInput, type GitResult } from "./run.ts";
+import { head } from "../text.ts";
 
 export type { GitResult };
 

@@ -18,7 +18,7 @@
  */
 
 import { applyPatch, status, type GitResult } from "./git.ts";
-import type { Verification, Verify } from "./verify.ts";
+import type { Verification, Verify } from "../verify.ts";
 
 /** One piece of work, and something to call it in the report. */
 export type Landing = {

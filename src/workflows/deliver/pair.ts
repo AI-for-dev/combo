@@ -13,7 +13,7 @@
 
 import type { Agent } from "../../agent.ts";
 import type { Obligation } from "../../ledger.ts";
-import { scratchWorktree, type Scratch } from "../../scratch.ts";
+import { scratchWorktree, type Scratch } from "../../git/index.ts";
 import { failed, type Result } from "../../result.ts";
 import { reviewRecord } from "../../review.ts";
 import type { Verdict } from "../../verdict.ts";

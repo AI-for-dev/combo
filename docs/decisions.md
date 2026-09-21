@@ -2859,6 +2859,26 @@ the shipped `agents/` and `pipelines/` at `src/` and nothing offline would
 notice; the layout block now says what it is for, so the next reader does not
 try.
 
+### The working copy is a stack, and reads as one
+
+`git-run.ts`, `git.ts`, `worktree.ts`, `scratch.ts` and `land.ts` were a stack
+that said so in every header - "`git.ts` covers the repository; this covers the
+copies of it", "`worktree.ts` holds the primitives; this holds the one shape
+every caller wants" - and sat at the root of `src/` with `ledger.ts` and
+`language.ts` between them. `src/git/` now holds the five, `git-run.ts`
+renamed `run.ts`, and its index lists what leaves the directory: the git a
+pipeline may do, the landing, the scratch copy `pair` opens, and the worktree
+primitives. `run.ts` is not on it; running git is the how, and everything
+outside asks what.
+
+Two things did not move, each for a reason worth keeping. `verify.ts` is a
+port, beside `ask.ts` - its header says so - and seven files depend on it that
+have nothing to do with git; putting a port under a mechanism would read the
+dependency backwards. And the worktree primitives stay on the public surface
+although only `scratch.ts` calls them inside the library, because the
+worktree guide teaches them in its first code block; the rule for the surface
+is what somebody outside calls, and a guide is somebody outside.
+
 ## The public surface: one entry point, grouped as it is learnt
 
 `src/index.ts` is the only door - the examples and the extension import from it,

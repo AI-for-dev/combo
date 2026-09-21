@@ -12,7 +12,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, test } from "node:test";
-import { scratchWorktree } from "../src/scratch.ts";
+import { scratchWorktree } from "../src/git/scratch.ts";
 
 const scratch: string[] = [];
 

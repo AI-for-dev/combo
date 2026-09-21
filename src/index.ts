@@ -194,15 +194,23 @@ export {
 	branchName,
 	commitAll,
 	createBranch,
+	createWorktree,
 	diff,
 	diffStat,
 	isRepository,
+	land,
+	listWorktrees,
+	removeWorktree,
 	status,
 	untracked,
+	worktreePatch,
+	type CreateWorktreeOptions,
 	type GitResult,
-} from "./git.ts";
-export { type Scratch } from "./scratch.ts";
-export { land, type Landed, type Landing } from "./land.ts";
+	type Landed,
+	type Landing,
+	type Scratch,
+	type Worktree,
+} from "./git/index.ts";
 export { type Settling, type SettleOptions } from "./workflows/deliver/index.ts";
 export {
 	declaresDelegate,
@@ -210,14 +218,6 @@ export {
 	MAX_DEPTH,
 	type DelegateOptions,
 } from "./delegate.ts";
-export {
-	createWorktree,
-	listWorktrees,
-	removeWorktree,
-	worktreePatch,
-	type CreateWorktreeOptions,
-	type Worktree,
-} from "./worktree.ts";
 export { commandVerifier, type CommandVerifierOptions, type Verification, type Verify } from "./verify.ts";
 export { type ProseApproval, type ReviewRecord, type ReviewRecordOptions, type ReviewRound } from "./review.ts";
 export {
