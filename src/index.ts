@@ -146,27 +146,25 @@ export { head, plural, saysWord, tail, truncate } from "./text.ts";
 
 export {
 	createRunDir,
+	experiment,
+	experimentTable,
 	exportBaseName,
+	measuredRun,
 	usageReport,
 	writeUsageReport,
+	type ExperimentCell,
+	type ExperimentModelSummary,
+	type ExperimentOptions,
+	type ExperimentOutcome,
+	type ExperimentReport,
+	type ExperimentRun,
+	type MeasuredRun,
+	type MeasuredRunOptions,
 	type SessionExport,
 	type UsageReport,
 	type UsageReportEntry,
 	type UsageTotal,
-} from "./export.ts";
-export { measuredRun, type MeasuredRun, type MeasuredRunOptions } from "./measured.ts";
-export {
-	experiment,
-	type ExperimentCell,
-	type ExperimentOptions,
-	type ExperimentOutcome,
-} from "./experiment.ts";
-export {
-	experimentTable,
-	type ExperimentModelSummary,
-	type ExperimentReport,
-	type ExperimentRun,
-} from "./experiment-report.ts";
+} from "./measure/index.ts";
 
 // ── Pipelines: a workflow written down, found, and run ───────────────────────
 

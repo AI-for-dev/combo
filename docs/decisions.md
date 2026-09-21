@@ -2896,6 +2896,24 @@ call is one of the three tools combo hands a subagent, beside the board's and
 the delegation's, and that family reads better from the root. `tool.ts`, the
 words those three share, stays at the root for the same reason.
 
+### Measuring is a chain, and `usage.ts` is not a link of it
+
+`export.ts`, `measured.ts`, `experiment.ts` and `experiment-report.ts` were one
+chain - a run directory, a run that measures itself, the same run over M models
+and N times, the matrix read back - split across the root of `src/` by
+alphabetical accident. `src/measure/` now holds the four, `experiment-report.ts`
+renamed `report.ts`, and its index lists what the extension's live view, the
+examples and `spawn` reach. The chain had one back-edge, `experiment.ts`
+importing its report and the report importing `ExperimentOutcome` back; the
+outcome now lives with its reader, and the module reads in one direction.
+
+`usage.ts` is not in it, although the word suggests so. It is what `Result`
+and every event carry, imported by fifteen files including `result.ts` itself;
+a `measure/usage.ts` would have the core reaching into a feature directory for
+its own currency. The one arrow that does run from the core into this module,
+`spawn` calling `exportSession`, is the honest one: a subagent's transcript is
+exported where it is still in hand.
+
 ## The public surface: one entry point, grouped as it is learnt
 
 `src/index.ts` is the only door - the examples and the extension import from it,

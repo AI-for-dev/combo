@@ -18,10 +18,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import type { RunSnapshot } from "./reporters/picture.ts";
-import type { Usage } from "./usage.ts";
-import { treeOrder } from "./reporters/tree.ts";
-import type { SessionPort } from "./session.ts";
+import type { RunSnapshot } from "../reporters/picture.ts";
+import type { Usage } from "../usage.ts";
+import { treeOrder } from "../reporters/tree.ts";
+import type { SessionPort } from "../session.ts";
 
 /** What one subagent left on disk. Both paths are absent when nothing could be written. */
 export type SessionExport = {

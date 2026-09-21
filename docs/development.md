@@ -19,6 +19,7 @@ src/                 the library - the only thing that matters
   subagent.ts        spawn() -> Subagent { ask, usage, close }
   board/             the swarm's shared board and its arbiter
   git/               the working copy: git, worktrees, landing patches
+  measure/           what a run leaves behind: exports, usage.json, experiments
   pipeline/          a workflow written down: read, found, run
   review/            the review record: a verdict and a ledger, read together
   workflows/         the combinators

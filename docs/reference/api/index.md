@@ -16,15 +16,15 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`board/tool`](board/tool.md) | How a member reaches the board. | 2 |
 | [`delegate`](delegate.md) | Letting a subagent have subagents of its own. | 4 |
 | [`events`](events.md) | The event stream: one core, many reporters. | 4 |
-| [`experiment-report`](experiment-report.md) | What an experiment leaves behind: one JSON document, one comparison table. | 4 |
-| [`experiment`](experiment.md) | Running the same work across several models, several times. | 4 |
-| [`export`](export.md) | Exporting a run: `runs/<timestamp>/` with one HTML and one JSONL per subagent, plus a `usage.json`. | 8 |
 | [`git/git`](git/git.md) | The git a pipeline is allowed to do - and nothing else. | 8 |
 | [`git/land`](git/land.md) | Putting the work of several copies back into one tree. | 3 |
 | [`git/scratch`](git/scratch.md) | A working copy with a lifetime: made for one piece of work, and released when that work is done. | 1 |
 | [`git/worktree`](git/worktree.md) | Working copies, so two agents can write at once without writing over each other. | 6 |
 | [`language`](language.md) | The language a subagent answers in: the one it was asked in. | 1 |
-| [`measured`](measured.md) | A run that measures itself: the picture it is drawn from, the stream it may keep, and the `usage.json` it leaves behind. | 3 |
+| [`measure/experiment`](measure/experiment.md) | Running the same work across several models, several times. | 3 |
+| [`measure/export`](measure/export.md) | Exporting a run: `runs/<timestamp>/` with one HTML and one JSONL per subagent, plus a `usage.json`. | 8 |
+| [`measure/measured`](measure/measured.md) | A run that measures itself: the picture it is drawn from, the stream it may keep, and the `usage.json` it leaves behind. | 3 |
+| [`measure/report`](measure/report.md) | What an experiment leaves behind: one JSON document, one comparison table. | 5 |
 | [`mirror`](mirror.md) | The mirror: a live subagent's session, on a unix socket. | 4 |
 | [`pipeline/load`](pipeline/load.md) | Finding the pipelines a user wrote, wherever they put them. | 5 |
 | [`pipeline/pipeline`](pipeline/pipeline.md) | A pipeline is *data*: an ordered list of combinator calls, declared as YAML frontmatter + Markdown, following the same convention as an agent. | 4 |
@@ -82,15 +82,15 @@ board/claims
 board/tool
 delegate
 events
-experiment-report
-experiment
-export
 git/git
 git/land
 git/scratch
 git/worktree
 language
-measured
+measure/experiment
+measure/export
+measure/measured
+measure/report
 mirror
 pipeline/load
 pipeline/pipeline

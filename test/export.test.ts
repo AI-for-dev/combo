@@ -21,7 +21,7 @@ import {
 	exportSession,
 	usageReport,
 	writeUsageReport,
-} from "../src/export.ts";
+} from "../src/measure/export.ts";
 import { createRunPicture } from "../src/reporters/picture.ts";
 import type { SessionPort } from "../src/session.ts";
 import { spawn } from "../src/subagent.ts";
