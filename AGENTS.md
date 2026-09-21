@@ -180,6 +180,12 @@ reachable by forgetting an argument.
 - **A fake session cannot tell you that pi changed shape.** 158 green tests while
   the extension died on `undefined.create()` in a real pi. Anything that touches
   the real module has to be run against the real module.
+- **0.86 renamed the TUI class and stopped guessing tool renderers.** `TUI` is
+  an interface now; `TuiMainScreen` draws where it drew, and `pane/tui.ts`
+  chooses by presence. `ToolExecutionComponent` handed no definition no longer
+  recognises pi's own tools by name, so `pane/renderers.ts` names them with
+  `create*ToolDefinition`, which 0.80 and 0.86 both export. `ResourceLoader`
+  also grew two members that only pi's interactive mode ever calls.
 - `session.prompt()` takes **no `AbortSignal`** - bridge it to `session.abort()`,
   and remove the listener after the turn.
 - A turn can **fail without throwing**: read the last assistant message's
