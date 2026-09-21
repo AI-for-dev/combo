@@ -18,7 +18,7 @@ import { PIPELINE_MESSAGE } from "../extension/commands/pipeline.ts";
 import type { StepDeps } from "../extension/deps.ts";
 import { chainLines, currentChain, forgetChain, STEP_ENTRY, type StepEntry } from "../extension/relay.ts";
 import { quoteStep, runStep, showChain } from "../extension/commands/step.ts";
-import { parsePipeline } from "../src/pipeline.ts";
+import { parsePipeline } from "../src/pipeline/pipeline.ts";
 import { emptyUsage } from "../src/usage.ts";
 import { fakeCtx } from "./fixtures/command-ctx.ts";
 import { baseDeps } from "./fixtures/command-deps.ts";

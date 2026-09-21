@@ -2840,6 +2840,25 @@ agreement. The one arrow into the module from the core is `events.ts` naming
 `Post`, because a board's traffic is an event like any other; a directory makes
 that arrow readable where a flat listing hid it.
 
+### Running a pipeline is not a combinator
+
+`pipeline-run.ts` sat in `workflows/` and was the one file there that depended
+on every neighbour: it imported the eight combinators and dispatched on a
+step's `kind`, returned a `PipelineRunResult` rather than a `Result`, and
+composed with nothing. Every other file in the directory depends on
+`options.ts` and `pool.ts` and on nothing sideways. Its own header said what it
+was: "our code walks the steps". Meanwhile `pipeline.ts` and `pipeline-load.ts`
+sat at the root, two of the three stages of one thing, in a listing that put
+`ledger.ts` between them.
+
+`src/pipeline/` now holds the three in the order they are used - `pipeline.ts`
+reads the file, `load.ts` finds it, `run.ts` walks it - and `workflows/` holds
+only combinators again. `builtin.ts` stays at the root on purpose: its
+`PACKAGE_ROOT` is two `dirname`s up from its own file, so a move would point
+the shipped `agents/` and `pipelines/` at `src/` and nothing offline would
+notice; the layout block now says what it is for, so the next reader does not
+try.
+
 ## The public surface: one entry point, grouped as it is learnt
 
 `src/index.ts` is the only door - the examples and the extension import from it,

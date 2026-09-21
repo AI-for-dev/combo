@@ -18,6 +18,7 @@ src/                 the library - the only thing that matters
   session.ts         the whole pi API, and nowhere else
   subagent.ts        spawn() -> Subagent { ask, usage, close }
   board/             the swarm's shared board and its arbiter
+  pipeline/          a workflow written down: read, found, run
   workflows/         the combinators
     deliver/         the delivery, its git policy and its saved state
   reporters/         herdr, pi TUI, console, silent

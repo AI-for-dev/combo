@@ -11,7 +11,7 @@ import { succeeded } from "../../src/result.ts";
 import { emptyUsage, type Usage } from "../../src/usage.ts";
 import type { DeliverResult } from "../../src/workflows/deliver/deliver.ts";
 import type { InterviewResult } from "../../src/workflows/interview.ts";
-import type { PipelineRunResult } from "../../src/workflows/pipeline-run.ts";
+import type { PipelineRunResult } from "../../src/pipeline/run.ts";
 
 /** An interview that wrote its brief, unless told otherwise. */
 export function interviewResult(over: Partial<InterviewResult> = {}): InterviewResult {

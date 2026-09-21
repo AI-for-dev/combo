@@ -16,8 +16,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, test } from "node:test";
 import { loadAgentsFromDir } from "../src/agent.ts";
-import { findPipeline, loadPipelines, loadPipelinesFromDir, lookupPipeline } from "../src/pipeline-load.ts";
-import { checkPipelineAgents } from "../src/workflows/pipeline-run.ts";
+import { findPipeline, loadPipelines, loadPipelinesFromDir, lookupPipeline } from "../src/pipeline/load.ts";
+import { checkPipelineAgents } from "../src/pipeline/run.ts";
 
 const scratch: string[] = [];
 

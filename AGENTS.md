@@ -115,11 +115,13 @@ src/                the library
   skills.ts         resolving what an agent's `skills:` names, nearest first
   experiment.ts experiment-report.ts    one workflow, M models, N repetitions
   ask.ts verify.ts git.ts               the ports that touch the world
-  pipeline.ts pipeline-load.ts builtin.ts
+  builtin.ts        where the package's own agents/ and pipelines/ are
   board/            the swarm's board (board, claims, tool, agreement,
                     announced); index.ts is its door
+  pipeline/         pipeline (the file), load (where it is), run (our code
+                    walks the steps); index.ts is its door
   workflows/        chain fan-out loop reduce route orchestrate
-                    interview plan swarm pipeline-run;
+                    interview plan swarm;
                     options.ts pool.ts (turn, hold, closeAll) concurrent.ts
     deliver/        deliver pair audit, settle (how the work reaches the
                     tree) and resume (build.json); index.ts is its door
