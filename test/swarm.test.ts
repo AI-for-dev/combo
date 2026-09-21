@@ -8,9 +8,9 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { BOARD_TOOL } from "../src/board-tool.ts";
-import { createBoard } from "../src/board.ts";
-import { createClaims } from "../src/claims.ts";
+import { BOARD_TOOL } from "../src/board/tool.ts";
+import { createBoard } from "../src/board/board.ts";
+import { createClaims } from "../src/board/claims.ts";
 import { swarm, task } from "../src/workflows/swarm.ts";
 import { callTool } from "./fixtures/call-tool.ts";
 import { fakeSpawn, offeredTools, testAgent } from "./fixtures/fake-subagent.ts";

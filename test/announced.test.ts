@@ -8,9 +8,9 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { announcedBoard, announcedClaims } from "../src/announced.ts";
-import { createBoard } from "../src/board.ts";
-import { createClaims } from "../src/claims.ts";
+import { announcedBoard, announcedClaims } from "../src/board/announced.ts";
+import { createBoard } from "../src/board/board.ts";
+import { createClaims } from "../src/board/claims.ts";
 import { createEventBus, type SubagentEvent } from "../src/events.ts";
 
 function watched() {

@@ -7,7 +7,7 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { boardLines, createBoard, type Draft } from "../src/board.ts";
+import { boardLines, createBoard, type Draft } from "../src/board/board.ts";
 
 const tell = (text: string, to?: string): Draft => ({ kind: "tell", text, ...(to ? { to } : {}) });
 

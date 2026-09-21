@@ -25,8 +25,8 @@
 import { Type } from "typebox";
 import { boardLines, type Board, type PostKind } from "./board.ts";
 import type { Claims } from "./claims.ts";
-import { defineTool, type ToolDefinition } from "./session.ts";
-import { declares, refuse, said } from "./tool.ts";
+import { defineTool, type ToolDefinition } from "../session.ts";
+import { declares, refuse, said } from "../tool.ts";
 
 /** The name an agent writes in its `tools:` to be allowed on the board. */
 export const BOARD_TOOL = "board";
