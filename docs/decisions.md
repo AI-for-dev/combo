@@ -3145,3 +3145,47 @@ The neutrals are [trysquare](https://github.com/AI-for-dev/trysquare)'s, and the
 site is shaped like its documentation, deliberately: two tools by the same hand,
 meant to be read together, cost a reader more when they look unrelated than they
 gain by being distinct. What differs is the accent - brass there, verdigris here.
+
+## One package, and what would split it
+
+**The library and the extension ship in the same tarball.** pi lets one package
+be both: `exports` answers `import … from "@ai-for-dev/combo"`, and the `pi`
+manifest in `package.json` names `extension/index.ts`, which is what
+`pi install npm:@ai-for-dev/combo` loads. A real pi says so on startup, listing
+the extension with no `-e` on the command line.
+
+Two packages was the other candidate, and nothing pays for it today. The two
+halves share every dependency they have, and all of those are packages pi
+bundles, so a separate extension package would weigh nothing less. `extension/`
+and `pane/` reach into `src/` from twenty files: split them and every internal
+change becomes a version bump across a boundary, where a mismatched pair fails
+at runtime rather than at the typecheck. What would pay for it is the extension
+needing a dependency the library does not, or the two wanting different release
+cadences. Neither has happened, and rule 11 covers the rest.
+
+**The published name carries a scope** because `combo` was taken on npm in 2011.
+
+**The packages pi bundles are peer dependencies with a `*` range**, which is
+what pi's packaging documentation asks for, and the rule `buildRegistry` already
+obeys from the other side: an installed copy binds to the pi it is loaded into,
+never to a second one of its own. `@earendil-works/pi-tui` and `typebox` were
+imported and declared nowhere at all. In a clone they resolve by transitivity,
+and an installed copy is exactly where that stops being true.
+
+## The version comes from the commit titles
+
+Release Please reads the conventional commits landed on `main` and keeps one
+pull request open that is the next release. Merging it is the release: the tag,
+the GitHub release and the npm publish with provenance all follow from that one
+act, on a commit `ci.yml` has already typechecked and tested.
+
+The cost is a vocabulary. Pull requests are squashed here, so each title becomes
+a commit title, and `feat:` or `fix:` has to be written on it rather than
+inferred from the diff; `check-pr-title` refuses a title that cannot be parsed.
+The titles already in the history are prose, which is why `bootstrap-sha` names
+the tip of `main` at the time: the first release reads what comes after it.
+
+`versioning-strategy: always-bump-minor` was in the configuration this one was
+taken from, and is not here. It suits a project released as a whole. It does not
+suit a package whose readers write `~0.1.0` and would then never be offered a
+fix.
