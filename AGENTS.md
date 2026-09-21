@@ -114,7 +114,10 @@ src/                the library
   markdown.ts       finding and reading a .md with frontmatter
   skills.ts         resolving what an agent's `skills:` names, nearest first
   experiment.ts experiment-report.ts    one workflow, M models, N repetitions
-  ask.ts verify.ts git.ts               the ports that touch the world
+  ask.ts verify.ts                      the ports that touch the world
+  git/              run (git itself), git (what a pipeline may do), worktree
+                    and scratch (the copies), land (patches come home);
+                    index.ts is its door
   builtin.ts        where the package's own agents/ and pipelines/ are
   board/            the swarm's board (board, claims, tool, agreement,
                     announced); index.ts is its door

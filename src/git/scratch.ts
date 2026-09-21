@@ -12,8 +12,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { branchName, commitAll, deleteBranch, headSha } from "./git.ts";
-import type { GitResult } from "./git-run.ts";
-import { truncate } from "./text.ts";
+import type { GitResult } from "./run.ts";
+import { truncate } from "../text.ts";
 import { createWorktree, removeWorktree, worktreePatch } from "./worktree.ts";
 
 /** A copy made for one piece of work, and the way to get the work back out. */

@@ -18,7 +18,7 @@
 
 import type { Agent } from "../../agent.ts";
 import { notify } from "../../events.ts";
-import type { Landed } from "../../land.ts";
+import type { Landed } from "../../git/index.ts";
 import { joinOutputs, succeeded, type Result, type WorkflowResult } from "../../result.ts";
 import { sumUsage } from "../../usage.ts";
 import type { Verify } from "../../verify.ts";

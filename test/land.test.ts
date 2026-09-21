@@ -12,7 +12,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, test } from "node:test";
-import { land } from "../src/land.ts";
+import { land } from "../src/git/land.ts";
 import type { Verification } from "../src/verify.ts";
 
 const scratch: string[] = [];
