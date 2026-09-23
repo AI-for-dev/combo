@@ -27,10 +27,14 @@ const MAX_BUFFER = 10 * 1024 * 1024;
  */
 export type GitResult<T> = { ok: true; value: T } | { ok: false; error: string };
 
-/** Runs one git command. Arguments are an array: no shell, no interpolation. */
-export async function git(cwd: string, args: string[]): Promise<GitResult<string>> {
+/**
+ * Runs one git command. Arguments are an array: no shell, no interpolation.
+ * `env` is added to this process's own, for the index a read of the tree
+ * builds apart from the repository's.
+ */
+export async function git(cwd: string, args: string[], env?: Readonly<Record<string, string>>): Promise<GitResult<string>> {
 	try {
-		const { stdout } = await exec("git", args, { cwd, maxBuffer: MAX_BUFFER });
+		const { stdout } = await exec("git", args, { cwd, maxBuffer: MAX_BUFFER, ...(env && { env: { ...process.env, ...env } }) });
 		return { ok: true, value: stdout };
 	} catch (cause) {
 		const error = cause as { stderr?: string; message?: string };

@@ -77,6 +77,11 @@ export async function untracked(cwd: string): Promise<string[]> {
 	return result.value.split("\n").filter(Boolean);
 }
 
+/** Whether a local branch of that name exists. */
+export async function branchExists(cwd: string, name: string): Promise<boolean> {
+	return (await git(cwd, ["rev-parse", "--verify", "--quiet", `refs/heads/${name}`])).ok;
+}
+
 /**
  * Creates a branch and switches to it.
  *

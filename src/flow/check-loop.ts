@@ -18,7 +18,7 @@ import { showType, type Field, type ValueType } from "./type.ts";
 export function checkLoop(checker: Checker, node: LoopNode, scope: Scope): CheckedOne {
 	const first = node.carry && checker.typeOf(node.carry.first, `${node.at}.carry.first`, scope);
 	const inner = (previous: ValueType | undefined, carry: ValueType | undefined) =>
-		scope.inside(node.id, node.ledger).lend(node.id, own(previous, carry, node.ledger));
+		scope.inside(node.id, { ledger: node.ledger }).lend(node.id, own(previous, carry, node.ledger));
 
 	const draftScope = inner(undefined, first);
 	const draft = checker.quietly().sequence(node.nodes, draftScope);

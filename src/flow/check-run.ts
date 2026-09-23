@@ -4,15 +4,17 @@
  *
  * What the flow stage cannot know is here: the working tree, the ports the
  * launch hands over, and whether somebody is there. A flow valid on its own may
- * be refused on one project, since a check script belongs to the project.
+ * be refused on one project, since a check script belongs to the project,
+ * and a commit, a copy or a read of `diff` needs a repository.
  * What passes is a `CheckedRun`, which carries the tree and ports it was
  * checked against, so a flow checked for one project cannot run in another.
  */
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { GitPort } from "../git/index.ts";
 import type { CheckScript } from "../verify.ts";
-import type { CheckedCheckNode, CheckedFlow } from "./checked.ts";
+import type { CheckedCheckNode, CheckedFlow, CheckedNode } from "./checked.ts";
 import { FaultList, type Fault } from "./fault.ts";
 import { everyNode } from "./node.ts";
 
@@ -20,6 +22,8 @@ import { everyNode } from "./node.ts";
 export type FlowPorts = {
 	/** Runs a `check` node's script. */
 	readonly check?: CheckScript;
+	/** Commits, reads `diff`, and makes and lands the copies of a `copies: true` block. */
+	readonly git?: GitPort;
 };
 
 /** What a launch says about where it runs. */
@@ -47,10 +51,17 @@ export type CheckedRun = RunStage & {
 /** A checked run, or every fault that refused it. */
 export type CheckRun = { readonly ok: true; readonly run: CheckedRun } | { readonly ok: false; readonly faults: readonly Fault[] };
 
-/** `flow` held to `stage`. A missing port and a missing script are each reported once, at the first node needing it. */
-export function checkRun(flow: CheckedFlow, stage: RunStage): CheckRun {
+/** `flow` held to `stage`. A missing port, a missing script and a tree that is no repository are each reported once, at the first node needing it. */
+export async function checkRun(flow: CheckedFlow, stage: RunStage): Promise<CheckRun> {
 	const faults = new FaultList(flow.file);
-	const checks = [...everyNode(flow.nodes)].filter((node): node is CheckedCheckNode => node.kind === "check");
+	const nodes = [...everyNode(flow.nodes)];
+	const git = nodes.map(needsGit).find((at) => at !== undefined);
+	if (git !== undefined && stage.ports.git === undefined) {
+		faults.add("git-port-missing", git, "this run was given no `git` port to commit, read `diff` or make copies with");
+	} else if (git !== undefined && !(await stage.ports.git?.isRepository(stage.cwd))) {
+		faults.add("not-a-repository", git, `\`${stage.cwd}\` is not in a git repository`);
+	}
+	const checks = nodes.filter((node): node is CheckedCheckNode => node.kind === "check");
 	const first = checks[0];
 	if (first !== undefined && stage.ports.check === undefined) {
 		faults.add("check-port-missing", `${first.at}.check`, "this run was given no `check` port to run a script with");
@@ -68,6 +79,17 @@ export function checkRun(flow: CheckedFlow, stage: RunStage): CheckRun {
 			faults.add("check-script-missing", `${node.at}.check`, `\`${node.script}\` ${why}, from \`${stage.cwd}\``);
 		}
 	}
+	// Each fault is a node's key; they come back in the order of the file.
+	const order = nodes.map((node) => node.at);
+	faults.sort((fault) => order.indexOf(fault.at.slice(0, fault.at.lastIndexOf("."))));
 	if (faults.list.length > 0) return { ok: false, faults: faults.list };
 	return { ok: true, run: { ...stage, flow, scripts } as unknown as CheckedRun };
+}
+
+/** Where `node` needs git, when it does: a commit, a block's copies, a read of `diff`. */
+function needsGit(node: CheckedNode): string | undefined {
+	if (node.kind === "commit") return `${node.at}.commit`;
+	if ((node.kind === "parallel" || node.kind === "map") && node.copies) return `${node.at}.copies`;
+	if (node.kind === "agent" && node.reads.some((read) => read.address === "diff")) return `${node.at}.reads`;
+	return undefined;
 }

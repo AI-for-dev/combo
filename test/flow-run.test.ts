@@ -208,7 +208,7 @@ describe("`timeout:`", () => {
 			const flow = checked(`  - id: look\n    agent: scout${timeout}`, { look: "Look." }, `input: string${head}`);
 			const node = flow.nodes[0];
 			assert.equal(node?.kind, "agent");
-			const run = new Run({ flow, bus: createEventBus(), signal: new AbortController().signal, spawn: flowSpawn([]).spawn, timeoutMs, deadline: () => new AbortController().signal, check: async () => ({ ok: false, kind: "unavailable", message: "" }) });
+			const run = new Run({ flow, bus: createEventBus(), signal: new AbortController().signal, spawn: flowSpawn([]).spawn, timeoutMs, deadline: () => new AbortController().signal, check: async () => ({ ok: false, kind: "unavailable", message: "" }), commit: async () => ({ ok: false, kind: "unavailable", message: "" }), diff: async () => ({ ok: true, value: "" }) });
 			return run.timeoutFor(node as Extract<typeof node, { kind: "agent" }>);
 		};
 		assert.deepEqual([bound("\ntimeout: 2m", "\n    timeout: 90s", 5), bound("\ntimeout: 2m", "\n    timeout: 90s"), bound("\ntimeout: 2m", ""), bound("", "")], [5, 90_000, 120_000, 1_800_000]);
@@ -310,10 +310,8 @@ describe("a visit's report", () => {
 });
 
 describe("what the runner refuses before the first spawn", () => {
-	test("`copies: true`, which it does not make yet, and an input off the flow's `input:`", async () => {
+	test("an input off the flow's `input:`", async () => {
 		const fake = flowSpawn([]);
-		const parallel = checked("  - id: both\n    copies: true\n    parallel:\n      a:\n        - id: one\n          agent: scout\n      b:\n        - id: two\n          agent: scout", { one: "One.", two: "Two." });
-		await assert.rejects(runChecked(parallel, "x", { spawn: fake.spawn }), /`both`: `copies: true` is not run yet by the flow runner/);
 		const typed = checked("  - id: one\n    agent: scout\n    reads: [input]", { one: "One." }, "input: { task: string }");
 		await assert.rejects(runChecked(typed, "x", { spawn: fake.spawn }), /does not match its `input:`: the value is "x", not \{ task: string \}/);
 		assert.equal(fake.created.length, 0);

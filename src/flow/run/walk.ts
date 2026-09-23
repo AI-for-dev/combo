@@ -4,24 +4,27 @@
  *
  * Our code decides what runs next. A model's output is a value a `choice`
  * reads; it never names a node. The blocks that open branches are in
- * `blocks.ts`, the loop in `loop.ts`, and both come back through
- * {@link Run.sequence}.
+ * `blocks.ts` and `choice.ts`, the loop in `loop.ts`, and each comes back
+ * through {@link Run.sequence}.
  */
 
 import type { Agent } from "../../agent.ts";
 import type { EventBus } from "../../events.ts";
+import type { GitResult } from "../../git/index.ts";
 import { VERDICT_TOOL } from "../../review/index.ts";
 import { toolsOf } from "../../session.ts";
-import { emptyUsage, sumUsage, type Usage } from "../../usage.ts";
+import { sumUsage, type Usage } from "../../usage.ts";
 import type { ScriptOutcome } from "../../verify.ts";
 import type { SpawnFn } from "../../workflows/options.ts";
-import { caseNames, type CheckedAgentNode, type CheckedCheckNode, type CheckedChoiceNode, type CheckedFlow, type CheckedNode, type FlowError } from "../checked.ts";
-import { evaluateCondition } from "../condition/index.ts";
+import { type CheckedAgentNode, type CheckedCheckNode, type CheckedCommitNode, type CheckedFlow, type CheckedNode, type FlowError } from "../checked.ts";
 import { sharedKey, sharedSubagents, submitted } from "../memory.ts";
 import { visitAgent, type AgentRun, type Attempt } from "./agent.ts";
 import { visitMap, visitParallel } from "./blocks.ts";
 import { visitCheck, type CheckingRun } from "./check.ts";
-import { failure, interruption, travelled, under, type Ended, type Visited, type Walked } from "./ended.ts";
+import { visitChoice } from "./choice.ts";
+import { visitCommit, type CommitOutcome, type CommittingRun } from "./commit.ts";
+import type { Copies } from "./copies.ts";
+import { interruption, under, type Ended, type Visited, type Walked } from "./ended.ts";
 import type { Frames, Held } from "./frames.ts";
 import { visitLoop } from "./loop.ts";
 import { SUBMIT_TOOL, submitTool } from "./submit.ts";
@@ -32,23 +35,32 @@ import { verdictSlot } from "./verdict.ts";
 export const DEFAULT_TIMEOUT_MS = 30 * 60_000;
 
 /**
- * Where a visit stands: what it reads, the memory scopes open around it, and
- * the signal that cuts it short, the run's own or a `fail-fast` block's.
+ * Where a visit stands: what it reads, the memory scopes open around it, the
+ * signal that cuts it short, the run's own or a `fail-fast` block's, and the
+ * working tree it acts in: the run's, or its branch's copy inside a
+ * `copies: true` block. A dry run has none.
  */
-export type Here = { readonly values: Values; readonly frames: Frames; readonly cut: AbortSignal };
+export type Here = { readonly values: Values; readonly frames: Frames; readonly cut: AbortSignal; readonly tree: string | undefined };
 
-/** What a block needs of the walk: the run's signal, and a sequence walked inside it. */
-export type Walker = { readonly signal: AbortSignal; sequence(nodes: readonly CheckedNode[], prefix: string, here: Here): Promise<Walked> };
+/** What a block needs of the walk: the run's signal, the copies it makes, and a sequence walked inside it. */
+export type Walker = {
+	readonly signal: AbortSignal;
+	readonly copies?: Copies;
+	sequence(nodes: readonly CheckedNode[], prefix: string, here: Here): Promise<Walked>;
+};
 
 /**
- * How a walk reaches the world: the tree its subagents work in, the deadline
- * of each agent attempt, and a check's script run. A real run's come from its
- * `CheckedRun`; a dry run's are scripted, and give no tree.
+ * How a walk reaches the world: the deadline of each agent attempt, a
+ * check's script run in a tree, a commit, the `diff` of a tree, and the
+ * copies of a block. A real run's come from its `CheckedRun`; a dry run's are
+ * scripted, and it makes no copy.
  */
 export type World = {
-	readonly cwd?: string;
 	deadline(attempt: Attempt): AbortSignal;
-	check(node: CheckedCheckNode, path: string, signal: AbortSignal): Promise<ScriptOutcome>;
+	check(node: CheckedCheckNode, path: string, signal: AbortSignal, tree: string | undefined): Promise<ScriptOutcome>;
+	commit(node: CheckedCommitNode, path: string, message: string): Promise<CommitOutcome>;
+	diff(tree: string | undefined): Promise<GitResult<string>>;
+	readonly copies?: Copies;
 };
 
 /** What a run is given: the flow, its settings, and how it reaches the world. */
@@ -62,14 +74,16 @@ export type Walk = World & {
 };
 
 /** One run of a checked flow. */
-export class Run implements AgentRun, CheckingRun, Walker {
+export class Run implements AgentRun, CheckingRun, CommittingRun, Walker {
 	readonly signal: AbortSignal;
+	readonly copies?: Copies;
 	private readonly walk: Walk;
 	private readonly shared: ReturnType<typeof sharedSubagents>;
 
 	constructor(walk: Walk) {
 		this.walk = walk;
 		this.signal = walk.signal;
+		this.copies = walk.copies;
 		this.shared = sharedSubagents(walk.flow.nodes);
 	}
 
@@ -99,8 +113,16 @@ export class Run implements AgentRun, CheckingRun, Walker {
 		return this.walk.deadline(attempt);
 	}
 
-	check(node: CheckedCheckNode, path: string, signal: AbortSignal): Promise<ScriptOutcome> {
-		return this.walk.check(node, path, signal);
+	check(node: CheckedCheckNode, path: string, signal: AbortSignal, tree: string | undefined): Promise<ScriptOutcome> {
+		return this.walk.check(node, path, signal, tree);
+	}
+
+	commit(node: CheckedCommitNode, path: string, message: string): Promise<CommitOutcome> {
+		return this.walk.commit(node, path, message);
+	}
+
+	diff(tree: string | undefined): Promise<GitResult<string>> {
+		return this.walk.diff(tree);
 	}
 
 	/**
@@ -109,7 +131,7 @@ export class Run implements AgentRun, CheckingRun, Walker {
 	 * typed value or a verdict, so the agent is given the tool that hands it
 	 * back; `tools:` is an allowlist, and it covers ours too.
 	 */
-	async open(agent: Agent, node: CheckedAgentNode, path: string): Promise<Held> {
+	async open(agent: Agent, node: CheckedAgentNode, path: string, tree: string | undefined): Promise<Held> {
 		const serves = node.memory === undefined ? [node] : (this.shared.get(sharedKey(node.memory, agent.name)) ?? []);
 		const type = submitted(serves);
 		const submit = type === undefined ? undefined : submitTool(type);
@@ -120,7 +142,7 @@ export class Run implements AgentRun, CheckingRun, Walker {
 		const subagent = await this.walk.spawn(holder, {
 			lifetime: node.memory === undefined ? "task" : "workflow",
 			bus: this.walk.bus,
-			cwd: this.walk.cwd,
+			cwd: tree,
 			// The run's, then the flow's; `spawn` falls back on the agent's own.
 			model: this.walk.model ?? this.walk.flow.model,
 			customTools: [submit?.tool, verdict?.tool].filter((tool) => tool !== undefined),
@@ -147,7 +169,7 @@ export class Run implements AgentRun, CheckingRun, Walker {
 			case "agent":
 				return visitAgent(this, node, path, here);
 			case "choice":
-				return this.choice(node, path, here);
+				return visitChoice(this, node, path, here);
 			case "parallel":
 				return visitParallel(this, node, path, here);
 			case "map":
@@ -156,32 +178,9 @@ export class Run implements AgentRun, CheckingRun, Walker {
 				return visitLoop(this, node, path, here);
 			case "check":
 				return visitCheck(this, node, path, here);
+			case "commit":
+				return visitCommit(this, node, path, here);
 		}
-	}
-
-	/** The first case whose condition holds, else the default, in a scope of its own. */
-	private async choice(node: CheckedChoiceNode, path: string, here: Here): Promise<Visited> {
-		const names = caseNames(node.cases.length);
-		let chosen = node.cases.length;
-		for (const [index, one] of node.cases.entries()) {
-			const holds = evaluateCondition(one.when, here.values.all());
-			if (!holds.ok) return { ended: failure("condition", `\`${one.when.source.trim()}\`: ${holds.message}`), usage: emptyUsage() };
-			if (holds.value) {
-				chosen = index;
-				break;
-			}
-		}
-		const frames = here.frames.inside(node.id);
-		let walked: Walked;
-		try {
-			walked = await this.sequence(node.cases[chosen]?.nodes ?? node.otherwise, path, { ...here, values: here.values.inside(), frames });
-		} finally {
-			await frames.close();
-		}
-		const usage = sumUsage(walked.usage, 0);
-		if (walked.failed !== undefined) return { ended: travelled(walked.failed), usage, failed: walked.failed };
-		const last = walked.last?.ok ? { output: walked.last.output } : {};
-		return { ended: { ok: true, output: { case: names[chosen], ...last } }, usage };
 	}
 }
 

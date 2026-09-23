@@ -35,7 +35,7 @@ export async function visitLoop(walker: Walker, node: CheckedLoopNode, path: str
 			if (!carry.ok) return done(carry.ended);
 			const own = withLedger({ ...(previous && { previous }), ...(node.carry && { carry: carry.value }) }, ledger);
 			const values = here.values.inside().lend(node.id, own, previous === undefined);
-			const walked = await walker.sequence(node.nodes, `${path}#${n}`, { values, frames, cut: here.cut });
+			const walked = await walker.sequence(node.nodes, `${path}#${n}`, { ...here, values, frames });
 			usage.push(...walked.usage);
 			if (walked.failed !== undefined) return done(travelled(walked.failed), { failed: walked.failed });
 			const last = Object.fromEntries(node.nodes.map((one) => [one.id, values.ended(one.id) as Ended]));

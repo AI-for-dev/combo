@@ -14,6 +14,7 @@ import path from "node:path";
 import { afterEach, describe, test } from "node:test";
 import { branchName, commitAll, createBranch, currentBranch, diff, diffStat, isRepository, status, untracked } from "../src/git/git.ts";
 import { gitWithInput } from "../src/git/run.ts";
+import { snapshot, treeDiff } from "../src/git/tree.ts";
 
 const scratch: string[] = [];
 
@@ -88,6 +89,34 @@ describe("reading a repository", () => {
 		assert.deepEqual(await untracked(dir), ["new.ts"]);
 		const patch = await diff(dir);
 		assert.ok(patch.ok && !patch.value.includes("new.ts"), "which is exactly why they are listed separately");
+	});
+});
+
+describe("reading the tree without touching it", () => {
+	test("its diff holds untracked files, and the index and the status stay as they were", async () => {
+		const dir = repo();
+		fs.writeFileSync(path.join(dir, "README.md"), "# demo\nmore\n");
+		fs.writeFileSync(path.join(dir, "new.ts"), "export const x = 1;\n");
+		const before = await status(dir);
+
+		const patch = await treeDiff(dir);
+		assert.match(patch.ok ? patch.value : "", /\+more[\s\S]*new file mode[\s\S]*\+export const x = 1;/);
+		assert.deepEqual(await status(dir), before);
+		assert.equal(execFileSync("git", ["diff", "--cached", "--name-only"], { cwd: dir, encoding: "utf-8" }), "");
+
+		const cut = await treeDiff(dir, 100);
+		assert.match(cut.ok ? cut.value : "", /\[diff truncated at 100 bytes\]$/);
+	});
+
+	test("a snapshot is a commit of the tree on top of HEAD, which no ref points to", async () => {
+		const dir = repo();
+		fs.writeFileSync(path.join(dir, "new.ts"), "export const x = 1;\n");
+		const sha = await snapshot(dir);
+		assert.ok(sha.ok);
+		const show = (...args: string[]) => execFileSync("git", args, { cwd: dir, encoding: "utf-8" }).trim();
+		assert.equal(show("show", `${sha.value}:new.ts`), "export const x = 1;");
+		assert.equal(show("rev-parse", `${sha.value}^`), show("rev-parse", "HEAD"));
+		assert.deepEqual([show("branch", "--contains", sha.value), show("status", "--porcelain")], ["", "?? new.ts"]);
 	});
 });
 

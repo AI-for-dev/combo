@@ -126,8 +126,9 @@ src/                the library
                     index.ts is its door
   ask.ts verify.ts                      the ports that touch the world
   git/              run (git itself), git (what a pipeline may do), worktree
-                    and scratch (the copies), land (patches come home);
-                    index.ts is its door
+                    and scratch (the copies), tree (read without touching
+                    it), land (patches come home), port (what a flow run may
+                    ask); index.ts is its door
   builtin.ts        where the package's own agents/, pipelines/ and flows/ are
   board/            the swarm's board (board, claims, tool, agreement,
                     announced); index.ts is its door
@@ -135,20 +136,21 @@ src/                the library
                     it: file (the text, read into nodes), node (what a node
                     is: the closed lists of kinds and keys), read-node,
                     agent-node, blocks, loop and world (each kind; world
-                    holds the nodes that act, `check`), sections, value,
-                    fault (why a flow is refused), catalogue (flows and
-                    agents on disk, broken files kept), agents (a name
-                    resolved, skills checked), check, check-blocks and
-                    check-loop (the flow stage, against a catalogue),
-                    check-run (the run stage: the tree, the ports), scope
-                    (what a node can read), checked (what it hands on),
-                    memory (the subagents a scope shares), type (what a
-                    value is), schema (how a file writes one), condition/
-                    (a CEL subset: tokens, parse, compile, evaluate,
-                    address), run/ (the runner: flow, walk, blocks, loop,
-                    agent, check, turn, submit, verdict, frames, values,
-                    ended; dry-run on answers, keys and scripted); index.ts
-                    is each one's door
+                    holds the nodes that act, `check` and `commit`),
+                    sections, value, fault (why a flow is refused),
+                    catalogue (flows and agents on disk, broken files
+                    kept), agents (a name resolved, skills checked), check,
+                    check-blocks, check-loop and check-world (the flow
+                    stage, against a catalogue), check-run (the run stage:
+                    the tree, the ports), scope (what a node can read),
+                    checked (what it hands on), memory (the subagents a
+                    scope shares), type (what a value is), schema (how a
+                    file writes one), condition/ (a CEL subset: tokens,
+                    parse, compile, evaluate, address), run/ (the runner:
+                    flow, walk, choice, blocks, copies, loop, agent, check,
+                    commit, turn, submit, verdict, frames, values, ended;
+                    dry-run on answers, keys and scripted); index.ts is
+                    each one's door
   pipeline/         pipeline (the file), load (where it is), run (our code
                     walks the steps); index.ts is its door
   review/           review (the record), verdict (a decision as a tool call),

@@ -9,9 +9,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, describe, test } from "node:test";
-import { checkFlow, checkRun, dryRunFlow, runFlow, type CheckedCheckNode, type FlowPorts } from "../src/flow/index.ts";
+import { checkRun, dryRunFlow, runFlow, type CheckedCheckNode, type FlowPorts } from "../src/flow/index.ts";
 import { bashCheck } from "../src/verify.ts";
-import { AGENTS, checked, flowSpawn, launched } from "./fixtures/flow.ts";
+import { checked, flowSpawn, launched, refused } from "./fixtures/flow.ts";
 
 const dirs: string[] = [];
 after(() => {
@@ -31,14 +31,6 @@ const PORTS: FlowPorts = { check: bashCheck() };
 
 /** A flow of one check, `tests`, with `keys` beside it. */
 const TESTS = (keys = "") => checked(`  - id: tests\n    check: .pi/checks/tests.sh${keys}`, {});
-
-/** The faults of the flow `f` whose nodes are `nodes`, as `code at`. */
-function refused(nodes: string, body = ""): string[] {
-	const content = `---\nname: f\ndescription: d\ninput: string\nnodes:\n${nodes}\n---\n${body}`;
-	const result = checkFlow("f", { flows: [{ name: "f", filePath: "flows/f.md", content }], agents: AGENTS, brokenAgents: [], cwd: "." });
-	assert.ok(!result.ok, "expected the flow to be refused");
-	return result.faults.map(({ code, at }) => `${code} ${at}`);
-}
 
 describe("a check node, read", () => {
 	test("names a script from the repository root, bounded by two minutes unless it says otherwise", () => {
@@ -62,16 +54,16 @@ describe("a check node, read", () => {
 });
 
 describe("the run stage", () => {
-	test("reads each script once, and refuses a missing one and a missing port once each", () => {
+	test("reads each script once, and refuses a missing one and a missing port once each", async () => {
 		const two = checked("  - id: a\n    check: .pi/checks/gone.sh\n  - id: b\n    check: .pi/checks/gone.sh\n  - id: c\n    check: .pi/checks", {});
-		const result = checkRun(two, { cwd: tree({}), ports: {}, somebodyThere: false });
+		const result = await checkRun(two, { cwd: tree({}), ports: {}, somebodyThere: false });
 		assert.deepEqual(!result.ok && result.faults.map(({ code, at }) => `${code} ${at}`), ["check-port-missing a.check", "check-script-missing a.check", "check-script-missing c.check"]);
 		assert.match(!result.ok ? (result.faults[2]?.message ?? "") : "", /is a directory/);
 	});
 
 	test("holds the content it read, and that is what runs, whatever the file says later", async () => {
 		const cwd = tree({ "tests.sh": "echo before; exit 0" });
-		const run = launched(TESTS(), { cwd, ports: PORTS });
+		const run = await launched(TESTS(), { cwd, ports: PORTS });
 		fs.writeFileSync(path.join(cwd, ".pi", "checks", "tests.sh"), "echo after; exit 1");
 		const result = await runFlow(run, "x");
 		assert.deepEqual(result.ok && result.output, { passed: true, report: "before" });
@@ -83,17 +75,17 @@ describe("a check, run", () => {
 		const cwd = tree({ "tests.sh": 'echo "$0 in $(basename "$PWD")"; echo oops >&2; exit 0', "red.sh": "no-such-command-here" });
 		const flow = checked("  - id: green\n    check: .pi/checks/tests.sh\n  - id: red\n    check: .pi/checks/red.sh\n  - id: read\n    agent: scout\n    reads: [green, red.output.passed]", { read: "Read." });
 		const fake = flowSpawn([[{ text: "read" }]]);
-		const result = await runFlow(launched(flow, { cwd, ports: PORTS }), "x", { spawn: fake.spawn });
+		const result = await runFlow(await launched(flow, { cwd, ports: PORTS }), "x", { spawn: fake.spawn });
 		assert.ok(result.ok);
 		assert.match(fake.created[0]?.prompts[0] ?? "", new RegExp(`"report": ".pi/checks/tests.sh in ${path.basename(cwd)}\\\\noops"[\\s\\S]*## red.output.passed\\n\\n\`\`\`json\\nfalse`));
 	});
 
 	test("that could not start fails `unavailable`, and one past its bound fails `timeout`, without waiting on what it left running", async () => {
 		const cwd = tree({ "tests.sh": "sleep 30 & sleep 30" });
-		const unavailable = await runFlow(launched(TESTS(), { cwd, ports: { check: bashCheck("no-such-bash") } }), "x");
+		const unavailable = await runFlow(await launched(TESTS(), { cwd, ports: { check: bashCheck("no-such-bash") } }), "x");
 		assert.deepEqual(!unavailable.ok && [unavailable.error.kind, unavailable.path], ["unavailable", "tests"]);
 		const started = performance.now();
-		const late = await runFlow(launched(TESTS("\n    timeout: 1s"), { cwd, ports: PORTS }), "x");
+		const late = await runFlow(await launched(TESTS("\n    timeout: 1s"), { cwd, ports: PORTS }), "x");
 		assert.deepEqual(!late.ok && late.error, { kind: "timeout", message: "`.pi/checks/tests.sh` ran past its bound of 1000 ms" });
 		assert.ok(performance.now() - started < 3_000, "the script and what it started are killed at the bound");
 	});
@@ -103,11 +95,11 @@ describe("a check, run", () => {
 		const stop = new AbortController();
 		setTimeout(() => stop.abort(), 100);
 		const started = performance.now();
-		const stopped = await runFlow(launched(TESTS(), { cwd, ports: PORTS }), "x", { signal: stop.signal });
+		const stopped = await runFlow(await launched(TESTS(), { cwd, ports: PORTS }), "x", { signal: stop.signal });
 		assert.deepEqual(!stopped.ok && stopped.error.kind, "stopped");
 		assert.ok(performance.now() - started < 3_000);
 		const flow = checked("  - id: tests\n    check: .pi/checks/tests.sh\n    on-fail: continue\n  - id: gate\n    choice:\n      - when: tests.error.kind == \"unavailable\"\n        do:\n          - id: say\n            agent: scout\n    default: []", { say: "Say." });
-		const result = await runFlow(launched(flow, { cwd, ports: { check: bashCheck("no-such-bash") } }), "x", { spawn: flowSpawn([[{ text: "said" }]]).spawn });
+		const result = await runFlow(await launched(flow, { cwd, ports: { check: bashCheck("no-such-bash") } }), "x", { spawn: flowSpawn([[{ text: "said" }]]).spawn });
 		assert.deepEqual(result.ok && result.output, { case: "1", output: "said" });
 	});
 });

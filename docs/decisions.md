@@ -1419,9 +1419,8 @@ are. `src/flow/agents.ts` resolves the names a flow gives.
 ### The runner composes every turn, and reads a typed value from a tool call
 
 `src/flow/run/` walks a checked flow: `runFlow`, and `dryRunFlow` on scripted
-sessions. It walks every kind of node, and throws before the first spawn on
-`copies: true`, since the checked flow is fine and it is the runner that falls
-short.
+sessions. It walks every kind of node. It first threw before the first spawn
+on `copies: true`, until the `git` port came (see below).
 
 - **`submit` is added to the agent's `tools:` for a typed node.** `tools:` is
   an allowlist that covers the tools combo offers, so without it the tool built
@@ -1494,10 +1493,9 @@ and the ledgers and `verdict:` nodes go through the review record.
   code reads `cancelled` off that signal, like `stopped` off the run's, rather
   than off a message. A branch not started runs no visit: its entry is
   `cancelled` at the path of its first node.
-- **`copies: true` is refused at run time for now.** Copies and their landing
-  need the `git` port, which comes with the world-touching nodes. A runner
-  that ran the branches in one tree instead would make the `copies-needed`
-  fault a lie.
+- **`copies: true` was refused at run time until the `git` port existed.** A
+  runner that ran the branches in one tree instead would have made the
+  `copies-needed` fault a lie. The refusal went with the commit node, below.
 - **A `verdict:` node is a review record handed the scope's ledger.**
   `reviewRecord` takes a `ledger` read at every use, so the three rules and
   the terms a reviewer is asked on stay written once. It is read at every use
@@ -1569,6 +1567,58 @@ and `runFlow` takes the `CheckedRun` it returns in place of a flow and a
 - **`checkRun` takes `somebodyThere` already.** The launch states it once, and
   the `CheckedRun` holds it, so the `ask` node reads it rather than changing
   every caller of `checkRun`.
+
+### A commit is our act, and copies start from the tree as it stands
+
+The `commit` node, the `diff` address and `copies: true` reach git through one
+port, `gitPort()` in `src/git/port.ts`, built on the rest of `src/git/`. The
+runner never runs git itself.
+
+- **`checkRun` is async.** Whether `cwd` is in a repository is a question for
+  git, so the run stage asks the port it was handed rather than guessing from
+  a `.git` on disk, and that is a process.
+- **The port holds no state; the run's branch lives in the run.** A port can
+  serve several runs, and a branch belongs to one. The first commit opens
+  `combo/<slug of input>` (a typed input is slugged from its JSON), suffixed
+  while the name is taken, and every later commit first checks `HEAD` is still
+  on it: committing onto a branch somebody switched to is the one thing a
+  branch of its own is there to prevent. It opens even when the tree is clean,
+  so `branch` always names the run's.
+- **A commit's message is an earlier node's output.** A text, or a `string`
+  field of a typed one. `input`, `item` and `diff` are refused where they are
+  written: a message is what an agent node wrote, and an `ask` can sit between
+  the two. An empty or absent message fails `empty-message` before git is
+  asked anything, so nothing is opened for a commit that cannot happen.
+- **`diff` goes through an index of its own.** A copy of the repository's
+  index in a temporary file, with every change added, so untracked files show
+  and the person's `git status` does not change; `git add -N` on the real index
+  would have marked each one as added. It is a text, so no condition reads it,
+  and a node that cannot have it fails `unavailable`.
+- **A copy starts from a snapshot of the tree, not from `HEAD`.** A commit of
+  the tree as it stands, which no ref points to. From `HEAD`, the second
+  iteration of a loop around a `copies: true` block would not see what the
+  first landed, and its patches would conflict with it on the way back.
+- **Each branch's entry says whether its patch landed.** `landed`, and
+  `refused` with git's reason on the patch that stopped the landing; the
+  branches after it read `landed: false`. A patch that could not be taken stops
+  the landing like one that does not apply, and a branch that changed nothing
+  counts as landed. It is a value, like a red check: the `check` after the
+  block, or a condition, decides what to do about it.
+- **A stopped run lands nothing.** Its copies are still released, which
+  commits each one's work on the copy's own branch before removing it, so what
+  a branch wrote is kept and nothing half-finished reaches the run's tree.
+- **A commit writes, and copies are no way out for it.** Beside branches
+  running at once, `copies-needed` offers to commit after the block (or
+  `concurrency: 1` on a `map`), since a commit inside a copy is refused as
+  `commit-in-copies`.
+- **A memory scope used inside a copy opens inside it.** A subagent works in
+  the tree it was spawned in, so one kept by `flow`, or by a block around the
+  copies, would work in a tree that is not its branch's, and outlive the copy
+  it was spawned in. `memory-outside-copies` refuses it.
+- **A dry run makes no copy and runs no git.** A commit is answered by the
+  script, `{ committed, sha?, branch }` or `{ fail: "unavailable" }`; an empty
+  message comes from the node that writes it. `diff` reads as an empty text,
+  and every branch of a copies block reads as landed.
 
 ## A chain walked by hand
 
