@@ -1416,6 +1416,61 @@ are. `src/flow/agents.ts` resolves the names a flow gives.
 - **The catalogue carries its `cwd`.** A skill resolves from the repository a
   run starts in, so the catalogue is loaded for one directory and says which.
 
+### The runner composes every turn, and reads a typed value from a tool call
+
+`src/flow/run/` walks a `CheckedFlow`: `runFlow`, and `dryRunFlow` on scripted
+sessions. It walks `agent` and `choice` nodes so far, and throws before the
+first spawn on any other kind, since the checked flow is fine and it is the
+runner that falls short.
+
+- **`submit` is added to the agent's `tools:` for a typed node.** `tools:` is
+  an allowlist that covers the tools combo offers, so without it the tool built
+  from `output:` would never be enabled. It is granted by the flow file, which
+  asked for a typed value, and it hands a value back without acting on
+  anything; an untyped node's agent gets exactly its own tools.
+- **A call off the schema is refused back to the model.** The turn goes on, the
+  model can call again, and the last call accepted is the answer; the node
+  fails `schema` only when the turn ends with none. The `verdict` tool already
+  works this way, and a turn thrown away over a fixable call costs a whole
+  retry. A value that is not an object travels as `{ value }`, since a tool's
+  parameters are an object.
+- **Nodes sharing a subagent declare one `output:`.** A subagent's tools are
+  fixed when it is spawned, so two typed nodes resuming one subagent through
+  `memory:` with different schemas cannot both have their `submit`. The flow
+  stage refuses it as `memory-output-mismatch`. A text node beside a typed one
+  is fine.
+- **Our code classifies a failure, not a message.** Each attempt gets a
+  deadline signal of its own, and a failed attempt is `stopped` when the run's
+  signal or the subagent's stop fired, `timeout` when its deadline did, and
+  `provider` otherwise. The dry run gives each attempt a deadline its scripted
+  session fires itself, so a scripted timeout goes through the same abort with
+  no clock to wait on.
+- **A retry on the same subagent is asked the failure, not the turn again.**
+  The turn is already in its history; it is told what failed, and a typed node
+  is reminded to call `submit`. A fresh subagent, after a timeout with no
+  `memory:`, is asked the whole turn.
+- **A read typed `string` goes as it is.** `input: string` is what a person
+  typed, and a JSON string with its quotes and escaped newlines would change how
+  a model reads it. Text goes as it is, every other value as JSON. An optional
+  field left out keeps its heading, as an empty text does.
+- **`agent-from:` that cannot be read fails with `condition`.** A value that
+  picks an agent is read like an address in a condition, and a condition that
+  meets a failed node or an absent field fails with that kind.
+- **The runner does not write the language line.** `Subagent.ask` closes every
+  turn with it already, so a flow's turn gets it last like any other.
+- **A visit event carries no subagent id.** A visit is a node's, and a `choice`
+  has no subagent, so `picture`, herdr and the mirror skip them (`isVisit`).
+  `visit_end` carries the agent a visit ran and its model, which the journal
+  will record, so `Subagent` now exposes the model pi resolved.
+- **The input and the kinds are checked before the first spawn, by a throw.**
+  An input off `input:` is the caller's mistake; the run stage will refuse it
+  as a fault once it exists.
+- **A dry run's script is keyed by node address.** `gate/look`, as a fault's
+  `at` names it, never a bare id; the refusal offers the address when a key is
+  an id. An array is always a list of answers, since an answer can itself be a
+  list, and one value answers every attempt. A script's faults are a closed set
+  of their own, `ANSWER_CODES`, apart from the flow's.
+
 ## A chain walked by hand
 
 `/run explore …` put its answer in the conversation, and the session picked it

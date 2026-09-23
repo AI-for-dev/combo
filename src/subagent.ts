@@ -146,6 +146,8 @@ export type Subagent = {
 	readonly agent: Agent;
 	/** Resolved once, at spawn: the argument, then the frontmatter, then `"task"`. */
 	readonly lifetime: Lifetime;
+	/** `provider/id` as pi resolved it, which only the session knows. Absent when pi could not say. */
+	readonly model?: string;
 	/** Cumulative measurements since spawn. Read `Result.usage` for a single turn. */
 	readonly usage: Usage;
 	/** Runs one turn of work. Never throws on a model failure - returns `ok: false`. */
@@ -203,6 +205,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 		customTools: toolsOffered(options.customTools, id),
 	});
 
+	const model = modelLabel(session);
 	// Monotonic clock: `Date.now()` jumps when the system clock is adjusted,
 	// and a duration must never go backwards.
 	const spawnedAt = performance.now();
@@ -215,7 +218,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 	const unregister = registerMirror({
 		id,
 		agent: agent.name,
-		model: modelLabel(session),
+		model,
 		cwd: options.cwd ?? process.cwd(),
 		session,
 		bus,
@@ -255,7 +258,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 		lifetime,
 		openInHerdr,
 		order,
-		model: modelLabel(session),
+		model,
 		parentId: options.parentId,
 	});
 	bus.emit({ type: "status", id, status: "idle" });
@@ -264,6 +267,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 		id,
 		agent,
 		lifetime,
+		model,
 		get usage() {
 			// Wall time keeps running between two `ask` calls: on a persistent
 			// agent, the gap between wallMs and busyMs *is* the information.

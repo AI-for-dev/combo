@@ -576,7 +576,7 @@ flows. Then one breaking PR switches `/build` and `/pipelines` to `/run` and
 `/flows`. [Flows: a closed language](docs/decisions.md#flows-a-closed-language)
 says why the old "no YAML DSL" line moved.
 
-Done so far: conditions (`src/flow/condition/`), schemas (`src/flow/schema.ts`), the file with `checkFlow` for `agent`, `choice`, `parallel`, `map` and `loop` nodes, and `loadFlowCatalogue`, which reads flows and agents from disk, keeps broken agent files with their cause, and checks each agent's skills. The runner and the dry run are next.
+Done so far: conditions (`src/flow/condition/`), schemas (`src/flow/schema.ts`), the file with `checkFlow` for `agent`, `choice`, `parallel`, `map` and `loop` nodes, and `loadFlowCatalogue`, which reads flows and agents from disk, keeps broken agent files with their cause, and checks each agent's skills. The runner (`src/flow/run/`) walks `agent` and `choice` nodes: the composed turn, typed outputs through `submit`, `agent-from`, memory scopes, `retry:`, `timeout:`, failures and stops, visit events; `dryRunFlow` runs it on scripted sessions. Next: `parallel`, `map` and `loop` with their ledgers, verdicts, carry and `previous`, and `fail-fast`.
 
 ## How to verify anything here
 

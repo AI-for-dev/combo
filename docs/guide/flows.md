@@ -262,6 +262,102 @@ A string compared with an enum must be one of its values. A condition that canno
 be evaluated (a failed node, an absent optional field) fails its node rather than
 reading as `false`; guard it the CEL way, `audit.ok && audit.output.approved`.
 
+## Running a flow
+
+```{note}
+Not exported yet, like the rest of the format. The runner walks `agent` and
+`choice` nodes so far; a flow holding a `parallel`, a `map`, a `loop` or a
+`verdict:` is refused with an error before anything is spawned.
+```
+
+`runFlow(checked, input, options)` takes what `checkFlow` returned and the
+flow's input, which must match its `input:`. Its options are `spawn`, `signal`,
+`onEvent`, `model`, `timeoutMs` and `cwd`. It returns `{ ok: true, output }`,
+the output of the last root node, or `{ ok: false, error, path }`, the visit
+the failure started at.
+
+### What a turn is
+
+Every `agent` visit is asked the whole turn, with or without `memory:`:
+
+1. the node's section;
+2. each address of `reads:`, in order, under `## <address>`. A text, or a
+   value typed `string`, goes as it is; any other value goes in a ` ```json `
+   block, and so does a node that failed, as `{ "ok": false, "error": ... }`;
+3. for a node with `output:`, a line saying the `submit` call is the answer;
+4. the line asking for an answer in the language of the work, last.
+
+A node with `output:` answers only through `submit`, a tool built from its
+schema and added to its agent's `tools:`. A call off the schema is refused
+with the reason, and the model may call again; a turn that ends with no
+accepted call fails the node with `schema`. Nothing is parsed out of prose.
+
+### Failures, retries and timeouts
+
+A node that fails stops its sequence, and the failure travels up: a `choice`
+failed by a node inside it fails with `child`, whose message names the visit
+and its kind (`gate/look: provider: ...`). `on-fail: continue` on any node
+stops it there, and later nodes read `x.ok` and `x.error`.
+
+`retry: n` gives an `agent` node `n` more attempts after a `provider`,
+`timeout` or `schema` failure, never after a stop. A retry asks the same
+subagent again with the failure named, except after a timeout, which starts a
+fresh subagent asked the whole turn, unless a `memory:` scope keeps it. Every
+attempt's tokens count.
+
+A turn's bound is the run's `timeoutMs`, else the node's `timeout:`, else the
+flow's, else 30 minutes.
+
+`stopSwitch()` stops a run: pass its `signal` and `spawn`. `all()` ends the run
+`stopped`: no node starts, and `on-fail: continue` does not catch it.
+`one(id)` stops one subagent, and its visit fails `stopped` like any failure,
+never retried.
+
+### Memory and events
+
+With `memory: <scope>`, every node naming the same agent and scope resumes one
+subagent, closed when the scope's visit ends (the run, for `flow`). Without
+it, each visit has a fresh subagent, closed when the visit ends. Nodes sharing
+a subagent declare the same `output:`, since its `submit` tool is fixed when it
+is spawned.
+
+The run reports `visit_start { path, node, kind }` and
+`visit_end { path, ok, output?, error?, case?, agent?, model?, wallMs, usage }`
+on the same stream as its subagents. A visit path is the ids of the enclosing
+nodes and its own, `gate/look`; `usage` is the delta of pi's counters over the
+visit, every attempt and nested visit included.
+
+### A dry run
+
+`dryRunFlow(checked, input, answers, options)` is the same run with every agent
+turn answered by a script, and nothing of the world touched. It returns what
+`runFlow` does plus `journal`, every `visit_end` in order, with zero tokens.
+
+```ts
+// The `split` flow at the top of this page, its `first` node given `retry: 1`.
+const run = await dryRunFlow(split, "add a cache", {
+	plan: { first: "scout", task: "find where results are stored" },
+	first: [{ fail: "timeout" }, "in src/store.ts"],
+	answer: "Put the cache in front of src/store.ts.",
+});
+```
+
+A key is a node's address or an exact visit path, which wins. A value is one
+answer, used for every attempt, or a list consumed attempt by attempt; a list
+is always a list of answers, so a list-typed output is written inside one. An
+answer is an output or `{ fail: "provider" | "timeout" | "schema" }`. The
+script is checked before the start, and refused with every fault in it:
+
+| Code | What it means |
+| --- | --- |
+| `answer-unknown-node` | the key names no `agent` node; the message offers the address meant |
+| `answer-off-schema` | the answer does not match the node's `output:`, or is not a text for a node with none |
+| `answer-fail-kind` | `fail:` names a kind an agent turn cannot fail with |
+
+A visit the script does not answer stops the dry run with
+`{ ok: false, unscripted: "<visit path>" }`, which no `on-fail: continue`
+absorbs: a hole in the script is the test's mistake, not the flow's.
+
 ## Faults
 
 A flow that does not pass is refused with every fault at once, in file order,
@@ -292,6 +388,7 @@ then the offending key: `first.agent-from`.
 | `among-without-from` | `among:` beside `agent:` | use `agent-from:`, or drop `among:` |
 | `among-mismatch` | `among:` does not name exactly the enum's values | make the two lists agree |
 | `unknown-scope` | `memory:` names no enclosing node | name one, or `flow` |
+| `memory-output-mismatch` | two nodes share a subagent through `memory:` and declare different `output:` schemas; the subagent's one `submit` tool takes one | declare the same schema, or give one node another scope |
 | `carry-mismatch` | a loop's `carry:` sides share no field | make `first` and `next` agree on the fields carried |
 | `verdict-with-output` | a `verdict:` node also declares `output:` | drop `output:`: the verdict is the output |
 | `copies-needed` | branches that run together write without copies | add `copies: true`, or run a `map` with `concurrency: 1` |

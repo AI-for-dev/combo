@@ -29,6 +29,12 @@ export const ERROR_KINDS = [
 	"too-many",
 ] as const;
 
+/** One of {@link ERROR_KINDS}. */
+export type ErrorKind = (typeof ERROR_KINDS)[number];
+
+/** Why a node that could not run did not: what `x.error` reads. */
+export type FlowError = { readonly kind: ErrorKind; readonly message: string };
+
 /** One read handed to a turn: the address as written, and the type it names. */
 export type CheckedRead = { readonly address: string; readonly type: ValueType };
 

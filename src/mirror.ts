@@ -21,7 +21,7 @@ import * as fs from "node:fs";
 import { createServer, type Server } from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { EventBus, SubagentEvent } from "./events.ts";
+import { isVisit, type EventBus, type SubagentEvent } from "./events.ts";
 import { broadcast, hangUp, serve, type Mirrors } from "./mirror-wire.ts";
 import type { SessionEvent, SessionPort } from "./session.ts";
 
@@ -154,7 +154,7 @@ export function registerMirror(mirrored: Mirrored): () => void {
 	});
 
 	const offBus = mirrored.bus.subscribe((event) => {
-		if (event.id !== mirrored.id) return;
+		if (isVisit(event) || event.id !== mirrored.id) return;
 		switch (event.type) {
 			case "status":
 			case "usage":

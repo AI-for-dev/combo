@@ -161,6 +161,8 @@ export type Subagent = {
 	readonly agent: Agent;
 	/** Resolved once, at spawn: the argument, then the frontmatter, then `"task"`. */
 	readonly lifetime: Lifetime;
+	/** `provider/id` as pi resolved it, which only the session knows. Absent when pi could not say. */
+	readonly model?: string;
 	/** Cumulative measurements since spawn. Read `Result.usage` for a single turn. */
 	readonly usage: Usage;
 	/** Runs one turn of work. Never throws on a model failure - returns `ok: false`. */

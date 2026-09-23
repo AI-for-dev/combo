@@ -73,3 +73,50 @@ export function sameType(a: ValueType, b: ValueType): boolean {
 			return true;
 	}
 }
+
+/**
+ * Why `value` is not of `type`, or `undefined` when it is.
+ *
+ * Values are JSON-shaped: an absent field is `undefined`, and an object has
+ * no field its type does not name, since a key nobody declared is one no
+ * address can read. This is the one check a typed value passes, whether a
+ * model submitted it or a dry run's script wrote it.
+ */
+export function mismatch(value: unknown, type: ValueType, at = ""): string | undefined {
+	const where = at === "" ? "the value" : `\`${at}\``;
+	const off = () => `${where} is ${JSON.stringify(value) ?? "absent"}, not ${showType(type)}`;
+	switch (type.kind) {
+		case "text":
+		case "string":
+			return typeof value === "string" ? undefined : off();
+		case "number":
+			return typeof value === "number" && Number.isFinite(value) ? undefined : off();
+		case "boolean":
+			return typeof value === "boolean" ? undefined : off();
+		case "enum":
+			return typeof value === "string" && type.values.includes(value) ? undefined : off();
+		case "list":
+			if (!Array.isArray(value)) return off();
+			for (const [index, item] of value.entries()) {
+				const problem = mismatch(item, type.of, `${at}[${index}]`);
+				if (problem !== undefined) return problem;
+			}
+			return undefined;
+		case "object": {
+			if (typeof value !== "object" || value === null || Array.isArray(value)) return off();
+			const record = value as Record<string, unknown>;
+			const stray = Object.keys(record).find((name) => !(name in type.fields) && record[name] !== undefined);
+			if (stray !== undefined) return `${where} has \`${stray}\`, which ${showType(type)} does not name`;
+			for (const [name, field] of Object.entries(type.fields)) {
+				const place = at === "" ? name : `${at}.${name}`;
+				if (record[name] === undefined) {
+					if (!field.optional) return `\`${place}\` is missing`;
+					continue;
+				}
+				const problem = mismatch(record[name], field.type, place);
+				if (problem !== undefined) return problem;
+			}
+			return undefined;
+		}
+	}
+}

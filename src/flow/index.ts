@@ -5,8 +5,9 @@
  * This is the module's door. Nothing outside the library reaches it yet: the
  * format is built beside the linear pipeline, and the package exports it when
  * it replaces that. The file's reader, its nodes and its sections are
- * implementation: `loadFlowCatalogue` finds what a flow runs against, and
- * `checkFlow` is how a flow is read.
+ * implementation: `loadFlowCatalogue` finds what a flow runs against,
+ * `checkFlow` is how a flow is read, and `runFlow` and `dryRunFlow` are how a
+ * checked one runs.
  */
 
 export { loadFlowCatalogue, type FlowCatalogue } from "./catalogue.ts";
@@ -24,6 +25,8 @@ export {
 	type CheckedNode,
 	type CheckedParallelNode,
 	type CheckedRead,
+	type ErrorKind,
+	type FlowError,
 } from "./checked.ts";
 export {
 	CONDITION_CODES,
@@ -37,5 +40,17 @@ export {
 	type Readable,
 } from "./condition/index.ts";
 export { FAULT_CODES, type Fault, type FaultCode } from "./fault.ts";
+export {
+	ANSWER_CODES,
+	dryRunFlow,
+	runFlow,
+	type AnswerFault,
+	type Answers,
+	type DryRun,
+	type DryRunOptions,
+	type FlowResult,
+	type JournalEntry,
+	type RunFlowOptions,
+} from "./run/index.ts";
 export { QUESTION, readSchema, type ReadSchema, type SchemaProblem } from "./schema.ts";
 export { showType, type Field, type ValueType } from "./type.ts";

@@ -35,6 +35,19 @@ export type EventListener = (event: SubagentEvent) => void;
 
 A subscriber. Throwing from here must never break the workflow.
 
+## `isVisit`
+
+*function*
+
+```typescript
+export function isVisit(event: SubagentEvent): event is VisitEvent { /* … */ }
+```
+
+Whether an event is a flow's visit rather than a subagent's.
+
+A reader that follows subagents by id skips these: a visit is the plan's
+business, and the subagent it ran on reports on its own events.
+
 ## `SubagentEvent`
 
 *type*
@@ -133,7 +146,8 @@ export type SubagentEvent =
 	 */
 	| { type: "steer"; id: string; text: string }
 	| { type: "usage"; id: string; usage: Usage }
-	| { type: "close"; id: string; result: Result };
+	| { type: "close"; id: string; result: Result }
+	| VisitEvent;
 ```
 
 Everything the core emits. Reporters subscribe, and only read.
@@ -147,3 +161,43 @@ export type SubagentStatus = "working" | "idle" | "blocked" | "done";
 ```
 
 What a subagent is doing right now, as seen from the outside.
+
+## `VisitEvent`
+
+*type*
+
+```typescript
+export type VisitEvent =
+	| {
+			type: "visit_start";
+			/** The visit: `deliver#2/work[1]/code`. */
+			path: string;
+			/** The node's address, without iterations: `deliver/work/code`. */
+			node: string;
+			kind: CheckedNode["kind"];
+	  }
+	| {
+			type: "visit_end";
+			path: string;
+			ok: boolean;
+			/** What the node handed on, when it ran. */
+			output?: unknown;
+			/** Why not, when it did not. */
+			error?: FlowError;
+			/** The case a `choice` ran: `"1"` for the first, or `"default"`. */
+			case?: string;
+			/** The agent an `agent` visit ran, the one `agent-from:` picked included. */
+			agent?: string;
+			/** The model its subagent ran on, as pi resolved it. */
+			model?: string;
+			wallMs: number;
+			/** Every attempt's tokens, and every nested visit's: the delta of pi's cumulative stats. */
+			usage: Usage;
+	  };
+```
+
+A flow's runner entering and leaving one visit of a node.
+
+They carry no subagent id: a visit is a node's, and a `choice` has no
+subagent at all. A `visit_end` is also what the journal writes down, so a
+reader folds the journal and the stream alike.
