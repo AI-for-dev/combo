@@ -3,8 +3,8 @@
  *
  * Everything here is a thin shell over the library. Structural decision #2 says
  * a feature must work from a script before it is exposed in the TUI, so this
- * file owns no logic - it maps tool arguments onto combinators, and draws what
- * `createRunPicture` folded.
+ * file owns no logic - it maps tool arguments onto combinators or a flow, and
+ * draws what `createRunPicture` folded or a flow's plan.
  *
  * Install with:
  *   ln -s <repo>/extension/index.ts ~/.pi/agent/extensions/combo.ts
@@ -30,6 +30,7 @@ import {
 	summaryTable,
 	treeOrder,
 	truncate,
+	type LivePlan,
 	type SubagentSnapshot,
 } from "../src/index.ts";
 import {
@@ -54,8 +55,6 @@ import { STEP_ENTRY, type StepEntry } from "./relay.ts";
 const COLLAPSED_TOOLS = 3;
 
 export default function (pi: PiApi) {
-	// The interactive flows are commands, not tools: an interview owns the
-	// terminal question by question, which a model's turn cannot.
 	registerInterviewCommand(pi);
 	registerHerdrCommand(pi);
 	registerRunCommand(pi);
@@ -121,7 +120,9 @@ export default function (pi: PiApi) {
 			"loop (steps + task + until, iterates until the last output says `until` alone on a line),",
 			"reduce (agent + tasks + reduceWith + task, fans out then synthesises into one answer),",
 			"route (agent + candidates + task, the agent classifies and one candidate does the work),",
-			"orchestrate (agent + candidates + task, the agent plans the split and the workers run it).",
+			"orchestrate (agent + candidates + task, the agent plans the split and the workers run it),",
+			"flow (flow + task, runs a flow a file describes on the task, with only model, timeoutMs, scope and herdrAll beside it;",
+			"its questions are put to the user during this call, and its run directory is given for /run resume).",
 			"With candidates and no explicit mode, route is assumed: it is the cheaper reading.",
 			'Set lifetime: "workflow" when the subagents should remember previous turns.',
 			`Agents come from ${getAgentDir()}/agents by default;`,
@@ -130,7 +131,7 @@ export default function (pi: PiApi) {
 			`that goes ${MAX_DEPTH} levels deep unless maxDepth says otherwise, and nobody else can delegate at all.`,
 			"Set export: true to keep the transcripts and the measurements of the run on disk.",
 		].join(" "),
-		promptSnippet: "Delegate work to isolated subagents (single, parallel, chain, loop)",
+		promptSnippet: "Delegate work to isolated subagents (single, parallel, chain, loop), or run a flow by name",
 		promptGuidelines: [
 			"Use subagent when a task is self-contained and would otherwise flood this context.",
 			'Use subagent with lifetime: "workflow" for a coding/review loop, so the reviewer remembers its remarks.',
@@ -150,11 +151,11 @@ export default function (pi: PiApi) {
 			const mode = inferMode(args);
 
 			let line = theme.fg("toolTitle", theme.bold("subagent ")) + theme.fg("accent", mode);
-			const who = args.agent ?? args.steps?.join(" → ") ?? args.candidates?.join(", ");
+			const who = args.flow ?? args.agent ?? args.steps?.join(" → ") ?? args.candidates?.join(", ");
 			if (who) line += theme.fg("muted", ` ${who}`);
 			if (args.lifetime === "workflow") line += theme.fg("muted", " [workflow]");
 			if (args.maxDepth !== undefined) line += theme.fg("muted", ` [≤${args.maxDepth} deep]`);
-		if (args.model) line += theme.fg("muted", ` [${args.model}]`);
+			if (args.model) line += theme.fg("muted", ` [${args.model}]`);
 			if (args.openInHerdr || args.herdrAll) line += theme.fg("muted", args.herdrAll ? " [herdr:all]" : " [herdr]");
 			if (args.export) line += theme.fg("muted", " [export]");
 
@@ -176,6 +177,7 @@ export default function (pi: PiApi) {
 			}
 
 			const details = result.details as Details | undefined;
+			if (details?.live) return renderFlow(details.live, details.end ?? "", theme);
 			if (!details || details.subagents.length === 0) {
 				const text = result.content?.[0];
 				return new Text(text?.type === "text" ? text.text : theme.fg("muted", "(no output)"), 0, 0);
@@ -184,6 +186,15 @@ export default function (pi: PiApi) {
 			return expanded ? renderExpanded(details, theme) : renderCollapsed(details, theme);
 		},
 	});
+}
+
+/** A flow's run: how it ended, then its last frame, the one `/run` draws under its answer. */
+function renderFlow(live: LivePlan, end: string, theme: Theme): Container {
+	const container = new Container();
+	container.addChild(new Text(theme.fg("dim", end), 0, 0));
+	container.addChild(new Spacer(1));
+	container.addChild(new PlanFrame(live, theme));
+	return container;
 }
 
 /** One line per subagent, plus the totals. This is the default view. */

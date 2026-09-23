@@ -61,7 +61,7 @@ export async function runInterview(
 	if (!interviewer) return undefined;
 
 	const where = options.exportDir ?? deps.runDir();
-	// The same live view the pipeline gets. Without it the first turn is half a
+	// The same live view a flow run gets. Without it the first turn is half a
 	// minute of a frozen status line while the interviewer reads the repository,
 	// and a user cannot tell that from a turn that has hung. No `usage.json` of
 	// its own, though: an interview is the opening of a run, not a run.

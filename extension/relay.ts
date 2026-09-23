@@ -1,15 +1,15 @@
 /**
  * The relay: the chain somebody is walking by hand.
  *
- * A pipeline is a chain our code walks. This is the same chain with the user
- * as the runner: one step per command, and between two of them a human reads
+ * A flow is a chain our code walks. This is a chain with the user as the
+ * runner: one step per command, and between two of them a human reads
  * the output, changes their mind, picks the next agent and the model it runs
  * on. What was missing for that is exactly one thing - somewhere to keep the
  * output of step *n* so step *n+1* can be handed it. That is this file.
  *
  * It keeps the material, and owns the life of a step around it - begun before
  * anything runs, finished once it has - and nothing else: no spawning, no pi,
- * no terminal. The commands in `step-commands.ts` and `swarm-command.ts` do
+ * no terminal. The commands in `commands/step.ts` and `commands/swarm.ts` do
  * those. The split is what lets the whole dataflow of a hand-walked chain be
  * asserted on without a session.
  *
@@ -19,16 +19,19 @@
  */
 
 import * as path from "node:path";
-import { exportBaseName, plural, stepInput, sumUsage, truncate, type Usage } from "../src/index.ts";
+import { exportBaseName, plural, sumUsage, truncate, type Usage } from "../src/index.ts";
+
+/** What ran a step. An entry an older session wrote may say `pipeline`, and is drawn as it says. */
+export type StepKind = "agent" | "flow" | "swarm";
 
 /** One step that ran: what it was asked, and what came back. */
 export type RelayStep = {
 	/** Unique within the chain, so `--from` can name it. `coder`, then `coder-2`. */
 	id: string;
-	/** The pipeline or agent that ran it, as it was named on the command line. */
+	/** The flow or agent that ran it, as it was named on the command line. */
 	name: string;
-	/** What ran it: one agent, a pipeline, or several copies of one agent. */
-	kind: "agent" | "pipeline" | "swarm";
+	/** What ran it: one agent, a flow, or several copies of one agent. */
+	kind: StepKind;
 	/** What the user typed for this step, without the output it carried in. */
 	instruction: string;
 	/** Which step's output it was handed, if any. */
@@ -169,8 +172,8 @@ export type AppendEntry = (customType: string, data: StepEntry) => void;
 export type StepEntry = {
 	/** The step's id in the chain, which is also what `--from` takes. */
 	id: string;
-	/** What ran it: one agent, a pipeline, or a swarm of one agent's copies. */
-	kind: "agent" | "pipeline" | "swarm";
+	/** What ran it: one agent, a flow, or a swarm of one agent's copies. */
+	kind: StepKind;
 	/** The step whose output it was handed, when it was handed one. */
 	from?: string;
 	/** What it produced, in full - this is a transcript entry, not a summary. */
@@ -207,16 +210,16 @@ export function stepFrom(relay: Relay | undefined, from: string | undefined): Re
 }
 
 /**
- * What the step is actually asked, in the sections a pipeline uses.
- *
- * `stepInput` and not a second framing of our own: a hand-walked chain and the
- * same chain written down as a pipeline then send the model byte-for-byte the
- * same thing, which is the only way the two can be compared. A first step
- * carries nothing and is passed through verbatim, exactly as `/run` passes its
- * request - a lone instruction under a `## Request` heading is noise.
+ * What the step is actually asked: the instruction under `## Request`, then
+ * the output it carries under the step it came from. A first step carries
+ * nothing and is passed through verbatim, exactly as `/run` passes its
+ * request - a lone instruction under a heading is noise. Empty parts are
+ * dropped rather than left as a heading with nothing under it.
  */
 export function chainInput(instruction: string, previous?: RelayStep): string {
-	return previous ? stepInput("", instruction, previous) : instruction.trim();
+	if (!previous) return instruction.trim();
+	const parts = [instruction.trim() && `## Request\n\n${instruction.trim()}`, previous.output.trim() && `## Output of step \`${previous.id}\`\n\n${previous.output.trim()}`];
+	return parts.filter(Boolean).join("\n\n");
 }
 
 /**
@@ -243,7 +246,7 @@ export function chainUsage(relay: Relay): Usage {
  */
 export function chainLines(relay: Relay | undefined): string[] {
 	if (!relay || relay.steps.length === 0) {
-		return ["No chain yet. /step <agent|pipeline> <what it should do> starts one."];
+		return ["No chain yet. /step <flow|agent> <what it should do> starts one."];
 	}
 
 	const width = Math.max(...relay.steps.map((step) => step.id.length));
@@ -264,7 +267,7 @@ export function chainLines(relay: Relay | undefined): string[] {
  * pi hands custom messages to the model as **user** messages, and an
  * unattributed report arriving in that slot reads as an instruction. Naming
  * what ran and what it was asked turns it back into what it is: a result
- * somebody chose to show. One framing for a step `/quote` sends and a pipeline
+ * somebody chose to show. One framing for a step `/quote` sends and a flow
  * `/run` sends, so the two read alike.
  */
 export function framed(what: string, asked: string, output: string): string {

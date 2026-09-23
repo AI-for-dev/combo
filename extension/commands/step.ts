@@ -1,7 +1,7 @@
 /**
  * `/step`, `/chain` and `/quote`: walking a chain by hand.
  *
- * `/run` runs a pipeline end to end and leaves its answer in the conversation,
+ * `/run` runs a flow end to end and leaves its answer in the conversation,
  * which is right for an exploration - it is read, and then asked about. It is
  * wrong for the other use: `explorer → planner → coder → reviewer`, advanced
  * one step at a time, where the main window is a console and not an
@@ -14,16 +14,16 @@
  * step, and `/quote` is the one door into the conversation - taken on purpose,
  * when there is something to discuss.
  *
- * What a step *is* is deliberately wide: a pipeline is a fine stage of a
+ * What a step *is* is deliberately wide: a flow is a fine stage of a
  * hand-walked chain (`explore` is a fan-out and a synthesis), and so is a lone
  * agent. One command takes both, resolved in that order.
  */
 
-import { checkPipelineAgents, plural } from "../../src/index.ts";
-import { checked, loadRoster, refuse, watched } from "../command.ts";
+import { plural } from "../../src/index.ts";
+import { checked, loadRoster, refuse } from "../command.ts";
 import { sessionDoors, type CommandCtx, type PiApi } from "../pi.ts";
 import { resolved, type StepDeps } from "../deps.ts";
-import { parseLeadingFlags, switchValue } from "../flags.ts";
+import { parseLeadingFlags } from "../flags.ts";
 import { RESULT_MESSAGE, type ResultDetails } from "./answer.ts";
 import { beginStep, chainInput, chainLines, currentChain, finishStep, forgetChain, stepAnswer, stepFrom, type RelayStep } from "../relay.ts";
 import { resolveTarget, runStage } from "./stage.ts";
@@ -34,7 +34,7 @@ export default function registerStepCommands(pi: PiApi) {
 
 	pi.registerCommand("step", {
 		description:
-			"Run one agent or pipeline on the previous step's output, without telling this session (`--from <id|last|none>`, `--model <pattern>`, `--agent`, `--worktree`)",
+			"Run one flow or agent on the previous step's output, without telling this session (`--from <id|last|none>`, `--model <pattern>`, `--agent`)",
 		handler: async (args, ctx: CommandCtx) => {
 			await runStep(args, ctx, deps);
 		},
@@ -59,9 +59,9 @@ export default function registerStepCommands(pi: PiApi) {
 }
 
 /**
- * `/step [--from <id>] [--model <pattern>] [--agent] [--worktree] <name> <instruction>`.
+ * `/step [--from <id>] [--model <pattern>] [--agent] <name> <instruction>`.
  *
- * One stage of the chain: the named agent or pipeline is handed the previous
+ * One stage of the chain: the named flow or agent is handed the previous
  * step's output and whatever is typed after it, and what it answers goes into
  * the relay - not into this session's context.
  *
@@ -72,10 +72,10 @@ export default function registerStepCommands(pi: PiApi) {
  */
 export async function runStep(args: string, ctx: CommandCtx, injected: StepDeps): Promise<RelayStep | undefined> {
 	const deps = resolved(injected);
-	const { flags, rest } = parseLeadingFlags(args, ["from", "model"], ["agent", "worktree"]);
+	const { flags, rest } = parseLeadingFlags(args, ["from", "model"], ["agent"]);
 	const [name, ...words] = rest.split(/\s+/).filter(Boolean);
 	if (!name) {
-		return refuse(ctx, "step: say which agent or pipeline, for example /step planner three steps at most. /agents lists them", "warning");
+		return refuse(ctx, "step: say which flow or agent, for example /step planner three steps at most. /agents lists them", "warning");
 	}
 	const instruction = words.join(" ");
 
@@ -88,40 +88,19 @@ export async function runStep(args: string, ctx: CommandCtx, injected: StepDeps)
 		if (!instruction.trim() && !previous) {
 			throw new Error(`step: say what ${name} should do, for example /step ${name} find where usage is measured`);
 		}
-		const target = resolveTarget(name, flags.agent === "true", ctx, deps, agents);
-		if (target.kind === "pipeline") checkPipelineAgents(target.pipeline, agents);
+		const target = await resolveTarget(name, flags.agent === "true", ctx, deps, agents);
 		if (flags.model) await deps.checkModel(flags.model);
 		return { target, previous };
 	});
 	if (!stage) return undefined;
 	const { target, previous } = stage;
 
-	if (flags.worktree === "true" && target.kind === "agent") {
-		ctx.ui.notify("step: --worktree gives a delivery's workers a copy of the repository - a lone agent gets none", "warning");
-	}
-
 	const begun = beginStep(name, deps.runDir);
 	const input = chainInput(instruction, previous);
-
-	const done = await watched(ctx, deps, {
-		status: `running ${begun.id}…`,
-		dir: begun.dir,
-		work: (live) =>
-			runStage(target, input, {
-				agents,
-				ctx,
-				deps,
-				dir: begun.dir,
-				model: flags.model,
-				worktree: switchValue(flags, "worktree"),
-				onEvent: live.onEvent,
-				signal: live.signal,
-				spawn: live.spawn,
-			}),
-	});
-
-	if (done.error !== undefined) {
-		refuse(ctx, `step: ${begun.id} failed: ${done.error} - the chain is unchanged, what ran is in ${begun.dir}`, "error");
+	const done = await checked(ctx, () => runStage(target, input, { ctx, deps, dir: begun.dir, model: flags.model, status: `running ${begun.id}…` }));
+	if (done === undefined) return undefined;
+	if (done.failed !== undefined) {
+		refuse(ctx, `step: ${begun.id} ${done.failed.why} - the chain is unchanged, ${done.failed.next}`, "error");
 		return undefined;
 	}
 
@@ -167,7 +146,7 @@ export function quoteStep(args: string, ctx: CommandCtx, deps: StepDeps): RelayS
 	} catch (cause) {
 		return refuse(ctx, cause instanceof Error ? cause.message : String(cause), "error");
 	}
-	if (!step || !relay) return refuse(ctx, "quote: nothing has run yet - /step <agent|pipeline> <task> starts a chain", "warning");
+	if (!step || !relay) return refuse(ctx, "quote: nothing has run yet - /step <flow|agent> <task> starts a chain", "warning");
 
 	deps.sendMessage({
 		customType: RESULT_MESSAGE,

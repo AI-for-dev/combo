@@ -30,6 +30,7 @@ import {
 	type SpawnFn,
 	type SubagentEvent,
 } from "../../src/index.ts";
+import { isAsking } from "./asking.ts";
 import { planWidget } from "./flow.ts";
 import { watchEverything } from "./herdr-switch.ts";
 import type { RunUi, WidgetTheme } from "../pi.ts";
@@ -139,7 +140,7 @@ export function liveRun(ui: RunUi | undefined, options: LiveRunOptions = {}): Li
 		const now = plan();
 		const selected = watched.selected;
 		if (now === undefined) return ui.setWidget(STATUS, paintWidget(picture.snapshot(), ui.theme, selected));
-		ui.setWidget(STATUS, planWidget(now, ui.theme, { snapshot: picture.snapshot(), selected }, hint(now.summary.state === "working", ui.theme)));
+		ui.setWidget(STATUS, planWidget(now, ui.theme, { snapshot: picture.snapshot(), selected }, () => hint(now.summary.state === "working", ui.theme)));
 	};
 	// The terminal reads the selection from here and writes it back: a run is
 	// what a key acts on, and it is the only thing that knows when it is over.
@@ -205,9 +206,13 @@ export function paintWidget(snapshot: RunSnapshot, theme: WidgetTheme, selected?
 	return [...lines, ...hint(snapshot.done < snapshot.total, theme)];
 }
 
-/** {@link HINT}, while there is something left to stop. */
+/**
+ * {@link HINT}, while there is something left to stop and no question card
+ * is up: a card holds `esc` and says what it means there, and a second line
+ * saying otherwise would be read as well.
+ */
 function hint(running: boolean, theme: WidgetTheme): string[] {
-	return running ? [theme.fg("muted", HINT)] : [];
+	return running && !isAsking() ? [theme.fg("muted", HINT)] : [];
 }
 
 /**

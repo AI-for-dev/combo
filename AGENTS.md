@@ -180,11 +180,13 @@ src/                the library
                     asks it first, console, silent, record (the event stream
                     on disk), traffic (what passes on a board, worded once)
 extension/          the pi extension: index.ts (tool, renderers), execute.ts
-                    (the tool body) and the floor the commands stand on:
+                    (the tool body) and execute-flow.ts (its `flow` mode),
+                    and the floor the commands stand on:
                     pi.ts deps.ts command.ts flags.ts params.ts relay.ts
   commands/         one file per slash command (flows is /flows, run is /run
                     and /run resume); stage beside /step, the command that
-                    uses it, and answer, the message /run and /quote leave
+                    uses it, answer, the message /run and /quote leave, and
+                    launch, how /run, /step and the tool launch a flow
   ui/               run (the live view), flow (a flow's plan, painted live
                     and as a finished run's frame), ask (the question card)
                     and card (what it draws around the answer), asking and

@@ -9,7 +9,7 @@
  */
 
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, beforeEach, describe, test } from "node:test";
@@ -18,11 +18,11 @@ import { RESULT_MESSAGE } from "../extension/commands/answer.ts";
 import type { StepDeps } from "../extension/deps.ts";
 import { chainLines, currentChain, forgetChain, STEP_ENTRY, type StepEntry } from "../extension/relay.ts";
 import { quoteStep, runStep, showChain } from "../extension/commands/step.ts";
-import { parsePipeline } from "../src/pipeline/pipeline.ts";
 import { emptyUsage } from "../src/usage.ts";
 import { fakeCtx } from "./fixtures/command-ctx.ts";
 import { baseDeps } from "./fixtures/command-deps.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
+import { catalogueOf, flowSpawn, flowText, type FlowTurn } from "./fixtures/flow.ts";
 
 initTheme();
 
@@ -30,52 +30,31 @@ const agents = ["scout", "synthesiser", "planner", "coder", "reviewer", "explore
 	testAgent(name, { description: `${name} for tests` }),
 );
 
-const explore = parsePipeline(
-	`---
-name: explore
-steps:
-  - id: look
-    fanOut: scout
-    tasks: [a, b]
-  - id: answer
-    reduce: synthesiser
----
-
-## look
-Look.
-
-## answer
-Answer.
-`,
-	".pi/pipelines/explore.md",
-);
+/** A flow of one scout, which answers what it is scripted to. */
+const EXPLORE = flowText("  - id: look\n    agent: scout\n    reads: [input]", { look: "Look." }, "input: string", "explore");
+/** A flow whose question has no default, which needs somebody there. */
+const ASKS = flowText('  - id: sure\n    ask: "Go on?"\n    confirm: true', {}, "input: string", "asks");
 
 // A real directory: `liveRun` writes a `usage.json` per step, and a test that
 // pointed it at a path it never cleans up litters the machine it ran on.
 const runs = mkdtempSync(join(tmpdir(), "combo-chain-"));
 after(() => rmSync(runs, { recursive: true, force: true }));
 
-/** The asks each double received, so the dataflow can be read back out. */
-function deps(over: Partial<StepDeps> = {}) {
-	const pipelineInputs: string[] = [];
+/** The asks each double received, so the dataflow can be read back out; the flow's scout plays `turns`. */
+function deps(over: Partial<StepDeps> = {}, turns: FlowTurn[][] = [[{ text: "three files, and how they are tested" }]]) {
 	const agentAsks: { agent: string; task: string; model?: string }[] = [];
 	const entries: StepEntry[] = [];
 	const sent: { content: string; details?: unknown }[] = [];
+	const flow = flowSpawn(turns);
 
 	const base: StepDeps = {
-		...baseDeps(agents, [explore], runs),
+		...baseDeps(agents),
+		// A chain a folder of its own: a flow stage's run directory takes one run.
+		runDir: () => mkdtempSync(join(runs, "chain-")),
+		loadFlowCatalogue: () => catalogueOf({ explore: EXPLORE, asks: ASKS }),
+		spawn: flow.spawn,
 		appendEntry: (_customType, data) => void entries.push(data),
 		sendMessage: (message) => void sent.push({ content: message.content, details: message.details }),
-		runPipeline: (async (options: { input: string }) => {
-			pipelineInputs.push(options.input);
-			return {
-				pipeline: "explore",
-				steps: [],
-				output: "three files, and how they are tested",
-				usage: { ...emptyUsage(), turns: 3 },
-				ok: true,
-			};
-		}) as never,
 		run: (async (agent: { name: string }, task: string, options: { model?: string }) => {
 			agentAsks.push({ agent: agent.name, task, model: options.model });
 			return { agent: agent.name, output: `${agent.name} answered`, messages: [], usage: { ...emptyUsage(), turns: 1 }, ok: true };
@@ -83,23 +62,54 @@ function deps(over: Partial<StepDeps> = {}) {
 		...over,
 	};
 
-	return { deps: base, pipelineInputs, agentAsks, entries, sent };
+	return { deps: base, flowTurns: flow.created, requested: flow.requested, agentAsks, entries, sent };
 }
 
 beforeEach(forgetChain);
 
 describe("/step", () => {
-	test("runs the named pipeline and leaves the answer out of this conversation", async () => {
+	test("runs the named flow in a run directory of its own, and leaves the answer out of this conversation", async () => {
 		const { ctx } = fakeCtx();
-		const { deps: injected, entries, sent, pipelineInputs } = deps();
+		const { deps: injected, entries, sent, flowTurns } = deps();
 
 		const step = await runStep("explore where usage is measured", ctx, injected);
 
-		assert.equal(step?.kind, "pipeline");
-		assert.deepEqual(pipelineInputs, ["where usage is measured"]);
+		assert.equal(step?.kind, "flow");
+		assert.match(flowTurns[0]?.prompts[0] ?? "", /## input\n\nwhere usage is measured/);
 		assert.deepEqual(sent, [], "the main session must stay passive until /quote");
 		assert.equal(entries[0]?.output, "three files, and how they are tested");
 		assert.equal(entries[0]?.id, "explore");
+		assert.ok(existsSync(join(step?.dir ?? "", "journal.jsonl")), "the step's folder is the flow's run directory");
+	});
+
+	test("a failed flow says where, and that /run resume carries it on from the step's folder", async () => {
+		const { ctx, said } = fakeCtx();
+		const { deps: injected, entries } = deps({}, [[{ stopReason: "error", text: "" }]]);
+
+		const step = await runStep("explore where usage is measured", ctx, injected);
+
+		assert.equal(step, undefined);
+		assert.equal(entries.length, 0);
+		assert.match(said(), /step: explore failed at look: provider: .* - the chain is unchanged, \/run resume \S+1-explore picks it up at look/);
+	});
+
+	test("a flow that cannot run here is refused before anything is spawned", async () => {
+		const { ctx, said } = fakeCtx();
+		ctx.hasUI = false;
+		const { deps: injected, requested } = deps();
+
+		assert.equal(await runStep("asks go on", ctx, injected), undefined);
+		assert.equal(requested.length, 0);
+		assert.match(said(), /^step: `asks` cannot run here\n.*sure\.ask: this run is launched with nobody there/);
+	});
+
+	test("--model reaches every turn of a flow", async () => {
+		const { ctx } = fakeCtx();
+		const { deps: injected, requested } = deps({ checkModel: async () => undefined });
+
+		await runStep("--model local/qwen explore where usage is measured", ctx, injected);
+
+		assert.deepEqual(requested.map((one) => one.options.model), ["local/qwen"]);
 	});
 
 	test("a lone agent is a step too, and that is the point of the command", async () => {
@@ -113,7 +123,7 @@ describe("/step", () => {
 		assert.equal(agentAsks[0]?.task, "three steps at most");
 	});
 
-	test("the next step is handed the previous one's output, in a pipeline's own sections", async () => {
+	test("the next step is handed the previous one's output, under the step it came from", async () => {
 		const { ctx } = fakeCtx();
 		const { deps: injected, agentAsks } = deps();
 
@@ -177,7 +187,7 @@ describe("/step", () => {
 		assert.match(said(), /what ran is in/, "the transcripts are still worth reading");
 	});
 
-	test("a name that is neither a pipeline nor an agent says so once", async () => {
+	test("a name that is neither a flow nor an agent says so once", async () => {
 		const { ctx, said } = fakeCtx();
 		const { deps: injected, agentAsks } = deps();
 
@@ -185,17 +195,17 @@ describe("/step", () => {
 
 		assert.equal(step, undefined);
 		assert.equal(agentAsks.length, 0);
-		assert.match(said(), /neither a pipeline nor an agent/);
-		assert.match(said(), /\/agents lists the agents/);
+		assert.match(said(), /neither a flow nor an agent/);
+		assert.match(said(), /\/flows and \/agents list them/);
 	});
 
-	test("a name held by both runs the pipeline, and says --agent runs the other", async () => {
+	test("a name held by both runs the flow, and says --agent runs the other", async () => {
 		const { ctx, said } = fakeCtx();
-		const { deps: injected, pipelineInputs, agentAsks } = deps();
+		const { deps: injected, requested, agentAsks } = deps();
 
 		await runStep("explore what is here", ctx, injected);
-		assert.equal(pipelineInputs.length, 1);
-		assert.match(said(), /both a pipeline and an agent/);
+		assert.equal(requested.length, 1);
+		assert.match(said(), /both a flow and an agent/);
 
 		await runStep("--from none --agent explore what is here", ctx, injected);
 		assert.deepEqual(agentAsks.map((ask) => ask.agent), ["explore"]);
@@ -247,7 +257,8 @@ describe("/step", () => {
 		await runStep("planner the plan", ctx, injected);
 		await runStep("coder the code", ctx, injected);
 
-		assert.deepEqual(currentChain()?.steps.map((step) => step.dir), [join(runs, "1-planner"), join(runs, "2-coder")]);
+		const dir = currentChain()?.dir ?? "";
+		assert.deepEqual(currentChain()?.steps.map((step) => step.dir), [join(dir, "1-planner"), join(dir, "2-coder")]);
 	});
 });
 
@@ -298,7 +309,7 @@ describe("/quote", () => {
 
 		quoteStep("planner", ctx, injected);
 
-		assert.deepEqual(sent[0]?.details, { name: "chain", steps: ["planner", "coder"], runDir: join(runs, "1-planner") });
+		assert.deepEqual(sent[0]?.details, { name: "chain", steps: ["planner", "coder"], runDir: join(currentChain()?.dir ?? "", "1-planner") });
 		assert.match(sent[0]?.content ?? "", /^Result of the `planner` step/);
 	});
 

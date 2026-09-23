@@ -167,7 +167,7 @@ describe("what a step is asked", () => {
 		assert.equal(chainInput("  find the parser  "), "find the parser");
 	});
 
-	test("a later one gets the pipeline's own sections, so the two can be compared", () => {
+	test("a later one gets the instruction under a heading, then what it carries under the step it came from", () => {
 		const [previous] = chainOf({ name: "scout", output: "it is in src/parse.ts" }).steps;
 		const input = chainInput("plan the change", previous);
 
@@ -190,7 +190,7 @@ describe("what the chain adds up to", () => {
 	});
 
 	test("nothing yet says how to start one, which is the question behind the command", () => {
-		assert.match(chainLines(undefined).join("\n"), /\/step <agent\|pipeline>/);
+		assert.match(chainLines(undefined).join("\n"), /\/step <flow\|agent>/);
 	});
 
 	test("one line per step, with what it carried and what it cost", () => {
@@ -206,8 +206,8 @@ describe("what the chain adds up to", () => {
 
 describe("framing a result for the conversation", () => {
 	test("names what ran and what it was asked, and drops the ask when there was none", () => {
-		assert.equal(framed("the `x` pipeline", "find it", "found"), "Result of the `x` pipeline, asked to: find it.\n\nfound");
-		assert.equal(framed("the `x` pipeline", "  ", "found"), "Result of the `x` pipeline.\n\nfound");
+		assert.equal(framed("the `x` flow", "find it", "found"), "Result of the `x` flow, asked to: find it.\n\nfound");
+		assert.equal(framed("the `x` flow", "  ", "found"), "Result of the `x` flow.\n\nfound");
 	});
 });
 

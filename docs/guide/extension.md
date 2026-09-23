@@ -30,13 +30,42 @@ repository live in `.pi/agents/`, so ask for them explicitly:
 That is deliberate: project agents are repository-controlled content, so they are
 never loaded by default. See [Agents](agents.md).
 
+The tool also runs a [flow](flows.md) by name, with `task` as its input:
+
+```
+> use subagent to run the interview flow on "add a --verbose flag to scripts/drive-pi.py"
+```
+
+The model calls it with `flow: "interview"` and `task`, and the flow runs the
+way `/run` runs it: checked against this terminal before anything is spawned,
+in a `runs/<timestamp>/` of its own, its plan drawn above the prompt. Its
+questions are put to you during the model's turn, on the same [question
+card](#the-question-card). With nobody there, in `pi -p` for one, a flow that
+could reach a question with no `default:` and no `enough:` is refused before
+it starts. The model reads the output of the flow's last root node and the
+line on how the run ended, which names the run directory; a run that stopped
+says what `/run resume <run directory>` would do with it. The tool does not
+resume.
+
+`flow` takes `task`, `model`, `timeoutMs`, `scope` and `herdrAll` beside it,
+and nothing else. A composition field given with it (`steps`, `until`,
+`candidates`, `lifetime`…) is refused by name, since the file says what runs:
+
+```
+Error: subagent: `flow` runs a flow as its file describes it, and takes only `task`, `model`, `timeoutMs`, `scope`,
+`herdrAll` beside it - drop `steps`, `until`
+```
+
+The flows come from the same places as the agents: the package's own and
+`~/.pi/agent/flows/`, and `.pi/flows/` with `scope: "project"` or `"both"`.
+
 `/interview` writes its transcript into a `runs/<timestamp>/` folder of its own.
 That folder is made **before** the first question rather than after the last,
 because a failed interview is the one moment "what was actually sent" is the
 only question worth asking, and it used to leave nothing to read. The failure
 names the folder.
 
-The interview is watched the way the pipeline is: a row per subagent, with what
+The interview is watched like any other run: a row per subagent, with what
 it is reading. Measured on this repository against a small open-weight model,
 its first turn is 35 seconds and seven file reads, and the whole interview 57
 seconds over three turns. Without the row that first turn is half a minute of a
@@ -58,13 +87,10 @@ used to end the parse, which is how a `/swarm` written over two lines ran every
 member on pi's own model - its `--model` had become the first two words of the
 goal, and nothing said so.
 
-`--worktree` on `/step` takes no value, unlike `--model`: a flag that swallowed
-the word after it would eat the first word of the request. Saying nothing is
-**not** the same as saying no: a pipeline's delivery left to itself gives each
-of several subtasks a copy of the repository, and `--worktree=false` is how you
-refuse that. `--worktree` forces it on for a delivery of one. A flow says it in
-the file instead, with `copies: true` on a block. See [Worktrees](worktree.md)
-for what it costs and what it buys.
+`--agent` on `/step` takes no value, unlike `--model`: a flag that swallowed
+the word after it would eat the first word of the request. Whether a flow's
+workers get a copy of the repository is the file's to say, with `copies: true`
+on a block; see [Worktrees](worktree.md) for what it costs and what it buys.
 
 `until` is a **whole-line match**: the loop stops when the word stands alone on
 one of the lines, whatever decoration the model put around it. A line with
@@ -114,28 +140,28 @@ and what a tree costs in [Measurements](measurements.md).
 | `/agents` | Lists the agents that can be spawned, grouped by where they came from. |
 | `/flows` | Lists the flows, where each comes from, the most it can cost in turns and time, and its description. A refused file is listed beside them with its faults, a file left in an old `pipelines/` directory included. |
 | `/flows <name>` | Prints that flow's plan: every node, what it reads, its agent and file, its bound. |
-| `/step [--from <id>] [--model <pattern>] [--agent] <name> <instruction>` | Runs one agent or pipeline on the previous step's output. Drawn, and kept out of this session's context. |
+| `/step [--from <id>] [--model <pattern>] [--agent] <name> <instruction>` | Runs one flow or agent on the previous step's output. Drawn, and kept out of this session's context. |
 | `/swarm [--members <n>] [--claim a,b] [--hold <n>] [--until agree] [--rounds <n>] [--agent <name>] [--model <pattern>] <goal>` | Several copies of one agent on one job, with a board between them. Finished by coverage of what `--claim` names, or by `--until agree` when they all vote the same. Drawn as a step of the chain, like `/step`. |
 | `/chain`, `/chain reset` | The steps walked so far; or drop them and start a new chain. |
 | `/quote [id]` | Put one step of the chain into the conversation, attributed. |
 | `/stop [<id>\|all]` | Stops the selected subagent, one named by id, or the whole run. `esc` and `ctrl+del` do the same from the keyboard. |
 | `/herdr on\|off` | Give every subagent its own herdr split for this session. `on` asks herdr first, and says so when the answer is no. |
 
-`/interview` is a command rather than a tool because a question card owns the
-terminal until it is answered, and nobody can answer a question asked inside a
-model's turn. `/run build` asks nothing; see [Deliver a change](build.md).
+A question card is shown during a model's turn as well as during a command:
+the `subagent` tool puts a flow's questions to you while the turn waits. `/run
+build` asks nothing; see [Deliver a change](build.md).
 
 `/flows` runs a flow's check and nothing else, so it spawns nothing and needs no
 model: a typo in a flow costs a glance at the list. What the check cannot see,
 the tree and the ports a run is launched with, is checked when a run starts.
 See [Flows](flows.md#where-flows-live).
 
-`/step` is the other way of running a pipeline's worth of work, and still takes
-pipelines until it takes flows: one stage per
-command, with this session kept out of it until you say otherwise. See
-[Walk a chain by hand](chain-by-hand.md).
+`/step` is the other way of running a flow: one stage per command, with this
+session kept out of it until you say otherwise. A flow stage gets a run
+directory of its own, the step's folder, which `/run resume <run directory>`
+carries on. See [Walk a chain by hand](chain-by-hand.md).
 
-**The extension brings its own agents, pipelines and flows**, so it works the moment it
+**The extension brings its own agents and flows**, so it works the moment it
 is loaded rather than only inside a repository where the definitions were copied
 by hand. They sit at the **lowest priority**: a definition of the same name in
 `~/.pi/agent/` replaces one of ours, and one in the repository replaces both.
@@ -235,9 +261,10 @@ and opens none.
 ## The question card
 
 `/interview` asks through a card, and a flow's `ask` node asks through the
-same one. A card holds one question. It draws the header and the visit that
-asks, the reads above the question, each under its name, then what takes the
-answer, and a help line that says what the keys do:
+same one, whether `/run`, `/step` or the `subagent` tool runs the flow. A card
+holds one question. It draws the header and the visit that asks, the reads
+above the question, each under its name, then what takes the answer, and a
+help line that says what the keys do:
 
 ```
 ────────────────────────────────────────────────────────────
@@ -278,8 +305,10 @@ interview's `Other…` still opens pi's own text box, where `esc` submits.
 A card also comes down when its question no longer stands. The flow runner
 hands it a signal that aborts on the node's `timeout:` or on a stop. The card
 closes, pi's editor comes back, and the answer is not read. For as long as a
-card is up, the run's stop key is held, so pressing `esc` on it means only what
-the help line says.
+card is up, the run's stop key is held and the widget stops offering it, so
+pressing `esc` on it means only what the help line says. That holds during a
+model's turn too: the card has the keys, and pi's own `esc`, which would end
+the turn, does not reach it.
 
 When the terminal is too narrow for the help line, each key goes on a line of
 its own rather than being cut from what it does.
@@ -343,7 +372,10 @@ shape. A step of a hand-walked chain is `extension/relay.ts`'s to begin
 and to finish - named before it runs, recorded and drawn in one call after -
 whether `/step` or `/swarm` ran it; the entry a step leaves and the door it
 leaves it through are both declared there. `/quote` sends the message `/run`
-sends, which is `commands/answer.ts`'s.
+sends, which is `commands/answer.ts`'s. How a flow is launched, checked at
+both stages, run under the plan's live view and measured in its run
+directory, is `commands/launch.ts`'s, for `/run`, a flow stage of `/step` and
+the tool's `flow` mode (`execute-flow.ts`) alike.
 
 Each command's own file under `commands/` holds only what that command does.
 

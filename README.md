@@ -150,6 +150,7 @@ pi -e extension                    # from a clone, this session only
 > /run build add a slugify helper with tests
 > /run explore where is the condition language implemented?
 > use subagent to review src/usage.ts with coder then reviewer, looping until LGTM
+> use subagent to run the interview flow on "add a --verbose flag to the driver"
 > /swarm --members 3 describe each file under src/reporters/, in two sentences
 > /agents        # who can be spawned here, and from which directory
 > /flows         # the flows, what each can cost, and the files refused
@@ -158,7 +159,8 @@ pi -e extension                    # from a clone, this session only
 
 Every `/run` gets a run directory, `runs/<timestamp>/`, with its journal, its
 transcripts and what it cost; the plan fills above the prompt as the visits
-go. See [Flows](docs/guide/flows.md), and
+go. The `subagent` tool runs a flow by name too, and puts its questions to
+you during the model's turn. See [Flows](docs/guide/flows.md), and
 [From pipelines to flows](docs/guide/from-pipelines.md) for a pipeline of your
 own.
 

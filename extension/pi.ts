@@ -87,7 +87,9 @@ export type StopCtx = { ui: Partial<Pick<Ui, "notify">> };
 /** What the tool body is handed by pi's tool context. */
 export type ToolCtx = {
 	cwd: string;
-	ui: RunUi;
+	/** Whether somebody is there to answer a question card, mid-turn. */
+	hasUI: boolean;
+	ui: RunUi & AskUi;
 	/** Where pi keeps the parent session. Only this level can know. */
 	sessionManager?: { getSessionFile(): string | undefined };
 };
@@ -103,7 +105,9 @@ export type ToolDeps = {
 	cwd: string;
 	signal: AbortSignal | undefined;
 	onUpdate: ((update: ToolUpdate) => void) | undefined;
-	ui: RunUi;
+	/** Whether somebody is there: a flow's question cards are shown during the turn when they are. */
+	hasUI: boolean;
+	ui: RunUi & AskUi;
 	/**
 	 * The parent session's JSONL, from `ctx.sessionManager.getSessionFile()`.
 	 *
@@ -115,7 +119,7 @@ export type ToolDeps = {
 
 /** The tool body's dependencies, read off what pi handed the tool. */
 export function toolDeps(ctx: ToolCtx, signal: AbortSignal | undefined, onUpdate: ToolDeps["onUpdate"]): ToolDeps {
-	return { cwd: ctx.cwd, signal, onUpdate, ui: ctx.ui, mainSessionFile: ctx.sessionManager?.getSessionFile() };
+	return { cwd: ctx.cwd, signal, onUpdate, hasUI: ctx.hasUI, ui: ctx.ui, mainSessionFile: ctx.sessionManager?.getSessionFile() };
 }
 
 /**
