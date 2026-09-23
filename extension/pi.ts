@@ -11,8 +11,11 @@
  * the one way a fake can be trusted to stand in for it.
  */
 
-import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import type { StepDeps } from "./deps.ts";
+
+/** How pi runs: `"tui"`, `"rpc"`, `"json"` or `"print"`. */
+type Mode = ExtensionContext["mode"];
 
 /** The slice of pi's API this extension registers through, and speaks to a session with. */
 export type PiApi = Pick<
@@ -52,8 +55,8 @@ export type Widget = (tui: unknown, theme: Theme) => { render(width: number): st
 /** What a command is handed. pi's own context has all of it, and a test builds one. */
 export type CommandCtx = {
 	cwd: string;
-	/** Whether there is a terminal to ask anything in. */
-	hasUI: boolean;
+	/** How pi runs: {@link somebodyThere} reads it. */
+	mode: Mode;
 	/** pi's signal for the turn in flight, when a turn is: absent during a command. */
 	signal?: AbortSignal;
 	ui: Ui;
@@ -87,8 +90,8 @@ export type StopCtx = { ui: Partial<Pick<Ui, "notify">> };
 /** What the tool body is handed by pi's tool context. */
 export type ToolCtx = {
 	cwd: string;
-	/** Whether somebody is there to answer a question card, mid-turn. */
-	hasUI: boolean;
+	/** How pi runs: {@link somebodyThere} reads it. */
+	mode: Mode;
 	ui: RunUi & AskUi;
 	/** Where pi keeps the parent session. Only this level can know. */
 	sessionManager?: { getSessionFile(): string | undefined };
@@ -105,8 +108,8 @@ export type ToolDeps = {
 	cwd: string;
 	signal: AbortSignal | undefined;
 	onUpdate: ((update: ToolUpdate) => void) | undefined;
-	/** Whether somebody is there: a flow's question cards are shown during the turn when they are. */
-	hasUI: boolean;
+	/** How pi runs: a flow's question cards are shown during the turn when {@link somebodyThere} says so. */
+	mode: Mode;
 	ui: RunUi & AskUi;
 	/**
 	 * The parent session's JSONL, from `ctx.sessionManager.getSessionFile()`.
@@ -119,7 +122,19 @@ export type ToolDeps = {
 
 /** The tool body's dependencies, read off what pi handed the tool. */
 export function toolDeps(ctx: ToolCtx, signal: AbortSignal | undefined, onUpdate: ToolDeps["onUpdate"]): ToolDeps {
-	return { cwd: ctx.cwd, signal, onUpdate, hasUI: ctx.hasUI, ui: ctx.ui, mainSessionFile: ctx.sessionManager?.getSessionFile() };
+	return { cwd: ctx.cwd, signal, onUpdate, mode: ctx.mode, ui: ctx.ui, mainSessionFile: ctx.sessionManager?.getSessionFile() };
+}
+
+/**
+ * Whether somebody is there to answer a question card: only in pi's terminal.
+ *
+ * Not `ctx.hasUI`, which RPC mode sets too: its dialogs go to the client, but
+ * `custom()`, which draws the card, returns `undefined` there, and a card
+ * nobody saw would read as declined - "that's enough", or the run's stop.
+ * Outside the terminal a flow's `ask` takes its nobody-there path instead.
+ */
+export function somebodyThere(ctx: { mode?: Mode }): boolean {
+	return ctx.mode === "tui";
 }
 
 /**

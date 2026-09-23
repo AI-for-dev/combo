@@ -22,8 +22,11 @@ const TWO = flowText("  - id: look\n    agent: scout\n    reads: [input]\n  - id
 /** A question with no default, then an agent reading its answer. */
 const ASKS = flowText('  - id: sure\n    ask: "Go on?"\n    confirm: true\n  - id: answer\n    agent: synthesiser\n    reads: [input, sure]', { answer: "Answer." }, "input: string", "asks");
 
+/** A question nobody has to be there for, then an agent reading its answer. */
+const DEFAULTS = flowText('  - id: sure\n    ask: "Go on?"\n    confirm: true\n    default: true\n  - id: answer\n    agent: synthesiser\n    reads: [input, sure]', { answer: "Answer." }, "input: string", "defaults");
+
 /** The tool called with `params` in a fresh directory, its subagents playing `turns`, its cards answered `picked`. */
-function call(params: Params, turns: FlowTurn[][] = [], over: { hasUI?: boolean; picked?: string } = {}) {
+function call(params: Params, turns: FlowTurn[][] = [], over: { mode?: ExecuteDeps["mode"]; picked?: string } = {}) {
 	const cwd = plainDirectory();
 	const { spawn, created, requested } = flowSpawn(turns);
 	const cards: string[] = [];
@@ -33,7 +36,7 @@ function call(params: Params, turns: FlowTurn[][] = [], over: { hasUI?: boolean;
 	const theme = testTheme();
 	const deps: ExecuteDeps = {
 		cwd,
-		hasUI: over.hasUI ?? true,
+		mode: over.mode ?? "tui",
 		ui: {
 			theme,
 			setWidget: (_key: string, drawn: typeof widget) => void (widget = drawn),
@@ -47,7 +50,7 @@ function call(params: Params, turns: FlowTurn[][] = [], over: { hasUI?: boolean;
 				return undefined;
 			},
 		} as ExecuteDeps["ui"],
-		loadFlowCatalogue: () => ({ ...catalogueOf({ two: TWO, asks: ASKS }), cwd }),
+		loadFlowCatalogue: () => ({ ...catalogueOf({ two: TWO, asks: ASKS, defaults: DEFAULTS }), cwd }),
 		spawn,
 		reporter: () => {},
 		runDir: () => path.join(cwd, "runs", "run-1"),
@@ -90,10 +93,22 @@ describe("subagent, flow mode", () => {
 	});
 
 	test("with nobody there, a question nobody can leave unanswered refuses the call before anything runs", async () => {
-		const { run, requested, cwd } = call({ flow: "asks", task: "tidy up" }, [], { hasUI: false });
-		await assert.rejects(run(), /subagent: `asks` cannot run here\n.*sure\.ask: this run is launched with nobody there/);
-		assert.equal(requested.length, 0);
-		assert.ok(!fs.existsSync(path.join(cwd, "runs")));
+		// RPC mode has dialogs but no card: `custom()` returns nothing there.
+		for (const mode of ["print", "rpc"] as const) {
+			const { run, requested, cwd } = call({ flow: "asks", task: "tidy up" }, [], { mode });
+			await assert.rejects(run(), /subagent: `asks` cannot run here\n.*sure\.ask: this run is launched with nobody there/, mode);
+			assert.equal(requested.length, 0);
+			assert.ok(!fs.existsSync(path.join(cwd, "runs")));
+		}
+	});
+
+	test("in RPC mode a question takes its default, rather than a card nobody saw read as declined", async () => {
+		const { run, cards, created } = call({ flow: "defaults", task: "tidy up" }, [answered("Going on.")], { mode: "rpc" });
+		const output = await run();
+
+		assert.equal(cards.length, 0);
+		assert.match(created[0]?.prompts[0] ?? "", /## sure\n\n```json\n\{\n\s*"yes": true\n\}/);
+		assert.match(output.content[0]?.text ?? "", /^Going on\.\n\nok · runs\/run-1$/);
 	});
 
 	test("a composition field beside `flow` is refused, by name, rather than ignored", async () => {
@@ -103,7 +118,7 @@ describe("subagent, flow mode", () => {
 			[{ flow: "two", task: "q", lifetime: "workflow", export: true }, /drop `lifetime`, `export`$/],
 			[{ mode: "flow", task: "q" }, /needs `flow`, the name of the flow to run/],
 			[{ flow: "two" }, /say what `two` should work on, in `task`/],
-			[{ flow: "ghost", task: "q" }, /^Error: subagent: `ghost` is unknown; the flows are two, asks$/],
+			[{ flow: "ghost", task: "q" }, /^Error: subagent: `ghost` is unknown; the flows are two, asks, defaults$/],
 		];
 		for (const [params, refused] of cases) {
 			const { run, requested } = call(params);

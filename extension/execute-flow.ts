@@ -36,7 +36,7 @@ export async function executeFlow(params: Params, deps: ExecuteDeps): Promise<To
 	if (!name) throw new Error("subagent: `flow` mode needs `flow`, the name of the flow to run");
 	if (!task?.trim()) throw new Error(`subagent: say what \`${name}\` should work on, in \`task\``);
 
-	const ctx = { cwd: deps.cwd ?? process.cwd(), hasUI: deps.hasUI ?? false, ui: deps.ui, signal: deps.signal };
+	const ctx = { cwd: deps.cwd ?? process.cwd(), mode: deps.mode, ui: deps.ui, signal: deps.signal };
 	const catalogue = (deps.loadFlowCatalogue ?? loadFlowCatalogue)({ cwd: ctx.cwd, scope: params.scope, builtin: true });
 	const flow = await launchable(name, catalogue, ctx);
 	if (!flow.ok) throw new Error(notLaunched("subagent", name, flow, ctx.cwd));

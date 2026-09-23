@@ -137,6 +137,11 @@ export default function (pi: PiApi) {
 			'Use subagent with lifetime: "workflow" for a coding/review loop, so the reviewer remembers its remarks.',
 		],
 		parameters: Schema,
+		// One call at a time: a flow's cards, its plan above the prompt and its
+		// stop key are the terminal's, one of each, and two calls side by side
+		// would each put theirs up. pi then runs the whole batch in order, the
+		// price of a model that could have used `parallel` instead.
+		executionMode: "sequential",
 
 		// The body lives in `execute.ts`, where every dependency is injectable
 		// and therefore testable; this only hands pi's context over.
