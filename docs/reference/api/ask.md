@@ -33,6 +33,36 @@ export type Answer = {
 
 What came back: the question, the answer, and whether it was typed or picked.
 
+## `Asking`
+
+*type*
+
+```typescript
+export type Asking = {
+	/**
+	 * What the card takes. `open`, the default: one of the options, or a typed
+	 * answer (`custom`). `closed`: one of the options only. `confirm`: yes or
+	 * no, answered `"yes"` or `"no"`. `text`: a typed answer, `""` when left
+	 * empty.
+	 */
+	readonly form?: "open" | "closed" | "confirm" | "text";
+	/** Shown above the question, in order. */
+	readonly context?: readonly Shown[];
+	/** The visit path of whoever asks, when more than one may. */
+	readonly visit?: string;
+	/**
+	 * The label of "that's enough". Absent: offered, in the card's own words.
+	 * `false`: not offered, and declining is the run's stop.
+	 */
+	readonly enough?: string | false;
+	/** Aborted when the question no longer stands, a timeout or a stop: the card closes, and its answer is not read. */
+	readonly signal?: AbortSignal;
+};
+```
+
+How a question is put, beyond the question itself: what a flow's `ask`
+node says of its card. Nothing said is the interview's card.
+
 ## `AskUser`
 
 *type*
@@ -79,3 +109,18 @@ export type Question = {
 ```
 
 One question, in the shape a card can draw and a script can answer.
+
+## `Shown`
+
+*type*
+
+```typescript
+export type Shown = {
+	/** The address it was read from, as the section's title. */
+	readonly name: string;
+	/** What it holds: a text as it is, a typed value as JSON, `""` when there is nothing. */
+	readonly body: string;
+};
+```
+
+A value shown above a question, under its name, so the person answers knowing what it is about.

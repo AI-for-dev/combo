@@ -41,7 +41,12 @@ export type Answer = {
 };
 
 /** A value shown above a question, under its name, so the person answers knowing what it is about. */
-export type Shown = { readonly name: string; readonly body: string };
+export type Shown = {
+	/** The address it was read from, as the section's title. */
+	readonly name: string;
+	/** What it holds: a text as it is, a typed value as JSON, `""` when there is nothing. */
+	readonly body: string;
+};
 
 /**
  * How a question is put, beyond the question itself: what a flow's `ask`

@@ -183,7 +183,8 @@ extension/          the pi extension: index.ts (tool, renderers), execute.ts
                     pi.ts deps.ts command.ts flags.ts params.ts relay.ts
   commands/         one file per slash command; stage beside /step, the
                     command that uses it
-  ui/               run (the live view), ask (the question card), asking and
+  ui/               run (the live view), ask (the question card) and card
+                    (what it draws around the answer), asking and
                     herdr-switch (two switches a card and a key share)
 pane/               the client a herdr split runs, attached to the mirror
 agents/ pipelines/ flows/

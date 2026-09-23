@@ -140,6 +140,58 @@ runs its code - pi's own documentation says so - so reading Markdown from the
 same directory adds no risk that installing it did not already accept. What
 matters is that it can never take a name away from you.
 
+## The question card
+
+`/interview` asks through a card, and a flow's `ask` node will ask through the
+same one. A card holds one question. It draws the header and the visit that
+asks, the reads above the question, each under its name, then what takes the
+answer, and a help line that says what the keys do:
+
+```
+────────────────────────────────────────────────────────────
+
+ [plan]  review/1/go
+
+ brief
+   Add an in-memory cache in front of the store, with a TTL.
+
+ Build this?
+
+ → Build it                        start the subtasks
+   Change the plan
+   Stop here
+
+ ↑↓ choose • enter answer • esc Stop here
+
+────────────────────────────────────────────────────────────
+```
+
+What takes the answer depends on the form the caller asks for:
+
+| Form | The card | The answer |
+| --- | --- | --- |
+| a choice, open | the options, then `Other…` for a typed answer | a label, or the typed text with `custom: true` |
+| a choice, closed | the options only: literal labels take no typed answer beside them | a label |
+| a yes or no | `Yes` and `No` | `"yes"` or `"no"` |
+| a free text | a text box | what was typed, `""` when left empty |
+
+`esc` declines the card, and the help line says what that means there. On the
+interview's card it writes the brief with what you have. Where a flow's card
+offers "that's enough", `esc` is that entry, under the label the flow gave it.
+Where it offers none, `esc` stops the run, and the help line reads
+`esc stop the run`. `esc` in the text box behind `Other…` goes back to the
+options instead: a key pressed to leave a text box must not end a run. The
+interview's `Other…` still opens pi's own text box, where `esc` submits.
+
+A card also comes down when its question no longer stands. The flow runner
+hands it a signal that aborts on the node's `timeout:` or on a stop. The card
+closes, pi's editor comes back, and the answer is not read. For as long as a
+card is up, the run's stop key is held, so pressing `esc` on it means only what
+the help line says.
+
+When the terminal is too narrow for the help line, each key goes on a line of
+its own rather than being cut from what it does.
+
 ## Which pi it runs against
 
 An extension is loaded into pi's own process, so it resolves **pi's** copy of the

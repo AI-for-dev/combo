@@ -2759,6 +2759,34 @@ way round - making the card's `esc` a cancel, so that both meanings agree - was
 rejected, because it throws the answers away, and the reflex to escape out of a
 dialog is exactly the moment those answers are worth keeping.
 
+**A flow's card is the interview's card, told more.** `createAskUi` reads the
+`Asking` a flow's `ask` hands it, and an `AskUser` called without one draws the
+interview's card as before. What the card draws around the answer is
+`extension/ui/card.ts`, the same for every form: the header and the visit, the
+reads under their names, the question and the help line. What takes the answer
+is a list or a text box, and `ask.ts` picks it from the form.
+
+- **A flow's text box is drawn in the card, not by pi's `input`.** pi's box
+  shows a title and nothing else, so the reads the person is answering about
+  would disappear the moment they chose `Other…`. In the card they stay above
+  the question. pi's `custom` takes no signal, so the card calls its own
+  `done` when `Asking.signal` aborts, and pi puts its editor back as it does
+  for any answer.
+- **`esc` in the text box behind `Other…` goes back to the options.** On the
+  interview's card it still submits, as it always did. On a flow's card with no
+  "enough", declining is the run's stop, and a key pressed to leave a text box
+  is not a request to end the run. An empty answer goes back too: it is not a
+  typed answer.
+- **The help line says what `esc` does on this card.** It gives the label of
+  "enough" when the card offers one, and "stop the run" when it does not. A
+  card that said "esc cancel" while the key stopped the run would be the
+  collision above, again.
+- **The card is laid out like pi's own dialogs.** The list sits one column in
+  and blank lines separate the parts, where it used to be flush with the border
+  and packed. When the help line does not fit, each key gets its own line: at
+  44 columns it had wrapped as `esc stop the` / `run`. The interview's card
+  gets the same layout. Only its looks change, not what it does.
+
 ## One floor under the commands
 
 Five commands launch work - `/build`, `/run`, `/step`, `/swarm`, `/interview` -
