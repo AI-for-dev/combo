@@ -27,6 +27,7 @@ import { visitCommit, type CommitOutcome, type CommittingRun } from "./commit.ts
 import type { Copies } from "./copies.ts";
 import { interruption, under, type Ended, type Visited, type Walked } from "./ended.ts";
 import type { Frames, Held } from "./frames.ts";
+import type { Journal, VisitEnd } from "./journal.ts";
 import { visitLoop } from "./loop.ts";
 import { SUBMIT_TOOL, submitTool } from "./submit.ts";
 import type { Values } from "./values.ts";
@@ -44,10 +45,11 @@ export const DEFAULT_TIMEOUT_MS = 30 * 60_000;
  */
 export type Here = { readonly values: Values; readonly frames: Frames; readonly cut: AbortSignal; readonly tree: string | undefined };
 
-/** What a block needs of the walk: the run's signal, the copies it makes, and a sequence walked inside it. */
+/** What a block needs of the walk: the run's signal, the copies it makes, the journal, and a sequence walked inside it. */
 export type Walker = {
 	readonly signal: AbortSignal;
 	readonly copies?: Copies;
+	readonly journal: Journal;
 	sequence(nodes: readonly CheckedNode[], prefix: string, here: Here): Promise<Walked>;
 };
 
@@ -62,6 +64,7 @@ export type Walker = {
 export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, CommittingRun, Walker {
 	readonly signal: AbortSignal;
 	readonly copies?: Copies;
+	readonly journal: Journal;
 	private readonly walk: Walk;
 	/** The flow walked, then each one that called it, outward. */
 	private readonly stack: readonly CheckedFlow[];
@@ -73,6 +76,7 @@ export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, Commit
 		this.walk = walk;
 		this.signal = walk.signal;
 		this.copies = walk.copies;
+		this.journal = walk.journal;
 		this.stack = stack;
 		this.prefix = prefix;
 		this.shared = sharedSubagents((stack[0] as CheckedFlow).nodes);
@@ -158,7 +162,7 @@ export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, Commit
 		return { subagent, submit, verdict };
 	}
 
-	/** One visit, between its `visit_start` and its `visit_end`. */
+	/** One visit, between its `visit_start` and its `visit_end`, which is written down before it is told. */
 	private async visit(node: CheckedNode, path: string, here: Here): Promise<Visited> {
 		const { bus } = this.walk;
 		bus.emit({ type: "visit_start", path, node: this.address(node.at), kind: node.kind });
@@ -167,7 +171,9 @@ export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, Commit
 		const wallMs = performance.now() - started;
 		const usage = { ...visit.usage, wallMs };
 		const { ended, agent, model } = visit;
-		bus.emit({ type: "visit_end", path, ok: ended.ok, ...told(node, ended), ...(agent !== undefined && { agent }), ...(model !== undefined && { model }), wallMs, usage });
+		const end: VisitEnd = { type: "visit_end", path, ok: ended.ok, ...told(node, ended), ...(agent !== undefined && { agent }), ...(model !== undefined && { model }), wallMs, usage };
+		this.journal.append(end);
+		bus.emit(end);
 		return { ended, usage, failed: visit.failed ?? (ended.ok ? undefined : { path, error: ended.error }) };
 	}
 

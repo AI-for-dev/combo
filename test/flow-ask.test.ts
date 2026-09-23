@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { checkRun, dryRunFlow, showType, type CheckedAskNode, type CheckedFlow } from "../src/flow/index.ts";
-import { checked, refused } from "./fixtures/flow.ts";
+import { checked, refused, visited } from "./fixtures/flow.ts";
 
 /** A flow of one ask, `pick`, written with `keys`. */
 const ASK = (keys: string) => checked(`  - id: pick\n${keys.replace(/^/gm, "    ")}`, {});
@@ -138,16 +138,14 @@ describe("an ask in a dry run", () => {
 
 	test("is answered with an output of its form", async () => {
 		const run = await dryRunFlow(FLOW, "x", { pick: { answered: true, answer: "Yes", custom: false }, sure: { yes: false }, note: "" });
-		assert.ok("journal" in run, JSON.stringify(run));
-		assert.deepEqual(run.journal.map((entry) => entry.output), [{ answered: true, answer: "Yes", custom: false }, { yes: false }, ""]);
+		assert.deepEqual(visited(run).map((entry) => entry.output), [{ answered: true, answer: "Yes", custom: false }, { yes: false }, ""]);
 	});
 
 	test("takes the node's own path when nobody answers, and stops the run on a declined card", async () => {
 		const missed = await dryRunFlow(FLOW, "x", { pick: { answered: true, answer: "No" }, sure: { fail: "timeout" }, note: { fail: "nobody" } });
-		assert.ok("journal" in missed);
-		assert.deepEqual(missed.journal.map((entry) => entry.output ?? entry.error?.kind), [{ answered: true, answer: "No" }, { yes: true }, "nobody"]);
+		assert.deepEqual(visited(missed).map((entry) => entry.output ?? entry.error?.kind), [{ answered: true, answer: "No" }, { yes: true }, "nobody"]);
 		const stopped = await dryRunFlow(FLOW, "x", { pick: { fail: "stopped" }, sure: { yes: true }, note: "" });
-		assert.deepEqual(!stopped.ok && "error" in stopped && [stopped.error.kind, stopped.path, stopped.journal.length], ["stopped", "pick", 1]);
+		assert.deepEqual(!stopped.ok && "error" in stopped && [stopped.error.kind, stopped.path, visited(stopped).length], ["stopped", "pick", 1]);
 	});
 
 	test("refuses an answer off its form, and a kind its keys rule out", async () => {

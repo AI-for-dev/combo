@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { dryRunFlow, type DryRun } from "../src/flow/index.ts";
-import { checked } from "./fixtures/flow.ts";
+import { checked, visited } from "./fixtures/flow.ts";
 
 const FLOW = checked(
 	`  - id: plan
@@ -30,8 +30,7 @@ const FLOW = checked(
 
 /** A dry run's journal, as `path ok`. */
 function journal(run: DryRun): string[] {
-	assert.ok("journal" in run, JSON.stringify(run));
-	return run.journal.map((entry) => `${entry.path} ${entry.ok}`);
+	return visited(run).map((entry) => `${entry.path} ${entry.ok}`);
 }
 
 describe("a dry run", () => {
@@ -39,7 +38,7 @@ describe("a dry run", () => {
 		const run = await dryRunFlow(FLOW, "x", { plan: { first: "scout" }, "gate/look": "found", answer: "done" }, { model: "p/m" });
 		assert.deepEqual(run.ok && "output" in run && run.output, "done");
 		assert.deepEqual(journal(run), ["plan true", "gate/look true", "gate true", "answer true"]);
-		const plan = "journal" in run ? run.journal[0] : undefined;
+		const plan = visited(run)[0];
 		assert.deepEqual([plan?.output, plan?.agent, plan?.model], [{ first: "scout" }, "planner", "p/m"]);
 		assert.deepEqual("usage" in run && [run.usage.input, run.usage.output, run.usage.cost], [0, 0, 0]);
 	});
@@ -121,10 +120,9 @@ describe("a dry run", () => {
 			"deliver/audit": [{ approved: false, raised: ["more"] }, { approved: true, resolved: [{ id: "o1", how: "addressed" }] }],
 		});
 		assert.ok(run.ok, JSON.stringify(run));
-		assert.ok("journal" in run);
-		const codes = run.journal.filter((entry) => entry.path.endsWith("/code")).map((entry) => `${entry.path} ${String(entry.output)}`);
+		const codes = visited(run).filter((entry) => entry.path.endsWith("/code")).map((entry) => `${entry.path} ${String(entry.output)}`);
 		assert.deepEqual(codes, ["deliver#1/work[1]/code first", "deliver#1/work[2]/code first", "deliver#2/work[1]/code second", "deliver#2/work[2]/code exact"]);
-		assert.deepEqual(run.journal.filter((entry) => entry.path.endsWith("/audit")).map((entry) => entry.output), [{ approved: false }, { approved: true }]);
+		assert.deepEqual(visited(run).filter((entry) => entry.path.endsWith("/audit")).map((entry) => entry.output), [{ approved: false }, { approved: true }]);
 	});
 
 	test("refuses a visit past a bound, a list longer than the visits it can answer, and a path that leads nowhere", async () => {

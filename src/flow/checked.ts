@@ -13,6 +13,7 @@ import type { Agent } from "../agent.ts";
 import type { Choice } from "../ask.ts";
 import type { AskForm } from "./node.ts";
 import type { Condition } from "./condition/index.ts";
+import type { Sources } from "./sources.ts";
 import type { Field, ValueType } from "./type.ts";
 
 /** Why a node failed. A closed set, so a condition reading `x.error.kind` is checked like any enum. */
@@ -162,6 +163,8 @@ export type CheckedFlow = {
 	readonly nodes: readonly CheckedNode[];
 	/** What its last root node outputs: what a `flow` node calling it hands on. */
 	readonly output: ValueType;
+	/** What its check read: its file and every one it reaches, each agent it names with its skills. */
+	readonly sources: Sources;
 	readonly [checked]: true;
 };
 

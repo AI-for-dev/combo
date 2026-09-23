@@ -6,7 +6,7 @@
 
 import assert from "node:assert/strict";
 import type { Agent } from "../../src/agent.ts";
-import { checkFlow, checkRun, runFlow, type CheckedFlow, type CheckedRun, type FlowCatalogue, type FlowResult, type RunFlowOptions, type RunStage } from "../../src/flow/index.ts";
+import { checkFlow, checkRun, runFlow, type CheckedFlow, type CheckedRun, type DryRun, type FlowCatalogue, type FlowResult, type RunFlowOptions, type RunStage, type VisitEnd } from "../../src/flow/index.ts";
 import type { CreateSession, CreateSessionOptions } from "../../src/session.ts";
 import { spawn } from "../../src/subagent.ts";
 import type { SpawnFn } from "../../src/workflows/options.ts";
@@ -55,6 +55,12 @@ export function checked(nodes: string, sections: Record<string, string>, head = 
 /** The faults of the flow `f` whose nodes are `nodes` and whose body is `body`, as `code at`. */
 export function refused(nodes: string, body = ""): string[] {
 	return refusedIn("f", { f: `---\nname: f\ndescription: d\ninput: string\nnodes:\n${nodes}\n---\n${body}` });
+}
+
+/** The visits a dry run's journal holds, in the order they ended. */
+export function visited(run: DryRun): VisitEnd[] {
+	assert.ok("journal" in run, JSON.stringify(run));
+	return run.journal.filter((entry) => entry.type === "visit_end");
 }
 
 /** `flow` through the run stage: in this directory, with no port and nobody there unless `stage` says otherwise. */

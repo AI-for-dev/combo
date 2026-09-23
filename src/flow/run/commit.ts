@@ -12,6 +12,7 @@ import type { GitPort } from "../../git/index.ts";
 import { emptyUsage } from "../../usage.ts";
 import type { CheckedCommitNode } from "../checked.ts";
 import { failure, type Visited } from "./ended.ts";
+import type { Journal } from "./journal.ts";
 import type { Here } from "./walk.ts";
 
 /** How a commit ended: made, or not on a clean tree, on the run's branch; or refused by git. */
@@ -40,9 +41,10 @@ export async function visitCommit(run: CommittingRun, node: CheckedCommitNode, p
 
 /**
  * The commits of one real run, in `cwd`: the first opens the run's branch,
- * `combo/<slug of input>`, and each later one checks `HEAD` is still on it.
+ * `combo/<slug of input>`, written to `journal`, and each later one checks
+ * `HEAD` is still on it.
  */
-export function committer(git: GitPort, cwd: string, input: unknown): (message: string) => Promise<CommitOutcome> {
+export function committer(git: GitPort, cwd: string, input: unknown, journal: Journal): (message: string) => Promise<CommitOutcome> {
 	let branch: string | undefined;
 	const refused = (message: string): CommitOutcome => ({ ok: false, kind: "unavailable", message });
 	return async (message) => {
@@ -50,6 +52,7 @@ export function committer(git: GitPort, cwd: string, input: unknown): (message: 
 			const opened = await git.openBranch(cwd, typeof input === "string" ? input : JSON.stringify(input));
 			if (!opened.ok) return refused(opened.error);
 			branch = opened.value;
+			journal.append({ type: "branch_opened", branch });
 		} else {
 			const current = await git.currentBranch(cwd);
 			if (current !== branch) return refused(`\`HEAD\` is on ${current === undefined ? "no branch" : `\`${current}\``}, not on the run's branch: \`git switch ${branch}\``);

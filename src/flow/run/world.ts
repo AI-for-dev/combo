@@ -14,12 +14,14 @@ import type { Card, Heard } from "./ask.ts";
 import type { CommitOutcome } from "./commit.ts";
 import type { Copies } from "./copies.ts";
 import type { Ended } from "./ended.ts";
+import type { Journal } from "./journal.ts";
 
 /**
  * How a walk reaches the world: the deadline of each agent attempt, a
  * check's script run in a tree, a commit, the `diff` of a tree, the copies of
- * a block, and a question put to the person. A real run's come from its
- * `CheckedRun`; a dry run's are scripted, and it makes no copy.
+ * a block, a question put to the person, and the journal each fact is written
+ * to. A real run's come from its `CheckedRun` and its run directory; a dry
+ * run's are scripted, and it makes no copy.
  */
 export type World = {
 	deadline(attempt: Attempt): AbortSignal;
@@ -30,6 +32,7 @@ export type World = {
 	/** A call answered whole, without walking into its callee: a dry run's, when its script says so. */
 	whole?(node: CheckedCallNode, path: string): Ended | undefined;
 	readonly copies?: Copies;
+	readonly journal: Journal;
 };
 
 /** What a run is given: the flow, its settings, and how it reaches the world. */

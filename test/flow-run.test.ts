@@ -7,6 +7,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { createEventBus, type SubagentEvent } from "../src/events.ts";
+import { NO_JOURNAL } from "../src/flow/run/journal.ts";
 import { Run } from "../src/flow/run/walk.ts";
 import { IN_THE_LANGUAGE_OF_THE_WORK } from "../src/language.ts";
 import { stopSwitch } from "../src/stop.ts";
@@ -208,7 +209,7 @@ describe("`timeout:`", () => {
 			const flow = checked(`  - id: look\n    agent: scout${timeout}`, { look: "Look." }, `input: string${head}`);
 			const node = flow.nodes[0];
 			assert.equal(node?.kind, "agent");
-			const run = new Run({ flow, bus: createEventBus(), signal: new AbortController().signal, spawn: flowSpawn([]).spawn, timeoutMs, deadline: () => new AbortController().signal, check: async () => ({ ok: false, kind: "unavailable", message: "" }), commit: async () => ({ ok: false, kind: "unavailable", message: "" }), diff: async () => ({ ok: true, value: "" }), ask: async () => ({ missed: "nobody" }), stop: () => {} });
+			const run = new Run({ flow, bus: createEventBus(), signal: new AbortController().signal, spawn: flowSpawn([]).spawn, timeoutMs, deadline: () => new AbortController().signal, check: async () => ({ ok: false, kind: "unavailable", message: "" }), commit: async () => ({ ok: false, kind: "unavailable", message: "" }), diff: async () => ({ ok: true, value: "" }), ask: async () => ({ missed: "nobody" }), journal: NO_JOURNAL, stop: () => {} });
 			return run.timeoutFor(node as Extract<typeof node, { kind: "agent" }>);
 		};
 		assert.deepEqual([bound("\ntimeout: 2m", "\n    timeout: 90s", 5), bound("\ntimeout: 2m", "\n    timeout: 90s"), bound("\ntimeout: 2m", ""), bound("", "")], [5, 90_000, 120_000, 1_800_000]);
