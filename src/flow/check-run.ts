@@ -38,6 +38,7 @@ export type FlowPorts = {
 export type RunStage = {
 	/** The working tree, at the repository root: a check's path starts there. */
 	readonly cwd: string;
+	/** How the run reaches the world; a node whose port is absent refuses it. */
 	readonly ports: FlowPorts;
 	/** Whether a person can answer. With no `ask` port, nobody can, whatever this says. */
 	readonly somebodyThere: boolean;
@@ -47,6 +48,7 @@ declare const checked: unique symbol;
 
 /** A checked flow that passed the run stage too. Only `checkRun` makes one, and it is what `runFlow` takes. */
 export type CheckedRun = RunStage & {
+	/** The flow, as the flow stage checked it. */
 	readonly flow: CheckedFlow;
 	/**
 	 * Each check script's content by its path, read here: what runs is what was

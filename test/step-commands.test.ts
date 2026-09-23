@@ -186,7 +186,7 @@ describe("/step", () => {
 		assert.equal(step, undefined);
 		assert.equal(agentAsks.length, 0);
 		assert.match(said(), /neither a pipeline nor an agent/);
-		assert.match(said(), /\/pipelines and \/agents/, "both listings, because either could be the answer");
+		assert.match(said(), /\/agents lists the agents/);
 	});
 
 	test("a name held by both runs the pipeline, and says --agent runs the other", async () => {

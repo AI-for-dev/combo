@@ -10,13 +10,12 @@
  * there) is the run stage's, and is not looked at here.
  */
 
-import type { MarkdownFile } from "../markdown.ts";
 import type { AgentNames } from "./agents.ts";
 import { boundsOf } from "./bounds.ts";
 import { checkAgent } from "./check-agent.ts";
 import { checkAsk } from "./check-ask.ts";
 import { Callees, checkCall } from "./check-call.ts";
-import type { FlowCatalogue } from "./catalogue.ts";
+import type { FlowCatalogue, FoundFlow } from "./catalogue.ts";
 import { checkChoice, checkMap, checkParallel } from "./check-blocks.ts";
 import { checkLoop } from "./check-loop.ts";
 import { checkCommit } from "./check-world.ts";
@@ -50,7 +49,7 @@ export function checkFlow(name: string, catalogue: FlowCatalogue): CheckFlow {
 }
 
 /** One flow file checked, its calls resolved through `callees`. */
-function checkFile(source: MarkdownFile, { flow, faults }: ReadFlow, callees: Callees): CheckFlow {
+function checkFile(source: FoundFlow, { flow, faults }: ReadFlow, callees: Callees): CheckFlow {
 	if (flow === undefined) return { ok: false, faults: faults.list };
 	const { name } = source;
 	if (flow.name !== "" && flow.name !== name) faults.add("name-mismatch", "name", `\`${flow.name}\` is in \`${name}.md\`: a flow is found by its file name, so the two say the same`);

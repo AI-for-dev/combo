@@ -1,7 +1,7 @@
 /**
  * `/agents`: what can be spawned here, and where each definition came from.
  *
- * The same failure `/pipelines` was written for: an agent that lives in one
+ * The same failure `/flows` answers for flows: an agent that lives in one
  * repository is invisible from another, and until now the only way to find out
  * what was loaded was to mistype a name and read the error. Scope is half the
  * answer, so it is what the listing is built around - three sources, most
@@ -62,7 +62,7 @@ export function groupAgents(agents: Agent[], cwd: string): AgentGroup[] {
  * The listing, as lines.
  *
  * Kept away from the terminal so it can be asserted on directly, the same split
- * as `/pipelines` and the run picture.
+ * as `/flows` and the run picture.
  */
 export function agentLines(agents: Agent[], cwd: string): string[] {
 	const groups = groupAgents(agents, cwd);

@@ -1,8 +1,9 @@
 # Flows
 
 ```{note}
-The flow format ships in a coming release. Nothing in the package exports it
-yet: until then, [pipelines](pipelines.md) are what `/build` and `/run` read.
+The package exports the flow API, and `/flows` lists and plans flows. `/build`
+and `/run` still run [pipelines](pipelines.md) until they run flows.
+[From pipelines to flows](from-pipelines.md) rewrites a pipeline as a flow.
 ```
 
 A flow is a task graph you write in YAML and Markdown, next to your agents. It is
@@ -80,6 +81,19 @@ its name: a broken `.pi/agents/scout.md` is not replaced by your own `scout`. An
 agent that declares `skills:` needs `read` in its `tools:`, and each skill has
 to be found [where agents look for skills](agents.md#skills). These are the
 refusals spawn would make, moved before the first turn.
+
+The `pipelines/` directories the linear format used, `~/.pi/agent/pipelines/`
+and `.pi/pipelines/`, are still read, and only so that each file there is
+refused with `pipeline-format-removed`: nothing is loaded from them. A
+`build.md` of your own left there would otherwise lose its name to the shipped
+`build` flow without a word. [From pipelines to flows](from-pipelines.md) says
+how to rewrite one.
+
+In pi, `/flows` lists every flow found, with where it comes from, the most it
+can cost in turns and time, and its description; a refused file is listed
+beside the others with each fault under it, `file at: message`. `/flows <name>`
+prints that flow's [plan](#bounds-and-renderings). Both run the flow stage
+only, so a flow listed as valid can still be refused at launch.
 
 ## The shipped flows
 
@@ -508,10 +522,6 @@ reading as `false`; guard it the CEL way, `audit.ok && audit.output.approved`.
 
 ## Running a flow
 
-```{note}
-Not exported yet, like the rest of the format.
-```
-
 A run is launched in three steps, each refusing with faults rather than
 starting:
 
@@ -882,10 +892,6 @@ const resumed = await dryRunFlow(split, "add a cache", { answer: "Put the cache 
 
 ## Bounds and renderings
 
-```{note}
-Not exported yet, like the rest of the format.
-```
-
 Every loop and every `map` has a bound written in the file, so a checked flow
 knows its worst case before its first spawn. `checked.bounds` holds it:
 `total`, and `nodes`, each node's worst case over every visit a run can make
@@ -1034,6 +1040,7 @@ stage's.
 | --- | --- | --- |
 | `yaml-syntax` | the frontmatter is not valid YAML; the only fault returned | fix the YAML at the line given |
 | `not-a-flow` | the file has no frontmatter mapping | start the file with `---` and the flow's keys |
+| `pipeline-format-removed` | the file is in an old `pipelines/` directory, a linear pipeline nothing reads | rewrite it as a flow in `flows/` beside it, as [From pipelines to flows](from-pipelines.md) shows, then delete it |
 | `name-mismatch` | `name:` differs from the file name | rename one of them |
 | `unknown-flow` | no flow file has that name | use the name offered, or add the file |
 | `broken-flow` | a `flow` node calls a flow that is refused; the message gives its file and first fault | fix the callee |

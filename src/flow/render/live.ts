@@ -39,6 +39,7 @@ export type LiveLine = {
 	readonly label: string;
 	/** The visit path; a case keeps its choice's, and a pending line inside a block its plan's `#n` and `[i]`. */
 	readonly path: string;
+	/** Where the visit stands: pending, running, blocked, done, failed or never reached. */
 	readonly state: LiveState;
 	/** The plan's facts while pending, what is under way while running, and how it ended once over. */
 	readonly facts: readonly string[];
@@ -48,11 +49,19 @@ export type LiveLine = {
 	readonly usage?: Usage;
 	/** The subagents spawned for an `agent` visit. */
 	readonly subagents: readonly string[];
+	/** The lines under it: a block's sequence, a loop's iterations, a map's items. */
 	readonly lines: readonly LiveLine[];
 };
 
 /** A run's live view: the flow, the one-line summary, and its root sequence. */
-export type LivePlan = { readonly flow: string; readonly summary: LiveSummary; readonly lines: readonly LiveLine[] };
+export type LivePlan = {
+	/** The flow's name. */
+	readonly flow: string;
+	/** What the summary line says. */
+	readonly summary: LiveSummary;
+	/** The root sequence. */
+	readonly lines: readonly LiveLine[];
+};
 
 /**
  * The live view of the run of `checked`: `journal` is what its earlier lives

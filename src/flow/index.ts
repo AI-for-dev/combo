@@ -2,10 +2,10 @@
  * A flow: a task graph written in YAML + Markdown, from a closed set of nodes,
  * validated whole before the first spawn and walked by our runner.
  *
- * This is the module's door. Nothing outside the library reaches it yet: the
- * format is built beside the linear pipeline, and the package exports it when
- * it replaces that. The file's reader, its nodes and its sections are
+ * This is the module's door, and `src/index.ts` exports from it what a caller
+ * outside the library calls. The file's reader, its nodes and its sections are
  * implementation: `loadFlowCatalogue` finds what a flow runs against,
+ * `removedPipelines` refuses what is left of the linear format,
  * `checkFlow` is how a flow is read, `checkRun` holds it to the project it is
  * launched in, and `runFlow` and `dryRunFlow` are how a checked one runs.
  * `readSnapshot` and `readJournal` read back what a run left in its run
@@ -15,7 +15,7 @@
  */
 
 export { showBound, type Bound, type Bounds } from "./bounds.ts";
-export { loadFlowCatalogue, type FlowCatalogue } from "./catalogue.ts";
+export { loadFlowCatalogue, removedPipelines, type FlowCatalogue, type FoundFlow, type RemovedPipeline } from "./catalogue.ts";
 export { checkFlow, type CheckFlow } from "./check.ts";
 export { checkRun, type CheckRun, type CheckedRun, type FlowPorts, type RunStage } from "./check-run.ts";
 export {

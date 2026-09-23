@@ -16,8 +16,31 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`board/tool`](board/tool.md) | How a member reaches the board. | 2 |
 | [`delegate`](delegate.md) | Letting a subagent have subagents of its own. | 4 |
 | [`events`](events.md) | The event stream: one core, many reporters. | 6 |
+| [`flow/bounds`](flow/bounds.md) | The worst case of a checked flow, computed before the first spawn: how many agent turns each node can ask for, and how long it can take when every bounded wait runs to its bound. | 3 |
+| [`flow/catalogue`](flow/catalogue.md) | What a flow is checked against, and where it is found on disk. | 5 |
+| [`flow/check-run`](flow/check-run.md) | The run stage of validation: a checked flow held to the project it is about to run in, still before the first spawn. | 5 |
+| [`flow/check`](flow/check.md) | The flow stage of validation: a flow read against the catalogue it runs in, before the first spawn. | 2 |
+| [`flow/checked`](flow/checked.md) | A checked flow: what validation hands the runner, the renderings and the dry run once it found no fault. | 13 |
+| [`flow/condition/compile`](flow/condition/compile.md) | A condition checked whole against the types of what it may read, before the first spawn. | 1 |
+| [`flow/fault`](flow/fault.md) | Why a flow is refused before its first spawn: a stable code, the file, where in it, and one sentence. | 2 |
+| [`flow/render/live-text`](flow/render/live-text.md) | The live view as text: the summary line, then one line per live line, indented under the line that holds it, each cut to the width the caller draws in. | 2 |
+| [`flow/render/live`](flow/render/live.md) | The live view of a flow run: its plan, filled from the journal and the event stream, folded by the state of each visit. | 4 |
+| [`flow/render/mermaid`](flow/render/mermaid.md) | A checked flow as a Mermaid `flowchart`: the structure and nothing else. | 1 |
+| [`flow/render/plan`](flow/render/plan.md) | The plan of a checked flow: one line per node, in the tree the file writes, each saying everything the check resolved about it. | 3 |
+| [`flow/render/summary`](flow/render/summary.md) | The one line a flow run collapses to: how it stands, and counts that hide nothing. | 1 |
+| [`flow/render/text`](flow/render/text.md) | A plan as text: the head line of the flow, then one line per plan line, indented under the line that holds it. | 1 |
+| [`flow/run/answers`](flow/run/answers.md) | A dry run's script: the answers that stand in for each agent turn, each check's script run, each commit and each question, checked against the flow before the first one is taken. | 2 |
+| [`flow/run/dry-run`](flow/run/dry-run.md) | `dryRunFlow`: `runFlow` itself, with every agent turn, every check, every commit and every question answered by a script. | 3 |
+| [`flow/run/flow`](flow/run/flow.md) | `runFlow`: a checked run walked from its first node to its last. | 3 |
+| [`flow/run/journal`](flow/run/journal.md) | The journal of a run: one JSON line per fact, appended when it happens and never rewritten, which is what a resume and the live view read back. | 3 |
+| [`flow/run/resume-point`](flow/run/resume-point.md) | `resumePoint`: where a run picks up from its journal, or why it may not. | 2 |
+| [`flow/run/resume`](flow/run/resume.md) | `resumeFlow`: a run carried on from its run directory, as deep as its journal goes. | 3 |
+| [`flow/run/snapshot`](flow/run/snapshot.md) | The snapshot of a run: what its validation read, kept in its run directory at the first start with the input and the settings, so that a resume runs the flow the run started with, whatever the disk says by then. | 3 |
+| [`flow/sources`](flow/sources.md) | What the flow stage read to check a flow: its file and the file of every flow it reaches, and each agent it names with the skills that agent's `skills:` resolved to. | 2 |
+| [`flow/type`](flow/type.md) | The type of a value a flow passes around: what a schema declares, what a condition is checked against, and what a node's typed output must match. | 2 |
 | [`git/git`](git/git.md) | The git a pipeline is allowed to do - and nothing else. | 8 |
 | [`git/land`](git/land.md) | Putting the work of several copies back into one tree. | 3 |
+| [`git/port`](git/port.md) | The `git` port of a flow run: what a flow's nodes may ask of git, and nothing more. | 2 |
 | [`git/scratch`](git/scratch.md) | A working copy with a lifetime: made for one piece of work, and released when that work is done. | 2 |
 | [`git/worktree`](git/worktree.md) | Working copies, so two agents can write at once without writing over each other. | 6 |
 | [`language`](language.md) | The language a subagent answers in: the one it was asked in. | 1 |
@@ -51,7 +74,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`text`](text.md) | Reading what a model wrote, and cutting what it is handed: shortening text, and finding the structure in it. | 5 |
 | [`tool`](tool.md) | The constant parts of a tool combo defines: whether an agent asked for it, and the two shapes of answer a model reads. | 3 |
 | [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 6 |
-| [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 4 |
+| [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 8 |
 | [`workflows/chain`](workflows/chain.md) | `chain`: 1 → 1 → 1. The output of step *n* is the input of step *n+1*. | 2 |
 | [`workflows/concurrent`](workflows/concurrent.md) | Running several things at once, but not all of them: a subtask is a session, and N sessions opening together is the bill nobody meant to pay. | 1 |
 | [`workflows/deliver/audit`](workflows/deliver/audit.md) | The audit: one agent reads the whole of a delivery, and says what is left. | 7 |
@@ -82,8 +105,31 @@ board/claims
 board/tool
 delegate
 events
+flow/bounds
+flow/catalogue
+flow/check-run
+flow/check
+flow/checked
+flow/condition/compile
+flow/fault
+flow/render/live-text
+flow/render/live
+flow/render/mermaid
+flow/render/plan
+flow/render/summary
+flow/render/text
+flow/run/answers
+flow/run/dry-run
+flow/run/flow
+flow/run/journal
+flow/run/resume-point
+flow/run/resume
+flow/run/snapshot
+flow/sources
+flow/type
 git/git
 git/land
+git/port
 git/scratch
 git/worktree
 language

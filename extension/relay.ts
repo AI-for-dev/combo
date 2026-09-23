@@ -237,7 +237,7 @@ export function chainUsage(relay: Relay): Usage {
  * `/chain`, as lines - the chain so far, and where it went.
  *
  * Kept away from the terminal so it can be asserted on directly, the same split
- * as `/pipelines` and `/agents`. The wall time shown is the sum of the steps'
+ * as `/flows` and `/agents`. The wall time shown is the sum of the steps'
  * own, not the age of the chain: a chain walked by hand spends most of its life
  * waiting for a human, and counting that as work would be an estimate.
  */

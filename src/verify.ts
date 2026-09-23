@@ -84,6 +84,7 @@ export type ScriptRequest = {
 	readonly content: string;
 	/** The working tree it runs in. */
 	readonly cwd: string;
+	/** How long it may run before it is killed. */
 	readonly timeoutMs: number;
 	/** Aborting it kills the script. */
 	readonly signal?: AbortSignal;

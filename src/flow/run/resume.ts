@@ -27,9 +27,11 @@ import { readSnapshot, type Snapshot } from "./snapshot.ts";
  * and `input` are the run's own, frozen: giving either refuses the resume.
  */
 export type ResumeFlowOptions = Pick<RunFlowOptions, "spawn" | "signal" | "onEvent" | "timeoutMs" | "model"> & {
+	/** How the resumed run reaches the world, checked again at the run stage. */
 	readonly ports: FlowPorts;
 	/** Whether a person can answer now: the run stage holds the flow to it, as at a start. */
 	readonly somebodyThere: boolean;
+	/** Refused when given: the input is the run's own, kept in its snapshot. */
 	readonly input?: unknown;
 };
 

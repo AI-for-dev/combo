@@ -8,7 +8,18 @@
  * command does inside it stays in its own file.
  */
 
-import { commandVerifier, findPipeline, loadAgents, loadPipelines, type Agent, type Pipeline, type PipelineCatalogue, type Verify } from "../src/index.ts";
+import {
+	commandVerifier,
+	findPipeline,
+	loadAgents,
+	loadFlowCatalogue,
+	loadPipelines,
+	type Agent,
+	type FlowCatalogue,
+	type Pipeline,
+	type PipelineCatalogue,
+	type Verify,
+} from "../src/index.ts";
 import type { CommandDeps, Deps } from "./deps.ts";
 import type { CommandCtx, RunUi } from "./pi.ts";
 import { liveRun, STATUS, type LiveRun, type LiveRunOptions } from "./ui/index.ts";
@@ -30,6 +41,11 @@ export function loadRoster(ctx: CommandCtx, deps: Pick<Deps, "loadAgents"> = { l
 /** The pipelines every command runs with, on the same terms as the roster, for the same reason. */
 export function loadCatalogue(ctx: CommandCtx, deps: Pick<Deps, "loadPipelines"> = { loadPipelines }): PipelineCatalogue {
 	return deps.loadPipelines({ cwd: ctx.cwd, scope: "both", builtin: true });
+}
+
+/** The flows every command runs with, and the agents they name, on the same terms as the roster. */
+export function loadFlows(ctx: CommandCtx, deps: Pick<Deps, "loadFlowCatalogue"> = { loadFlowCatalogue }): FlowCatalogue {
+	return deps.loadFlowCatalogue({ cwd: ctx.cwd, scope: "both", builtin: true });
 }
 
 /** Notifies and returns `undefined` - the shape every refusal in these commands has. */

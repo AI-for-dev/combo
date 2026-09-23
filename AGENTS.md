@@ -134,14 +134,15 @@ src/                the library
   builtin.ts        where the package's own agents/, pipelines/ and flows/ are
   board/            the swarm's board (board, claims, tool, agreement,
                     announced); index.ts is its door
-  flow/             the flow format, built beside pipeline/ until it replaces
-                    it: file (the text, read into nodes), node (what a node is:
-                    the closed lists of kinds and keys), read-node, agent-node,
-                    ask-node, call-node, blocks, loop and world (each kind; world
-                    holds the nodes that act, `check` and `commit`), sections,
-                    value, fault (why a flow is refused), catalogue (flows and
-                    agents on disk, broken files kept), agents (a name resolved,
-                    skills checked), check, check-agent, check-ask, check-call
+  flow/             the flow format, exported beside pipeline/ until it
+                    replaces it: file (the text, read into nodes), node (what
+                    a node is: the closed lists of kinds and keys), read-node,
+                    agent-node, ask-node, call-node, blocks, loop and world
+                    (each kind; world holds the nodes that act, `check` and
+                    `commit`), sections, value, fault (why a flow is refused),
+                    catalogue (flows and agents on disk, broken files kept,
+                    old pipelines/ refused), agents (a name resolved, skills
+                    checked), check, check-agent, check-ask, check-call
                     (a callee resolved, cycles refused), check-blocks,
                     check-loop and check-world (the flow stage, against a
                     catalogue), check-run (the run stage: the tree, the ports),
@@ -181,8 +182,8 @@ src/                the library
 extension/          the pi extension: index.ts (tool, renderers), execute.ts
                     (the tool body) and the floor the commands stand on:
                     pi.ts deps.ts command.ts flags.ts params.ts relay.ts
-  commands/         one file per slash command; stage beside /step, the
-                    command that uses it
+  commands/         one file per slash command (flows is /flows); stage
+                    beside /step, the command that uses it
   ui/               run (the live view), ask (the question card) and card
                     (what it draws around the answer), asking and
                     herdr-switch (two switches a card and a key share)
@@ -261,6 +262,7 @@ not a bibliography:
 | change the extension, a command or a card | [docs/guide/extension.md](docs/guide/extension.md) |
 | add or change a pipeline | [docs/guide/pipelines.md](docs/guide/pipelines.md), [docs/guide/build.md](docs/guide/build.md) |
 | add or change a flow key, a node kind or a fault code | [docs/guide/flows.md](docs/guide/flows.md), then the header of `src/flow/file.ts` |
+| move a pipeline to a flow | [docs/guide/from-pipelines.md](docs/guide/from-pipelines.md) |
 | define an agent | [docs/guide/agents.md](docs/guide/agents.md) |
 | pick up the project cold | [NEXT.md](NEXT.md) - what is left, and the traps already paid for |
 

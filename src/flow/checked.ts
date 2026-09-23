@@ -37,10 +37,20 @@ export const ERROR_KINDS = [
 export type ErrorKind = (typeof ERROR_KINDS)[number];
 
 /** Why a node that could not run did not: what `x.error` reads. */
-export type FlowError = { readonly kind: ErrorKind; readonly message: string };
+export type FlowError = {
+	/** Which of {@link ERROR_KINDS}: what a condition compares. */
+	readonly kind: ErrorKind;
+	/** One sentence, for the person reading the run. */
+	readonly message: string;
+};
 
 /** One read handed to a turn: the address as written, and the type it names. */
-export type CheckedRead = { readonly address: string; readonly type: ValueType };
+export type CheckedRead = {
+	/** The address as the file writes it, which is also the heading the turn shows it under. */
+	readonly address: string;
+	/** The type of what it reads. */
+	readonly type: ValueType;
+};
 
 /** What every checked node has. */
 type Common = {
@@ -52,88 +62,131 @@ type Common = {
 
 /** An `agent` node, resolved. */
 export type CheckedAgentNode = Common & {
+	/** What tells the node kinds apart: the file's kind key. */
 	readonly kind: "agent";
 	/** The agent, or the address a value picks it from and the closed set it picks in, by name. */
 	readonly agent: Agent | { readonly from: string; readonly among: ReadonlyMap<string, Agent> };
 	/** Its `## <id>` section, trimmed. */
 	readonly prose: string;
+	/** The enclosing node, or `flow`, whose scope keeps this node's subagent across visits. Absent, each visit spawns its own. */
 	readonly memory?: string;
+	/** What the turn is handed, in the order written. */
 	readonly reads: readonly CheckedRead[];
+	/** The schema its `submit` call answers to. Absent, the turn's output is its text. */
 	readonly output?: ValueType;
 	/** The enclosing node whose ledger the `verdict` tool writes to; the output is then {@link VERDICT}. */
 	readonly verdict?: string;
+	/** How many times a failed turn is tried again, `0` when the file says none. */
 	readonly retry: number;
+	/** The node's own bound on one turn; absent, the flow's or the default, as `turnTimeout` says. */
 	readonly timeoutMs?: number;
 };
 
 /** A `choice`, its conditions compiled. */
 export type CheckedChoiceNode = Common & {
+	/** What tells the node kinds apart: the file's kind key. */
 	readonly kind: "choice";
+	/** Each case in the order written, the first whose `when` holds running. */
 	readonly cases: readonly { readonly when: Condition; readonly nodes: readonly CheckedNode[] }[];
+	/** What runs when no case holds, its `default:`, empty for `[]`. */
 	readonly otherwise: readonly CheckedNode[];
 };
 
 /** A `parallel`, its branches in the order written. */
 export type CheckedParallelNode = Common & {
+	/** What tells the node kinds apart: the file's kind key. */
 	readonly kind: "parallel";
+	/** Each branch, by its name, and its sequence. */
 	readonly branches: readonly { readonly name: string; readonly nodes: readonly CheckedNode[] }[];
+	/** Whether each branch runs in its own copy of the tree, landed after the join. */
 	readonly copies: boolean;
+	/** Whether the first failed branch stops the others. */
 	readonly failFast: boolean;
 };
 
 /** A `map`, over a literal list or the list an address names. */
 export type CheckedMapNode = Common & {
+	/** What tells the node kinds apart: the file's kind key. */
 	readonly kind: "map";
+	/** The literal items, or the address of the list it runs over. */
 	readonly over: { readonly items: readonly string[] } | { readonly from: string };
+	/** The most items a `map-from` takes; a longer list fails the node before any item runs. */
 	readonly max?: number;
+	/** How many items run at once. */
 	readonly concurrency: number;
+	/** Whether each item runs in its own copy of the tree, landed after the join. */
 	readonly copies: boolean;
+	/** Whether the first failed item stops the others. */
 	readonly failFast: boolean;
+	/** Whether the node keeps a ledger its verdict nodes write to. */
 	readonly ledger: boolean;
+	/** The sequence each item runs, reading it as `item`. */
 	readonly nodes: readonly CheckedNode[];
 };
 
 /** A `loop`, its conditions compiled. */
 export type CheckedLoopNode = Common & {
+	/** What tells the node kinds apart: the file's kind key. */
 	readonly kind: "loop";
+	/** Read after each iteration: the loop has converged when it holds. */
 	readonly until: Condition;
+	/** The most iterations; reaching it ends the loop not converged. */
 	readonly max: number;
+	/** Read after an iteration whose `until` is false: the loop ends not converged when it holds. */
 	readonly giveUp?: Condition;
+	/** The addresses its `carry` reads, on the first iteration and on each one after. */
 	readonly carry?: { readonly first: string; readonly next: string };
+	/** Whether the node keeps a ledger its verdict nodes write to. */
 	readonly ledger: boolean;
+	/** The sequence each iteration runs. */
 	readonly nodes: readonly CheckedNode[];
 };
 
 /** A `check`: a script of the project, whose content the run stage reads. */
 export type CheckedCheckNode = Common & {
+	/** What tells the node kinds apart: the file's kind key. */
 	readonly kind: "check";
 	/** Its path from the repository root. */
 	readonly script: string;
+	/** How long the script may run before it is killed and the check fails. */
 	readonly timeoutMs: number;
 };
 
 /** A `commit`, its message's address typed as a text. */
 export type CheckedCommitNode = Common & {
+	/** What tells the node kinds apart: the file's kind key. */
 	readonly kind: "commit";
+	/** The address of the text the commit message is. */
 	readonly message: string;
 };
 
 /** An `ask`, its reads typed and its output typed by its form. */
 export type CheckedAskNode = Common & {
+	/** What tells the node kinds apart: the file's kind key. */
 	readonly kind: "ask";
+	/** The question as written, or the address of the question an agent wrote. */
 	readonly question: { readonly text: string } | { readonly from: string };
+	/** What the card takes: a choice, a yes or no, or a free text. */
 	readonly form: AskForm;
+	/** The literal choices, when the file writes them. */
 	readonly options?: readonly Choice[];
+	/** The label of "that's enough", offered only on a choice card. */
 	readonly enough?: string;
+	/** The answer taken when nobody answers: nobody there, or its `timeout:` reached. */
 	readonly default?: string | boolean;
+	/** What the card shows above the question, in the order written. */
 	readonly reads: readonly CheckedRead[];
+	/** How long the card waits for an answer; absent, as long as the person takes. */
 	readonly timeoutMs?: number;
+	/** The type of the answer, set by the form. */
 	readonly output: ValueType;
 };
 
 /** A `flow` node: the flow it calls, checked whole on its own, and what it hands in. */
 export type CheckedCallNode = Common & {
+	/** What tells the node kinds apart: the file's kind key. */
 	readonly kind: "flow";
+	/** The flow it calls, checked whole on its own. */
 	readonly callee: CheckedFlow;
 	/** The address the callee's `input` is read from, typed. */
 	readonly input: CheckedRead;
@@ -155,12 +208,19 @@ declare const checked: unique symbol;
 
 /** A flow that passed the flow stage of validation. Only `checkFlow` makes one. */
 export type CheckedFlow = {
+	/** Its file name without `.md`, which `name:` repeats. */
 	readonly name: string;
+	/** The path of its file. */
 	readonly file: string;
+	/** Its `description:`, one line. */
 	readonly description: string;
+	/** The type of what it is started on. */
 	readonly input: ValueType;
+	/** Its `model:`, which the model given at launch overrides. */
 	readonly model?: string;
+	/** Its `timeout:`, the bound of an agent turn whose node sets none. */
 	readonly timeoutMs?: number;
+	/** Its root sequence. */
 	readonly nodes: readonly CheckedNode[];
 	/** What its last root node outputs: what a `flow` node calling it hands on. */
 	readonly output: ValueType;

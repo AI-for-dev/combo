@@ -16,6 +16,7 @@ import { CONDITION_CODES } from "./condition/index.ts";
 export const FAULT_CODES = [
 	"yaml-syntax",
 	"not-a-flow",
+	"pipeline-format-removed",
 	"name-mismatch",
 	"unknown-flow",
 	"broken-flow",
@@ -68,6 +69,7 @@ export type FaultCode = (typeof FAULT_CODES)[number];
 
 /** One reason a flow is refused. */
 export type Fault = {
+	/** Stable, and what a test or a caller matches: the guide's table explains each one. */
 	readonly code: FaultCode;
 	/** The file the fault is in. */
 	readonly file: string;
@@ -77,6 +79,7 @@ export type Fault = {
 	 * the file as a whole.
 	 */
 	readonly at: string;
+	/** One sentence saying what is wrong, and what was meant when it can tell. */
 	readonly message: string;
 };
 

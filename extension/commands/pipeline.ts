@@ -1,22 +1,17 @@
 /**
- * `/pipelines` and `/run`: seeing what there is, and running it.
+ * `/run`: a pipeline run by name, its answer left in the conversation.
  *
  * `/build` delivers a change, and it is built around that: a git repository
  * to write in, a state saved after every unit of work, and `/build resume`. A
  * pipeline that only *reads* - three scouts and a synthesis - needs none of
  * it, and what it wants is its answer where the conversation can pick it up.
  * So `/run` exists: the pipeline, its answer, and nothing around it.
- *
- * `/pipelines` exists because of a real failure, not a hunch: a pipeline of one
- * repository was invisible from another, the error said where pipelines live but
- * not what had actually been loaded, and there was no way to ask. A list is one
- * command and it answers that in a second.
  */
 
-import { checkPipelineAgents, plural, type PipelineCatalogue, type PipelineRunResult } from "../../src/index.ts";
-import { checked, choosePipeline, loadCatalogue, loadRoster, checkVerifier, refuse, watched } from "../command.ts";
+import { checkPipelineAgents, plural, type PipelineRunResult } from "../../src/index.ts";
+import { checked, choosePipeline, loadRoster, checkVerifier, refuse, watched } from "../command.ts";
 import { sessionDoors, type CommandCtx, type PiApi } from "../pi.ts";
-import { resolved, type CommandDeps, type PipelineDeps, type SendMessage } from "../deps.ts";
+import { resolved, type PipelineDeps, type SendMessage } from "../deps.ts";
 import { parseLeadingFlags, switchValue } from "../flags.ts";
 import { framed } from "../relay.ts";
 
@@ -32,16 +27,9 @@ import { framed } from "../relay.ts";
  */
 export const PIPELINE_MESSAGE = "pipeline-result";
 
-/** Registers `/pipelines` and `/run`. */
+/** Registers `/run`. */
 export default function registerPipelineCommands(pi: PiApi) {
 	const doors = sessionDoors(pi);
-
-	pi.registerCommand("pipelines", {
-		description: "List the pipelines that are loaded, and where they come from",
-		handler: async (_args, ctx: CommandCtx) => {
-			listPipelines(ctx);
-		},
-	});
 
 	pi.registerCommand("run", {
 		description: "Run a pipeline by name and put its answer in the conversation (`--model <pattern>`, `--worktree`)",
@@ -49,43 +37,6 @@ export default function registerPipelineCommands(pi: PiApi) {
 			await runNamed(args, ctx, doors);
 		},
 	});
-}
-
-/**
- * One line per pipeline: its name, where it came from, what it is for.
- *
- * Formatting is kept away from the terminal so it can be asserted on directly -
- * the same split as the run picture. The broken files are listed **with the
- * good ones**: a file that does not parse is the single most likely reason
- * somebody is running this command at all.
- */
-export function pipelineLines(catalogue: PipelineCatalogue, cwd: string): string[] {
-	if (catalogue.pipelines.length === 0 && catalogue.broken.length === 0) {
-		return [
-			"No pipelines loaded.",
-			`Put one in ${cwd}/.pi/pipelines/ for this repository, or in ~/.pi/agent/pipelines/ for every project.`,
-			"With none, /build runs its built-in default.",
-		];
-	}
-
-	const width = Math.max(...catalogue.pipelines.map((one) => one.name.length), 0);
-	const lines = catalogue.pipelines.map((one) => {
-		const steps = one.steps.map((step) => step.kind).join(" → ");
-		return `${one.name.padEnd(width)}  ${steps}${one.description ? ` - ${one.description}` : ""}`;
-	});
-
-	for (const one of catalogue.broken) {
-		lines.push(`${one.name.padEnd(width)}  BROKEN: ${one.error} (${one.filePath})`);
-	}
-	return lines;
-}
-
-/** `/pipelines` - what is loaded, from where, and what does not parse. */
-export function listPipelines(ctx: CommandCtx, deps: CommandDeps = {}): string[] {
-	const catalogue = loadCatalogue(ctx, resolved(deps));
-	const lines = pipelineLines(catalogue, ctx.cwd);
-	ctx.ui.notify(lines.join("\n"), catalogue.broken.length > 0 ? "warning" : "info");
-	return lines;
 }
 
 /**
@@ -108,7 +59,7 @@ export async function runNamed(args: string, ctx: CommandCtx, injected: Pipeline
 	const worktree = switchValue(flags, "worktree");
 	const [name, ...rest] = text.split(/\s+/).filter(Boolean);
 	if (!name) {
-		return refuse(ctx, "run: say which pipeline, for example /run explore how usage is measured. /pipelines lists them", "warning");
+		return refuse(ctx, "run: say which pipeline, for example /run explore how usage is measured", "warning");
 	}
 	const input = rest.join(" ");
 	if (!input.trim()) {

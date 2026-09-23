@@ -32,7 +32,14 @@ import { submission, SUBMIT_TOOL } from "./submit.ts";
 export const ANSWER_CODES = ["answer-unknown-node", "answer-past-max", "answer-off-schema", "answer-fail-kind", "answer-flow-overlap"] as const;
 
 /** A script's mistake: its code, the key (and its place in a list), and one sentence. */
-export type AnswerFault = { readonly code: (typeof ANSWER_CODES)[number]; readonly at: string; readonly message: string };
+export type AnswerFault = {
+	/** Which of {@link ANSWER_CODES}. */
+	readonly code: (typeof ANSWER_CODES)[number];
+	/** The key of `answers` it is about. */
+	readonly at: string;
+	/** One sentence saying what is wrong with it. */
+	readonly message: string;
+};
 
 /** The answers of a dry run, by node address or visit path. */
 export type Answers = Readonly<Record<string, unknown>>;

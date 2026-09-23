@@ -10,9 +10,8 @@
  * refused inside a `copies: true` block, the fault naming the call path.
  */
 
-import type { MarkdownFile } from "../markdown.ts";
 import { AgentNames } from "./agents.ts";
-import type { FlowCatalogue } from "./catalogue.ts";
+import type { FlowCatalogue, FoundFlow } from "./catalogue.ts";
 import type { CheckedOne, Checker, CheckFlow } from "./check.ts";
 import type { CheckedCallNode, CheckedFlow } from "./checked.ts";
 import type { FaultList } from "./fault.ts";
@@ -23,7 +22,7 @@ import { sameType, showType, type ValueType } from "./type.ts";
 import { unrolled } from "./unrolled.ts";
 
 /** How a flow file is checked, given the callees its calls resolve through. */
-export type CheckFile = (source: MarkdownFile, read: ReadFlow, callees: Callees) => CheckFlow;
+export type CheckFile = (source: FoundFlow, read: ReadFlow, callees: Callees) => CheckFlow;
 
 /**
  * The flows of one catalogue, each read once and checked once, whoever calls
@@ -43,12 +42,12 @@ export class Callees {
 	}
 
 	/** The flow file named `name`, when the catalogue has one. */
-	source(name: string): MarkdownFile | undefined {
+	source(name: string): FoundFlow | undefined {
 		return this.catalogue.flows.find((file) => file.name === name);
 	}
 
 	/** The flow in `source` checked, the first time it is asked for. */
-	check(source: MarkdownFile): CheckFlow {
+	check(source: FoundFlow): CheckFlow {
 		let result = this.checked.get(source.name);
 		if (result === undefined) {
 			result = this.checkFile(source, this.readOf(source), this);
@@ -102,7 +101,7 @@ export class Callees {
 		return [...everyNode(nodes)].flatMap((node) => (node.kind === "flow" ? [node.flow] : []));
 	}
 
-	private readOf(source: MarkdownFile): ReadFlow {
+	private readOf(source: FoundFlow): ReadFlow {
 		let read = this.read.get(source.name);
 		if (read === undefined) {
 			read = readFlow(source.content, source.filePath);

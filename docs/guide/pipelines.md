@@ -133,20 +133,11 @@ A typo in step four therefore costs a second, not three steps of real work.
 
 ## Seeing what you have
 
-```
-/pipelines
-```
-
-```
-build    chain → deliver - Locate the code, split the work, implement it in pairs, audit the whole
-explore  fanOut → reduce - Three scouts read the code in parallel, then one agent answers
-split    orchestrate → reduce - A planner splits a read-only question between a scout and a reviewer
-```
-
-It lists what is loaded, the shape of each run, and **the files that do not
-parse** along with the reason - those are the most likely reason you are running
-the command at all. With nothing loaded it says where to put a file, because that
-is the actual question being asked.
+No command lists pipelines any more. `/flows` lists the flows, and every file of
+`~/.pi/agent/pipelines/` and `.pi/pipelines/` beside them as refused
+(`pipeline-format-removed`), since a flow replaces it; see
+[From pipelines to flows](from-pipelines.md). A pipeline that does not parse is
+still named when `/build` or `/run` asks for it.
 
 The pipelines shipped here are available everywhere the extension is loaded. A
 pipeline written *in a repository* stays visible only from that repository, by

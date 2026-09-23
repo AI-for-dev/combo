@@ -1194,7 +1194,12 @@ it is used.
   names the directory it read, since "where do I put mine" is the other half of
   the same question. Its first run against this repository found `explorer`
   shipped with no symlink into `.pi/agents/`, which a test now pins.
-- **`/pipelines` is there because the error message was not enough.** A pipeline
+- **Replaced: `/flows` lists what `/pipelines` listed, for flows**, and names
+  what is left in an old `pipelines/` directory as refused; see [The package
+  exports the flow API, and `/flows` replaces
+  `/pipelines`](#the-package-exports-the-flow-api-and-flows-replaces-pipelines).
+  The reason below is why `/flows` exists too.
+  **`/pipelines` was there because the error message was not enough.** A pipeline
   of one repository is invisible from another - by design - and the failure
   reported where pipelines live without saying what had been loaded, with no way
   to ask. Found by running it in a scratch directory, not by reading the code.
@@ -1228,7 +1233,9 @@ it is used.
 
 A flow is a task graph written in YAML + Markdown: branches, parallel forks,
 bounded loops, human nodes, sub-flows. It is built in `src/flow/` beside the
-linear pipeline, and exported once it replaces it.
+linear pipeline, and the package exports it from the switch on, see [The
+package exports the flow API, and `/flows` replaces
+`/pipelines`](#the-package-exports-the-flow-api-and-flows-replaces-pipelines).
 
 - **The line was drawn in the wrong place.** What protected a run was never
   "no branch", it was "our runner decides what runs next". The linear format
@@ -2044,6 +2051,56 @@ opens.
   re-exports the runner, which spawns, and a subagent exports through
   `measure/`: going through the door would close a cycle. `lives.ts` sits in
   `measure/`, and the live view reads it through `measure/`'s door.
+
+### The package exports the flow API, and `/flows` replaces `/pipelines`
+
+The first visible step of the switch: `src/index.ts` exports flows, and pi
+lists and plans them. Nothing runs a flow from pi yet, and `/build` and `/run`
+still run pipelines.
+
+- **The root exports the door, minus what nobody outside calls.** Every
+  function a script or the extension calls goes out, grouped the way a run
+  goes: finding and checking a flow, the ports, running and resuming, drawing.
+  The types those functions take and return go with them, the checked nodes
+  and `Condition` included, since `CheckedFlow.nodes` names them. The values
+  only the validator and the runner call stay in `flow/index.ts`:
+  `compileCondition`, `evaluateCondition`, `readSchema`, `showType` and the
+  code and kind lists (`FAULT_CODES`, `CONDITION_CODES`, `ANSWER_CODES`,
+  `ERROR_KINDS`, `STOPS`) with the value types `CHECK`, `VERDICT`, `LEDGER`
+  and `QUESTION`. A caller matching a fault reads its `FaultCode` type. The
+  ports are `bashCheck` and `gitPort`, and `Asking` and `Shown` join
+  `AskUser`, whose signature names them.
+- **A catalogue's flow file says whose it is.** `FoundFlow` is a file with its
+  `source`, as an `Agent` has one, so `/flows` gives the origin without
+  guessing it back from a path. The snapshot keeps it with the file.
+- **Only the user's and the repository's `pipelines/` are read, never the
+  package's.** `removedPipelines` refuses each file there with
+  `pipeline-format-removed`, whose message names the `flows/` directory beside
+  it and links to [From pipelines to flows](guide/from-pipelines.md). The
+  package's own pipelines go with the linear format, and a fault only we can
+  fix is noise for whoever reads it. It is a function beside
+  `loadFlowCatalogue` and not a field of the catalogue: a flow is never
+  checked against these files, and a snapshot has none.
+- **One line per flow, by name, and a refused file beside the one it would
+  lose its name to.** Each line has the name, the source, the bound
+  `showBound` writes and the description, in aligned columns; a broken flow
+  or a leftover pipeline says `broken`, its faults under it as
+  `file at: message`. `.pi/pipelines/build.md` sorts under the `build` flow,
+  which is how the shadowing is seen. A count opens the listing, because pi
+  prefixes a warning with `Warning:` and would push the first row out of its
+  columns.
+- **`/flows <name>` ends with what is left under that name.** A person who
+  asks for `build` while an old `build.md` sits in `.pi/pipelines/` most
+  likely meant that file, so its fault follows the plan.
+- **A line is cut to the terminal, and goes on under itself.** pi's
+  notification wraps at the terminal's edge back to column one, which broke
+  every column of the listing and every level of the plan in the first real
+  run. Each line carries the column its text starts at: a description goes
+  on under the description, a plan line under its text, cut after a whole
+  ` · ` fact when one fits. The width is `process.stdout.columns`, the
+  terminal pi draws in; with none, nothing is cut. The working directory is
+  left out of paths and the home directory written `~`, since the checked
+  flow holds absolute ones.
 
 ## A chain walked by hand
 
@@ -3840,7 +3897,7 @@ exported where it is still in hand.
 `src/index.ts` is the only door - the examples and the extension import from it,
 never from a file inside `src/`. What changed is that it is now **grouped the way
 the library is learnt** rather than alphabetically: start here (an agent, a run, a
-result), the combinators, watching a run, measuring a run, pipelines, the ports
+result), the combinators, watching a run, measuring a run, flows, pipelines, the ports
 that touch the world, the pi session. A reader who needs a dozen symbols finds
 them in the first section instead of scanning ninety.
 

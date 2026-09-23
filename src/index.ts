@@ -168,6 +168,87 @@ export {
 	type UsageTotal,
 } from "./measure/index.ts";
 
+// ── Flows: a task graph written down, checked whole, then run ────────────────
+
+// Finding a flow, and the two stages that check it before its first spawn.
+export {
+	checkFlow,
+	checkRun,
+	loadFlowCatalogue,
+	removedPipelines,
+	type CheckedAgentNode,
+	type CheckedAskNode,
+	type CheckedCallNode,
+	type CheckedCheckNode,
+	type CheckedChoiceNode,
+	type CheckedFlow,
+	type CheckedLoopNode,
+	type CheckedMapNode,
+	type CheckedNode,
+	type CheckedParallelNode,
+	type CheckedRead,
+	type CheckedRun,
+	type CheckFlow,
+	type CheckRun,
+	type Condition,
+	type ErrorKind,
+	type Fault,
+	type FaultCode,
+	type Field,
+	type FlowCatalogue,
+	type FlowError,
+	type FlowPorts,
+	type FoundFlow,
+	type NamedAgent,
+	type RemovedPipeline,
+	type RunStage,
+	type Sources,
+	type ValueType,
+} from "./flow/index.ts";
+// The ports a run reaches the world through. `AskUser`, the third, is with the questions below.
+export { bashCheck, type CheckScript, type ScriptOutcome, type ScriptRequest } from "./verify.ts";
+export { gitPort, type GitPort } from "./git/index.ts";
+// Running a checked flow, for real or on scripted answers, and carrying on one that stopped.
+export {
+	dryRunFlow,
+	readJournal,
+	readSnapshot,
+	resumeFlow,
+	resumePoint,
+	runFlow,
+	type AnswerFault,
+	type Answers,
+	type DryRun,
+	type DryRunOptions,
+	type FlowResult,
+	type JournalEntry,
+	type Resumed,
+	type ResumeFlowOptions,
+	type ResumePoint,
+	type RunFlowOptions,
+	type Settings,
+	type Snapshot,
+	type VisitEnd,
+} from "./flow/index.ts";
+// Drawing one: its worst case, its plan, its diagram, and its plan filled as a run goes.
+export {
+	livePlan,
+	mermaidOf,
+	planOf,
+	showBound,
+	showLive,
+	showPlan,
+	showSummary,
+	type Bound,
+	type Bounds,
+	type LiveLine,
+	type LivePlan,
+	type LiveState,
+	type LiveSummary,
+	type Plan,
+	type PlanLine,
+} from "./flow/index.ts";
+
 // ── Pipelines: a workflow written down, found, and run ───────────────────────
 
 export {

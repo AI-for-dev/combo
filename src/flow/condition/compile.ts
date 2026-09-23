@@ -31,7 +31,13 @@ export type ConditionProblem = { readonly code: ConditionCode; readonly message:
 export type Readable = Readonly<Record<string, ValueType>>;
 
 /** A condition that passed the check. Only `compileCondition` makes one, and only one can be evaluated. */
-export type Condition = { readonly source: string; readonly expr: Expr; readonly [checked]: true };
+export type Condition = {
+	/** The condition as the file writes it. */
+	readonly source: string;
+	/** Its parsed form, which only the evaluator reads. */
+	readonly expr: Expr;
+	readonly [checked]: true;
+};
 
 declare const checked: unique symbol;
 

@@ -101,10 +101,11 @@ describe("what the extension registers", () => {
 	test("what is loaded can be asked for", () => {
 		// Both listings answer the same question - "why can it not find mine?" -
 		// and a listing nobody can reach answers nothing.
-		for (const name of ["agents", "pipelines"]) {
+		for (const name of ["agents", "flows"]) {
 			assert.ok(commands.has(name), `/${name} must be a command`);
 			assert.ok(commands.get(name)?.description, "a command with no description is invisible");
 		}
+		assert.ok(!commands.has("pipelines"), "/flows replaces /pipelines");
 	});
 });
 
