@@ -34,7 +34,7 @@ export function flowText(nodes: string, sections: Record<string, string> = {}, h
 
 /** A catalogue holding `flows`, each text under its name, and {@link AGENTS}. */
 export function catalogueOf(flows: Record<string, string>): FlowCatalogue {
-	return { flows: Object.entries(flows).map(([name, content]) => ({ name, filePath: `flows/${name}.md`, content })), agents: AGENTS, brokenAgents: [], cwd: "." };
+	return { flows: Object.entries(flows).map(([name, content]) => ({ name, filePath: `flows/${name}.md`, content, source: "project" as const })), agents: AGENTS, brokenAgents: [], cwd: "." };
 }
 
 /** The flow `name` of {@link catalogueOf} `flows`, checked. */

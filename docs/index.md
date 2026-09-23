@@ -185,6 +185,7 @@ guide/lifetime
 guide/workflows
 guide/pipelines
 guide/flows
+guide/from-pipelines
 guide/build
 guide/chain-by-hand
 guide/worktree

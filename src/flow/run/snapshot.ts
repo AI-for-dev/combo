@@ -13,9 +13,8 @@
 import { copyFileSync, cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { Agent } from "../../agent.ts";
-import type { MarkdownFile } from "../../markdown.ts";
 import type { Skill } from "../../skills.ts";
-import type { FlowCatalogue } from "../catalogue.ts";
+import type { FlowCatalogue, FoundFlow } from "../catalogue.ts";
 import type { CheckedRun } from "../check-run.ts";
 
 /** Where the snapshot is, in a run directory. */
@@ -28,18 +27,25 @@ const VERSION = 1;
 export type Settings = {
 	/** The working tree it was checked against. */
 	readonly cwd: string;
+	/** Whether a person could answer when it started. */
 	readonly somebodyThere: boolean;
+	/** The model it was started with, over the flow's and each agent's own. */
 	readonly model?: string;
+	/** The bound of every agent turn it was started with. */
 	readonly timeoutMs?: number;
 };
 
 /** A snapshot read back: the flow's name, a catalogue holding exactly what its check read, and what the run was started with. */
 export type Snapshot = {
+	/** The flow's name. */
 	readonly flow: string;
+	/** Exactly what the check read: the flow's file, the files it reaches, the agents it names. */
 	readonly catalogue: FlowCatalogue;
 	/** Each check script's content, by its path. */
 	readonly scripts: ReadonlyMap<string, string>;
+	/** What the run was started on. */
 	readonly input: unknown;
+	/** What it was started with, beside its flow. */
 	readonly settings: Settings;
 };
 
@@ -47,7 +53,7 @@ export type Snapshot = {
 type Written = {
 	readonly version: number;
 	readonly flow: string;
-	readonly flows: readonly MarkdownFile[];
+	readonly flows: readonly FoundFlow[];
 	readonly agents: readonly Agent[];
 	readonly scripts: Readonly<Record<string, string>>;
 	readonly input: unknown;

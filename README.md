@@ -148,7 +148,14 @@ pi -e extension                    # from a clone, this session only
 > use subagent to review src/usage.ts with coder then reviewer, looping until LGTM
 > /swarm --members 3 describe each file under src/reporters/, in two sentences
 > /agents        # who can be spawned here, and from which directory
+> /flows         # the flows, what each can cost, and the files refused
+> /flows build   # one flow's plan, node by node
 ```
+
+A flow is a task graph in YAML and Markdown, checked whole before its first
+spawn; see [Flows](docs/guide/flows.md), and
+[From pipelines to flows](docs/guide/from-pipelines.md) for a pipeline of your
+own.
 
 `/swarm` puts several copies of one agent on one job, with a board between
 them and nobody dividing the work: they take what they will do. It ends on

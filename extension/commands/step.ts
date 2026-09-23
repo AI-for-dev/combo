@@ -75,7 +75,7 @@ export async function runStep(args: string, ctx: CommandCtx, injected: StepDeps)
 	const { flags, rest } = parseLeadingFlags(args, ["from", "model"], ["agent", "worktree"]);
 	const [name, ...words] = rest.split(/\s+/).filter(Boolean);
 	if (!name) {
-		return refuse(ctx, "step: say which agent or pipeline, for example /step planner three steps at most. /agents and /pipelines list them", "warning");
+		return refuse(ctx, "step: say which agent or pipeline, for example /step planner three steps at most. /agents lists them", "warning");
 	}
 	const instruction = words.join(" ");
 

@@ -36,6 +36,7 @@ import {
 	PIPELINE_MESSAGE,
 	registerAgentCommands,
 	registerBuildCommand,
+	registerFlowsCommand,
 	registerHerdrCommand,
 	registerInterviewCommand,
 	registerPipelineCommands,
@@ -58,6 +59,7 @@ export default function (pi: PiApi) {
 	registerBuildCommand(pi);
 	registerHerdrCommand(pi);
 	registerPipelineCommands(pi);
+	registerFlowsCommand(pi);
 	registerAgentCommands(pi);
 	registerStepCommands(pi);
 	registerSwarmCommand(pi);

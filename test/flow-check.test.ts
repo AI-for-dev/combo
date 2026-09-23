@@ -17,7 +17,7 @@ const AGENTS = ["scout", "planner", "reviewer", "synthesiser"].map(agent);
 
 /** A catalogue holding one flow file, `name.md`, written as frontmatter lines and a body. */
 function catalogue(frontmatter: string, body: string, name = "split"): FlowCatalogue {
-	return { flows: [{ name, filePath: `flows/${name}.md`, content: `---\n${frontmatter}\n---\n${body}` }], agents: AGENTS, brokenAgents: [], cwd: "." };
+	return { flows: [{ name, filePath: `flows/${name}.md`, source: "project", content: `---\n${frontmatter}\n---\n${body}` }], agents: AGENTS, brokenAgents: [], cwd: "." };
 }
 
 const HEAD = "name: split\ndescription: Split a question between two agents\ninput: string";

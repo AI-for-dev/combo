@@ -112,7 +112,8 @@ and what a tree costs in [Measurements](measurements.md).
 | `/build --worktree=false <request>` | The same, with the subtasks sharing one working tree rather than a copy each. |
 | `/build resume` | Carries on an interrupted build from `runs/<timestamp>/build.json`. |
 | `/agents` | Lists the agents that can be spawned, grouped by where they came from. |
-| `/pipelines` | Lists the pipelines that are loaded, and the files that do not parse. |
+| `/flows` | Lists the flows, where each comes from, the most it can cost in turns and time, and its description. A refused file is listed beside them with its faults, a file left in an old `pipelines/` directory included. |
+| `/flows <name>` | Prints that flow's plan: every node, what it reads, its agent and file, its bound. |
 | `/run [--model <pattern>] [--worktree] <name> <input>` | Runs a pipeline by name; its answer lands in the conversation. |
 | `/step [--from <id>] [--model <pattern>] [--agent] <name> <instruction>` | Runs one agent or pipeline on the previous step's output. Drawn, and kept out of this session's context. |
 | `/swarm [--members <n>] [--claim a,b] [--hold <n>] [--until agree] [--rounds <n>] [--agent <name>] [--model <pattern>] <goal>` | Several copies of one agent on one job, with a board between them. Finished by coverage of what `--claim` names, or by `--until agree` when they all vote the same. Drawn as a step of the chain, like `/step`. |
@@ -126,11 +127,16 @@ terminal until it is answered, and nobody can answer a question asked inside a
 model's turn. `/build` asks nothing; see [Deliver a change](build.md) and
 [Pipelines](pipelines.md).
 
+`/flows` runs a flow's check and nothing else, so it spawns nothing and needs no
+model: a typo in a flow costs a glance at the list. What the check cannot see,
+the tree and the ports a run is launched with, is checked when a run starts.
+See [Flows](flows.md#where-flows-live).
+
 `/step` is the other way of running a pipeline's worth of work: one stage per
 command, with this session kept out of it until you say otherwise. See
 [Walk a chain by hand](chain-by-hand.md).
 
-**The extension brings its own agents and pipelines**, so it works the moment it
+**The extension brings its own agents, pipelines and flows**, so it works the moment it
 is loaded rather than only inside a repository where the definitions were copied
 by hand. They sit at the **lowest priority**: a definition of the same name in
 `~/.pi/agent/` replaces one of ours, and one in the repository replaces both.

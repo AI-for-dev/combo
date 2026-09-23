@@ -11,6 +11,7 @@
 
 export { default as registerAgentCommands } from "./agents.ts";
 export { default as registerBuildCommand } from "./build.ts";
+export { default as registerFlowsCommand } from "./flows.ts";
 export { default as registerHerdrCommand } from "./herdr.ts";
 export { default as registerInterviewCommand } from "./interview.ts";
 export { default as registerPipelineCommands, PIPELINE_MESSAGE } from "./pipeline.ts";

@@ -17,7 +17,10 @@
  * `description` is what the author wrote for the model that fills the value;
  * it changes nothing about what matches.
  */
-export type ValueType = { readonly description?: string } & (
+export type ValueType = {
+	/** What the author wrote for the model that fills the value. */
+	readonly description?: string;
+} & (
 	| { readonly kind: "text" }
 	/**
 	 * `free`: written by a model in the person's language, as an `ask-from`'s
@@ -33,7 +36,12 @@ export type ValueType = { readonly description?: string } & (
 );
 
 /** One field of an object. An optional one may be absent, and reading it then is an error. */
-export type Field = { readonly type: ValueType; readonly optional: boolean };
+export type Field = {
+	/** The field's type. */
+	readonly type: ValueType;
+	/** Whether it may be absent: written `name?` in the short notation. */
+	readonly optional: boolean;
+};
 
 /**
  * A type in the short notation a flow's author writes it in: `string`,

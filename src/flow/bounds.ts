@@ -21,10 +21,18 @@ export const DEFAULT_TIMEOUT_MS = 30 * 60_000;
  * ask's when it has one. `waits` says an `ask` with no `timeout:` can be
  * reached, whose wait for a person no bound covers.
  */
-export type Bound = { readonly turns: number; readonly ms: number; readonly waits: boolean };
+export type Bound = {
+	/** Agent turns, every retry counted. */
+	readonly turns: number;
+	/** Every bounded wait run to its bound, in milliseconds. */
+	readonly ms: number;
+	/** Whether an `ask` with no `timeout:` can be reached. */
+	readonly waits: boolean;
+};
 
 /** A flow's worst case whole, and each node's over every visit a run can make of it. */
 export type Bounds = {
+	/** The flow's, run whole. */
 	readonly total: Bound;
 	/** By the node's address through the calls, `spec/look` for `look` in the flow `spec` calls. */
 	readonly nodes: ReadonlyMap<string, Bound>;

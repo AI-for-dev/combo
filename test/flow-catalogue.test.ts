@@ -12,7 +12,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { after, describe, test } from "node:test";
 import { loadAgents } from "../src/agent.ts";
-import { checkFlow, loadFlowCatalogue } from "../src/flow/index.ts";
+import { MIGRATION_PAGE } from "../src/flow/catalogue.ts";
+import { checkFlow, loadFlowCatalogue, removedPipelines } from "../src/flow/index.ts";
 
 const tmpDirs: string[] = [];
 const agentDir = process.env.PI_CODING_AGENT_DIR;
@@ -74,6 +75,29 @@ describe("loadFlowCatalogue, where flows are", () => {
 	test("the catalogue carries the directory it was loaded for", () => {
 		const cwd = root({});
 		assert.equal(loadFlowCatalogue({ cwd }).cwd, cwd);
+	});
+});
+
+describe("removedPipelines, what is left of the linear format", () => {
+	test("each file of the user's and the repository's pipelines/, refused, whose it is said", () => {
+		const cwd = root({ "home/pipelines/mine.md": "anything", ".pi/pipelines/build.md": "anything" });
+		const removed = removedPipelines({ cwd, scope: "both" });
+		assert.deepEqual(removed.map(({ name, source, fault }) => `${name} ${source} ${fault.code} ${fault.file}`), [
+			`mine user pipeline-format-removed ${path.join(cwd, "home/pipelines/mine.md")}`,
+			`build project pipeline-format-removed ${path.join(cwd, ".pi/pipelines/build.md")}`,
+		]);
+		assert.ok(removed[1]?.fault.message.includes(`${path.join(cwd, ".pi/flows")}/`), "the directory its flow goes in");
+		assert.ok(removed[1]?.fault.message.includes(MIGRATION_PAGE));
+	});
+
+	test('on the scope a catalogue has: the repository\'s only when asked for', () => {
+		const cwd = root({ ".pi/pipelines/build.md": "anything" });
+		assert.deepEqual(removedPipelines({ cwd }), []);
+	});
+
+	test("the page the fault links to is a page of the guide", () => {
+		const page = new URL(MIGRATION_PAGE).pathname.replace(/^\/combo\//, "").replace(/\.html$/, ".md");
+		assert.ok(fs.existsSync(path.join(import.meta.dirname, "..", "docs", page)), page);
 	});
 });
 

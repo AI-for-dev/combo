@@ -72,7 +72,7 @@ export function resolveTarget(name: string, forceAgent: boolean, ctx: CommandCtx
 	const agent = agents.find((one) => one.name === name);
 	if (!pipeline && !agent) {
 		throw new Error(
-			`step: \`${name}\` is neither a pipeline nor an agent. /pipelines and /agents list what is loaded, and from where`,
+			`step: \`${name}\` is neither a pipeline nor an agent. /agents lists the agents loaded, and from where`,
 		);
 	}
 	if (!pipeline) return { kind: "agent", agent: agent as Agent };

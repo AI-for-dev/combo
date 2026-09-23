@@ -21,6 +21,32 @@ A flow's `check` node has a port of its own, {@link CheckScript}: it runs a
 script whose content was read before the run, so it takes more than
 `Verify`'s nothing. `Verify` stays for the linear pipeline, and goes with it.
 
+## `bashCheck`
+
+*function*
+
+```typescript
+export function bashCheck(bash = "bash"): CheckScript { /* … */ }
+```
+
+A {@link CheckScript} that runs the content with `bash -c`, `$0` being the
+script's path, and stdout and stderr mixed in the order they came.
+
+The script leads a process group of its own, and the whole group is killed
+when it exits, times out or is stopped: a test runner leaves workers behind,
+and a worker holding the pipes open would hold the check open with it.
+`bash` is the executable, a knob so a test can name one that is not there.
+
+## `CheckScript`
+
+*type*
+
+```typescript
+export type CheckScript = (request: ScriptRequest) => Promise<ScriptOutcome>;
+```
+
+Runs a check script. Injected, so a flow's dry run and its tests spawn nothing.
+
 ## `commandVerifier`
 
 *function*
@@ -55,6 +81,41 @@ export type CommandVerifierOptions = {
 ```
 
 The check to run: an executable and its arguments, never a shell line.
+
+## `ScriptOutcome`
+
+*type*
+
+```typescript
+export type ScriptOutcome =
+	| { readonly ok: true; readonly passed: boolean; readonly report: string }
+	| { readonly ok: false; readonly kind: "unavailable" | "timeout" | "stopped"; readonly message: string };
+```
+
+How a check script ended. `passed: false` is any exit but 0: a red check,
+which the work can fix. Not ending is apart: the script could not start, it
+ran past its bound, or it was stopped, and no change to the code answers that.
+
+## `ScriptRequest`
+
+*type*
+
+```typescript
+export type ScriptRequest = {
+	/** Its path from the root of the tree: `$0` inside it, and what a report names. */
+	readonly script: string;
+	/** What runs. Never read again from disk, so an agent editing the file changes nothing. */
+	readonly content: string;
+	/** The working tree it runs in. */
+	readonly cwd: string;
+	/** How long it may run before it is killed. */
+	readonly timeoutMs: number;
+	/** Aborting it kills the script. */
+	readonly signal?: AbortSignal;
+};
+```
+
+A check script to run, its content read before the run started.
 
 ## `Verification`
 

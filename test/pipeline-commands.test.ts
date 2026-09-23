@@ -1,20 +1,16 @@
 /**
- * `/pipelines` and `/run`, with everything they touch injected.
+ * `/run`, with everything it touches injected.
  *
- * Both exist because of a real confusion: a pipeline of one repository was
- * invisible from another, and nothing could be asked. So what is tested here is
- * mostly what the user is *told* - that a broken file is listed rather than
- * hidden, that an empty catalogue explains itself, and that a typo stops before
- * anything is spawned.
+ * What is tested here is mostly what the user is *told*: that a broken file is
+ * named rather than reported as unknown, and that a typo stops before anything
+ * is spawned.
  */
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { initTheme } from "@earendil-works/pi-coding-agent";
 import {
-	listPipelines,
 	pipelineAnswer,
-	pipelineLines,
 	PIPELINE_MESSAGE,
 	runNamed,
 } from "../extension/commands/pipeline.ts";
@@ -64,44 +60,6 @@ function deps(over: Partial<PipelineDeps> = {}): PipelineDeps {
 		...over,
 	};
 }
-
-describe("pipelineLines", () => {
-	test("names each pipeline and the shape of its run", () => {
-		const lines = pipelineLines({ pipelines: [explore], broken: [] }, "/repo");
-		assert.equal(lines.length, 1);
-		assert.match(lines[0] ?? "", /^explore\s+fanOut → reduce - Look around, then answer$/);
-	});
-
-	test("a broken file is listed with the good ones, not hidden behind them", () => {
-		const lines = pipelineLines(
-			{ pipelines: [explore], broken: [{ name: "build", filePath: ".pi/pipelines/build.md", error: 'needs a "name".' }] },
-			"/repo",
-		);
-		assert.equal(lines.length, 2);
-		assert.match(lines[1] ?? "", /build\s+BROKEN: needs a "name"\. \(\.pi\/pipelines\/build\.md\)/);
-	});
-
-	test("nothing loaded says where to put one, which is the actual question", () => {
-		const lines = pipelineLines({ pipelines: [], broken: [] }, "/repo");
-		assert.match(lines.join("\n"), /\/repo\/\.pi\/pipelines\//);
-		assert.match(lines.join("\n"), /~\/\.pi\/agent\/pipelines\//);
-		assert.match(lines.join("\n"), /built-in default/);
-	});
-});
-
-describe("/pipelines", () => {
-	test("says what is loaded", () => {
-		const { ctx, said } = fakeCtx();
-		listPipelines(ctx, deps());
-		assert.match(said(), /explore/);
-	});
-
-	test("a broken file makes it a warning, not a quiet listing", () => {
-		const { ctx, notes } = fakeCtx();
-		listPipelines(ctx, deps({ loadPipelines: () => ({ pipelines: [], broken: [{ name: "build", filePath: "x.md", error: "no steps" }] }) }));
-		assert.equal(notes[0]?.type, "warning");
-	});
-});
 
 describe("/run", () => {
 	test("runs the named pipeline on the rest of the line", async () => {
@@ -212,7 +170,7 @@ describe("/run", () => {
 		await runNamed("", ctx, deps({ runPipeline: async () => ((ran = true), pipelineRunResult()) }));
 
 		assert.equal(ran, false);
-		assert.match(said(), /\/pipelines lists them/);
+		assert.match(said(), /say which pipeline/);
 	});
 
 	test("a name with nothing after it is refused: an empty request costs real tokens", async () => {

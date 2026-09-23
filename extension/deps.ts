@@ -15,7 +15,9 @@ import {
 	interview,
 	isRepository,
 	loadAgents,
+	loadFlowCatalogue,
 	loadPipelines,
+	removedPipelines,
 	run,
 	runPipeline,
 	saveBuildState,
@@ -29,6 +31,10 @@ export type CommandDeps = {
 	loadAgents?: typeof loadAgents;
 	/** Where the pipelines come from. Defaults to `~/.pi/agent/pipelines` and `.pi/pipelines`. */
 	loadPipelines?: typeof loadPipelines;
+	/** Where the flows and the agents they name come from: the package's, `~/.pi/agent/` and `.pi/`. */
+	loadFlowCatalogue?: typeof loadFlowCatalogue;
+	/** What is left in the old `pipelines/` directories, refused. */
+	removedPipelines?: typeof removedPipelines;
 	interview?: typeof interview;
 	/** Runs the pipeline. The command's one seam onto the whole of the work. */
 	runPipeline?: typeof runPipeline;
@@ -114,6 +120,8 @@ export function resolved(deps: CommandDeps = {}): Deps {
 	return {
 		loadAgents,
 		loadPipelines,
+		loadFlowCatalogue,
+		removedPipelines,
 		interview,
 		runPipeline,
 		run,

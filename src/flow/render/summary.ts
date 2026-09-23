@@ -18,6 +18,7 @@ export type LiveSummary = {
 	readonly unconverged: readonly string[];
 	/** What every life cost, added up: `wallMs` is their time. */
 	readonly usage: Usage;
+	/** How many processes ran it: one, and one more for each resume. */
 	readonly lives: number;
 	/** How many lives were killed before they wrote their end, and are counted from what they did write. */
 	readonly partial: number;

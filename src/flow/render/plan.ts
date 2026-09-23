@@ -16,6 +16,7 @@ import { showType } from "../type.ts";
 
 /** One line of a plan: a node, a `choice` case or a `parallel` branch, and the lines under it. */
 export type PlanLine = {
+	/** A node's kind, or a `choice` case, or a `parallel` branch. */
 	readonly kind: NodeKind | "case" | "branch";
 	/** The node's id, the branch's name, or the case's number, `default` for the last. */
 	readonly id: string;
@@ -25,11 +26,21 @@ export type PlanLine = {
 	readonly facts: readonly string[];
 	/** A node's worst case over every visit a run can make of it; a case and a branch have none. */
 	readonly bound?: Bound;
+	/** The lines under it: a block's sequence, a case's, a branch's. */
 	readonly lines: readonly PlanLine[];
 };
 
 /** A flow's plan: the flow itself, its worst case whole, and its root sequence. */
-export type Plan = { readonly flow: string; readonly facts: readonly string[]; readonly bound: Bound; readonly lines: readonly PlanLine[] };
+export type Plan = {
+	/** The flow's name. */
+	readonly flow: string;
+	/** Its file, its input, and its `model:` and `timeout:` when it sets them. */
+	readonly facts: readonly string[];
+	/** Its worst case, run whole. */
+	readonly bound: Bound;
+	/** The root sequence. */
+	readonly lines: readonly PlanLine[];
+};
 
 /** The plan of `checked`, pure: the same flow gives the same plan. */
 export function planOf(checked: CheckedFlow): Plan {
