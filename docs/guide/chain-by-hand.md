@@ -12,8 +12,8 @@ which output.
 /quote                                     # only now does this session read it
 ```
 
-Same chain as a [pipeline](pipelines.md), same prompts, one difference: our code
-does not walk it, you do. That buys you the join between two steps - reading the
+A chain a [flow](flows.md) could hold, with one difference: our code does not
+walk it, you do. That buys you the join between two steps - reading the
 plan before the coder sees it, running the reviewer twice, dropping a step that
 went nowhere - at the cost of typing each one.
 
@@ -31,7 +31,7 @@ whatever reaches it changes an answer you did not want changed.
 
 So `/step` does the opposite on that one point, and nothing else:
 
-| | `/run <flow>` | `/step <agent\|pipeline>` |
+| | `/run <flow>` | `/step <flow\|agent>` |
 | --- | --- | --- |
 | Runs | a flow, end to end | one stage, and stops |
 | The answer | in the conversation | drawn in the transcript, **not** in context |
@@ -42,23 +42,36 @@ So `/step` does the opposite on that one point, and nothing else:
 
 | Command | What it does |
 | --- | --- |
-| `/step <name> <instruction>` | Runs one agent or pipeline on the previous step's output plus what you typed. |
+| `/step <name> <instruction>` | Runs one flow or agent on the previous step's output plus what you typed. |
 | `/step --from <id>` | Carry that step instead of the last one. `--from none` starts from scratch. |
 | `/step --model <pattern>` | This step only. Plan on a large model, code on a small one. |
-| `/step --agent <name>` | When a pipeline and an agent share a name, run the agent. |
-| `/step --worktree` | For a pipeline step that delivers: a copy of the repository per worker. |
+| `/step --agent <name>` | When a flow and an agent share a name, run the agent. |
 | `/chain` | The steps walked so far, what each carried, and where they exported. |
 | `/chain reset` | Drop it. The next `/step` starts a new chain, in a new folder. |
 | `/quote [id]` | Put one step into this conversation, attributed. Default: the last. |
 
-`<name>` is resolved against the pipelines first, then the agents - a stage of a
-chain is often a whole pipeline, `explore` being a fan-out and a synthesis. A
-name held by both runs the pipeline and says so; `--agent` runs the other one.
+`<name>` is resolved against the flows first, then the agents - a stage of a
+chain is often a whole flow, `explore` being a fan-out and a synthesis. A name
+held by both runs the flow and says so; `--agent` runs the other one. A flow
+is checked whole and held to this terminal before anything is spawned, as
+`/run` holds it, and a broken flow file is refused rather than fallen past to
+an agent of the same name.
+
+A flow stage runs in the step's folder, which is its [run
+directory](flows.md#the-run-directory): the snapshot, the journal and the
+transcripts. A flow stage that stops says where, and what `/run resume` would
+do with it: `step: explore failed at <visit>: <why> - the chain is unchanged,
+/run resume <folder> picks it up at <visit>`.
+
+`/run resume <that folder>` carries it on, and its answer lands in the
+conversation as any `/run`'s does; the chain does not learn it. `/run resume`
+alone looks only at the runs directly under `runs/`, so a step's run is
+named by its path.
 
 ## What a step is handed
 
-The first step gets your instruction, verbatim. Every later one gets the same
-three sections a pipeline gives its steps:
+The first step gets your instruction, verbatim. Every later one gets two
+sections, what you typed and what it carries:
 
 ```markdown
 ## Request
@@ -70,10 +83,8 @@ three steps at most, no refactor
 Usage is collected in src/usage.ts:40 …
 ```
 
-Which is not a detail: a chain walked by hand and the same chain written down as
-a pipeline send the model byte-for-byte the same thing, so what you learn from
-one transfers to the other. When a chain is worth keeping, write it down as a
-[pipeline](pipelines.md) and `/step` it, or as a [flow](flows.md) and `/run` it.
+A flow stage reads that text as its `input`. When a chain is worth keeping,
+write it down as a [flow](flows.md), and `/run` it or `/step` it.
 
 An instruction is optional once something is carried: `/step reviewer` on its own
 means "review that". With nothing carried and nothing typed, the step is refused

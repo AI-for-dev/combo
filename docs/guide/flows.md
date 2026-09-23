@@ -1,8 +1,8 @@
 # Flows
 
 ```{note}
-In pi, `/run` runs flows and `/flows` lists and plans them. `/step` still
-runs [pipelines](pipelines.md) until it takes flows.
+In pi, `/run` runs flows and `/flows` lists and plans them; `/step` takes a
+flow as a stage, and the `subagent` tool runs one by name.
 [From pipelines to flows](from-pipelines.md) rewrites a pipeline as a flow.
 ```
 
@@ -96,6 +96,11 @@ prints that flow's [plan](#bounds-and-renderings). Both run the flow stage
 only, so a flow listed as valid can still be refused at launch. `/run <flow>
 <input>` runs one, and `/run resume` carries one on: see
 [Extension](extension.md#running-a-flow). A flow cannot be called `resume`.
+`/step <flow> <instruction>` runs one as a stage of a chain walked by hand,
+in the step's folder ([Walk a chain by hand](chain-by-hand.md)). The
+`subagent` tool runs one when the model passes `flow` and `task`, its
+questions put to you during the model's turn, and hands the model the run
+directory ([Extension](extension.md#the-tool)).
 
 ## The shipped flows
 
@@ -1037,8 +1042,9 @@ so the journal alone tells a killed life from the next one. A killed life's
 cost is what its ended visits cost, and its time adds up branches that ran
 together.
 
-In pi, `/run` draws it above the prompt, with what each subagent of a
-running visit is doing under it, and ends its answer with the last frame. A
+In pi, `/run`, a flow stage of `/step` and the `subagent` tool draw it above
+the prompt, with what each subagent of a running visit is doing under it.
+`/run` ends its answer with the last frame, and the tool its row. A
 subagent's `spawn` carries its `home`, the path of its memory scope or of its
 visit, and herdr names a flow's split by it: `coder @ deliver#2/work[1]/pair`.
 

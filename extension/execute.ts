@@ -22,6 +22,7 @@ import {
 	findAgent,
 	joinOutputs,
 	loadAgents as loadAgentsFromDisk,
+	loadFlowCatalogue,
 	loop,
 	orchestrate,
 	plural,
@@ -32,12 +33,14 @@ import {
 	type Agent,
 	type AgentScope,
 	type EventListener,
+	type LivePlan,
 	type Result,
 	type SpawnFn,
 	type SubagentSnapshot,
 	type WorkflowOptions,
 } from "../src/index.ts";
 import { watched } from "./command.ts";
+import { executeFlow } from "./execute-flow.ts";
 import { inferMode, type Mode, type Params } from "./params.ts";
 import type { ToolDeps } from "./pi.ts";
 
@@ -52,6 +55,12 @@ export type Details = {
 	decision?: string;
 	/** Where the run was exported, when one was asked for. */
 	exportDir?: string;
+	/** A flow's run directory, which `/run resume` takes. */
+	runDir?: string;
+	/** A flow's last frame. */
+	live?: LivePlan;
+	/** A flow's line on how its run ended. */
+	end?: string;
 };
 
 /** The tool's final answer: what the model reads, plus what the renderers draw. */
@@ -64,6 +73,8 @@ export type ToolOutput = {
 export type ExecuteDeps = Partial<ToolDeps> & {
 	/** Defaults to reading the agent directories from disk. */
 	loadAgents?: (options: { cwd?: string; scope?: AgentScope; builtin?: boolean }) => Agent[];
+	/** Where `flow` mode finds its flows and the agents they name. Defaults to reading them from disk. */
+	loadFlowCatalogue?: typeof loadFlowCatalogue;
 	/** Defaults to the real `spawn`, through the combinators. */
 	spawn?: SpawnFn;
 	/**
@@ -73,7 +84,7 @@ export type ExecuteDeps = Partial<ToolDeps> & {
 	reporter?: EventListener;
 	/** Widget repaint period. `0` disables the timer - tests want that. */
 	tickMs?: number;
-	/** Where an export lands. Defaults to a fresh `runs/<timestamp>/`. */
+	/** Where an export lands, and a flow runs. Defaults to a fresh `runs/<timestamp>/`. */
 	runDir?: () => string;
 };
 
@@ -86,11 +97,13 @@ export type ExecuteDeps = Partial<ToolDeps> & {
  * result.
  */
 export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): Promise<ToolOutput> {
+	const mode = inferMode(params);
+	// `flow` beside another mode is refused there, not ignored here.
+	if (mode === "flow" || params.flow !== undefined) return executeFlow(params, deps);
 	// `builtin: true`: the agents shipped with this extension are always in the
 	// roster, at the lowest priority - one of the user's own, or the
 	// repository's, replaces any of them by name.
 	const agents = (deps.loadAgents ?? loadAgentsFromDisk)({ cwd: deps.cwd, scope: params.scope, builtin: true });
-	const mode = inferMode(params);
 
 	// The directory is created up front: subagents export themselves as they
 	// close, so it has to exist before the first one finishes.
@@ -155,7 +168,7 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 type Performed = Pick<Details, "converged" | "iterations" | "decision"> & { results: Result[] };
 
 /** Runs the combinator a mode names, with the arguments the model gave it. */
-async function perform(mode: Mode, params: Params, agents: Agent[], shared: WorkflowOptions): Promise<Performed> {
+async function perform(mode: Exclude<Mode, "flow">, params: Params, agents: Agent[], shared: WorkflowOptions): Promise<Performed> {
 	switch (mode) {
 		case "parallel": {
 			const outcome = await fanOut({ ...shared, agent: pick(agents, params.agent), tasks: params.tasks ?? [], concurrency: params.concurrency });

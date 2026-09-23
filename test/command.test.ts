@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { after, describe, test } from "node:test";
 import { checked, watched } from "../extension/command.ts";
 import { resolved } from "../extension/deps.ts";
-import { loadAgents, runPipeline } from "../src/index.ts";
+import { loadAgents, run } from "../src/index.ts";
 import { fakeCtx } from "./fixtures/command-ctx.ts";
 import { fakeSpawn, testAgent } from "./fixtures/fake-subagent.ts";
 
@@ -19,7 +19,7 @@ describe("resolved", () => {
 
 		assert.equal(deps.runDir, mine);
 		assert.equal(deps.loadAgents, loadAgents);
-		assert.equal(deps.runPipeline, runPipeline);
+		assert.equal(deps.run, run);
 	});
 
 	test("a key holding undefined counts as unsaid", () => {
@@ -31,9 +31,8 @@ describe("resolved", () => {
 		assert.equal(deps.loadAgents, loadAgents);
 	});
 
-	test("verify, spawn and tickMs stay optional: for them, absent is an answer", () => {
+	test("spawn and tickMs stay optional: for them, absent is an answer", () => {
 		const deps = resolved({});
-		assert.equal(deps.verify, undefined);
 		assert.equal(deps.spawn, undefined);
 		assert.equal(deps.tickMs, undefined);
 	});
@@ -94,7 +93,7 @@ describe("watched", () => {
 				status: "building…",
 				dir: undefined,
 				work: async () => {
-					throw new Error("the pipeline exploded");
+					throw new Error("the flow exploded");
 				},
 			}),
 			/exploded/,

@@ -51,7 +51,7 @@ const VALUED = new RegExp(String.raw`^${GAP}--[a-z]+(?:=|\s+)(?:"([^"]*)"|(\S+))
  *
  * A name in `switches` takes no value and arrives as `"true"`. Which list a
  * name is in has to be decided here rather than guessed from what follows it:
- * in `--worktree add a cache`, `add` is the request and not the flag's value.
+ * in `--agent explore the parser`, `explore` is the name and not the flag's value.
  *
  * A {@link GAP} between two flags may hold a line continuation: a command with
  * six flags on it gets written across two lines by whoever has to read it back.
@@ -112,17 +112,4 @@ export function parseFlags(args: string, names: readonly string[]): { flags: Rec
 		text = text.slice(0, found.index);
 	}
 	return { flags, rest: text.trim() };
-}
-
-/**
- * A switch that can be left unsaid.
- *
- * `--worktree` is `true`, `--worktree=false` is `false`, and absent is
- * `undefined` - which is not the same as `false` any more: it is what lets the
- * workflow decide from the plan it just made. Coercing it here is how the
- * default would be lost on its way through a command.
- */
-export function switchValue(flags: Record<string, string>, name: string): boolean | undefined {
-	const raw = flags[name];
-	return raw === undefined ? undefined : raw === "true";
 }

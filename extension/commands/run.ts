@@ -16,31 +16,22 @@
 
 import * as path from "node:path";
 import {
-	bashCheck,
 	checkFlow,
-	checkRun,
-	gitPort,
 	latestResumable,
 	parseDuration,
 	readJournal,
 	readSnapshot,
 	resumeFlow,
 	resumePoint,
-	runFlow,
-	type CheckedFlow,
-	type Fault,
-	type FlowPorts,
 	type FlowResult,
-	type JournalEntry,
-	type RunFlowOptions,
 } from "../../src/index.ts";
-import { checked, loadFlows, refuse, watched } from "../command.ts";
+import { checked, loadFlows, refuse } from "../command.ts";
 import { resolved, type Deps, type MessageDeps } from "../deps.ts";
 import { parseFlags } from "../flags.ts";
 import { sessionDoors, type CommandCtx, type PiApi } from "../pi.ts";
-import { createAskUi } from "../ui/index.ts";
 import { answer, shown } from "./answer.ts";
-import { faultRows, notified, showFlows } from "./flows.ts";
+import { showFlows } from "./flows.ts";
+import { launch, launchable, notLaunched, portsOf, refusal, underPlan, type Launched } from "./launch.ts";
 
 /** What `/run` is given on the line besides the flow and its input. */
 type Settings = { readonly model?: string; readonly timeoutMs?: number };
@@ -80,8 +71,8 @@ export async function runCommand(args: string, ctx: CommandCtx, injected: Messag
 }
 
 async function start(name: string, input: string, settings: Settings, ctx: CommandCtx, deps: Deps, doors: MessageDeps): Promise<FlowResult | undefined> {
-	const flow = checkFlow(name, loadFlows(ctx, deps));
-	if (!flow.ok) return refused(ctx, `run: \`${name}\` is refused`, flow.faults);
+	const flow = await launchable(name, loadFlows(ctx, deps), ctx);
+	if (!flow.ok) return refuse(ctx, notLaunched("run", name, flow, ctx.cwd), "error");
 	if (input === "") {
 		// A flow with nothing to work on spawns agents that read a blank
 		// request and answer about nothing, which costs real tokens to discover.
@@ -89,12 +80,11 @@ async function start(name: string, input: string, settings: Settings, ctx: Comma
 	}
 	const { model, timeoutMs } = settings;
 	if (model !== undefined && !(await checked(ctx, async () => (await deps.checkModel(model), true)))) return undefined;
-	const staged = await checkRun(flow.flow, { cwd: ctx.cwd, ports: portsOf(ctx), somebodyThere: ctx.hasUI });
-	if (!staged.ok) return refused(ctx, `run: \`${name}\` cannot run here`, staged.faults);
 
 	const runDir = deps.runDir();
-	const result = await live(ctx, deps, flow.flow, [], runDir, `running ${name}…`, (options) => runFlow(staged.run, input, { ...options, model, timeoutMs, runDir }));
-	if (result !== undefined) answer(ctx, doors, flow.flow, input, runDir, result);
+	const at = { runDir, model, timeoutMs, status: `running ${name}…`, mainSessionFile: mainSession(ctx) };
+	const result = await caught(ctx, () => launch(ctx, deps, flow.run, input, at));
+	if (result !== undefined) answer(ctx, doors, flow.run.flow, input, runDir, result);
 	return result;
 }
 
@@ -115,61 +105,38 @@ async function resume(where: string, settings: Settings, ctx: CommandCtx, deps: 
 	const snapshot = await checked(ctx, () => readSnapshot(runDir));
 	if (snapshot === undefined) return undefined;
 	const flow = checkFlow(snapshot.flow, snapshot.catalogue);
-	if (!flow.ok) return refused(ctx, `run: ${shown(ctx, runDir)} no longer checks`, flow.faults);
+	if (!flow.ok) return refuse(ctx, refusal("run", `${shown(ctx, runDir)} no longer checks`, flow.faults, ctx.cwd), "error");
 	const journal = readJournal(runDir);
 	const point = resumePoint(flow.flow, journal);
 	if (!point.ok) return refuse(ctx, `run: ${shown(ctx, runDir)} cannot be resumed - ${point.refused}`, "warning");
 	ctx.ui.notify(`run: resuming ${snapshot.flow} in ${shown(ctx, runDir)}, from ${point.from === "" ? "its end" : point.from}`, "info");
 
-	const resumed = await live(ctx, deps, flow.flow, journal, runDir, `resuming ${snapshot.flow}…`, (options) =>
-		resumeFlow(runDir, { ...options, ports: portsOf(ctx), somebodyThere: ctx.hasUI, timeoutMs: settings.timeoutMs }),
+	const at = { runDir, status: `resuming ${snapshot.flow}…`, mainSessionFile: mainSession(ctx) };
+	const resumed = await caught(ctx, () =>
+		underPlan(ctx, deps, flow.flow, journal, at, (options: Launched) => resumeFlow(runDir, { ...options, ports: portsOf(ctx), somebodyThere: ctx.hasUI, timeoutMs: settings.timeoutMs })),
 	);
 	if (resumed === undefined) return undefined;
 	if ("refused" in resumed) return refuse(ctx, `run: ${shown(ctx, runDir)} cannot be resumed - ${resumed.refused}`, "error");
-	if ("faults" in resumed) return refused(ctx, `run: ${shown(ctx, runDir)} cannot run here`, resumed.faults);
+	if ("faults" in resumed) return refuse(ctx, refusal("run", `${shown(ctx, runDir)} cannot run here`, resumed.faults, ctx.cwd), "error");
 	if (resumed.changed !== undefined) ctx.ui.notify(`run: ${resumed.changed}`, "warning");
 	answer(ctx, doors, flow.flow, snapshot.input, runDir, resumed);
 	return resumed;
 }
 
-/** What a run is handed by the live view: the stop switch's `spawn` and `signal`, and the view's `onEvent`. */
-type Launch = Required<Pick<RunFlowOptions, "spawn" | "signal" | "onEvent">>;
+/** This session's JSONL, which a run copies in beside its subagents'. */
+function mainSession(ctx: CommandCtx): string | undefined {
+	return ctx.sessionManager?.getSessionFile();
+}
 
 /**
- * `work` under the live view of `checked`, measured into `runDir` with the
- * parent session. A throw is a mistake of the caller the checks could not
- * see, a typed input written wrong or a directory already holding a run: it
- * is said, and nothing more.
+ * `work`, a throw said and nothing more: a mistake of the caller the checks
+ * could not see, a typed input written wrong or a directory already holding
+ * a run.
  */
-async function live<T>(ctx: CommandCtx, deps: Deps, checked: CheckedFlow, journal: readonly JournalEntry[], runDir: string, status: string, work: (launch: Launch) => Promise<T>): Promise<T | undefined> {
+async function caught<T>(ctx: CommandCtx, work: () => Promise<T>): Promise<T | undefined> {
 	try {
-		return await watched(ctx, deps, {
-			status,
-			dir: runDir,
-			live: { flow: { checked, journal }, spawn: deps.spawn, mainSessionFile: ctx.sessionManager?.getSessionFile() },
-			work: ({ spawn, signal, onEvent }) => work({ spawn, signal, onEvent }),
-		});
+		return await work();
 	} catch (cause) {
 		return refuse(ctx, `run: ${cause instanceof Error ? cause.message : String(cause)}`, "error");
 	}
-}
-
-/**
- * How this terminal reaches the world: its question card, the project's
- * scripts through bash, and git. The card is handed over even with nobody
- * here, since `somebodyThere` is what keeps a run from showing it, and a
- * refusal then says that rather than blaming a missing port.
- */
-function portsOf(ctx: CommandCtx): FlowPorts {
-	return { ask: createAskUi(ctx.ui), check: bashCheck(), git: gitPort() };
-}
-
-/**
- * Says `lead`, then each fault on a line of its own, `file at: message`. A
- * name no file answers to is one fault of no file, and says it all alone.
- */
-function refused(ctx: CommandCtx, lead: string, faults: readonly Fault[]): undefined {
-	const [only] = faults;
-	const rows = faults.length === 1 && only?.file === "" ? [{ text: `run: ${only.message}`, hang: 5 }] : [{ text: lead, hang: 5 }, ...faultRows(faults)];
-	return refuse(ctx, notified(rows, ctx.cwd).join("\n"), "error");
 }

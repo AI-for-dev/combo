@@ -11,8 +11,8 @@
 import { Type, type Static } from "typebox";
 import { LIFETIMES, MAX_DEPTH, type AgentScope } from "../src/index.ts";
 
-/** The combinators the tool runs, by the name the model gives them. */
-export const MODES = ["single", "chain", "parallel", "loop", "route", "orchestrate", "reduce"] as const;
+/** The combinators the tool runs, by the name the model gives them, and `flow`, a flow a file describes. */
+export const MODES = ["single", "chain", "parallel", "loop", "route", "orchestrate", "reduce", "flow"] as const;
 
 /** One of {@link MODES}. */
 export type Mode = (typeof MODES)[number];
@@ -32,7 +32,12 @@ function oneOf<T extends string>(values: readonly T[], description: string) {
 export const Schema = Type.Object({
 	mode: oneOf(MODES, "Which combinator runs. Inferred from the other fields when omitted."),
 	agent: Type.Optional(Type.String({ description: "Agent name, for single and parallel modes." })),
-	task: Type.Optional(Type.String({ description: "The task, for single and chain and loop modes." })),
+	flow: Type.Optional(
+		Type.String({
+			description: "Flow name, for flow mode: runs that flow on `task`. Takes only task, model, timeoutMs, scope and herdrAll beside it.",
+		}),
+	),
+	task: Type.Optional(Type.String({ description: "The task, for single and chain and loop modes; the input, for flow mode." })),
 	tasks: Type.Optional(Type.Array(Type.String(), { description: "Independent tasks to run in parallel." })),
 	steps: Type.Optional(Type.Array(Type.String(), { description: "Agent names to run in order, for chain and loop." })),
 	lifetime: oneOf(LIFETIMES, '"task" (default, fresh each time), "workflow" (subagents remember previous turns) or "session" (they outlive this call).'),
@@ -82,6 +87,7 @@ export type Params = Static<typeof Schema>;
 /** Infers the mode from what was actually provided. */
 export function inferMode(params: Params): Mode {
 	if (params.mode) return params.mode;
+	if (params.flow !== undefined) return "flow";
 	if (params.candidates) return "route";
 	if (params.reduceWith) return "reduce";
 	if (params.until || params.maxIterations) return "loop";

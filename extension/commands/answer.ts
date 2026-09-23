@@ -4,7 +4,8 @@
  *
  * The model reads the answer and one line on how the run ended; the person
  * also sees the run's last frame, which the message carries in its details
- * for the renderer and never hands to the model.
+ * for the renderer and never hands to the model. The `subagent` tool and a
+ * flow stage of `/step` tell how a run ended with the same pieces.
  */
 
 import * as path from "node:path";
@@ -44,14 +45,23 @@ export type ResultDetails = {
  * last frame, drawn beneath for the person only.
  */
 export function answer(ctx: Pick<CommandCtx, "cwd">, doors: MessageDeps, checked: CheckedFlow, input: unknown, runDir: string, result: FlowResult): void {
-	const journal = readJournal(runDir);
-	const details: ResultDetails = { name: checked.name, runDir, live: livePlan(checked, journal, []) };
+	const { output, end, live } = flowAnswer(ctx, checked, runDir, result);
+	const details: ResultDetails = { name: checked.name, runDir, live };
 	doors.sendMessage({
 		customType: RESULT_MESSAGE,
-		content: `${framed(`the \`${checked.name}\` flow`, text(input), result.ok ? text(result.output) : "")}\n\n${endLine(ctx, checked, journal, runDir, result)}`.replace(/\n{3,}/g, "\n\n"),
+		content: `${framed(`the \`${checked.name}\` flow`, asText(input), output)}\n\n${end}`.replace(/\n{3,}/g, "\n\n"),
 		display: true,
 		details,
 	});
+}
+
+/** How a flow run ended, as every launch tells it: its output, one line on how it ended, and its last frame. */
+export type FlowAnswer = { readonly output: string; readonly end: string; readonly live: LivePlan };
+
+/** What the run in `runDir` of `checked` answered, read back from its journal once it ended. */
+export function flowAnswer(ctx: Pick<CommandCtx, "cwd">, checked: CheckedFlow, runDir: string, result: FlowResult): FlowAnswer {
+	const journal = readJournal(runDir);
+	return { output: result.ok ? asText(result.output) : "", end: endLine(ctx, checked, journal, runDir, result), live: livePlan(checked, journal, []) };
 }
 
 /**
@@ -66,13 +76,22 @@ function endLine(ctx: Pick<CommandCtx, "cwd">, checked: CheckedFlow, journal: re
 		const converged = last?.kind === "loop" && end?.type === "visit_end" ? [end.converged === false ? "not converged" : "converged"] : [];
 		return ["ok", ...converged, dir].join(" · ");
 	}
+	return [failure(result), dir, resumeHint(ctx, checked, journal, runDir)].join(" · ");
+}
+
+/** Where a failed run failed and why: `failed at answer: provider: …`. */
+export function failure(result: Extract<FlowResult, { ok: false }>): string {
+	return `failed at ${result.path === "" ? "its start" : result.path}: ${result.error.kind}: ${result.error.message}`;
+}
+
+/** What `/run resume` would do with the run in `runDir`, or why it cannot. */
+export function resumeHint(ctx: Pick<CommandCtx, "cwd">, checked: CheckedFlow, journal: readonly JournalEntry[], runDir: string): string {
 	const point = resumePoint(checked, journal);
-	const next = point.ok ? `/run resume ${dir} picks it up at ${point.from === "" ? "its end" : point.from}` : `it cannot be resumed: ${point.refused}`;
-	return [`failed at ${result.path === "" ? "its start" : result.path}: ${result.error.kind}: ${result.error.message}`, dir, next].join(" · ");
+	return point.ok ? `/run resume ${shown(ctx, runDir)} picks it up at ${point.from === "" ? "its end" : point.from}` : `it cannot be resumed: ${point.refused}`;
 }
 
 /** A value as the conversation reads it: text as it is, anything else as JSON. */
-function text(value: unknown): string {
+export function asText(value: unknown): string {
 	if (value === undefined) return "";
 	return typeof value === "string" ? value : `\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``;
 }

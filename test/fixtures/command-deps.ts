@@ -1,19 +1,21 @@
 /**
- * The floor every command test stands on: a roster, a catalogue, a folder that
- * is never written, and no repaint timer.
+ * The floor every command test stands on: a roster, no flow, no file left in
+ * an old `pipelines/` directory, a folder that is never written, and no
+ * repaint timer.
  *
- * Each test lays its own doubles over it - the pipeline that answers, the
- * interview that briefs - because those are what the test is about. This is
+ * Each test lays its own doubles over it - the flows it runs, the interview
+ * that briefs - because those are what the test is about. This is
  * only what none of them is about.
  */
 
 import type { CommandDeps } from "../../extension/deps.ts";
-import type { Agent, Pipeline } from "../../src/index.ts";
+import type { Agent } from "../../src/index.ts";
 
-export function baseDeps(agents: readonly Agent[], pipelines: readonly Pipeline[] = [], runDir = "/tmp/never-written"): CommandDeps {
+export function baseDeps(agents: readonly Agent[], runDir = "/tmp/never-written"): CommandDeps {
 	return {
 		loadAgents: () => [...agents],
-		loadPipelines: () => ({ pipelines: [...pipelines], broken: [] }),
+		loadFlowCatalogue: () => ({ flows: [], agents: [...agents], brokenAgents: [], cwd: "." }),
+		removedPipelines: () => [],
 		runDir: () => runDir,
 		tickMs: 0,
 	};

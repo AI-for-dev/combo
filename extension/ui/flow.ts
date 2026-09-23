@@ -51,9 +51,11 @@ const PLAN_ROWS = 16;
 /**
  * The widget above the prompt while a flow runs: its plan, `footer` under it,
  * drawn one column in from each edge as pi draws a widget given as lines.
+ * The footer is asked for at each draw, since a question card coming up
+ * changes what it says before the next paint.
  */
-export function planWidget(live: LivePlan, theme: WidgetTheme, paint: Pick<FlowPaint, "snapshot" | "selected">, footer: readonly string[]): Widget {
-	const render = (width: number) => [...paintFlow(live, theme, width - 2, { ...paint, maxRows: PLAN_ROWS }), ...footer].map((line) => ` ${line}`);
+export function planWidget(live: LivePlan, theme: WidgetTheme, paint: Pick<FlowPaint, "snapshot" | "selected">, footer: () => readonly string[]): Widget {
+	const render = (width: number) => [...paintFlow(live, theme, width - 2, { ...paint, maxRows: PLAN_ROWS }), ...footer()].map((line) => ` ${line}`);
 	return () => ({ render, invalidate() {} });
 }
 

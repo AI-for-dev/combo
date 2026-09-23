@@ -41,7 +41,7 @@ function deps(over: Partial<SwarmResult> = {}) {
 	const sent: { content: string }[] = [];
 
 	const injected: StepDeps = {
-		...baseDeps([member, scout], [], runs),
+		...baseDeps([member, scout], runs),
 		appendEntry: (_customType, data) => void entries.push(data),
 		sendMessage: (message) => void sent.push({ content: message.content }),
 		swarm: (async (options: SwarmOptions) => {

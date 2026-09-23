@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { parseFlags, parseInterviewArgs, parseLeadingFlags, switchValue } from "../extension/flags.ts";
+import { parseFlags, parseInterviewArgs, parseLeadingFlags } from "../extension/flags.ts";
 
 /** A line read with `/run`'s flags and `/step`'s switch. */
-const read = (args: string) => parseLeadingFlags(args, ["model", "timeout"], ["worktree"]);
+const read = (args: string) => parseLeadingFlags(args, ["model", "timeout"], ["agent"]);
 
 describe("parseLeadingFlags", () => {
 	test("a bare line stays the rest", () => {
@@ -32,10 +32,8 @@ describe("parseLeadingFlags", () => {
 	});
 
 	test("a switch takes no value, so what follows it survives", () => {
-		assert.deepEqual(read("--worktree add a cache"), { flags: { worktree: "true" }, rest: "add a cache" });
-		assert.deepEqual(read("--worktree=false --model local/one x"), { flags: { worktree: "false", model: "local/one" }, rest: "x" });
-		assert.equal(switchValue(read("add a cache").flags, "worktree"), undefined);
-		assert.equal(switchValue(read("--worktree x").flags, "worktree"), true);
+		assert.deepEqual(read("--agent explore the parser"), { flags: { agent: "true" }, rest: "explore the parser" });
+		assert.deepEqual(read("--agent=false --model local/one x"), { flags: { agent: "false", model: "local/one" }, rest: "x" });
 	});
 
 	test("a double-quoted value holds spaces, and a quote in the rest stays the user's", () => {

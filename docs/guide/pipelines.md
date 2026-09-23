@@ -145,9 +145,9 @@ design; if you want your own everywhere, they go in `~/.pi/agent/pipelines/`.
 
 ## Running one
 
-In pi, `/step` runs a pipeline as one stage of a chain walked by hand, until it
-takes flows. `/run` and `/build` ran pipelines before the switch; `/run` runs
-[flows](flows.md) now, and `/run build` is the shipped build, a flow as well. See [Walk a chain by
+Nothing in pi runs a pipeline any more. `/run`, `/build` and `/step` ran
+them before the switch; `/run` and `/step` run [flows](flows.md) now, and
+`/run build` is the shipped build, a flow as well. See [Walk a chain by
 hand](chain-by-hand.md) and [Deliver a change](build.md).
 
 From a script:

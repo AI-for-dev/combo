@@ -2173,6 +2173,66 @@ pipelines.
   run, and `coder#3` says nothing of which pair it codes for. A `check`, an
   `ask` or a `commit` spawns nothing, so it opens no split.
 
+### `/step` and the `subagent` tool take flows
+
+The third step of the switch. A stage of `/step` is a flow or an agent, and
+the `subagent` tool runs a flow by name. Nothing in the extension reads a
+linear pipeline any more.
+
+- **One launch, three callers.** `/run`, a flow stage of `/step` and the
+  tool check a flow at both stages, hold it to the terminal and run it under
+  the plan's live view, measured in its run directory. That is
+  `commands/launch.ts`: `launchable` returns the checked run or the stage
+  that refused it with its faults, and `launch` runs it. How a refusal is
+  worded and what becomes of the result stays with each caller, since a
+  command notifies, a step records and the tool answers a model.
+- **The question card is shown during the model's turn.** `ask` cards go
+  through `ctx.ui` from the tool's `execute`, as pi's own `question.ts` and
+  `questionnaire.ts` examples do, and `ctx.hasUI` is whether somebody is
+  there. A call with nobody there gets the run stage's refusal, before
+  anything is spawned. Checked in a real pi before it was written down: the
+  card came up while the tool's row said `0/1 done`, `enter` answered it and
+  the loop went on to its next `ask_next`, and `esc` on the card was the card's
+  "that's enough", not pi's interrupt: the brief was written and the turn
+  went on. A typed answer through `Other…` went to the card's text box, not
+  to pi's editor, and reached the brief.
+- **The widget stops offering `esc` while a card is up.** The first frame of
+  a card mid-turn read `esc stops everything` right above `esc That's
+  enough`, and the card holds the key. The hint comes back when the card goes.
+- **`flow` takes `task`, `model`, `timeoutMs`, `scope` and `herdrAll`, and
+  refuses the rest by name.** The file says what runs, so `steps`, `until`,
+  `candidates` and the like would be ignored, and a model that believed they
+  were used reads a wrong answer as a right one. `lifetime`, `maxDepth`,
+  `openInHerdr` and `export` go with them: memory is the file's, a flow run
+  always has its run directory, and a field that changes nothing is a
+  question the refusal answers once. `mode` is taken when it says `flow`.
+- **The tool's flows follow `scope`, like its agents.** A flow names agents
+  and project scripts, so a repository's `.pi/flows/` is read only when the
+  call asks for `project` or `both`; the package's flows and the user's are
+  always there. The commands read `both`, as they always have.
+- **The model reads the output and the line on how the run ended.** The
+  line names the run directory, and on a failure what `/run resume <run
+  directory>` would do. The tool does not resume: a resume is a decision about
+  a run that stopped, taken by whoever reads why it stopped. The row draws
+  the line and the last frame, the one `/run` draws under its answer.
+- **A flow stage runs in the step's folder.** It is the run's directory, so
+  a stage that stopped can be carried on with `/run resume <folder>`, and the
+  step says so where an agent's failure says where its transcripts are. The
+  chain does not learn what a resume finishes: the answer lands in the
+  conversation, as `/run`'s does, and a step recorded behind the chain's back
+  would be the kind of state the relay exists to keep in view.
+- **Flows first, then agents, and a broken flow is refused.** A file of that
+  name that does not check is the likeliest thing the person meant, so it is
+  not fallen past to an agent of the same name. `--agent` still forces the
+  agent.
+- **`/step --worktree` goes.** Whether a flow's workers get copies is the
+  file's, `copies: true` on a block, as it is for `/run`.
+- **The relay writes a step's input itself.** `## Request`, then `## Output
+  of step <id>`, as before, but no longer through the pipeline's
+  `stepInput`, so the linear pipeline can go without touching the
+  extension. A step's kind is `flow` now; an entry an older session wrote as
+  `pipeline` still draws.
+
 ## A chain walked by hand
 
 `/run explore …` put its answer in the conversation, and the session picked it
@@ -2194,13 +2254,19 @@ step at a time. So a knob, not a reversal: `/step`, `/chain`, `/quote`.
   opens a subagent and closes it, so there is no live session to own between two
   commands and nothing to leak if pi is quit in the middle. Carrying a
   conversation would also have made `--model` per step meaningless.
-- **A step is handed `stepInput`, the same three sections a pipeline's steps
+- **Replaced: the relay writes the same two sections itself**, and a flow
+  stage reads them as its `input`; see [`/step` and the `subagent` tool take
+  flows](#step-and-the-subagent-tool-take-flows).
+  **A step is handed `stepInput`, the same three sections a pipeline's steps
   get.** A chain walked by hand and the same chain written down then send the
   model byte-for-byte the same thing, which is the only way the two can be
   compared. A first step carries nothing and is passed through verbatim, as
   `/run` passes its request: a lone instruction under a `## Request` heading is
   noise.
-- **A step may be a pipeline or an agent**, resolved in that order, because
+- **Replaced: a step is a flow or an agent**, flows first, a flow stage in a
+  run directory of its own; see [`/step` and the `subagent` tool take
+  flows](#step-and-the-subagent-tool-take-flows).
+  **A step may be a pipeline or an agent**, resolved in that order, because
   `explore` - a fan-out and a synthesis - is a perfectly good stage of a chain
   and so is a lone `planner`. A name held by both runs the pipeline and says so,
   and `--agent` is there so that the collision is not a dead end. A name held by
@@ -3128,9 +3194,15 @@ permission boundary" forbids. The agent writes the message, which is what a
 model is for; the branch and the commit are ours. Adding a subcommand is a
 decision someone takes in a diff, not an argument a model produces at runtime.
 
-**Why the interactive flows are commands, not tools.** A question card owns the
-terminal until it is answered, and nobody can answer a question asked inside a
-model's turn. `/interview` and `/build` are therefore `pi.registerCommand`, and
+**Why the interactive flows are commands, not tools.** **Reversed: a
+question card is shown during a model's turn.** pi's own examples call
+`ctx.ui.custom()` from a tool's `execute`, and the `subagent` tool now puts a
+flow's `ask` cards through `ctx.ui` while the turn waits; a real pi showed
+the card answered, and `esc` on it meaning the card's own entry. See
+[`/step` and the `subagent` tool take
+flows](#step-and-the-subagent-tool-take-flows). What follows is the reason
+there were none. A question card owns the terminal until it is answered, and
+nobody can answer a question asked inside a model's turn. `/interview` and `/build` are therefore `pi.registerCommand`, and
 `/build` stops exactly twice: the brief before any work starts, the commit before
 anything reaches history. A refusal at either stop leaves everything where it is
 - the brief in the editor, the work in the working tree. Nothing is undone on the

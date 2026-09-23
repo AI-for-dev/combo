@@ -8,16 +8,7 @@
  * command does inside it stays in its own file.
  */
 
-import {
-	commandVerifier,
-	loadAgents,
-	loadFlowCatalogue,
-	loadPipelines,
-	type Agent,
-	type FlowCatalogue,
-	type PipelineCatalogue,
-	type Verify,
-} from "../src/index.ts";
+import { loadAgents, loadFlowCatalogue, type Agent, type FlowCatalogue } from "../src/index.ts";
 import type { CommandDeps, Deps } from "./deps.ts";
 import type { CommandCtx, RunUi } from "./pi.ts";
 import { liveRun, STATUS, type LiveRun, type LiveRunOptions } from "./ui/index.ts";
@@ -34,11 +25,6 @@ import { liveRun, STATUS, type LiveRun, type LiveRunOptions } from "./ui/index.t
  */
 export function loadRoster(ctx: CommandCtx, deps: Pick<Deps, "loadAgents"> = { loadAgents }): Agent[] {
 	return deps.loadAgents({ cwd: ctx.cwd, scope: "both", builtin: true });
-}
-
-/** The pipelines every command runs with, on the same terms as the roster, for the same reason. */
-export function loadCatalogue(ctx: CommandCtx, deps: Pick<Deps, "loadPipelines"> = { loadPipelines }): PipelineCatalogue {
-	return deps.loadPipelines({ cwd: ctx.cwd, scope: "both", builtin: true });
 }
 
 /** The flows every command runs with, and the agents they name, on the same terms as the roster. */
@@ -101,17 +87,4 @@ export async function watched<T>(ctx: Watcher, deps: Pick<CommandDeps, "tickMs">
 	} finally {
 		live.stop();
 	}
-}
-
-/**
- * A check named as a command and its arguments, as a port. Absent or empty
- * means none was named.
- *
- * A pipeline's `verify:` or a `--check` *names* a command; running one is a
- * decision that belongs to whoever owns the working tree, which is why this
- * lives beside the commands and not inside the runner.
- */
-export function checkVerifier(parts: readonly string[] | undefined, cwd: string): Verify | undefined {
-	if (!parts || parts.length === 0) return undefined;
-	return commandVerifier({ cwd, command: parts[0] as string, args: parts.slice(1) });
 }

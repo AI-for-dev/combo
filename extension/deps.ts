@@ -5,7 +5,7 @@
  * wiring, and wiring is only testable when it can be handed doubles. So every
  * command takes its dependencies as an argument - and resolves them **once**,
  * here, rather than choosing between the double and the real thing at every
- * use. A command reads `deps.runPipeline` and never asks which it is.
+ * use. A command reads `deps.run` and never asks which it is.
  */
 
 import {
@@ -14,28 +14,21 @@ import {
 	interview,
 	loadAgents,
 	loadFlowCatalogue,
-	loadPipelines,
 	removedPipelines,
 	run,
-	runPipeline,
 	swarm,
 	type SpawnFn,
-	type Verify,
 } from "../src/index.ts";
 import type { AppendEntry } from "./relay.ts";
 
 /** Everything a command reaches for, injectable. Defaults are the real thing. */
 export type CommandDeps = {
 	loadAgents?: typeof loadAgents;
-	/** Where the pipelines come from. Defaults to `~/.pi/agent/pipelines` and `.pi/pipelines`. */
-	loadPipelines?: typeof loadPipelines;
 	/** Where the flows and the agents they name come from: the package's, `~/.pi/agent/` and `.pi/`. */
 	loadFlowCatalogue?: typeof loadFlowCatalogue;
 	/** What is left in the old `pipelines/` directories, refused. */
 	removedPipelines?: typeof removedPipelines;
 	interview?: typeof interview;
-	/** Runs a pipeline: `/step` uses it for a stage that names one. */
-	runPipeline?: typeof runPipeline;
 	/** Runs one throwaway agent: `/step` uses it for a stage that names one. */
 	run?: typeof run;
 	/** Puts several copies of one agent on one job: `/swarm`'s whole of the work. */
@@ -48,11 +41,6 @@ export type CommandDeps = {
 	spawn?: SpawnFn;
 	/** Where transcripts land, and a flow run keeps its state. Defaults to a fresh `runs/<timestamp>/`. */
 	runDir?: () => string;
-	/**
-	 * The project's own check. Stays optional once resolved: absent means
-	 * nobody said, and the command decides what that means for it.
-	 */
-	verify?: Verify;
 	/** Validates a `--model` pattern before anything runs. Touches the real pi. */
 	checkModel?: typeof checkModel;
 	/** Widget repaint period. `0` disables the timer - tests want that. */
@@ -93,10 +81,10 @@ export type StepDeps = MessageDeps & { appendEntry: AppendEntry };
 /**
  * {@link CommandDeps} with every gap filled: what a command actually runs with.
  *
- * `verify`, `spawn` and `tickMs` keep their optionality on purpose - for
- * them, absent is an answer and not a gap.
+ * `spawn` and `tickMs` keep their optionality on purpose - for them, absent
+ * is an answer and not a gap.
  */
-export type Deps = Required<Omit<CommandDeps, "verify" | "spawn" | "tickMs">> & Pick<CommandDeps, "verify" | "spawn" | "tickMs">;
+export type Deps = Required<Omit<CommandDeps, "spawn" | "tickMs">> & Pick<CommandDeps, "spawn" | "tickMs">;
 
 /**
  * Fills what the caller left unsaid with the real thing.
@@ -109,11 +97,9 @@ export function resolved(deps: CommandDeps = {}): Deps {
 	const said = Object.fromEntries(Object.entries(deps).filter(([, value]) => value !== undefined));
 	return {
 		loadAgents,
-		loadPipelines,
 		loadFlowCatalogue,
 		removedPipelines,
 		interview,
-		runPipeline,
 		run,
 		swarm,
 		runDir: () => createRunDir(),
