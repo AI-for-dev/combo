@@ -183,7 +183,8 @@ extension/          the pi extension: index.ts (tool, renderers), execute.ts
   ui/               run (the live view), ask (the question card), asking and
                     herdr-switch (two switches a card and a key share)
 pane/               the client a herdr split runs, attached to the mirror
-agents/ pipelines/  shipped definitions (symlinked into .pi/)
+agents/ pipelines/ flows/
+                    shipped definitions (symlinked into .pi/)
 examples/ scripts/ test/
 docs/               guide/ (task by task), reference/ (api/ and flows/,
                     generated), the landing page and the two project pages;

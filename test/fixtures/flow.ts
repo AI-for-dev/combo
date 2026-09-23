@@ -5,6 +5,9 @@
  */
 
 import assert from "node:assert/strict";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { shippedCatalogue } from "../../scripts/flow-docs.ts";
 import type { Agent } from "../../src/agent.ts";
 import { checkFlow, checkRun, runFlow, type CheckedFlow, type CheckedRun, type DryRun, type FlowCatalogue, type FlowResult, type RunFlowOptions, type RunStage, type VisitEnd } from "../../src/flow/index.ts";
 import type { CreateSession, CreateSessionOptions } from "../../src/session.ts";
@@ -36,6 +39,16 @@ export function catalogueOf(flows: Record<string, string>): FlowCatalogue {
 /** The flow `name` of {@link catalogueOf} `flows`, checked. */
 export function checkedIn(name: string, flows: Record<string, string>): CheckedFlow {
 	const result = checkFlow(name, catalogueOf(flows));
+	assert.ok(result.ok, JSON.stringify(!result.ok && result.faults, null, 1));
+	return result.flow;
+}
+
+/** The repository's root, where the package's own `flows/` and `agents/` are. */
+export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+
+/** The flow `name` the package ships, checked against the agents it ships. */
+export function shipped(name: string): CheckedFlow {
+	const result = checkFlow(name, shippedCatalogue(ROOT));
 	assert.ok(result.ok, JSON.stringify(!result.ok && result.faults, null, 1));
 	return result.flow;
 }
