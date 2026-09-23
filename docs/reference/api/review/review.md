@@ -91,6 +91,15 @@ export type ReviewRecordOptions = {
 	approved?: ProseApproval;
 	/** Obligations a previous run recorded, for a resumed one to carry on. */
 	restored?: readonly Obligation[];
+	/**
+	 * The list the record writes to, read at every use. Defaults to one of its
+	 * own, holding `restored`.
+	 *
+	 * A flow's ledger belongs to the scope that opens it, not to a reviewer:
+	 * every verdict node naming that scope writes to it, and a reviewer a
+	 * memory scope keeps may answer to the next ledger its scope opens.
+	 */
+	ledger?: () => Ledger;
 };
 ```
 

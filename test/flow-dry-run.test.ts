@@ -86,4 +86,69 @@ describe("a dry run", () => {
 		);
 		assert.deepEqual([run.faults[0]?.message, run.faults[4]?.message], ["`pla` names no agent node: did you mean `plan`?", "`look` names no agent node: did you mean `gate/look`?"]);
 	});
+
+	const BLOCKS = checked(
+		`  - id: deliver
+    loop: audit.output.approved
+    max: 2
+    ledger: deliver
+    do:
+      - id: work
+        map: [a, b]
+        do:
+          - id: code
+            agent: scout
+      - id: both
+        parallel:
+          left:
+            - id: look
+              agent: scout
+          right:
+            - id: read
+              agent: scout
+      - id: audit
+        agent: reviewer
+        verdict: deliver`,
+		{ code: "Code.", look: "Look.", read: "Read.", audit: "Audit." },
+	);
+
+	test("gives each item its own list, lets a loop's iterations share one, and an exact visit path wins", async () => {
+		const run = await dryRunFlow(BLOCKS, "x", {
+			"deliver/work/code": ["first", "second"],
+			"deliver#2/work[2]/code": "exact",
+			"deliver/both/look": "seen",
+			"deliver/both/read": "read",
+			"deliver/audit": [{ approved: false, raised: ["more"] }, { approved: true, resolved: [{ id: "o1", how: "addressed" }] }],
+		});
+		assert.ok(run.ok, JSON.stringify(run));
+		assert.ok("journal" in run);
+		const codes = run.journal.filter((entry) => entry.path.endsWith("/code")).map((entry) => `${entry.path} ${String(entry.output)}`);
+		assert.deepEqual(codes, ["deliver#1/work[1]/code first", "deliver#1/work[2]/code first", "deliver#2/work[1]/code second", "deliver#2/work[2]/code exact"]);
+		assert.deepEqual(run.journal.filter((entry) => entry.path.endsWith("/audit")).map((entry) => entry.output), [{ approved: false }, { approved: true }]);
+	});
+
+	test("refuses a visit past a bound, a list longer than the visits it can answer, and a path that leads nowhere", async () => {
+		const run = await dryRunFlow(BLOCKS, "x", {
+			"deliver#3/audit": { approved: true },
+			"deliver#1/work[3]/code": "x",
+			"deliver/audit": [{ approved: true }, { approved: true }, { approved: true }],
+			"deliver#1/both/look": "x",
+			"deliver#1/both/middle/look": "x",
+			"deliver/audit#1": { approved: true },
+			"deliver#1/audit": { approve: true },
+		});
+		assert.ok(!run.ok && "faults" in run);
+		assert.deepEqual(
+			run.faults.map(({ code, at, message }) => `${code} ${at}: ${message}`),
+			[
+				"answer-past-max deliver#3/audit: `deliver#3/audit`: `deliver` runs 2 iterations at most, numbered from 1",
+				"answer-past-max deliver#1/work[3]/code: `deliver#1/work[3]/code`: `work` runs 2 items at most, numbered from 1",
+				"answer-past-max deliver/audit: `deliver/audit` is asked 2 times at most, and its list holds 3 answers",
+				"answer-unknown-node deliver#1/both/look: `deliver#1/both/look` names no agent node: a visit inside `both` names its branch: left, right",
+				"answer-unknown-node deliver#1/both/middle/look: `deliver#1/both/middle/look` names no agent node: a visit inside `both` names its branch: left, right",
+				"answer-unknown-node deliver/audit#1: `deliver/audit#1` names no agent node: a visit path numbers each loop iteration `#n` and each map item `[i]`, and nothing else",
+				"answer-off-schema deliver#1/audit: the value has `approve`, which { approved: boolean, remarks?: string, resolved?: [{ id: string, how: addressed | withdrawn, reason?: string }], raised?: [string] } does not name",
+			],
+		);
+	});
 });

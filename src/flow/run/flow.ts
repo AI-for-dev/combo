@@ -11,13 +11,14 @@ import { busFor, type EventListener } from "../../events.ts";
 import { spawn as defaultSpawn } from "../../subagent.ts";
 import { sumUsage, type Usage } from "../../usage.ts";
 import type { SpawnFn } from "../../workflows/options.ts";
-import type { CheckedFlow, FlowError } from "../checked.ts";
+import type { CheckedFlow, CheckedNode, FlowError } from "../checked.ts";
 import { everyNode } from "../node.ts";
 import { mismatch } from "../type.ts";
 import type { Attempt } from "./agent.ts";
 import { Frames } from "./frames.ts";
 import { Values } from "./values.ts";
-import { notYet, Run, type Walked } from "./walk.ts";
+import type { Walked } from "./ended.ts";
+import { Run } from "./walk.ts";
 
 /** What a run varies. Each defaults to the real thing. */
 export type RunFlowOptions = {
@@ -47,8 +48,8 @@ export type FlowResult =
  * Runs `checked` on `input`.
  *
  * Throws, before anything is spawned, on an input off the flow's `input:` and
- * on a node this runner does not walk yet: both are the caller's mistake, not
- * a run that went wrong. Every other failure is a result.
+ * on `copies: true`, which this runner does not make yet: both are the
+ * caller's mistake, not a run that went wrong. Every other failure is a result.
  */
 export function runFlow(checked: CheckedFlow, input: unknown, options: RunFlowOptions = {}): Promise<FlowResult> {
 	return walkFlow(checked, input, options, ({ ms }) => AbortSignal.timeout(ms));
@@ -56,8 +57,8 @@ export function runFlow(checked: CheckedFlow, input: unknown, options: RunFlowOp
 
 /** `runFlow`, with the deadline of each attempt given: the dry run's door into the same walk. */
 export async function walkFlow(checked: CheckedFlow, input: unknown, options: RunFlowOptions, deadline: (attempt: Attempt) => AbortSignal): Promise<FlowResult> {
-	const refused = [...everyNode(checked.nodes)].find((node) => (node.kind === "agent" ? node.verdict !== undefined : node.kind !== "choice"));
-	if (refused !== undefined) throw notYet(refused);
+	const copying = [...everyNode(checked.nodes)].find((node) => (node.kind === "parallel" || node.kind === "map") && node.copies);
+	if (copying !== undefined) throw notYet(copying);
 	const problem = mismatch(input, checked.input);
 	if (problem !== undefined) throw new Error(`The input of \`${checked.name}\` does not match its \`input:\`: ${problem}`);
 
@@ -67,11 +68,19 @@ export async function walkFlow(checked: CheckedFlow, input: unknown, options: Ru
 	const frames = Frames.root();
 	let walked: Walked;
 	try {
-		walked = await run.sequence(checked.nodes, "", Values.root(input), frames);
+		walked = await run.sequence(checked.nodes, "", { values: Values.root(input), frames, cut: signal });
 	} finally {
 		await frames.close();
 	}
 	const usage = sumUsage(walked.usage, performance.now() - started);
 	if (walked.failed !== undefined) return { ok: false, error: walked.failed.error, path: walked.failed.path, usage };
 	return { ok: true, ...(walked.last?.ok && { output: walked.last.output }), usage };
+}
+
+/**
+ * The refusal of `copies: true`: a programming error, since the flow was
+ * checked and the runner is what falls short. Copies come with the `git` port.
+ */
+function notYet(node: CheckedNode): Error {
+	return new Error(`\`${node.at}\`: \`copies: true\` is not run yet by the flow runner`);
 }

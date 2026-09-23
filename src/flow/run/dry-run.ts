@@ -3,7 +3,8 @@
  *
  * The same walk, the same `spawn`, the same events. Only the session under
  * each subagent is scripted, so a typed answer goes through the real `submit`
- * tool and a failure takes its real path, retries included. Nothing of the
+ * tool, a verdict through the real `verdict` tool and its ledger, and a
+ * failure takes its real path, retries and `fail-fast` included. Nothing of the
  * world is touched: no working directory is given, and no model is reached.
  */
 
@@ -61,9 +62,9 @@ export async function dryRunFlow(checked: CheckedFlow, input: unknown, answers: 
 	};
 	// No clock: each attempt's deadline is a switch the scripted session
 	// throws when its answer is a timeout.
-	const deadline = ({ path, subagent }: Attempt) => {
+	const deadline = ({ path, at, subagent }: Attempt) => {
 		const controller = new AbortController();
-		const turn = script.next(path);
+		const turn = script.next(path, at);
 		if (turn === undefined) {
 			unscripted ??= path;
 			halt.abort();

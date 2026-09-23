@@ -10,6 +10,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import type { Result } from "../src/result.ts";
+import { createLedger } from "../src/review/ledger.ts";
 import { reviewRecord, type ReviewRecord } from "../src/review/review.ts";
 import type { ToolDefinition } from "../src/session.ts";
 import { emptyUsage } from "../src/usage.ts";
@@ -195,5 +196,30 @@ describe("what a record offers", () => {
 	test("a reviewer deciding in prose leaves the caller's offer as it was", () => {
 		const others = () => undefined;
 		assert.equal(reviewRecord(reader, { word: "LGTM" }).offer(others), others);
+	});
+});
+
+describe("a ledger the record is handed", () => {
+	test("is shared by the records writing to it, each closing only what it raised", async () => {
+		const ledger = createLedger();
+		const first = reviewRecord(judge, { word: "LGTM", ledger: () => ledger });
+		const second = reviewRecord(testAgent("auditor", { tools: [VERDICT_TOOL] }), { word: "LGTM", ledger: () => ledger });
+		await callTool(toolOf(first), { approved: false, raised: ["add a test"] });
+		await first.close(review(), 1);
+
+		assert.deepEqual(second.open.map((one) => one.id), ["o1"], "what one record raised, the other sees");
+		await callTool((second.offer()?.(testAgent("auditor")) as ToolDefinition[])[0] as ToolDefinition, { approved: true, resolved: [{ id: "o1", how: "addressed" }] });
+		assert.equal((await second.close(review(), 1)).approved, false, "it could not close what it did not raise");
+		assert.equal(ledger.open.length, 1);
+	});
+
+	test("is read at every use, so the record follows the ledger it is pointed at", async () => {
+		let current = createLedger();
+		const record = reviewRecord(judge, { word: "LGTM", ledger: () => current });
+		await callTool(toolOf(record), { approved: false, raised: ["first scope"] });
+		await record.close(review(), 1);
+		current = createLedger();
+		assert.deepEqual(record.open, []);
+		assert.equal(record.terms(), "End by calling the `verdict` tool: that call is what is read as your decision.");
 	});
 });

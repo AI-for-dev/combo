@@ -4,20 +4,23 @@
  *
  * A key is a node's address (`gate/ask`) or an exact visit path
  * (`deliver#2/gate/ask`), the path winning. Its value is one answer, which
- * serves every attempt, or a list, consumed attempt by attempt. A list is
- * always a list of answers, so a node whose output is a list is answered
- * inside one: `[["a", "b"]]`. An answer is an output or `{ fail: <kind> }`.
+ * serves every attempt, or a list, consumed attempt by attempt within the
+ * enclosing path, so each item of a `map` has its own list and a loop's
+ * iterations share one. A list is always a list of answers, so a node whose
+ * output is a list is answered inside one: `[["a", "b"]]`. An answer is an
+ * output, the `verdict` call of a `verdict:` node, or `{ fail: <kind> }`.
  */
 
+import { VERDICT_TOOL } from "../../review/index.ts";
 import type { CheckedAgentNode, CheckedFlow } from "../checked.ts";
 import { nearest } from "../fault.ts";
-import { everyNode } from "../node.ts";
 import { mismatch, type ValueType } from "../type.ts";
+import { agentNodes, visitAt, type Keyed, type Unkeyed } from "./keys.ts";
 import type { ScriptedTurn } from "./scripted.ts";
-import { submission } from "./submit.ts";
+import { submission, SUBMIT_TOOL } from "./submit.ts";
 
 /** Why a script is refused. Stable, so a test of a flow can assert on them. */
-export const ANSWER_CODES = ["answer-unknown-node", "answer-off-schema", "answer-fail-kind"] as const;
+export const ANSWER_CODES = ["answer-unknown-node", "answer-past-max", "answer-off-schema", "answer-fail-kind"] as const;
 
 /** A script's mistake: its code, the key (and its place in a list), and one sentence. */
 export type AnswerFault = { readonly code: (typeof ANSWER_CODES)[number]; readonly at: string; readonly message: string };
@@ -29,6 +32,31 @@ export type Answers = Readonly<Record<string, unknown>>;
 const AGENT_FAILS = ["provider", "timeout", "schema"] as const;
 
 const TEXT: ValueType = { kind: "text" };
+const STRING: ValueType = { kind: "string" };
+
+/** What a `verdict:` node's answer is: the `verdict` tool's own parameters. */
+const VERDICT_CALL: ValueType = {
+	kind: "object",
+	fields: {
+		approved: { type: { kind: "boolean" }, optional: false },
+		remarks: { type: STRING, optional: true },
+		resolved: {
+			type: {
+				kind: "list",
+				of: {
+					kind: "object",
+					fields: {
+						id: { type: STRING, optional: false },
+						how: { type: { kind: "enum", values: ["addressed", "withdrawn"] }, optional: false },
+						reason: { type: STRING, optional: true },
+					},
+				},
+			},
+			optional: true,
+		},
+		raised: { type: { kind: "list", of: STRING }, optional: true },
+	},
+};
 
 /** A checked script, handing out one turn per attempt. */
 export class Script {
@@ -43,34 +71,32 @@ export class Script {
 
 	/** `answers` checked against `flow`: a script, or every fault found in it. */
 	static check(flow: CheckedFlow, answers: Answers): { ok: true; script: Script } | { ok: false; faults: AnswerFault[] } {
-		const nodes = new Map<string, CheckedAgentNode>();
-		for (const node of everyNode(flow.nodes)) if (node.kind === "agent") nodes.set(node.at, node);
+		const nodes = agentNodes(flow.nodes);
 		const faults: AnswerFault[] = [];
 		for (const [key, value] of Object.entries(answers)) {
-			const node = nodes.get(address(key));
-			if (node === undefined) {
-				// An id alone is the likeliest slip: it is how the node is written.
-				const near = [...nodes.values()].find((one) => one.id === key)?.at ?? nearest(address(key), nodes.keys());
-				faults.push({ code: "answer-unknown-node", at: key, message: `\`${key}\` names no agent node${near === undefined ? "" : `: did you mean \`${near}\`?`}` });
+			const keyed = nodes.get(key) ?? visitAt(flow.nodes, key);
+			if ("code" in keyed) {
+				faults.push({ code: keyed.code, at: key, message: unkeyed(key, keyed, nodes) });
 				continue;
 			}
 			const list = Array.isArray(value) ? value : [value];
 			for (const [index, answer] of list.entries()) {
-				const at = Array.isArray(value) ? `${key}[${index}]` : key;
-				const fault = checkAnswer(answer, node, at);
+				const fault = checkAnswer(answer, keyed.node, Array.isArray(value) ? `${key}[${index}]` : key);
 				if (fault !== undefined) faults.push(fault);
 			}
+			if (list.length > keyed.most) {
+				faults.push({ code: "answer-past-max", at: key, message: `\`${key}\` is asked ${keyed.most} time${keyed.most === 1 ? "" : "s"} at most, and its list holds ${list.length} answers` });
+			}
 		}
-		return faults.length > 0 ? { ok: false, faults } : { ok: true, script: new Script(answers, nodes) };
+		const byAddress = new Map([...nodes].map(([at, { node }]) => [at, node]));
+		return faults.length > 0 ? { ok: false, faults } : { ok: true, script: new Script(answers, byAddress) };
 	}
 
 	/**
-	 * The turn the attempt at visit `path` takes, or `undefined` when nothing
-	 * scripts it. A node's list is consumed within its enclosing path, so each
-	 * item of a `map` has its own and a loop's iterations share one.
+	 * The turn the attempt at visit `path`, of the node at `at`, takes, or
+	 * `undefined` when nothing scripts it.
 	 */
-	next(path: string): ScriptedTurn | undefined {
-		const at = address(path);
+	next(path: string, at: string): ScriptedTurn | undefined {
 		const node = this.nodes.get(at) as CheckedAgentNode;
 		const key = [path, at].find((one) => Object.hasOwn(this.answers, one));
 		if (key === undefined) return undefined;
@@ -83,9 +109,13 @@ export class Script {
 	}
 }
 
-/** A visit path read as the node it visits: iterations and items dropped. */
-function address(path: string): string {
-	return path.replace(/#\d+|\[\d+\]/g, "");
+/** Why `key` names no visit, offering the address meant when it can. */
+function unkeyed(key: string, { code, why }: Unkeyed, nodes: ReadonlyMap<string, Keyed>): string {
+	if (code === "answer-past-max") return `\`${key}\`: ${why}`;
+	// An id alone is the likeliest slip: it is how the node is written.
+	const near = [...nodes.values()].find(({ node }) => node.id === key)?.node.at ?? nearest(key.replace(/#\d+|\[\d+\]/g, ""), nodes.keys());
+	const said = why ?? (near === undefined ? undefined : `did you mean \`${near}\`?`);
+	return `\`${key}\` names no agent node${said === undefined ? "" : `: ${said}`}`;
 }
 
 function isFail(answer: unknown): answer is { fail: unknown } {
@@ -98,11 +128,12 @@ function checkAnswer(answer: unknown, node: CheckedAgentNode, at: string): Answe
 		if ((AGENT_FAILS as readonly unknown[]).includes(answer.fail)) return undefined;
 		return { code: "answer-fail-kind", at, message: `an agent turn fails with ${AGENT_FAILS.join(", ")}, not ${JSON.stringify(answer.fail)}` };
 	}
-	const problem = mismatch(answer, node.output ?? TEXT);
+	const problem = mismatch(answer, node.verdict === undefined ? (node.output ?? TEXT) : VERDICT_CALL);
 	return problem === undefined ? undefined : { code: "answer-off-schema", at, message: problem };
 }
 
 function turn(answer: unknown, node: CheckedAgentNode): ScriptedTurn {
 	if (isFail(answer)) return { fail: answer.fail as (typeof AGENT_FAILS)[number] };
-	return node.output === undefined ? { say: answer as string } : { submit: submission(answer, node.output) };
+	if (node.verdict !== undefined) return { call: VERDICT_TOOL, args: answer };
+	return node.output === undefined ? { say: answer as string } : { call: SUBMIT_TOOL, args: submission(answer, node.output) };
 }
