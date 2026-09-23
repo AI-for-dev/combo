@@ -10,8 +10,11 @@
  * launched in, and `runFlow` and `dryRunFlow` are how a checked one runs.
  * `readSnapshot` and `readJournal` read back what a run left in its run
  * directory, `resumePoint` says where it picks up, and `resumeFlow` resumes it.
+ * `planOf` and `mermaidOf` render a checked flow, whose `bounds` say its
+ * worst case.
  */
 
+export { showBound, type Bound, type Bounds } from "./bounds.ts";
 export { loadFlowCatalogue, type FlowCatalogue } from "./catalogue.ts";
 export { checkFlow, type CheckFlow } from "./check.ts";
 export { checkRun, type CheckRun, type CheckedRun, type FlowPorts, type RunStage } from "./check-run.ts";
@@ -47,6 +50,7 @@ export {
 	type Readable,
 } from "./condition/index.ts";
 export { FAULT_CODES, type Fault, type FaultCode } from "./fault.ts";
+export { mermaidOf, planOf, showPlan, type Plan, type PlanLine } from "./render/index.ts";
 export {
 	ANSWER_CODES,
 	dryRunFlow,

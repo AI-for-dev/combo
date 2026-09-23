@@ -14,8 +14,13 @@ export type Unrolled = { readonly node: CheckedNode; readonly at: string };
 /** Every node of `nodes`, nested ones and those of each flow called included, parents first. */
 export function* unrolled(nodes: readonly CheckedNode[], prefix = ""): Generator<Unrolled> {
 	for (const node of everyNode(nodes)) {
-		const at = prefix === "" ? node.at : `${prefix}/${node.at}`;
+		const at = through(prefix, node.at);
 		yield { node, at };
 		if (node.kind === "flow") yield* unrolled(node.callee.nodes, at);
 	}
+}
+
+/** The address `at` through the call at `prefix`, `""` at the root. */
+export function through(prefix: string, at: string): string {
+	return prefix === "" ? at : `${prefix}/${at}`;
 }

@@ -16,7 +16,7 @@ combinators        ──►  Workflow   "how"    : chain, fanOut, loop, orchest
 ```bash
 npm test        # node --test 'test/*.test.ts' - offline, no network, ever
 npm run typecheck
-npm run docs    # regenerate docs/reference/api/ - required after any signature change
+npm run docs    # regenerate docs/reference/api/ and flows/ - required after any signature change
 pi -e extension # load the extension in a real pi (the only check fakes cannot do)
 python3 scripts/drive-pi.py "/agents"   # the same, hands-free: it types and reads back
 node scripts/check-herdr.ts     # hold our herdr calls to `herdr api schema --json`
@@ -144,9 +144,10 @@ src/                the library
                     check-loop and check-world (the flow stage, against a
                     catalogue), check-run (the run stage: the tree, the ports),
                     unrolled (the nodes through calls), scope (what a node can
-                    read), checked (what it hands on), sources (what a check
-                    read), memory (the subagents a scope shares), type (what a
-                    value is), schema (how a file writes one), condition/ (a
+                    read), checked (what it hands on), bounds (its worst case,
+                    in turns and time), sources (what a check read), memory
+                    (the subagents a scope shares), type (what a value is),
+                    schema (how a file writes one), condition/ (a
                     CEL subset: tokens, parse, compile, evaluate, address),
                     run/ (the runner: flow, world, walk, choice, blocks,
                     copies, loop, call, agent, ask and card (the person's side,
@@ -156,7 +157,8 @@ src/                the library
                     runner per run) in its run directory; replay (what a
                     resume keeps of the journal), resume-point (where it picks
                     up) and resume (resumeFlow); dry-run on answers, keys and
-                    scripted);
+                    scripted); render/ (plan and text, the plan of a checked
+                    flow; mermaid, its diagram);
                     index.ts is each one's door
   pipeline/         pipeline (the file), load (where it is), run (our code
                     walks the steps); index.ts is its door
@@ -181,9 +183,10 @@ extension/          the pi extension: index.ts (tool, renderers), execute.ts
 pane/               the client a herdr split runs, attached to the mirror
 agents/ pipelines/  shipped definitions (symlinked into .pi/)
 examples/ scripts/ test/
-docs/               guide/ (task by task), reference/ (api/, generated), the
-                    landing page and the two project pages; conf.py and _static/
-                    build the same files into a site - docs/README.md says how
+docs/               guide/ (task by task), reference/ (api/ and flows/,
+                    generated), the landing page and the two project pages;
+                    conf.py and _static/ build the same files into a site -
+                    docs/README.md says how
 ```
 
 **One file, one concept.** Past roughly 200 lines it is mixing two.

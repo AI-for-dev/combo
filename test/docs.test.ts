@@ -2,8 +2,8 @@
  * The documentation, checked the way the code is.
  *
  * Four failures this catches, every one of them invisible until now: an export
- * that ships with no TSDoc, a `docs/reference/api/` page that no longer matches the source
- * it was generated from, a link or a navigation entry pointing at nothing, and a
+ * that ships with no TSDoc, a `docs/reference/api/` or `docs/reference/flows/` page that
+ * no longer matches the source it was generated from, a link or a navigation entry pointing at nothing, and a
  * code example importing a symbol that has since been renamed. Neither a
  * typechecker nor any other test in this suite reads Markdown, so without this
  * file "the documentation is up to date" is a claim nobody verifies.
@@ -13,7 +13,7 @@
  */
 
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,6 +21,9 @@ import { describe, test } from "node:test";
 import { DOCS_DIR, docAt, generateDocs, moduleIntro, signatureOf, parseFile } from "../scripts/api-docs.ts";
 import { docGaps, sourceFiles } from "../scripts/doc-coverage.ts";
 import { brokenLinks, docPages, handWritten, navigationPaths, unknownImports } from "../scripts/doc-links.ts";
+import { FLOWS_DOCS_DIR, generateFlowDocs, generateShippedFlowDocs } from "../scripts/flow-docs.ts";
+import { mermaidOf } from "../src/flow/index.ts";
+import { catalogueOf, checkedIn, flowText } from "./fixtures/flow.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -37,24 +40,51 @@ describe("documentation coverage", () => {
 	});
 });
 
-describe("docs/reference/api is generated, never edited", () => {
-	const generated = generateDocs(root);
+for (const [dir, generated] of [
+	[DOCS_DIR, generateDocs(root)],
+	[FLOWS_DOCS_DIR, generateShippedFlowDocs(root)],
+] as const) {
+	describe(`${dir} is generated, never edited`, () => {
+		test("every page matches what the source says today", () => {
+			// The names of the stale files, not their contents: a failing assertion
+			// on two full pages is four kilobytes nobody reads.
+			const stale = [...generated]
+				.filter(([path, expected]) => !existsSync(join(root, path)) || readFileSync(join(root, path), "utf8") !== expected)
+				.map(([path]) => path);
+			assert.deepEqual(stale, [], "stale pages - run `npm run docs`");
+		});
 
-	test("every page matches what the source says today", () => {
-		// The names of the stale files, not their contents: a failing assertion
-		// on two full pages is four kilobytes nobody reads.
-		const stale = [...generated]
-			.filter(([path, expected]) => readFileSync(join(root, path), "utf8") !== expected)
-			.map(([path]) => path);
-		assert.deepEqual(stale, [], "stale pages - run `npm run docs`");
+		test("no page survives what it documented", () => {
+			const onDisk = readdirSync(join(root, dir), { recursive: true, withFileTypes: true })
+				.filter((entry) => entry.isFile())
+				.map((entry) => relative(root, join(entry.parentPath, entry.name)))
+				.sort();
+			assert.deepEqual(onDisk, [...generated.keys()].sort(), "run `npm run docs`");
+		});
+	});
+}
+
+describe("docs/reference/flows draws each shipped flow", () => {
+	test("one page per flow, its diagram the one `mermaidOf` draws, listed and in the navigation", () => {
+		const flows = { f: flowText("  - id: spec\n    flow: g\n    input: input"), g: flowText("  - id: look\n    agent: scout", { look: "L." }, undefined, "g") };
+		const pages = generateFlowDocs(catalogueOf(flows), "https://example.org/blob/main");
+		assert.deepEqual([...pages.keys()], ["index", "f", "g"].map((name) => join(FLOWS_DOCS_DIR, `${name}.md`)));
+		const index = pages.get(join(FLOWS_DOCS_DIR, "index.md")) ?? "";
+		assert.match(index, /- \[`f`\]\(f\.md\)\n- \[`g`\]\(g\.md\)/);
+		assert.match(index, /```\{toctree\}\n:hidden:\n\nf\ng\n```/);
+		const page = pages.get(join(FLOWS_DOCS_DIR, "f.md")) ?? "";
+		assert.ok(page.includes(`Source: [\`flows/f.md\`](https://example.org/blob/main/flows/f.md)`), page);
+		assert.ok(page.includes(`\`\`\`mermaid\n${mermaidOf(checkedIn("f", flows))}\n\`\`\``), page);
 	});
 
-	test("no page survives the module it documented", () => {
-		const onDisk = readdirSync(join(root, DOCS_DIR), { recursive: true, withFileTypes: true })
-			.filter((entry) => entry.isFile())
-			.map((entry) => relative(root, join(entry.parentPath, entry.name)))
-			.sort();
-		assert.deepEqual(onDisk, [...generated.keys()].sort(), "run `npm run docs`");
+	test("with no flow shipped, the index says so and lists nothing", () => {
+		const pages = generateFlowDocs(catalogueOf({}), "https://example.org/blob/main");
+		assert.deepEqual([...pages.keys()], [join(FLOWS_DOCS_DIR, "index.md")]);
+		assert.match(pages.get(join(FLOWS_DOCS_DIR, "index.md")) ?? "", /No flow ships yet\.\n$/);
+	});
+
+	test("refuses to draw a shipped flow that does not check", () => {
+		assert.throws(() => generateFlowDocs(catalogueOf({ f: flowText("  - id: look\n    agent: nobody", { look: "L." }) }), ""), /the shipped flow `f` does not check: look\.agent: /);
 	});
 });
 

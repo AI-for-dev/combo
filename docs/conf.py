@@ -27,6 +27,7 @@ extensions = [
     "myst_parser",
     "sphinx_copybutton",
     "sphinx_design",
+    "sphinxcontrib.mermaid",
 ]
 
 myst_enable_extensions = [
@@ -38,6 +39,9 @@ myst_enable_extensions = [
     "tasklist",
 ]
 myst_heading_anchors = 3
+# A plain ```mermaid fence, not ```{mermaid}: GitHub draws the first and shows the second as
+# text, and `docs/reference/flows/` is read in the repository as much as on the site.
+myst_fence_as_directive = ["mermaid"]
 
 templates_path = ["_templates"]
 exclude_patterns = [

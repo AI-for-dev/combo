@@ -15,6 +15,7 @@ import { VERDICT_TOOL } from "../../review/index.ts";
 import { toolsOf } from "../../session.ts";
 import { emptyUsage, sumUsage, type Usage } from "../../usage.ts";
 import type { ScriptOutcome } from "../../verify.ts";
+import { turnTimeout } from "../bounds.ts";
 import type { CheckedAgentNode, CheckedAskNode, CheckedCallNode, CheckedCheckNode, CheckedCommitNode, CheckedFlow, CheckedNode, FlowError } from "../checked.ts";
 import { sharedKey, sharedSubagents, submitted } from "../memory.ts";
 import { visitAgent, type AgentRun, type Attempt } from "./agent.ts";
@@ -34,9 +35,6 @@ import type { Replay } from "./replay.ts";
 import type { Values } from "./values.ts";
 import { verdictSlot } from "./verdict.ts";
 import type { Walk } from "./world.ts";
-
-/** An agent turn's bound when neither the node, nor the flow, nor the caller sets one. */
-export const DEFAULT_TIMEOUT_MS = 30 * 60_000;
 
 /**
  * Where a visit stands: what it reads, the memory scopes open around it, the
@@ -113,7 +111,7 @@ export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, Commit
 	}
 
 	timeoutFor(node: CheckedAgentNode): number {
-		return this.walk.timeoutMs ?? node.timeoutMs ?? this.stack.find((flow) => flow.timeoutMs !== undefined)?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+		return this.walk.timeoutMs ?? turnTimeout(node, this.stack.find((flow) => flow.timeoutMs !== undefined)?.timeoutMs).ms;
 	}
 
 	deadline(attempt: Attempt): AbortSignal {

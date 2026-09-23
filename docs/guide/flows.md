@@ -775,6 +775,78 @@ const killed = run.journal.slice(0, 2);
 const resumed = await dryRunFlow(split, "add a cache", { answer: "Put the cache in front of src/store.ts." }, { from: killed });
 ```
 
+## Bounds and renderings
+
+```{note}
+Not exported yet, like the rest of the format.
+```
+
+Every loop and every `map` has a bound written in the file, so a checked flow
+knows its worst case before its first spawn. `checked.bounds` holds it:
+`total`, and `nodes`, each node's worst case over every visit a run can make
+of it, by its address through the calls (`spec/look` for `look` in the flow
+the node `spec` calls). A bound is `{ turns, ms, waits }`. It is shown, never
+judged: no flow is refused for what it could cost.
+
+- An `agent` node asks for `1 + retry` turns per visit, each bounded by its
+  `timeout:`, the nearest flow's around it, or 30 minutes.
+- A `check` takes its `timeout:`, an `ask` its `timeout:` when it has one, and
+  a `commit` nothing. An `ask` with no `timeout:` sets `waits`: it can wait
+  for a person as long as they take.
+- A sequence adds up. A `choice` takes the worst of its cases, whichever
+  would run. A `parallel` adds its branches' turns and takes the longest
+  branch's time. A `map` runs its body once per item, its literal list or its
+  `max:`, in waves of `concurrency`. A `loop` runs its body `max:` times.
+- A `flow` node counts its callee's nodes where the call stands, and a callee
+  that sets no `timeout:` takes its caller's.
+
+The time is what the flow waits for when every bounded wait runs to its bound,
+and nothing else: spawning a subagent, git and landing copies are not counted.
+It takes branches running together to run together, while two branches
+resuming one subagent of an outer `memory:` scope, or asking at once, wait for
+each other. A `timeoutMs` given at launch replaces every agent turn's bound,
+which the checked flow cannot know.
+
+`planOf(checked)` is the plan: one line per node, in the tree the file
+writes, a `choice` case and a `parallel` branch being lines too. Each line has
+its kind, its id, the visit path it stands for, with `#n` where a loop numbers
+its iterations and `[i]` where a `map` numbers its items, what the check
+resolved, and its bound. `showPlan(plan)` writes it as text, every line marked
+`○`, a visit not made yet. The flow at the top of this page, `first` given
+`retry: 1`:
+
+```text
+split · flows/split.md · input string · ≤ 4 turns · ≤ 2h
+○ plan · agent planner (agents/planner.md) · reads input · output { first: scout | reviewer, task: string } · timeout 30m by default · ≤ 1 turn · ≤ 30m
+○ first · agent from plan.output.first: scout (agents/scout.md), reviewer (agents/reviewer.md) · reads plan.output.task · retry 1 · timeout 30m by default · ≤ 2 turns · ≤ 1h
+○ answer · agent synthesiser (agents/synthesiser.md) · reads input, first · timeout 30m by default · ≤ 1 turn · ≤ 30m
+```
+
+A turn's timeout says where it came from: nothing after it for the node's
+own, `from the flow`, or `by default`. A call is one line, naming the callee
+and the file it resolved to.
+
+`mermaidOf(checked)` is the flow as a Mermaid `flowchart`, and only its
+structure: a sequence is arrows, a `choice`, `parallel`, `map` or `loop` is a
+subgraph, and every other node is one box with its id and kind. A case's
+condition is on its arrow, a loop's `until` on its way back, every `max:` in
+its block's title, and `on-fail: continue` in the box it applies to. `reads:`
+are not drawn. A call is one box with the callee's name, its file and its
+`input:`; the callee has its own diagram. The same flow:
+
+```mermaid
+flowchart TD
+  n1["plan<br/>agent planner"]
+  n2["first<br/>agent scout or reviewer"]
+  n3["answer<br/>agent synthesiser"]
+  n1 --> n2
+  n2 --> n3
+```
+
+`npm run docs` draws each flow the package ships into
+[`docs/reference/flows/`](../reference/flows/index.md), and `npm test` fails
+when a page there no longer matches its flow.
+
 ## Faults
 
 A flow that does not pass is refused with every fault at once, in file order,
