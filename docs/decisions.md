@@ -1815,8 +1815,19 @@ take, so a resume is tested offline through the same door.
   journal holds every visit's own, for whoever sums them.
 - **The lock is a file made with `wx`.** It holds the pid and the host. A
   process of this host is asked with signal 0, and one we may not signal is
-  alive; a stale lock is removed and made again with `wx`. `runFlow` takes it
-  too, after the snapshot, which is what refuses a directory holding a run.
+  alive. `runFlow` takes it too, after the snapshot, which is what refuses a
+  directory holding a run.
+- **A stale lock is replaced under `lock.json.takeover`.** Removing it and
+  making it again let two resumes that both read it as stale both take it:
+  the second removed the lock the first had just made. The takeover file is
+  made with `wx` too, so one taker at a time gets through. That taker reads the
+  lock again, since another may have taken it over in between, and replaces it
+  with a rename, so no plain `wx` finds it missing. A taker that finds the
+  takeover file refuses, with the pid in it when that process lives, or its
+  path when it died there. The rename is atomic on a local filesystem, and a
+  run directory is expected to be on one. `takeLock` takes the read as a
+  parameter, which is how the test puts a second taker between two steps of
+  the first.
 
 ## A chain walked by hand
 

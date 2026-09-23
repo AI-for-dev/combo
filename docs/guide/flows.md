@@ -550,7 +550,9 @@ runs. Given none, nothing touches the disk, and the run cannot be resumed.
 
 The lock, `lock.json`, holds the pid and host of the process running the run.
 It is made exclusively at the start and at each resume, and removed in a
-`finally`.
+`finally`. A stale lock is replaced while holding `lock.json.takeover`, made
+exclusively as well, so when two resumes find the same stale lock only one of
+them takes it.
 
 ### Resuming a run
 
