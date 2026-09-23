@@ -12,6 +12,7 @@
  */
 
 import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
+import type { MainSession } from "../src/index.ts";
 import type { StepDeps } from "./deps.ts";
 
 /** How pi runs: `"tui"`, `"rpc"`, `"json"` or `"print"`. */
@@ -60,8 +61,8 @@ export type CommandCtx = {
 	/** pi's signal for the turn in flight, when a turn is: absent during a command. */
 	signal?: AbortSignal;
 	ui: Ui;
-	/** Where pi keeps this session, whose JSONL a run copies in beside its subagents'. */
-	sessionManager?: { getSessionFile(): string | undefined };
+	/** This session, whose JSONL a run writes in beside its subagents'. */
+	sessionManager?: MainSession;
 };
 
 /** What the question card needs. */
@@ -93,8 +94,8 @@ export type ToolCtx = {
 	/** How pi runs: {@link somebodyThere} reads it. */
 	mode: Mode;
 	ui: RunUi & AskUi;
-	/** Where pi keeps the parent session. Only this level can know. */
-	sessionManager?: { getSessionFile(): string | undefined };
+	/** The parent session. Only this level can know it. */
+	sessionManager?: MainSession;
 };
 
 /** What pi shows while a tool call is in flight: text for the model, nothing for the renderers. */
@@ -112,17 +113,17 @@ export type ToolDeps = {
 	mode: Mode;
 	ui: RunUi & AskUi;
 	/**
-	 * The parent session's JSONL, from `ctx.sessionManager.getSessionFile()`.
+	 * The parent session, `ctx.sessionManager`.
 	 *
 	 * An orchestration export that lost the parent session would be half a
-	 * story - and the extension is the only place that knows this path.
+	 * story - and the extension is the only place that has it.
 	 */
-	mainSessionFile: string | undefined;
+	mainSession: MainSession | undefined;
 };
 
 /** The tool body's dependencies, read off what pi handed the tool. */
 export function toolDeps(ctx: ToolCtx, signal: AbortSignal | undefined, onUpdate: ToolDeps["onUpdate"]): ToolDeps {
-	return { cwd: ctx.cwd, signal, onUpdate, mode: ctx.mode, ui: ctx.ui, mainSessionFile: ctx.sessionManager?.getSessionFile() };
+	return { cwd: ctx.cwd, signal, onUpdate, mode: ctx.mode, ui: ctx.ui, mainSession: ctx.sessionManager };
 }
 
 /**

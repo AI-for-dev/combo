@@ -21,6 +21,7 @@ import {
 	type FlowPorts,
 	type FlowResult,
 	type JournalEntry,
+	type MainSession,
 	type RunFlowOptions,
 } from "../../src/index.ts";
 import { watched } from "../command.ts";
@@ -77,8 +78,8 @@ export type Launch = {
 	readonly timeoutMs?: number;
 	/** The footer while it runs. */
 	readonly status?: string;
-	/** This session's JSONL, copied in beside the subagents'. */
-	readonly mainSessionFile?: string;
+	/** This session, whose JSONL lands beside the subagents'. */
+	readonly mainSession?: MainSession;
 	/** What else watches the run: the tool streams a progress line, a test injects a reporter. */
 	readonly view?: Pick<LiveRunOptions, "reporter" | "herdrAll" | "onChange">;
 };
@@ -100,7 +101,7 @@ export function underPlan<T>(ctx: LaunchCtx, deps: Pick<CommandDeps, "spawn" | "
 	return watched(ctx, deps, {
 		status: at.status,
 		dir: at.runDir,
-		live: { ...at.view, flow: { checked, journal }, spawn: deps.spawn, mainSessionFile: at.mainSessionFile },
+		live: { ...at.view, flow: { checked, journal }, spawn: deps.spawn, mainSession: at.mainSession },
 		work: ({ spawn, signal, onEvent }) => work({ spawn, signal, onEvent }),
 	});
 }

@@ -10,7 +10,7 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { initTheme } from "@earendil-works/pi-coding-agent";
+import { initTheme, SessionManager } from "@earendil-works/pi-coding-agent";
 import type { Component } from "@earendil-works/pi-tui";
 import extension from "../extension/index.ts";
 import { RESULT_MESSAGE } from "../extension/commands/answer.ts";
@@ -353,24 +353,25 @@ describe("where pi comes in", () => {
 		assert.match(said(), /interview: there is nobody to ask outside an interactive session/);
 	});
 
-	test("the tool body is handed pi's working directory, its UI, and where pi keeps the parent session", () => {
+	test("the tool body is handed pi's working directory, its UI, and the parent session", () => {
 		const { ctx } = fakeCtx();
 		const signal = new AbortController().signal;
 		const onUpdate = () => {};
+		const sessionManager = SessionManager.inMemory("/repo");
 
-		const deps = toolDeps({ ...ctx, sessionManager: { getSessionFile: () => "/sessions/main.jsonl" } }, signal, onUpdate);
+		const deps = toolDeps({ ...ctx, sessionManager }, signal, onUpdate);
 
 		assert.equal(deps.cwd, "/repo");
 		assert.equal(deps.ui, ctx.ui);
 		assert.equal(deps.signal, signal);
 		assert.equal(deps.onUpdate, onUpdate);
-		assert.equal(deps.mainSessionFile, "/sessions/main.jsonl");
+		assert.equal(deps.mainSession, sessionManager);
 		assert.equal(deps.mode, "tui");
 	});
 
-	test("a pi that keeps no session file leaves the parent session out, rather than inventing one", () => {
+	test("a pi that hands no session leaves the parent session out, rather than inventing one", () => {
 		const { ctx } = fakeCtx();
-		assert.equal(toolDeps(ctx, undefined, undefined).mainSessionFile, undefined);
+		assert.equal(toolDeps(ctx, undefined, undefined).mainSession, undefined);
 	});
 
 	test("the two doors into the session are pi's own methods, bound", () => {

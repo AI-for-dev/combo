@@ -7,6 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, test } from "node:test";
+import { SessionManager } from "@earendil-works/pi-coding-agent";
 import type { SubagentEvent } from "../src/events.ts";
 import { measuredRun } from "../src/measure/measured.ts";
 import { closed, spawned } from "./fixtures/picture.ts";
@@ -72,13 +73,12 @@ describe("measuredRun", () => {
 		assert.deepEqual(events.map((one) => one.type), ["spawn", "close"]);
 	});
 
-	test("copies the parent session in when it is named, and claims no export at all when it is not", () => {
+	test("writes the parent session in when it is named, says so in the report, and claims no export at all when it is not", () => {
 		const dir = tmpDir();
-		const main = path.join(dir, "parent.jsonl");
-		fs.writeFileSync(main, '{"type":"session"}\n');
 
-		measuredRun({ dir, mainSessionFile: main }).finish();
+		measuredRun({ dir, mainSession: SessionManager.inMemory(dir) }).finish();
 		assert.ok(fs.existsSync(path.join(dir, "main.jsonl")));
+		assert.deepEqual(report(dir).exports, [{ id: "main", jsonl: path.join(dir, "main.jsonl") }]);
 
 		const bare = tmpDir();
 		measuredRun({ dir: bare }).finish();

@@ -47,7 +47,12 @@ and `newestRunFirst` sorts the names by start, `-10` after `-9` included.
 
 - **One HTML and one JSONL per subagent.** An orchestration export that lost the
   subagents' work would be useless.
-- **`main.jsonl`** is the parent session's transcript, copied.
+- **`main.jsonl`** is the parent session's transcript. pi's own file is
+  copied once pi has written it. pi creates that file with the parent's first
+  reply, so a run launched before it, the first command in a fresh pi for
+  example, gets the same lines written from what pi holds in memory: the
+  header and the entries, one JSON object per line. `usage.json` lists it
+  under `exports`, with the reason when it could not be written.
 - **`main.html` is not there, and will not be.** pi's HTML renderer is a method
   of a live session, and an extension only ever gets a read-only session manager.
   So the JSONL is copied instead, and `pi --export <file>` turns it into the same

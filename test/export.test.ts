@@ -14,6 +14,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, test } from "node:test";
+import { SessionManager } from "@earendil-works/pi-coding-agent";
 import {
 	copyMainSession,
 	createRunDir,
@@ -342,25 +343,55 @@ describe("usage.json", () => {
 });
 
 describe("copyMainSession", () => {
-	test("puts the parent session next to the subagents' transcripts", () => {
-		const dir = tmpDir();
-		const source = path.join(dir, "source.jsonl");
-		fs.writeFileSync(source, '{"type":"session"}\n');
+	/** pi's own session manager, persisting into a scratch directory rather than `~/.pi`. */
+	const persisted = (): SessionManager => SessionManager.create("/repo", path.join(tmpDir(), "sessions"));
+	/** A turn of the parent: pi creates the session's file with its first assistant message. */
+	const turn = (session: SessionManager): void => {
+		session.appendMessage({ role: "user", content: "look", timestamp: 1 });
+		session.appendMessage({ role: "assistant", content: [{ type: "text", text: "seen" }], timestamp: 2 } as never);
+	};
 
-		const result = copyMainSession(source, dir);
+	test("copies pi's own file once pi has written it", () => {
+		const session = persisted();
+		turn(session);
+		const file = session.getSessionFile() ?? "";
+		const dir = tmpDir();
+
+		const result = copyMainSession(session, dir);
 		assert.equal(result.jsonl, path.join(dir, "main.jsonl"));
-		assert.equal(fs.readFileSync(path.join(dir, "main.jsonl"), "utf-8"), '{"type":"session"}\n');
+		assert.equal(fs.readFileSync(path.join(dir, "main.jsonl"), "utf-8"), fs.readFileSync(file, "utf-8"));
 	});
 
-	test("an in-memory parent is reported, never thrown", () => {
-		const result = copyMainSession(undefined, tmpDir());
-		assert.equal(result.jsonl, undefined);
-		assert.match(result.error ?? "", /in memory/);
-	});
-
-	test("a missing file is reported, never thrown", () => {
+	test("a session pi has not written yet is written from what pi holds, as the lines pi then writes", () => {
+		const session = persisted();
+		session.appendModelChange("provider", "model");
+		const file = session.getSessionFile() ?? "";
+		assert.equal(fs.existsSync(file), false, "a fresh session with no reply has no file yet");
 		const dir = tmpDir();
-		const result = copyMainSession(path.join(dir, "gone.jsonl"), dir);
+
+		const result = copyMainSession(session, dir);
+		assert.equal(result.jsonl, path.join(dir, "main.jsonl"));
+		const written = fs.readFileSync(path.join(dir, "main.jsonl"), "utf-8");
+		assert.deepEqual(
+			written.trimEnd().split("\n").map((line) => JSON.parse(line).type),
+			["session", "model_change"],
+		);
+		turn(session);
+		assert.ok(fs.readFileSync(file, "utf-8").startsWith(written), "the lines are pi's own, in pi's order");
+	});
+
+	test("an in-memory parent, which pi never writes, is written from what pi holds", () => {
+		const session = SessionManager.inMemory("/repo");
+		turn(session);
+		const result = copyMainSession(session, tmpDir());
+		assert.equal(fs.readFileSync(result.jsonl ?? "", "utf-8").trimEnd().split("\n").length, 3);
+	});
+
+	test("a failed write is reported, never thrown", () => {
+		const dir = tmpDir();
+		fs.writeFileSync(path.join(dir, "file"), "");
+		const result = copyMainSession(SessionManager.inMemory("/repo"), path.join(dir, "file"));
+		assert.equal(result.jsonl, undefined);
 		assert.ok(result.error, "the run must survive a failed export");
 	});
 });

@@ -320,6 +320,7 @@ export {
 	type AgentMessage,
 	type CreateSession,
 	type CreateSessionOptions,
+	type MainSession,
 	type SessionPort,
 	type ToolDefinition,
 } from "./session.ts";

@@ -63,7 +63,7 @@ export type Watched<T> = {
 	 * What this caller varies about the view: the tool streams a progress line
 	 * and knows the parent session, a test injects a spawn and a reporter.
 	 */
-	live?: Pick<LiveRunOptions, "reporter" | "herdrAll" | "onChange" | "mainSessionFile" | "spawn" | "flow">;
+	live?: Pick<LiveRunOptions, "reporter" | "herdrAll" | "onChange" | "mainSession" | "spawn" | "flow">;
 	/** The work, handed the live run: its `signal`, its `spawn`, its `onEvent`. */
 	work: (live: LiveRun) => Promise<T>;
 };
