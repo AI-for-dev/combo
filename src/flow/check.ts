@@ -11,11 +11,13 @@
 
 import type { Agent } from "../agent.ts";
 import type { MarkdownFile } from "../markdown.ts";
-import { endedNode, type CheckedAgentNode, type CheckedFlow, type CheckedNode, type CheckedRead } from "./checked.ts";
-import { typeOfAddress, type Readable } from "./condition/index.ts";
+import { checkChoice, checkMap, checkParallel } from "./check-blocks.ts";
+import { type CheckedAgentNode, type CheckedFlow, type CheckedNode, type CheckedRead } from "./checked.ts";
+import { compileCondition, typeOfAddress, type Condition, type Readable } from "./condition/index.ts";
 import { FaultList, type Fault } from "./fault.ts";
 import { readFlow, type FlowFile } from "./file.ts";
-import type { AgentNode } from "./node.ts";
+import { everyNode, type AgentNode, type FlowNode } from "./node.ts";
+import { Scope } from "./scope.ts";
 import { showType, type ValueType } from "./type.ts";
 
 /** What a flow is checked against: the flow files by name, and the agents. */
@@ -45,62 +47,104 @@ export function checkFlow(name: string, catalogue: FlowCatalogue): CheckFlow {
 	const { flow, faults } = readFlow(source.content, source.filePath);
 	if (flow === undefined) return { ok: false, faults: faults.list };
 	if (flow.name !== "" && flow.name !== name) faults.add("name-mismatch", "name", `\`${flow.name}\` is in \`${name}.md\`: a flow is found by its file name, so the two say the same`);
-	const nodes = new Scope(flow, catalogue.agents, faults).sequence(flow.nodes);
+	const checker = new Checker(flow, catalogue.agents, faults);
+	const { nodes } = checker.sequence(flow.nodes, Scope.root(flow.input));
 	faults.sort(flow.rank);
 	if (faults.list.length > 0) return { ok: false, faults: faults.list };
 	const { file, description, input, model, timeoutMs } = flow;
 	return { ok: true, flow: { name, file, description, input, model, timeoutMs, nodes } as unknown as CheckedFlow };
 }
 
-/** What a sequence can see while it is checked, node by node. */
-class Scope {
+/** A sequence checked: its nodes, and the type of what its last node outputs, which is what leaves a block. */
+export type CheckedSequence = { readonly nodes: CheckedNode[]; readonly last?: ValueType };
+
+/** A node checked: the node when it passed, and the type of its output either way, so what follows is checked too. */
+export type CheckedOne = { readonly node?: CheckedNode; readonly output: ValueType };
+
+/**
+ * Resolves the nodes of one file. The structural kinds live in
+ * `check-blocks.ts` and come back through {@link Checker.sequence}.
+ */
+export class Checker {
+	readonly faults: FaultList;
 	private readonly flow: FlowFile;
 	private readonly agents: ReadonlyMap<string, Agent>;
-	private readonly faults: FaultList;
 	/** Every id of the file, so an address to one not ended yet says so. */
 	private readonly ids: ReadonlySet<string>;
-	/** What is readable now, by the first word of an address. */
-	private readonly readable = new Map<string, ValueType>();
-	/** The output of each ended node, which a bare id reads whole. */
-	private readonly outputs = new Map<string, ValueType>();
 
 	constructor(flow: FlowFile, agents: readonly Agent[], faults: FaultList) {
 		this.flow = flow;
 		this.agents = new Map(agents.map((agent) => [agent.name, agent]));
 		this.faults = faults;
-		this.ids = new Set(flow.nodes.map((node) => node.id));
-		this.readable.set("input", flow.input);
-		this.outputs.set("input", flow.input);
+		this.ids = new Set([...everyNode(flow.nodes)].map((node) => node.id));
 	}
 
-	sequence(nodes: readonly AgentNode[]): CheckedNode[] {
+	/** `nodes` in `scope`, each ended node readable by the ones after it. */
+	sequence(nodes: readonly FlowNode[], scope: Scope): CheckedSequence {
 		const checked: CheckedNode[] = [];
+		let last: ValueType | undefined;
 		for (const node of nodes) {
 			const before = this.faults.list.length;
-			const result = this.agentNode(node);
-			if (this.faults.list.length === before) checked.push(result);
-			const output = node.output ?? { kind: "text" };
-			this.readable.set(node.id, endedNode(output));
-			this.outputs.set(node.id, output);
+			const one = this.node(node, scope);
+			if (one.node !== undefined && this.faults.list.length === before) checked.push(one.node);
+			scope.end(node.id, one.output);
+			last = one.output;
 		}
-		return checked;
+		return { nodes: checked, last };
 	}
 
-	private agentNode(node: AgentNode): CheckedAgentNode {
-		const agent = "name" in node.agent ? this.agent(node.agent.name, `${node.at}.agent`) : this.picked(node, node.agent.from, node.agent.among);
-		if (node.memory !== undefined && node.memory !== "flow") {
-			this.faults.add("unknown-scope", `${node.at}.memory`, `\`${node.memory}\` is not an enclosing node; \`memory:\` names one, or \`flow\` for the whole file`);
+	/** The condition `source`, written at `at`, compiled against what `scope` can read. */
+	condition(source: string, at: string, scope: Scope): Condition | undefined {
+		if (this.refusedIn(source)) return undefined;
+		const compiled = compileCondition(source, scope.readable() as Readable);
+		if (compiled.ok) return compiled.condition;
+		for (const problem of compiled.problems) this.faults.add(problem.code, at, problem.message);
+		return undefined;
+	}
+
+	/** The type `address` names in `scope`, or `undefined` after saying why. */
+	typeOf(address: string, at: string, scope: Scope): ValueType | undefined {
+		const root = address.split(".")[0] ?? "";
+		if (this.flow.refused.has(root)) return undefined;
+		if (this.ids.has(root) && !scope.has(root)) {
+			this.faults.add("unknown-address", at, `\`${address}\`: \`${root}\` has not ended when this node runs, or ends in a block this node is not in`);
+			return undefined;
 		}
-		const reads = node.reads.map((address) => this.read(address, `${node.at}.reads`)).filter((read) => read !== undefined);
+		const typed = typeOfAddress(address, scope.readable() as Readable);
+		if (typed.ok) return typed.type;
+		for (const problem of typed.problems) this.faults.add(problem.code, at, problem.message);
+		return undefined;
+	}
+
+	private node(node: FlowNode, scope: Scope): CheckedOne {
+		switch (node.kind) {
+			case "agent":
+				return { node: this.agentNode(node, scope), output: node.output ?? { kind: "text" } };
+			case "choice":
+				return checkChoice(this, node, scope);
+			case "parallel":
+				return checkParallel(this, node, scope);
+			case "map":
+				return checkMap(this, node, scope);
+		}
+	}
+
+	private agentNode(node: AgentNode, scope: Scope): CheckedAgentNode | undefined {
+		const agent = "name" in node.agent ? this.agent(node.agent.name, `${node.at}.agent`) : this.picked(node, node.agent.from, node.agent.among, scope);
+		if (node.memory !== undefined && node.memory !== "flow" && !scope.encloses(node.memory)) {
+			this.faults.add("unknown-scope", `${node.at}.memory`, `\`${node.memory}\` is not a node this one is in; \`memory:\` names one, or \`flow\` for the whole file`);
+		}
+		const reads = node.reads.map((address) => this.read(address, `${node.at}.reads`, scope)).filter((read) => read !== undefined);
+		if (agent === undefined) return undefined;
 		const prose = this.flow.sections.get(node.id) ?? "";
 		const { id, at, memory, output, retry, timeoutMs, continueOnFail } = node;
-		return { kind: "agent", id, at, agent: agent as CheckedAgentNode["agent"], prose, memory, reads, output, retry, timeoutMs, continueOnFail };
+		return { kind: "agent", id, at, agent, prose, memory, reads, output, retry, timeoutMs, continueOnFail };
 	}
 
 	/** `agent-from:` reads an enum, and `among:` names exactly its values, each an agent. */
-	private picked(node: AgentNode, from: string, among: readonly string[]): CheckedAgentNode["agent"] | undefined {
+	private picked(node: AgentNode, from: string, among: readonly string[], scope: Scope): CheckedAgentNode["agent"] | undefined {
 		const at = `${node.at}.agent-from`;
-		const type = this.typeOf(from, at);
+		const type = this.typeOf(from, at, scope);
 		const agents = new Map<string, Agent>();
 		for (const name of among) {
 			const agent = this.agent(name, `${node.at}.among`);
@@ -127,23 +171,15 @@ class Scope {
 	}
 
 	/** A bare id reads a node's output whole; a deeper address reads that value only. */
-	private read(address: string, at: string): CheckedRead | undefined {
-		const whole = this.outputs.get(address);
+	private read(address: string, at: string, scope: Scope): CheckedRead | undefined {
+		const whole = scope.output(address);
 		if (whole !== undefined) return { address, type: whole };
-		const type = this.typeOf(address, at);
+		const type = this.typeOf(address, at, scope);
 		return type && { address, type };
 	}
 
-	private typeOf(address: string, at: string): ValueType | undefined {
-		const root = address.split(".")[0] ?? "";
-		if (this.flow.refused.has(root)) return undefined;
-		if (this.ids.has(root) && !this.readable.has(root)) {
-			this.faults.add("unknown-address", at, `\`${address}\`: \`${root}\` has not ended when this node runs, and a node reads only what already ended`);
-			return undefined;
-		}
-		const typed = typeOfAddress(address, Object.fromEntries(this.readable) as Readable);
-		if (typed.ok) return typed.type;
-		for (const problem of typed.problems) this.faults.add(problem.code, at, problem.message);
-		return undefined;
+	/** Whether a condition names a refused node, so it is not reported again. */
+	private refusedIn(source: string): boolean {
+		return [...source.matchAll(/(?<![.\w])[A-Za-z_]\w*/g)].some(([word]) => this.flow.refused.has(word));
 	}
 }

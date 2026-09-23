@@ -132,12 +132,15 @@ src/                the library
   board/            the swarm's board (board, claims, tool, agreement,
                     announced); index.ts is its door
   flow/             the flow format, built beside pipeline/ until it replaces
-                    it: file (the text, read into nodes), node, sections,
-                    value, fault (why a flow is refused), check (the flow
-                    stage, against a catalogue) and checked (what it hands
-                    on), type (what a value is), schema (how a file writes
-                    one), condition/ (a CEL subset: tokens, parse, compile,
-                    evaluate, address); index.ts is its door
+                    it: file (the text, read into nodes), node (what a node
+                    is: the closed lists of kinds and keys), read-node,
+                    agent-node and blocks (each kind), sections, value, fault
+                    (why a flow is refused), check and check-blocks (the flow
+                    stage, against a catalogue), scope (what a node can
+                    read), checked (what it hands on), type (what a value
+                    is), schema (how a file writes one), condition/ (a CEL
+                    subset: tokens, parse, compile, evaluate, address);
+                    index.ts is its door
   pipeline/         pipeline (the file), load (where it is), run (our code
                     walks the steps); index.ts is its door
   review/           review (the record), verdict (a decision as a tool call),

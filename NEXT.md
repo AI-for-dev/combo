@@ -576,7 +576,7 @@ flows. Then one breaking PR switches `/build` and `/pipelines` to `/run` and
 `/flows`. [Flows: a closed language](docs/decisions.md#flows-a-closed-language)
 says why the old "no YAML DSL" line moved.
 
-Done so far: conditions (`src/flow/condition/`), schemas (`src/flow/schema.ts`), and the file with `checkFlow` for `agent` nodes. The structural nodes' validation is next, then loading the catalogues from disk.
+Done so far: conditions (`src/flow/condition/`), schemas (`src/flow/schema.ts`), and the file with `checkFlow` for `agent`, `choice`, `parallel` and `map` nodes. `loop` is next, then loading the catalogues from disk.
 
 ## How to verify anything here
 

@@ -53,3 +53,10 @@ export function oneOf<T extends string>(value: unknown, words: readonly T[], at:
 	faults.add("key-type", at, `takes ${words.map((word) => `\`${word}\``).join(" or ")}`);
 	return undefined;
 }
+
+/** `true` or `false`, written as such. */
+export function flag(value: unknown, at: string, faults: FaultList): boolean | undefined {
+	if (typeof value === "boolean") return value;
+	faults.add("key-type", at, "takes `true` or `false`");
+	return undefined;
+}
