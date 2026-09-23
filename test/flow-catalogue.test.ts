@@ -101,6 +101,21 @@ describe("loadFlowCatalogue, the agents", () => {
 });
 
 describe("checkFlow, the agents of a catalogue on disk", () => {
+	test("a callee resolves where its caller does, the nearest file winning its name", () => {
+		const callee = (agent: string) => `---\nname: brief\ndescription: d\ninput: string\nnodes:\n  - id: write\n    agent: ${agent}\n---\n## write\nWrite.\n`;
+		const cwd = root({
+			"home/flows/f.md": flow("    flow: brief\n    input: input").replace("## go\nGo.\n", ""),
+			"home/flows/brief.md": callee("scout"),
+			".pi/flows/brief.md": callee("planner"),
+			"home/agents/scout.md": agent("scout"),
+			"home/agents/planner.md": agent("planner"),
+		});
+		const result = checkFlow("f", loadFlowCatalogue({ cwd, scope: "both" }));
+		assert.ok(result.ok, JSON.stringify(!result.ok && result.faults));
+		const [call] = result.flow.nodes;
+		assert.deepEqual(call?.kind === "flow" && [call.callee.file, call.callee.nodes[0]?.kind === "agent" && "name" in call.callee.nodes[0].agent && call.callee.nodes[0].agent.name], [path.join(cwd, ".pi/flows/brief.md"), "planner"]);
+	});
+
 	test("a flow on disk passes against its agents", () => {
 		const cwd = root({ ".pi/flows/f.md": flow("    agent: scout"), ".pi/agents/scout.md": agent("scout") });
 		const result = checkFlow("f", loadFlowCatalogue({ cwd, scope: "both" }));

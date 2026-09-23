@@ -48,8 +48,8 @@ The frontmatter holds the structure, the body holds the prose.
 | `name` | yes | the flow's name, the same as its file name without `.md` |
 | `description` | yes | one line |
 | `input` | yes | `string`, or a [schema](#schemas) for a typed input |
-| `model` | no | the model of every agent turn, unless a command says otherwise |
-| `timeout` | no | the default bound of one agent turn: `90s`, `10m`, `1h` |
+| `model` | no | the model of every agent turn, and of the flows it calls that set none, unless a command says otherwise |
+| `timeout` | no | the default bound of one agent turn, here and in the flows it calls that set none: `90s`, `10m`, `1h` |
 | `nodes` | yes | the root sequence |
 
 A flow is a sequence of nodes, run one after the other. No node names a
@@ -71,7 +71,7 @@ A flow is one `.md` file, found by its file name where agents are found:
 
 When two places hold the same name, the later one in this list wins, so your
 own `build.md` replaces the shipped one. The agents a flow names come from the
-same three places, under `agents/`.
+same three places, under `agents/`, and so do the flows it calls.
 
 A flow's agents are checked with the flow, before anything runs. A name that
 matches an agent file which does not parse is reported as that file being
@@ -330,6 +330,54 @@ Questions asked at once, by branches running together, are shown one card at a
 time in the order they came, each naming the visit that asks. Only the branch
 asking waits for its card.
 
+### `flow`
+
+Another flow of the catalogue, run whole as one node:
+
+```yaml
+- id: spec
+  flow: interview
+  input: input
+```
+
+| Key | Meaning |
+| --- | --- |
+| `flow` | the flow called, by name |
+| `input` | the address of what the callee reads as its `input` |
+| `on-fail` | `continue`: a failure stops at this node instead of ending the flow |
+
+The name is written in the file, never taken from a value. It is found where
+the calling flow was found, and the nearest file wins, so a repository's
+`interview.md` replaces the shipped one inside the shipped `build`. The callee
+is checked whole with its caller. A callee that is refused refuses its caller
+too, and the fault names the callee's file and its first fault. A call that
+leads back to the flow making it, directly or through other files, is refused
+with its path, even behind a `choice` that may never be taken.
+
+`input:` is required, and it is an address, never a literal. Its type must be
+the callee's `input:`, except that a callee taking `string` takes any value,
+a typed one as JSON. The node's output is what the callee's last root node
+outputs, typed when that node is. There is no `output:`, `model:` or
+`timeout:` key. `retry:` is refused: running a flow again would ask answered
+questions and commit again, so retries go on the callee's own agent nodes. A
+`flow` node has no `## <id>` section.
+
+Nothing of the caller reaches the callee but its `input`. The callee reads
+only its own nodes, its `memory:` scopes are its own (`memory: flow` names the
+callee's root, opened by each visit of the call and closed when it ends), and
+it writes to no ledger of its caller. An agent named with `memory: flow` on
+both sides is two subagents. The world is shared: the callee works in the
+visit's tree, a branch's copy inside a `copies: true` block, and through the
+run's ports, so its questions join the run's queue of cards and its commits go
+on the run's branch. The rules about the world read through calls. A callee's
+commit inside a `copies: true` block is refused, a callee that writes makes
+the branches calling it at once need copies, and the run stage looks at every
+check, question and read of `diff` a callee holds. Those faults are in the
+caller's file, at the call path: `work/fix/commit.commit`.
+
+A callee that fails ends the call with `child`, whose message names the visit
+inside it: `spec/look: provider: ...`.
+
 ### Branches that run together
 
 A `parallel` with several branches, or a `map` with `concurrency` above 1, runs
@@ -414,7 +462,7 @@ reading as `false`; guard it the CEL way, `audit.ok && audit.output.approved`.
 ## Running a flow
 
 ```{note}
-Not exported yet, like the rest of the format; the `flow` node comes next.
+Not exported yet, like the rest of the format.
 ```
 
 A run is launched in three steps, each refusing with faults rather than
@@ -463,7 +511,8 @@ returns `{ ok: true, output }`, the output of the last root node, or
 
 A visit is named by its path: the ids of the nodes around it, `#n` for a loop
 iteration, `[i]` for a `map` item and the branch name for a `parallel`, all
-numbered from 1: `deliver#2/work[1]/review#3/code`.
+numbered from 1: `deliver#2/work[1]/review#3/code`. A `flow` node is a
+segment too, its callee's visits named under it: `spec/interview#3/ask_next`.
 
 ### What a turn is
 
@@ -534,7 +583,9 @@ starts a fresh subagent asked the whole turn, unless a `memory:` scope keeps
 it. Every attempt's tokens count.
 
 A turn's bound is the run's `timeoutMs`, else the node's `timeout:`, else the
-flow's, else 30 minutes. A check's bound is its own `timeout:`, else two
+`timeout:` of the flow the node is in, then of each flow calling it, outward,
+else 30 minutes. A turn's model is the run's `model`, else the `model:` of
+the flow the node is in, then of each flow calling it, else its agent's own. A check's bound is its own `timeout:`, else two
 minutes: neither the run's `timeoutMs` nor the flow's `timeout:` reaches it.
 
 `stopSwitch()` stops a run: pass its `signal` and `spawn`. `all()` ends the run
@@ -553,7 +604,8 @@ visit at a time, so branches running together wait for each other on an outer
 scope's. Nodes sharing a subagent declare the same `output:`, since its
 `submit` tool is fixed when it is spawned.
 
-The run reports `visit_start { path, node, kind }` and
+The run reports `visit_start { path, node, kind }`, `node` being the address
+through the calls (`spec/interview/ask_next`), and
 `visit_end { path, ok, output?, error?, case?, converged?, agent?, model?, wallMs, usage }`
 on the same stream as its subagents, and each subagent's `spawn` event
 carries the `visit` it was spawned for. `usage` is the delta of pi's counters
@@ -592,16 +644,23 @@ agent turn, `{ fail: "unavailable" | "timeout" }` for a check,
 card declined, when it has no `enough:`. The first two take the node's own
 path, its `default:` or `enough:` included. A choice card answered with
 `{ answered: false }` needs `enough:`, and one answered with
-`{ answered: true }` names its `answer`. A commit's `empty-message` is not scripted: an empty answer to
-the node that writes the message gives it. The
-script is checked before the start, and refused with every fault in it:
+`{ answered: true }` names its `answer`. A commit's `empty-message` is not
+scripted: an empty answer to the node that writes the message gives it.
+
+A `flow` node is scripted whole by a key on it, whose answer is the callee's
+output or `{ fail: "child" }`, and its callee is then not walked. Keys under
+it walk into the callee instead, by address through the call
+(`spec/round/look`) or by visit path (`spec/round#2/look`). A call with no key
+of either kind is walked into. The script is checked before the start, and
+refused with every fault in it:
 
 | Code | What it means |
 | --- | --- |
-| `answer-unknown-node` | the key names no `agent`, `check`, `commit` or `ask` node, or its path leads to none; the message offers the address meant |
+| `answer-unknown-node` | the key names no `agent`, `check`, `commit`, `ask` or `flow` node, or its path leads to none; the message offers the address meant |
 | `answer-past-max` | a visit path's iteration or item is past its bound, or a list holds more answers than the node can be asked for |
 | `answer-off-schema` | the answer does not match the node's `output:`, is not a text for a node with none, is not a check's `{ passed, report }` or a commit's `{ committed, sha?, branch }`, or is not an output of the ask's form |
 | `answer-fail-kind` | `fail:` names a kind the node cannot fail with |
+| `answer-flow-overlap` | a key answers a `flow` node whole and another walks into it, which would never be asked |
 
 A visit the script does not answer stops the dry run with
 `{ ok: false, unscripted: "<visit path>" }`, which no `on-fail: continue`
@@ -611,7 +670,8 @@ absorbs: a hole in the script is the test's mistake, not the flow's.
 
 A flow that does not pass is refused with every fault at once, in file order,
 each as `{ code, file, at, message }`. `at` is the node's id, or the flow's key,
-then the offending key: `first.agent-from`. `checkFlow` and `checkRun` both
+then the offending key: `first.agent-from`. A fault that only exists where a
+callee lands is in the caller's file, at the call path: `work/fix/commit.commit`. `checkFlow` and `checkRun` both
 refuse this way; `check-script-missing`, `check-port-missing`,
 `git-port-missing`, `not-a-repository` and `unattended-ask` are the run
 stage's.
@@ -622,6 +682,9 @@ stage's.
 | `not-a-flow` | the file has no frontmatter mapping | start the file with `---` and the flow's keys |
 | `name-mismatch` | `name:` differs from the file name | rename one of them |
 | `unknown-flow` | no flow file has that name | use the name offered, or add the file |
+| `broken-flow` | a `flow` node calls a flow that is refused; the message gives its file and first fault | fix the callee |
+| `call-cycle` | a `flow` node calls a flow that leads back to this one, directly or through others; the message gives the path | break the cycle: a flow cannot call itself |
+| `flow-input-mismatch` | a `flow` node's `input:` is not of the type its callee's `input:` declares | hand it a value of that type, or declare the callee's input `string` |
 | `missing-key` | a required key is absent | add it |
 | `unknown-key` | a key this flow or this kind of node does not have | use the key offered, or remove it |
 | `key-type` | a key holds a value of the wrong type | write the type the message names |
@@ -643,11 +706,11 @@ stage's.
 | `memory-output-mismatch` | two nodes share a subagent through `memory:` and declare different `output:` schemas; the subagent's one `submit` tool takes one | declare the same schema, or give one node another scope |
 | `carry-mismatch` | a loop's `carry:` sides share no field | make `first` and `next` agree on the fields carried |
 | `verdict-with-output` | a `verdict:` node also declares `output:` | drop `output:`: the verdict is the output |
-| `copies-needed` | branches that run together write without copies | add `copies: true`, or run a `map` with `concurrency: 1`; a `commit` goes after the block |
-| `retry-refused` | `retry:` on a node that is not retried: a `check`, a `commit` or an `ask` | raise a check's `timeout:` or make it stable; retry the node writing a commit's message; give an ask a `default:` |
+| `copies-needed` | branches that run together write without copies, a flow they call included | add `copies: true`, or run a `map` with `concurrency: 1`; a `commit` goes after the block |
+| `retry-refused` | `retry:` on a node that is not retried: a `check`, a `commit`, an `ask` or a `flow` | raise a check's `timeout:` or make it stable; retry the node writing a commit's message; give an ask a `default:`; retry a callee's agent nodes |
 | `check-script-missing` | a check's script is not in the working tree, or is not a file | add the script, or fix its path from the repository root |
 | `check-port-missing` | the flow holds a `check` and the launch gave no `check` port | pass one, `bashCheck()` |
-| `commit-in-copies` | a `commit` inside a `copies: true` block | commit after the block |
+| `commit-in-copies` | a `commit` inside a `copies: true` block, a callee's included | commit, or call the flow, after the block |
 | `memory-outside-copies` | a node inside a `copies: true` block names a `memory:` scope that opens outside it | name a scope inside the block, or none |
 | `ask-form-conflict` | an `ask` holds keys its form does not take together: `options:` with `confirm:`, either with `ask-from:`, or `enough:` on a yes or no or a free text | keep the keys of one form |
 | `ask-options-count` | literal `options:` offer fewer than two or more than four | offer two to four |

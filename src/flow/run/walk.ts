@@ -4,23 +4,23 @@
  *
  * Our code decides what runs next. A model's output is a value a `choice`
  * reads; it never names a node. The blocks that open branches are in
- * `blocks.ts` and `choice.ts`, the loop in `loop.ts`, and each comes back
- * through {@link Run.sequence}.
+ * `blocks.ts` and `choice.ts`, the loop in `loop.ts`, a call in `call.ts`,
+ * and each comes back through {@link Run.sequence}. What the walk is given
+ * is in `world.ts`.
  */
 
 import type { Agent } from "../../agent.ts";
-import type { EventBus } from "../../events.ts";
 import type { GitResult } from "../../git/index.ts";
 import { VERDICT_TOOL } from "../../review/index.ts";
 import { toolsOf } from "../../session.ts";
 import { sumUsage, type Usage } from "../../usage.ts";
 import type { ScriptOutcome } from "../../verify.ts";
-import type { SpawnFn } from "../../workflows/options.ts";
-import { type CheckedAgentNode, type CheckedAskNode, type CheckedCheckNode, type CheckedCommitNode, type CheckedFlow, type CheckedNode, type FlowError } from "../checked.ts";
+import type { CheckedAgentNode, CheckedAskNode, CheckedCallNode, CheckedCheckNode, CheckedCommitNode, CheckedFlow, CheckedNode, FlowError } from "../checked.ts";
 import { sharedKey, sharedSubagents, submitted } from "../memory.ts";
 import { visitAgent, type AgentRun, type Attempt } from "./agent.ts";
 import { visitAsk, type AskingRun, type Card, type Heard } from "./ask.ts";
 import { visitMap, visitParallel } from "./blocks.ts";
+import { visitCall, type CallingRun } from "./call.ts";
 import { visitCheck, type CheckingRun } from "./check.ts";
 import { visitChoice } from "./choice.ts";
 import { visitCommit, type CommitOutcome, type CommittingRun } from "./commit.ts";
@@ -31,6 +31,7 @@ import { visitLoop } from "./loop.ts";
 import { SUBMIT_TOOL, submitTool } from "./submit.ts";
 import type { Values } from "./values.ts";
 import { verdictSlot } from "./verdict.ts";
+import type { Walk } from "./world.ts";
 
 /** An agent turn's bound when neither the node, nor the flow, nor the caller sets one. */
 export const DEFAULT_TIMEOUT_MS = 30 * 60_000;
@@ -51,44 +52,38 @@ export type Walker = {
 };
 
 /**
- * How a walk reaches the world: the deadline of each agent attempt, a
- * check's script run in a tree, a commit, the `diff` of a tree, the copies of
- * a block, and a question put to the person. A real run's come from its
- * `CheckedRun`; a dry run's are scripted, and it makes no copy.
+ * One run of a checked flow, or of a flow it calls: a callee's is the run's
+ * own, one call further down. The world and the settings are the run's,
+ * whatever file a node is in, so one queue of cards and one run branch serve
+ * every call. What a file writes, `model:` and `timeout:`, is read from the
+ * callee outward, and the world is told each node by its address through the
+ * calls, `spec/ask_next`.
  */
-export type World = {
-	deadline(attempt: Attempt): AbortSignal;
-	check(node: CheckedCheckNode, path: string, signal: AbortSignal, tree: string | undefined): Promise<ScriptOutcome>;
-	commit(node: CheckedCommitNode, path: string, message: string): Promise<CommitOutcome>;
-	diff(tree: string | undefined): Promise<GitResult<string>>;
-	ask(node: CheckedAskNode, path: string, card: Card, cut: AbortSignal): Promise<Heard>;
-	readonly copies?: Copies;
-};
-
-/** What a run is given: the flow, its settings, and how it reaches the world. */
-export type Walk = World & {
-	readonly flow: CheckedFlow;
-	readonly bus: EventBus;
-	readonly signal: AbortSignal;
-	readonly spawn: SpawnFn;
-	readonly model?: string;
-	readonly timeoutMs?: number;
-	/** Aborts `signal`: the stop key, pressed on a card that offers no "enough". */
-	stop(): void;
-};
-
-/** One run of a checked flow. */
-export class Run implements AgentRun, AskingRun, CheckingRun, CommittingRun, Walker {
+export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, CommittingRun, Walker {
 	readonly signal: AbortSignal;
 	readonly copies?: Copies;
 	private readonly walk: Walk;
+	/** The flow walked, then each one that called it, outward. */
+	private readonly stack: readonly CheckedFlow[];
+	/** The address of the call this flow is walked for, through the calls above it; `""` at the root. */
+	private readonly prefix: string;
 	private readonly shared: ReturnType<typeof sharedSubagents>;
 
-	constructor(walk: Walk) {
+	constructor(walk: Walk, stack: readonly CheckedFlow[] = [walk.flow], prefix = "") {
 		this.walk = walk;
 		this.signal = walk.signal;
 		this.copies = walk.copies;
-		this.shared = sharedSubagents(walk.flow.nodes);
+		this.stack = stack;
+		this.prefix = prefix;
+		this.shared = sharedSubagents((stack[0] as CheckedFlow).nodes);
+	}
+
+	called(node: CheckedCallNode): Run {
+		return new Run(this.walk, [node.callee, ...this.stack], this.address(node.at));
+	}
+
+	whole(node: CheckedCallNode, path: string): Ended | undefined {
+		return this.walk.whole?.(this.addressed(node), path);
 	}
 
 	/** `nodes` in order, inside the visit `prefix`. A failure not absorbed ends the sequence there. */
@@ -110,19 +105,19 @@ export class Run implements AgentRun, AskingRun, CheckingRun, CommittingRun, Wal
 	}
 
 	timeoutFor(node: CheckedAgentNode): number {
-		return this.walk.timeoutMs ?? node.timeoutMs ?? this.walk.flow.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+		return this.walk.timeoutMs ?? node.timeoutMs ?? this.stack.find((flow) => flow.timeoutMs !== undefined)?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 	}
 
 	deadline(attempt: Attempt): AbortSignal {
-		return this.walk.deadline(attempt);
+		return this.walk.deadline({ ...attempt, at: this.address(attempt.at) });
 	}
 
 	check(node: CheckedCheckNode, path: string, signal: AbortSignal, tree: string | undefined): Promise<ScriptOutcome> {
-		return this.walk.check(node, path, signal, tree);
+		return this.walk.check(this.addressed(node), path, signal, tree);
 	}
 
 	commit(node: CheckedCommitNode, path: string, message: string): Promise<CommitOutcome> {
-		return this.walk.commit(node, path, message);
+		return this.walk.commit(this.addressed(node), path, message);
 	}
 
 	diff(tree: string | undefined): Promise<GitResult<string>> {
@@ -130,7 +125,7 @@ export class Run implements AgentRun, AskingRun, CheckingRun, CommittingRun, Wal
 	}
 
 	ask(node: CheckedAskNode, path: string, card: Card, cut: AbortSignal): Promise<Heard> {
-		return this.walk.ask(node, path, card, cut);
+		return this.walk.ask(this.addressed(node), path, card, cut);
 	}
 
 	stop(): void {
@@ -155,8 +150,8 @@ export class Run implements AgentRun, AskingRun, CheckingRun, CommittingRun, Wal
 			lifetime: node.memory === undefined ? "task" : "workflow",
 			bus: this.walk.bus,
 			cwd: tree,
-			// The run's, then the flow's; `spawn` falls back on the agent's own.
-			model: this.walk.model ?? this.walk.flow.model,
+			// The run's, then the flows', callee outward; `spawn` falls back on the agent's own.
+			model: this.walk.model ?? this.stack.find((flow) => flow.model !== undefined)?.model,
 			customTools: [submit?.tool, verdict?.tool].filter((tool) => tool !== undefined),
 			visit: path,
 		});
@@ -166,7 +161,7 @@ export class Run implements AgentRun, AskingRun, CheckingRun, CommittingRun, Wal
 	/** One visit, between its `visit_start` and its `visit_end`. */
 	private async visit(node: CheckedNode, path: string, here: Here): Promise<Visited> {
 		const { bus } = this.walk;
-		bus.emit({ type: "visit_start", path, node: node.at, kind: node.kind });
+		bus.emit({ type: "visit_start", path, node: this.address(node.at), kind: node.kind });
 		const started = performance.now();
 		const visit = await this.dispatch(node, path, here);
 		const wallMs = performance.now() - started;
@@ -194,7 +189,19 @@ export class Run implements AgentRun, AskingRun, CheckingRun, CommittingRun, Wal
 				return visitCommit(this, node, path, here);
 			case "ask":
 				return visitAsk(this, node, path, here);
+			case "flow":
+				return visitCall(this, node, path, here);
 		}
+	}
+
+	/** The address of `at`, an address in this flow's file, through the calls that reached it. */
+	private address(at: string): string {
+		return this.prefix === "" ? at : `${this.prefix}/${at}`;
+	}
+
+	/** `node` as the world is told it: at its address through the calls. */
+	private addressed<T extends CheckedNode>(node: T): T {
+		return this.prefix === "" ? node : { ...node, at: this.address(node.at) };
 	}
 }
 

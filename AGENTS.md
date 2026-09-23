@@ -135,19 +135,21 @@ src/                the library
   flow/             the flow format, built beside pipeline/ until it replaces
                     it: file (the text, read into nodes), node (what a node is:
                     the closed lists of kinds and keys), read-node, agent-node,
-                    ask-node, blocks, loop and world (each kind; world holds the
-                    nodes that act, `check` and `commit`), sections, value,
-                    fault (why a flow is refused), catalogue (flows and agents
-                    on disk, broken files kept), agents (a name resolved, skills
-                    checked), check, check-ask, check-blocks, check-loop and
-                    check-world (the flow stage, against a catalogue), check-run
-                    (the run stage: the tree, the ports), scope (what a node can
+                    ask-node, call-node, blocks, loop and world (each kind; world
+                    holds the nodes that act, `check` and `commit`), sections,
+                    value, fault (why a flow is refused), catalogue (flows and
+                    agents on disk, broken files kept), agents (a name resolved,
+                    skills checked), check, check-agent, check-ask, check-call
+                    (a callee resolved, cycles refused), check-blocks,
+                    check-loop and check-world (the flow stage, against a
+                    catalogue), check-run (the run stage: the tree, the ports),
+                    unrolled (the nodes through calls), scope (what a node can
                     read), checked (what it hands on), memory (the subagents a
                     scope shares), type (what a value is), schema (how a file
                     writes one), condition/ (a CEL subset: tokens, parse,
-                    compile, evaluate, address), run/ (the runner: flow, walk,
-                    choice, blocks, copies, loop, agent, ask and card (the
-                    person's side, one card at a time), check, commit, turn,
+                    compile, evaluate, address), run/ (the runner: flow, world,
+                    walk, choice, blocks, copies, loop, call, agent, ask and card
+                    (the person's side, one card at a time), check, commit, turn,
                     reads, submit, verdict, frames, values, ended; dry-run on
                     answers, keys and scripted); index.ts is each one's door
   pipeline/         pipeline (the file), load (where it is), run (our code

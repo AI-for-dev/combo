@@ -13,7 +13,8 @@
  * report }`, a commit's `{ committed, sha?, branch }`, an ask's output, or
  * `{ fail: <kind> }`. An ask's `nobody` and `timeout` take the node's real
  * path, its `default:` or its `enough:` included, and its `stopped` is the
- * card declined.
+ * card declined. A `flow` node is answered whole with its callee's output or
+ * `{ fail: "child" }`, or walked into by keys under it, never both.
  */
 
 import { VERDICT_TOOL } from "../../review/index.ts";
@@ -21,14 +22,14 @@ import type { ScriptOutcome } from "../../verify.ts";
 import { CHECK, COMMIT, type CheckedAgentNode, type CheckedAskNode, type CheckedFlow } from "../checked.ts";
 import type { Heard } from "./ask.ts";
 import type { CommitOutcome } from "./commit.ts";
-import { nearest } from "../fault.ts";
+import { failure, type Ended } from "./ended.ts";
 import { mismatch, type ValueType } from "../type.ts";
-import { answeredNodes, visitAt, type AnsweredNode, type Keyed, type Unkeyed } from "./keys.ts";
+import { answeredNodes, overlaps, unkeyed, visitAt, type AnsweredNode, type Keyed } from "./keys.ts";
 import type { ScriptedTurn } from "./scripted.ts";
 import { submission, SUBMIT_TOOL } from "./submit.ts";
 
 /** Why a script is refused. Stable, so a test of a flow can assert on them. */
-export const ANSWER_CODES = ["answer-unknown-node", "answer-past-max", "answer-off-schema", "answer-fail-kind"] as const;
+export const ANSWER_CODES = ["answer-unknown-node", "answer-past-max", "answer-off-schema", "answer-fail-kind", "answer-flow-overlap"] as const;
 
 /** A script's mistake: its code, the key (and its place in a list), and one sentence. */
 export type AnswerFault = { readonly code: (typeof ANSWER_CODES)[number]; readonly at: string; readonly message: string };
@@ -41,11 +42,12 @@ function failsOf(node: AnsweredNode): readonly string[] {
 	if (node.kind === "agent") return ["provider", "timeout", "schema"];
 	if (node.kind === "check") return ["unavailable", "timeout"];
 	if (node.kind === "commit") return ["unavailable"];
+	if (node.kind === "flow") return ["child"];
 	return ["nobody", ...(node.timeoutMs === undefined ? [] : ["timeout"]), ...(node.enough === undefined ? ["stopped"] : [])];
 }
 
 /** What each kind of node a script answers is asked to say, by name in a fault. */
-const ANSWERED = { agent: "an agent turn", check: "a check", commit: "a commit", ask: "an ask" } as const;
+const ANSWERED = { agent: "an agent turn", check: "a check", commit: "a commit", ask: "an ask", flow: "a flow node" } as const;
 
 const TEXT: ValueType = { kind: "text" };
 const STRING: ValueType = { kind: "string" };
@@ -89,12 +91,14 @@ export class Script {
 	static check(flow: CheckedFlow, answers: Answers): { ok: true; script: Script } | { ok: false; faults: AnswerFault[] } {
 		const nodes = answeredNodes(flow.nodes);
 		const faults: AnswerFault[] = [];
+		const keys = new Map<string, Keyed>();
 		for (const [key, value] of Object.entries(answers)) {
 			const keyed = nodes.get(key) ?? visitAt(flow.nodes, key);
 			if ("code" in keyed) {
 				faults.push({ code: keyed.code, at: key, message: unkeyed(key, keyed, nodes) });
 				continue;
 			}
+			keys.set(key, keyed);
 			const list = Array.isArray(value) ? value : [value];
 			for (const [index, answer] of list.entries()) {
 				const fault = checkAnswer(answer, keyed.node, Array.isArray(value) ? `${key}[${index}]` : key);
@@ -103,6 +107,9 @@ export class Script {
 			if (list.length > keyed.most) {
 				faults.push({ code: "answer-past-max", at: key, message: `\`${key}\` is asked ${keyed.most} time${keyed.most === 1 ? "" : "s"} at most, and its list holds ${list.length} answers` });
 			}
+		}
+		for (const { key, whole } of overlaps(keys)) {
+			faults.push({ code: "answer-flow-overlap", at: key, message: `\`${whole}\` answers its call whole, so nothing under it is walked: script the call whole, or its visits` });
 		}
 		const byAddress = new Map([...nodes].map(([at, { node }]) => [at, node]));
 		return faults.length > 0 ? { ok: false, faults } : { ok: true, script: new Script(answers, byAddress) };
@@ -137,6 +144,13 @@ export class Script {
 		return answer.value.fail === "stopped" ? { declined: true } : { missed: answer.value.fail as "nobody" | "timeout" };
 	}
 
+	/** How the call at `at` ends at visit `path` when it is answered whole, or `undefined` to walk into its callee. */
+	whole(path: string, at: string): Ended | undefined {
+		const answer = this.take(path, at);
+		if (answer === undefined) return undefined;
+		return isFail(answer.value) ? failure("child", "scripted child failure") : { ok: true, output: answer.value };
+	}
+
 	/** The answer the visit `path` of the node at `at` takes: its path's, else its address's, one per attempt from a list. */
 	private take(path: string, at: string): { readonly value: unknown } | undefined {
 		const key = [path, at].find((one) => Object.hasOwn(this.answers, one));
@@ -148,15 +162,6 @@ export class Script {
 		this.taken.set(cursor, index + 1);
 		return index < value.length ? { value: value[index] } : undefined;
 	}
-}
-
-/** Why `key` names no visit, offering the address meant when it can. */
-function unkeyed(key: string, { code, why }: Unkeyed, nodes: ReadonlyMap<string, Keyed>): string {
-	if (code === "answer-past-max") return `\`${key}\`: ${why}`;
-	// An id alone is the likeliest slip: it is how the node is written.
-	const near = [...nodes.values()].find(({ node }) => node.id === key)?.node.at ?? nearest(key.replace(/#\d+|\[\d+\]/g, ""), nodes.keys());
-	const said = why ?? (near === undefined ? undefined : `did you mean \`${near}\`?`);
-	return `\`${key}\` names no agent, check, commit or ask node${said === undefined ? "" : `: ${said}`}`;
 }
 
 function isFail(answer: unknown): answer is { fail: unknown } {
@@ -178,6 +183,7 @@ function typeOfAnswer(node: AnsweredNode): ValueType {
 	if (node.kind === "check") return CHECK;
 	if (node.kind === "commit") return COMMIT;
 	if (node.kind === "ask") return node.output;
+	if (node.kind === "flow") return node.callee.output;
 	return node.verdict === undefined ? (node.output ?? TEXT) : VERDICT_CALL;
 }
 

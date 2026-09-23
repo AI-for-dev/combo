@@ -1671,6 +1671,46 @@ interview uses. Nothing of the extension is wired to it yet.
   what a card can give: `answered: false` only with `enough:`, an `answer`
   whenever it is answered.
 
+### A call is checked once, and only `input` crosses it
+
+A `flow` node runs another flow of the catalogue as one node. Nothing of the
+extension is wired to it yet.
+
+- **A callee is checked on its own, once per check.** Its faults stay in its
+  file, and the caller gets one `broken-flow` naming the callee's file and its
+  first fault. `/flows` lists the callee with its own faults, so copying them
+  into every caller would report each one twice, at addresses of another
+  file. A callee called from two nodes is one checked flow, attached to both.
+- **A cycle is found from the files, before the callee is checked.** The call
+  graph is read from what the files write, behind a `choice` too, and a call
+  that leads back to the flow being checked is refused as `call-cycle`, with
+  the path from that flow. The callee is not checked, so the check always ends
+  and no depth constant is needed. A cycle that does not pass through the
+  flow being checked makes the callee broken, which is what the caller is
+  told.
+- **Only `input` goes in, and only the last root node comes out.** A callee
+  is checked in a fresh root scope and run in a fresh `flow` memory scope,
+  opened by the visit of the call and closed in a `finally` when it ends. A
+  callee taking `string` takes any value: a string as it is, anything else as
+  JSON, so an enum's value goes in as the word it is. A typed input takes the
+  same type and nothing else. `input: diff` reads the visit's tree, and needs
+  the `git` port like any read of `diff`.
+- **A callee's run is the run's own, one call further down.** It keeps the
+  run's ports, signal, stop and event stream, so there is one queue of cards
+  and one run branch. What changes is the stack of flows `model:` and
+  `timeout:` are read from, callee first, and the memory scopes it shares.
+- **The world is told a node by its address through the calls.** A
+  `visit_start`'s `node`, an attempt's deadline and a dry run's keys use
+  `spec/round/look`, not the callee's own `round/look`. A flow called from two
+  places has two addresses, and whatever keys a node by its address has to
+  tell them apart. The rules about copies, commits, checks and unattended
+  questions read the same addresses, so their faults land in the caller's
+  file at the call path.
+- **A dry run's key on a call and a key under it are refused together**, as
+  `answer-flow-overlap`, even when they would name different visits. Telling
+  visits apart would need the loop iterations resolved against each other,
+  and a script that does both for one address is almost always a slip.
+
 ## A chain walked by hand
 
 `/run explore …` put its answer in the conversation, and the session picked it

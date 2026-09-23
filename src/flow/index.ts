@@ -21,6 +21,7 @@ export {
 	VERDICT,
 	type CheckedAgentNode,
 	type CheckedAskNode,
+	type CheckedCallNode,
 	type CheckedCheckNode,
 	type CheckedChoiceNode,
 	type CheckedFlow,

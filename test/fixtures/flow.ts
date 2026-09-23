@@ -6,7 +6,7 @@
 
 import assert from "node:assert/strict";
 import type { Agent } from "../../src/agent.ts";
-import { checkFlow, checkRun, runFlow, type CheckedFlow, type CheckedRun, type FlowResult, type RunFlowOptions, type RunStage } from "../../src/flow/index.ts";
+import { checkFlow, checkRun, runFlow, type CheckedFlow, type CheckedRun, type FlowCatalogue, type FlowResult, type RunFlowOptions, type RunStage } from "../../src/flow/index.ts";
 import type { CreateSession, CreateSessionOptions } from "../../src/session.ts";
 import { spawn } from "../../src/subagent.ts";
 import type { SpawnFn } from "../../src/workflows/options.ts";
@@ -20,23 +20,41 @@ export function agent(name: string, tools?: string[]): Agent {
 export const AGENTS = ["scout", "planner", "reviewer", "synthesiser"].map((name) => agent(name));
 
 /**
- * The flow `f`: `head` lines after its name and description, `nodes` under
- * `nodes:`, and one section per entry of `sections`.
+ * The text of the flow `name`: `head` lines after its name and description,
+ * `nodes` under `nodes:`, and one section per entry of `sections`.
  */
-export function checked(nodes: string, sections: Record<string, string>, head = "input: string"): CheckedFlow {
+export function flowText(nodes: string, sections: Record<string, string> = {}, head = "input: string", name = "f"): string {
 	const body = Object.entries(sections).map(([id, prose]) => `## ${id}\n${prose}`).join("\n\n");
-	const content = `---\nname: f\ndescription: d\n${head}\nnodes:\n${nodes}\n---\n${body}`;
-	const result = checkFlow("f", { flows: [{ name: "f", filePath: "flows/f.md", content }], agents: AGENTS, brokenAgents: [], cwd: "." });
+	return `---\nname: ${name}\ndescription: d\n${head}\nnodes:\n${nodes}\n---\n${body}`;
+}
+
+/** A catalogue holding `flows`, each text under its name, and {@link AGENTS}. */
+export function catalogueOf(flows: Record<string, string>): FlowCatalogue {
+	return { flows: Object.entries(flows).map(([name, content]) => ({ name, filePath: `flows/${name}.md`, content })), agents: AGENTS, brokenAgents: [], cwd: "." };
+}
+
+/** The flow `name` of {@link catalogueOf} `flows`, checked. */
+export function checkedIn(name: string, flows: Record<string, string>): CheckedFlow {
+	const result = checkFlow(name, catalogueOf(flows));
 	assert.ok(result.ok, JSON.stringify(!result.ok && result.faults, null, 1));
 	return result.flow;
 }
 
-/** The faults of the flow `f` whose nodes are `nodes` and whose body is `body`, as `code at`. */
-export function refused(nodes: string, body = ""): string[] {
-	const content = `---\nname: f\ndescription: d\ninput: string\nnodes:\n${nodes}\n---\n${body}`;
-	const result = checkFlow("f", { flows: [{ name: "f", filePath: "flows/f.md", content }], agents: AGENTS, brokenAgents: [], cwd: "." });
+/** The faults of the flow `name` of {@link catalogueOf} `flows`, as `code at`. */
+export function refusedIn(name: string, flows: Record<string, string>): string[] {
+	const result = checkFlow(name, catalogueOf(flows));
 	assert.ok(!result.ok, "expected the flow to be refused");
 	return result.faults.map(({ code, at }) => `${code} ${at}`);
+}
+
+/** The flow `f` of {@link flowText}, checked. */
+export function checked(nodes: string, sections: Record<string, string>, head = "input: string"): CheckedFlow {
+	return checkedIn("f", { f: flowText(nodes, sections, head) });
+}
+
+/** The faults of the flow `f` whose nodes are `nodes` and whose body is `body`, as `code at`. */
+export function refused(nodes: string, body = ""): string[] {
+	return refusedIn("f", { f: `---\nname: f\ndescription: d\ninput: string\nnodes:\n${nodes}\n---\n${body}` });
 }
 
 /** `flow` through the run stage: in this directory, with no port and nobody there unless `stage` says otherwise. */

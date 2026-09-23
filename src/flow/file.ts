@@ -26,6 +26,7 @@ import { yamlError } from "../markdown.ts";
 import { FaultList, type Fault } from "./fault.ts";
 import { readAgent } from "./agent-node.ts";
 import { readAsk } from "./ask-node.ts";
+import { readCall } from "./call-node.ts";
 import { readChoice, readMap, readParallel } from "./blocks.ts";
 import { readLoop } from "./loop.ts";
 import { everyNode, type FlowNode, type KindReader, type NodeKind } from "./node.ts";
@@ -40,7 +41,7 @@ import { readCheck, readCommit } from "./world.ts";
 export const FLOW_KEYS = { name: true, description: true, input: true, model: false, timeout: false, nodes: true } as const;
 
 /** The reader of each kind of node. */
-const KINDS: Readonly<Record<NodeKind, KindReader>> = { agent: readAgent, choice: readChoice, parallel: readParallel, map: readMap, loop: readLoop, check: readCheck, commit: readCommit, ask: readAsk };
+const KINDS: Readonly<Record<NodeKind, KindReader>> = { agent: readAgent, choice: readChoice, parallel: readParallel, map: readMap, loop: readLoop, check: readCheck, commit: readCommit, ask: readAsk, flow: readCall };
 
 /** A flow file, read: nothing in it is resolved against a catalogue yet. */
 export type FlowFile = {

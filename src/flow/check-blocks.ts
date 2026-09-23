@@ -6,16 +6,16 @@
  * by name, `map` a list of its items, and a failed branch stays in each, so a
  * block never drops what went wrong. Branches that run together and write
  * need copies of the repository; that rule is computed from the files alone,
- * and errs only on the safe side.
+ * the flows they call unrolled, and errs only on the safe side.
  */
 
 import type { Agent } from "../agent.ts";
 import type { CheckedOne, Checker } from "./check.ts";
 import { caseNames, endedNode, LANDED, LEDGER, type CheckedNode } from "./checked.ts";
 import type { ChoiceNode, MapNode, ParallelNode } from "./node.ts";
-import { everyNode } from "./node.ts";
 import type { Scope } from "./scope.ts";
 import { sameType, showType, type Field, type ValueType } from "./type.ts";
+import { unrolled } from "./unrolled.ts";
 
 /** Tools that change the working tree, or can: a delegating agent's children may be any agent. */
 const WRITING_TOOLS = ["write", "edit", "bash", "subagent"];
@@ -77,11 +77,11 @@ function listElement(checker: Checker, node: MapNode, from: string, scope: Scope
  * moves under it.
  */
 function needsCopies(checker: Checker, at: string, branches: readonly (readonly CheckedNode[])[], why: string, isMap = false): void {
-	for (const node of branches.flatMap((nodes) => [...everyNode(nodes)])) {
+	for (const { node, at: where } of branches.flatMap((nodes) => [...unrolled(nodes)])) {
 		if (node.kind === "commit") {
 			// A commit in a copy would break its patch, so copies are no way out here.
 			const fix = isMap ? "run the items one at a time with `concurrency: 1`, or commit after the block" : "commit after the block";
-			checker.faults.add("copies-needed", `${at}.copies`, `${why}, and \`${node.at}\` commits: ${fix}`);
+			checker.faults.add("copies-needed", `${at}.copies`, `${why}, and \`${where}\` commits: ${fix}`);
 			return;
 		}
 		if (node.kind !== "agent") continue;
@@ -90,7 +90,7 @@ function needsCopies(checker: Checker, at: string, branches: readonly (readonly 
 		if (writer === undefined) continue;
 		const tools = (writer.tools ?? []).filter((tool) => WRITING_TOOLS.includes(tool)).join(", ");
 		const fix = isMap ? "`copies: true`, or `concurrency: 1`" : "`copies: true`";
-		checker.faults.add("copies-needed", `${at}.copies`, `${why}, and \`${node.at}\` writes (\`${writer.name}\` has ${tools}): give each branch its own copy with ${fix}`);
+		checker.faults.add("copies-needed", `${at}.copies`, `${why}, and \`${where}\` writes (\`${writer.name}\` has ${tools}): give each branch its own copy with ${fix}`);
 		return;
 	}
 }
