@@ -119,6 +119,10 @@ rather than before it.
 customTools: (parentId) => [delegateTool({ agents, holder: explorer, parentId })],
 ```
 
+A flow run adds the same numbers per visit, per node and per life: pi's
+counters across each visit, and a resumed run's lives summed. See
+[Measuring a run](flows.md#measuring-a-run).
+
 Comparing these numbers across models, over repeated runs, is what
 [Experiments](experiments.md) is for - same collection, one table.
 

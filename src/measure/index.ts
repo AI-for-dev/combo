@@ -4,7 +4,9 @@
  *
  * Four files in a chain - `export.ts` writes a run directory, `measured.ts` is
  * the run that measures itself, `experiment.ts` repeats one over M models and
- * N times, `report.ts` reads the matrix back - and this is their door.
+ * N times, `report.ts` reads the matrix back - and this is their door. A flow
+ * run adds its visits and its lives (`flow-usage.ts`), read from its journal
+ * (`lives.ts`), which the live view reads too.
  * `exportSession` is on it for one caller, `spawn`, which is where a subagent's
  * transcript is still in hand.
  */
@@ -14,13 +16,18 @@ export {
 	createRunDir,
 	exportBaseName,
 	exportSession,
+	freeName,
 	usageReport,
 	writeUsageReport,
+	type LifeUsage,
+	type NodeUsage,
 	type SessionExport,
 	type UsageReport,
 	type UsageReportEntry,
 	type UsageTotal,
+	type VisitUsage,
 } from "./export.ts";
+export { costOf, livesOf, type JournalLife } from "./lives.ts";
 export { measuredRun, type MeasuredRun, type MeasuredRunOptions } from "./measured.ts";
 export {
 	experimentTable,

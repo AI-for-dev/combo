@@ -123,6 +123,8 @@ src/                the library
   mirror.ts         a live subagent on a socket; mirror-wire.ts is the wire
   measure/          export (runs/<timestamp>/), measured (a run that measures
                     itself), experiment (M models, N repetitions), report;
+                    lives (a flow run's, read from its journal) and
+                    flow-usage (its visits, nodes and lives in usage.json);
                     index.ts is its door
   ask.ts verify.ts                      the ports that touch the world
   git/              run (git itself), git (what a pipeline may do), worktree
@@ -153,8 +155,9 @@ src/                the library
                     copies, loop, call, agent, ask and card (the person's side,
                     one card at a time), check, commit, turn, reads, submit,
                     verdict, frames, values, ended; journal (each fact, through
-                    a port), snapshot (what a run started with) and lock (one
-                    runner per run) in its run directory; replay (what a
+                    a port), snapshot (what a run started with), lock (one
+                    runner per run) and transcripts (each subagent's, under
+                    its home) in its run directory; replay (what a
                     resume keeps of the journal), resume-point (where it picks
                     up) and resume (resumeFlow); dry-run on answers, keys and
                     scripted); render/ (plan and text, the plan of a checked

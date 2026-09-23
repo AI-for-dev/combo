@@ -95,6 +95,8 @@ export type SpawnOptions = {
 	 * nothing behind - not in `~/.pi`, not in the working directory.
 	 */
 	exportDir?: string;
+	/** The name its files take in `exportDir`, without the extension. Defaults to its id's, `reviewer-2`. */
+	exportName?: string;
 	/** Subscribed to the event stream for the subagent's whole life. */
 	onEvent?: EventListener;
 	/** Shared bus, when several subagents must report to the same place. */

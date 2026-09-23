@@ -17,7 +17,7 @@ import { checkFlow } from "../check.ts";
 import { checkRun, type FlowPorts } from "../check-run.ts";
 import type { Fault } from "../fault.ts";
 import { realWorld, walkFlow, type FlowResult, type RunFlowOptions } from "./flow.ts";
-import { fileJournal, readJournal } from "./journal.ts";
+import { readJournal } from "./journal.ts";
 import { whileLocked } from "./lock.ts";
 import { resumePoint } from "./resume-point.ts";
 import { readSnapshot, type Snapshot } from "./snapshot.ts";
@@ -67,7 +67,7 @@ async function resumeLocked(runDir: string, snapshot: Snapshot, options: ResumeF
 	// Read before the walk, whose agents may write to the very files compared.
 	const changed = changedOnDisk(snapshot);
 	const { spawn, signal, onEvent } = options;
-	const world = realWorld(staged.run, snapshot.input, fileJournal(runDir), replay);
+	const world = realWorld(staged.run, snapshot.input, runDir, replay);
 	const result = await walkFlow(checked.flow, snapshot.input, { spawn, signal, onEvent, model: settings.model, timeoutMs: options.timeoutMs ?? settings.timeoutMs }, world, settings.cwd);
 	return { ...result, from: point.from, ...(changed !== undefined && { changed }) };
 }

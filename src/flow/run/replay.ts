@@ -110,6 +110,10 @@ export class Replay {
 
 	private fold(flow: CheckedFlow, entry: JournalEntry): string | undefined {
 		switch (entry.type) {
+			case "life_start":
+				// How the run ended is its last life's end, and this one has none yet.
+				this.last = undefined;
+				return undefined;
 			case "visit_end": {
 				const found = nodeAt(flow.nodes, entry.path);
 				if ("code" in found) return entry.path;

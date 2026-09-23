@@ -1886,11 +1886,10 @@ read.
   visit's last end is the one drawn, whichever life wrote it, and a
   `copy_lost` forgets what lay under its branch, as a resume does. Fed the
   full journal and this life's events together, a visit would count twice.
-- **A life is told apart by its `run_end`.** The journal writes no mark
-  when a life starts. A life killed before its end is counted as `partial`
-  when the next one comes in as events. Read from the journal alone, the
-  two run together as one. The measurement of lives will need a start
-  mark, and the view will read it then.
+- **A life is told apart by its `life_start`.** At first the journal wrote
+  no mark when a life started, and a killed life was told from the next
+  only when that one came in as events. The measurement of lives added the
+  mark, and the view reads it, so the journal alone tells them apart.
 - **Folding follows state, and so does the glyph.** Running is expanded,
   ended is one line, not visited is the plan line, so the first frame is
   the plan. A visit begun and not ended while nothing runs, which is what a
@@ -1988,6 +1987,63 @@ writing them for real moved them in the places below.
   unattended build needs something to read "the tests pass" from, and the
   audit alone is an opinion. This repository's own runs `npm test`, and a test
   holds the shipped `build` to it through the run stage.
+
+### A flow run measures itself in its run directory
+
+One directory holds a flow run's state and its exports. The runner writes
+the transcripts, since a subagent exports as it closes; `usage.json` is
+written by a `measuredRun` subscribed to the run, which the runner never
+opens.
+
+- **The measurement stands beside `runFlow`, not inside it.** `runFlow` and
+  `resumeFlow` given a `runDir` leave the snapshot, the journal and the
+  transcripts. A `measuredRun` opened on the same directory writes
+  `usage.json`, and `events.jsonl` with `record: true`. Unplugged, the run
+  and its resume are unchanged. An experiment's cell runs a flow with its
+  own directory and its own `onEvent` and gets the visits with nothing
+  added, and the one writer of `usage.json` stays one. The command that will
+  run flows owns the parent session, so it is the one to measure.
+- **A taken name takes the first free `~n`.** It is not the life's number.
+  A subagent that a timeout replaced in the same visit is a second file in
+  the same place, as a later life's is. The name is chosen at the spawn,
+  against the disk and the names this life already handed out, so nothing
+  already written is overwritten, and a run never resumed keeps clean
+  names. `main.jsonl` and `events.jsonl` take the same rule.
+- **A delegate's transcript is placed by the flow, not by `delegateTool`.**
+  The runner hands the `subagent` tool to an agent naming it, which the flow
+  runner did not do before, with a spawn that puts each child in
+  `<parent>.children/` beside its parent's files, theirs under them. A tool
+  run through the extension keeps its flat layout. The roster is the agents
+  the flow names, which the snapshot keeps, so a resume offers the same
+  ones.
+- **A `visit_end` says what it was.** It carries `node`, `kind` and
+  `subagent`. A life killed before its `usage.json` is rebuilt from journal
+  entries alone, which had no node or kind. And a subagent a scope keeps
+  names only its first visit on its `spawn`, so its `visits` come from the
+  ends.
+- **Plan order is computed from the ends.** Each visit comes before the
+  visits it holds, and visits under one holder come in the order they
+  ended. A life folded from the stream and one rebuilt from the journal
+  come out the same way, and only branches running together are in end
+  order rather than in the order the file writes them.
+- **The lives are read from the run directory.** This life is the
+  journal's last `life_start` taken after the measurement opened, so a
+  measurement whose run never started does not count one. The `usage.json`
+  an earlier life wrote gives the lives it lists. Any life between it and
+  this one is rebuilt from the journal and marked `partial`: its `run_end`'s
+  usage when it wrote one, else what its outermost ended visits cost. A life
+  ends `interrupted` when it wrote no end or was stopped. `total` is the
+  sum of the lives, wall time included, and so is the top-level `wallMs`.
+  With no journal there are no lives, and `visits` and `nodes` stand alone.
+- **Each life counts what was measured of it.** This life's usage is its
+  subagents', delegates included. A rebuilt one's is its visits', which
+  hold no delegate's turns, since a visit's cost is the delta of its own
+  subagent's session. The difference is written down rather than filled
+  in.
+- **`measure/` reads the journal past the flow's door.** `flow/index.ts`
+  re-exports the runner, which spawns, and a subagent exports through
+  `measure/`: going through the door would close a cycle. `lives.ts` sits in
+  `measure/`, and the live view reads it through `measure/`'s door.
 
 ## A chain walked by hand
 

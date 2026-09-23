@@ -12,7 +12,7 @@
 import path from "node:path";
 import type { Agent, Lifetime } from "./agent.ts";
 import { busFor, nextSubagentId, type EventBus, type EventListener, type SubagentEvent } from "./events.ts";
-import { exportSession, type SessionExport } from "./measure/index.ts";
+import { exportBaseName, exportSession, type SessionExport } from "./measure/index.ts";
 import { inTheLanguageOfTheWork } from "./language.ts";
 import { registerMirror } from "./mirror.ts";
 import { failed, succeeded, type Result } from "./result.ts";
@@ -67,6 +67,8 @@ export type SpawnOptions = {
 	 * nothing behind - not in `~/.pi`, not in the working directory.
 	 */
 	exportDir?: string;
+	/** The name its files take in `exportDir`, without the extension. Defaults to its id's, `reviewer-2`. */
+	exportName?: string;
 	/** Subscribed to the event stream for the subagent's whole life. */
 	onEvent?: EventListener;
 	/** Shared bus, when several subagents must report to the same place. */
@@ -263,6 +265,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 		model,
 		parentId: options.parentId,
 		visit: options.visit,
+		...(options.exportDir !== undefined && { transcript: path.join(options.exportDir, options.exportName ?? exportBaseName(id)) }),
 	});
 	bus.emit({ type: "status", id, status: "idle" });
 
@@ -365,7 +368,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 		async export(dir = options.exportDir) {
 			if (!dir) return { id, error: "no export directory: pass one, or spawn with exportDir" };
 			if (closed) return { id, error: `Subagent ${id} is closed: its session is gone` };
-			return exportSession(session, dir, id);
+			return exportSession(session, dir, id, options.exportName);
 		},
 
 		async close() {

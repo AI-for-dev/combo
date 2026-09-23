@@ -28,7 +28,8 @@ export type Held = {
 /** A subagent a scope keeps, and the turn of the last visit that asked it, which the next one waits for. */
 type Kept = { readonly held: Promise<Held>; queue: Promise<unknown> };
 
-type Frame = { readonly id: string; readonly kept: Map<string, Kept>; readonly ledger?: KeptLedger };
+/** One open scope: the node it is named after, the visit that opened it, what it keeps. */
+type Frame = { readonly id: string; readonly path: string; readonly kept: Map<string, Kept>; readonly ledger?: KeptLedger };
 
 /** The memory scopes open where a visit stands, outermost first. */
 export class Frames {
@@ -38,14 +39,19 @@ export class Frames {
 		this.frames = frames;
 	}
 
-	/** The run's own scope, `flow`. */
-	static root(): Frames {
-		return new Frames([{ id: "flow", kept: new Map() }]);
+	/** The scope `flow` of a flow walked inside the visit `path`: the run's own at `""`, or a call's. */
+	static root(path: string): Frames {
+		return new Frames([{ id: "flow", path, kept: new Map() }]);
 	}
 
-	/** The scopes inside the structural node `id`, which opens one of its own, keeping `ledger` when it has one. */
-	inside(id: string, ledger?: KeptLedger): Frames {
-		return new Frames([...this.frames, { id, kept: new Map(), ledger }]);
+	/** The scopes inside the structural node `id`, which opens one of its own at the visit `path`, keeping `ledger` when it has one. */
+	inside(id: string, path: string, ledger?: KeptLedger): Frames {
+		return new Frames([...this.frames, { id, path, kept: new Map(), ledger }]);
+	}
+
+	/** The visit that opened the scope named `scope`, the nearest one: where its subagents leave their transcripts. */
+	home(scope: string): string {
+		return this.frame(scope).path;
 	}
 
 	/**

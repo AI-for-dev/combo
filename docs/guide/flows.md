@@ -563,8 +563,11 @@ segment too, its callee's visits named under it: `spec/interview#3/ask_next`.
 
 ### The run directory
 
-Given `runDir`, a run keeps two things there, and holds its lock while it
-runs. Given none, nothing touches the disk, and the run cannot be resumed.
+Given `runDir`, a run keeps its snapshot, its journal and its subagents'
+transcripts there, and holds its lock while it runs. A `measuredRun` on the
+same directory adds `usage.json` and the event stream ([Measuring a
+run](#measuring-a-run)). Given none, nothing touches the disk, and the run
+cannot be resumed.
 
 - **The snapshot**, written before the first node runs: `snapshot.json` holds
   the flow file and every file it calls, each agent it names as it was read,
@@ -581,9 +584,23 @@ runs. Given none, nothing touches the disk, and the run cannot be resumed.
 - **The journal**, `journal.jsonl`: one JSON line per fact, appended when it
   happens and never rewritten. `readJournal(runDir)` reads it back in order,
   ignoring a last line a crash cut short.
+- **The transcripts**, one per subagent, under its home: its memory scope's
+  path when it has one, its visit's path otherwise. Its files are
+  `<home>/<agent>.jsonl` and `.html`, pi's own exports, written when it
+  closes. A subagent keeping `memory: fix` serves every `fix#n/...` visit and
+  leaves one `fix/coder.jsonl`, since a pi session is one replayable file; a
+  visit with no scope leaves `fix#2/audit/reviewer.jsonl`; `memory: flow`
+  leaves its file at the top. A name already taken, by an earlier life or by
+  the subagent a timeout replaced, takes the first free `~n`: `coder~2.jsonl`.
+  An agent whose `tools:` names `subagent` is handed the tool, its children
+  drawn from the agents the flow names, and they go in `<parent>.children/`
+  beside its files, named after their ids, theirs under them in turn:
+  `split/lead.children/scout-3.jsonl`. The sessions behind the transcripts
+  are kept in `.sessions/`.
 
 | `type` | Written when | Holds |
 | --- | --- | --- |
+| `life_start` | a life of the run began, its first start or a resume, before anything else it wrote | `startedAt` |
 | `visit_end` | a visit ended | the `visit_end` event itself, written before it is told |
 | `carry` | a loop computed the `carry` of an iteration | `path` of that iteration (`fix#2`), `value` |
 | `map_items` | a `map` starts | `path`, the `items` it runs over |
@@ -600,6 +617,45 @@ It is made exclusively at the start and at each resume, and removed in a
 `finally`. A stale lock is replaced while holding `lock.json.takeover`, made
 exclusively as well, so when two resumes find the same stale lock only one of
 them takes it.
+
+### Measuring a run
+
+The runner writes no measurement. A `measuredRun` subscribed to its events
+and opened on its run directory writes `usage.json` there when it finishes,
+and keeps the stream as `events.jsonl` with `record: true`:
+
+```ts
+const measured = measuredRun({ dir: runDir, record: true });
+const result = await runFlow(run.run, "add a cache", { runDir, onEvent: measured.onEvent });
+measured.finish();
+```
+
+A resume is measured the same way, and each of its lives adds its own
+`events~n.jsonl`, and its own `main~n.jsonl` when it is given the parent
+session. An experiment's cell is one already: its `runDir` is the cell's
+directory, and its `onEvent` the cell's.
+
+A flow run's `usage.json` holds what any run's does, and three lists more,
+flat and linked by path and id, as `subagents` is linked by `parentId`:
+
+- **`visits`**: one entry per visit, `{ path, node, kind, agent?, subagent?,
+  life, ok, wallMs, usage }`, every kind included: a `check`, an `ask` or a
+  `commit` has its time and no tokens. Each life's come in plan order, a
+  visit before the visits it holds, branches running together as they
+  ended. A visit that failed in one life and ran again in the next is listed
+  twice, since it was paid twice.
+- **`nodes`**: one entry per node address, its visit count and the sum of
+  their `wallMs` and `usage`.
+- **`lives`**: `{ startedAt, wallMs, usage, end, partial? }` per life, `end`
+  being `ok`, `failed` or `interrupted`. `total` is their sum, its wall time
+  summed without the gaps between them, and `parallelism` is over it. A life
+  killed before it wrote its `usage.json` is rebuilt from the journal and
+  marked `partial: true`: what its ended visits cost, and nothing of a turn
+  cut mid-way or of its subagents. `lives` needs the journal, so a flow
+  measured with no run directory has `visits` and `nodes` alone.
+
+A `subagents` entry gains `home`, the folder of its transcript, `life` and
+`visits`, the paths it ran.
 
 ### Resuming a run
 
@@ -749,10 +805,12 @@ scope's. Nodes sharing a subagent declare the same `output:`, since its
 
 The run reports `visit_start { path, node, kind }`, `node` being the address
 through the calls (`spec/interview/ask_next`), and
-`visit_end { path, ok, output?, error?, case?, converged?, agent?, model?, wallMs, usage }`
+`visit_end { path, node, kind, ok, output?, error?, case?, converged?, agent?, subagent?, model?, wallMs, usage }`
 on the same stream as its subagents, and each subagent's `spawn` event
-carries the `visit` it was spawned for. `usage` is the delta of pi's counters
-over the visit, every attempt and nested visit included.
+carries the `visit` it was spawned for and the `transcript` it will write.
+`subagent` is the id an `agent` visit ran on. `usage` is the delta of pi's
+counters over the visit, every attempt and nested visit included: a
+delegate's turns are its own session's, not the visit's.
 
 ### A dry run
 
@@ -954,10 +1012,10 @@ that hit its cap or gave up (`fix not converged`) and adds up what every
 life cost. Past the first life it says how many there were, how many were
 killed before writing their end (`2 lives (1 partial)`), and the visit the
 last one picked up from (`resumed from fix#2/work`). A visit from an earlier
-life is drawn like any ended visit. The journal marks a life's end only, so
-a life killed before its end is told apart from the next one when that next
-one comes in as `events`. A killed life's cost is what its ended visits
-cost, and its time adds up branches that ran together.
+life is drawn like any ended visit. Each life opens with its `life_start`,
+so the journal alone tells a killed life from the next one. A killed life's
+cost is what its ended visits cost, and its time adds up branches that ran
+together.
 
 Nothing wires the view to a command or to the TUI yet, and herdr opens its
 splits per subagent as it does for any run.

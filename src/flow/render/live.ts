@@ -15,13 +15,14 @@
  */
 
 import type { SubagentEvent } from "../../events.ts";
+import { costOf } from "../../measure/index.ts";
 import type { Usage } from "../../usage.ts";
 import type { CheckedFlow, CheckedNode } from "../checked.ts";
 import type { JournalEntry } from "../run/index.ts";
 import { outcome, stopsSequence } from "./outcome.ts";
 import { planOf, type PlanLine } from "./plan.ts";
 import { summaryOf, type LiveSummary } from "./summary.ts";
-import { costOf, Visits } from "./visits.ts";
+import { Visits } from "./visits.ts";
 
 /**
  * Where a line stands. `working`, `blocked` (an `ask` waiting for its

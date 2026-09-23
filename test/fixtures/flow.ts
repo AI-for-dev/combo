@@ -5,6 +5,7 @@
  */
 
 import assert from "node:assert/strict";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { shippedCatalogue } from "../../scripts/flow-docs.ts";
@@ -88,14 +89,15 @@ export async function runChecked(flow: CheckedFlow, input: unknown, options?: Ru
 	return runFlow(await launched(flow), input, options);
 }
 
-/** A fake turn that may also call `submit` with `submit`, or `verdict` with `verdict`, before it ends. */
-export type FlowTurn = Turn & { submit?: unknown; verdict?: unknown };
+/** A fake turn that may also call `submit` with `submit`, `verdict` with `verdict`, or `subagent` with `subagent`, before it ends. */
+export type FlowTurn = Turn & { submit?: unknown; verdict?: unknown; subagent?: unknown };
 
 /**
  * The real `spawn`, on fake sessions: the n-th subagent spawned plays the
  * n-th list of turns, or with a record, the n-th subagent of an agent plays
  * the n-th list under its name, which branches spawning at once need.
- * `requested` is what each spawn asked the session for.
+ * `requested` is what each spawn asked the session for. A session exports
+ * its prompts as its JSONL, one per line, and a page naming its agent.
  */
 export function flowSpawn(turnsPerSpawn: FlowTurn[][] | Record<string, FlowTurn[][]>): { spawn: SpawnFn; created: FakeSession[]; requested: { agent: Agent; options: CreateSessionOptions }[] } {
 	const created: FakeSession[] = [];
@@ -107,15 +109,24 @@ export function flowSpawn(turnsPerSpawn: FlowTurn[][] | Record<string, FlowTurn[
 		let index = 0;
 		session.prompt = async (text) => {
 			const turn = turns[index++];
-			for (const name of ["submit", "verdict"] as const) {
+			for (const name of ["submit", "verdict", "subagent"] as const) {
 				const tool = options.customTools?.find((one) => one.name === name);
 				if (turn?.[name] !== undefined && tool !== undefined) await callTool(tool, turn[name]);
 			}
 			await prompt(text);
 		};
+		session.exportToJsonl = (file = "session.jsonl") => write(file, session.prompts.map((one) => `${JSON.stringify(one)}\n`).join(""));
+		session.exportToHtml = async (file = "session.html") => write(file, `<p>${agent.name}</p>`);
 		created.push(session);
 		requested.push({ agent, options });
 		return session;
 	};
 	return { spawn: (agent, options) => spawn(agent, { ...options, createSession }), created, requested };
+}
+
+/** Writes `content` to `file`, its directory made, and gives the path back as pi's exporters do. */
+function write(file: string, content: string): string {
+	mkdirSync(dirname(file), { recursive: true });
+	writeFileSync(file, content);
+	return file;
 }

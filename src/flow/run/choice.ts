@@ -22,7 +22,7 @@ export async function visitChoice(walker: Walker, node: CheckedChoiceNode, path:
 			break;
 		}
 	}
-	const frames = here.frames.inside(node.id);
+	const frames = here.frames.inside(node.id, path);
 	let walked: Walked;
 	try {
 		walked = await walker.sequence(node.cases[chosen]?.nodes ?? node.otherwise, path, { ...here, values: here.values.inside(), frames });

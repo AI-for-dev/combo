@@ -5,8 +5,8 @@
 Each flow the package ships, drawn from its file by `mermaidOf`. How to read and write one is in
 [the guide](../../guide/flows.md).
 
-- [`build-attended`](build-attended.md)
 - [`build`](build.md)
+- [`build-attended`](build-attended.md)
 - [`explore`](explore.md)
 - [`interview`](interview.md)
 - [`split`](split.md)
@@ -14,8 +14,8 @@ Each flow the package ships, drawn from its file by `mermaidOf`. How to read and
 ```{toctree}
 :hidden:
 
-build-attended
 build
+build-attended
 explore
 interview
 split

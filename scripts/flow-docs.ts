@@ -33,7 +33,8 @@ export function shippedCatalogue(root: string): FlowCatalogue {
 /** The whole of `docs/reference/flows/` for the flows of `catalogue`, as paths mapped to contents. */
 export function generateFlowDocs(catalogue: FlowCatalogue, source: string): Map<string, string> {
 	const files = new Map<string, string>();
-	const names = catalogue.flows.map((file) => file.name);
+	// By name, not by file: `build.md` sorts after `build-attended.md`.
+	const names = catalogue.flows.map((file) => file.name).sort();
 	files.set(join(FLOWS_DOCS_DIR, "index.md"), renderFlowIndex(names));
 	for (const name of names) files.set(join(FLOWS_DOCS_DIR, `${name}.md`), renderFlow(catalogue, name, source));
 	return files;

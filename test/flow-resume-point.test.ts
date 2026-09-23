@@ -24,9 +24,11 @@ function killedBefore(journal: readonly JournalEntry[], path: string): JournalEn
 	return journal.slice(0, at);
 }
 
-/** The facts a resume of `from` added, as `type path`. */
+/** The facts a resume of `from` added after its `life_start`, as `type path`. */
 function added(run: DryRun, from: readonly JournalEntry[]): string[] {
-	return journalOf(run).slice(from.length).map((entry) => ("path" in entry && entry.path !== undefined ? `${entry.type} ${entry.path}` : "ledger" in entry ? `${entry.type} ${entry.ledger}` : entry.type));
+	const [start, ...facts] = journalOf(run).slice(from.length);
+	assert.equal(start?.type, "life_start");
+	return facts.map((entry) => ("path" in entry && entry.path !== undefined ? `${entry.type} ${entry.path}` : "ledger" in entry ? `${entry.type} ${entry.ledger}` : entry.type));
 }
 
 /** Runs `flow` on `answers`, and resumes what a kill before `path` left with `again`. */

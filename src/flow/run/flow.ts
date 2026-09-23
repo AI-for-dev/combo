@@ -20,10 +20,11 @@ import { mismatch } from "../type.ts";
 import { personAsks } from "./card.ts";
 import { committer } from "./commit.ts";
 import { walkWhole } from "./call.ts";
-import { fileJournal, NO_JOURNAL, type Journal } from "./journal.ts";
+import { fileJournal, NO_JOURNAL } from "./journal.ts";
 import { whileLocked } from "./lock.ts";
 import type { Replay } from "./replay.ts";
 import { writeSnapshot } from "./snapshot.ts";
+import { Transcripts } from "./transcripts.ts";
 import { Run } from "./walk.ts";
 import type { World } from "./world.ts";
 
@@ -40,8 +41,9 @@ export type RunFlowOptions = {
 	/** The bound of every agent turn, over each node's `timeout:` and the flow's. A check keeps its own. */
 	timeoutMs?: number;
 	/**
-	 * The run directory, which holds the snapshot and the journal. Absent,
-	 * nothing touches the disk, and the run cannot be resumed.
+	 * The run directory, which holds the snapshot, the journal and each
+	 * subagent's transcript, and where a `measuredRun` leaves `usage.json`.
+	 * Absent, nothing touches the disk, and the run cannot be resumed.
 	 */
 	runDir?: string;
 };
@@ -66,23 +68,25 @@ export type FlowResult =
 export async function runFlow(run: CheckedRun, input: unknown, options: RunFlowOptions = {}): Promise<FlowResult> {
 	checkInput(run.flow, input);
 	const { runDir, model, timeoutMs } = options;
-	if (runDir === undefined) return walkFlow(run.flow, input, options, realWorld(run, input, NO_JOURNAL), run.cwd);
+	if (runDir === undefined) return walkFlow(run.flow, input, options, realWorld(run, input), run.cwd);
 	writeSnapshot(runDir, run, input, { model, timeoutMs });
 	return whileLocked(
 		runDir,
 		(why) => {
 			throw new Error(why);
 		},
-		() => walkFlow(run.flow, input, options, realWorld(run, input, fileJournal(runDir)), run.cwd),
+		() => walkFlow(run.flow, input, options, realWorld(run, input, runDir), run.cwd),
 	);
 }
 
 /**
- * The world of a real run: `run`'s ports, in its tree, writing to `journal`;
- * on a resume, with what `replay` kept, the run's branch included.
+ * The world of a real run: `run`'s ports, in its tree, writing its journal
+ * and its transcripts to `runDir` when it has one; on a resume, with what
+ * `replay` kept, the run's branch included.
  */
-export function realWorld(run: CheckedRun, input: unknown, journal: Journal, replay?: Replay): World {
+export function realWorld(run: CheckedRun, input: unknown, runDir?: string, replay?: Replay): World {
 	const { cwd, ports, scripts } = run;
+	const journal = runDir === undefined ? NO_JOURNAL : fileJournal(runDir);
 	// `checkRun` refused a flow needing a port it was not given, or a script it could not read.
 	const check = ports.check as CheckScript;
 	const git = ports.git as GitPort;
@@ -95,6 +99,7 @@ export function realWorld(run: CheckedRun, input: unknown, journal: Journal, rep
 		copies: ports.git,
 		ask: personAsks(run.somebodyThere ? ports.ask : undefined),
 		journal,
+		...(runDir !== undefined && { transcripts: new Transcripts(runDir) }),
 		replay,
 	};
 }
@@ -114,6 +119,8 @@ export async function walkFlow(checked: CheckedFlow, input: unknown, options: Ru
 	const stopped = new AbortController();
 	const signal = options.signal === undefined ? stopped.signal : AbortSignal.any([options.signal, stopped.signal]);
 	const stop = () => stopped.abort();
+	// Before anything else, so a life killed at once is still a life of the journal.
+	world.journal.append({ type: "life_start", startedAt: new Date().toISOString() });
 	const run = new Run({ ...world, flow: checked, bus: busFor(options), signal, stop, spawn: options.spawn ?? defaultSpawn, model: options.model, timeoutMs: options.timeoutMs });
 	const walked = await walkWhole(run, checked, "", input, { cut: signal, tree });
 	const usage = sumUsage(walked.usage, performance.now() - started);

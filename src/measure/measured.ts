@@ -11,14 +11,15 @@
 
 import path from "node:path";
 import type { EventListener } from "../events.ts";
-import { copyMainSession, usageReport, writeUsageReport, type UsageReport } from "./export.ts";
+import { copyMainSession, freeName, usageReport, writeUsageReport, type UsageReport } from "./export.ts";
+import { flowFold, withFlow } from "./flow-usage.ts";
 import { combineReporters, createRunPicture, recordReporter, type RunPicture } from "../reporters/index.ts";
 
 /** What a measured run may vary. Everything else is the same everywhere. */
 export type MeasuredRunOptions = {
 	/** Where `usage.json` lands when the run is over, and the stream if kept. Absent writes nothing. */
 	dir?: string;
-	/** Keep the whole event stream on disk as `events.jsonl` beside `usage.json`. Needs `dir`. */
+	/** Keep the whole event stream on disk as `events.jsonl` beside `usage.json`, `events~2.jsonl` for a resumed run's second life. Needs `dir`. */
 	record?: boolean;
 	/** Other listeners on the same stream, after the picture: a terminal, a herdr pane, a caller's own. */
 	listeners?: readonly (EventListener | undefined)[];
@@ -42,7 +43,8 @@ export type MeasuredRun = {
 	/**
 	 * Closes the measurement: writes `usage.json` into `dir` with the time
 	 * measured, the parent session copied in when one was named, and hands the
-	 * report back.
+	 * report back. A flow run's report adds its visits, its nodes, and when
+	 * `dir` is its run directory, every life it had.
 	 *
 	 * Never throws. An export is an observer of the run, and a full disk must not
 	 * turn a finished workflow into an error the caller has to reason about.
@@ -52,19 +54,21 @@ export type MeasuredRun = {
 
 /** Opens a measurement. The clock starts here. */
 export function measuredRun(options: MeasuredRunOptions = {}): MeasuredRun {
+	const opened = new Date();
 	const startedAt = performance.now();
 	const picture = createRunPicture();
-	const recorder = options.record && options.dir ? recordReporter(path.join(options.dir, "events.jsonl")) : undefined;
+	const flow = flowFold();
+	const { dir } = options;
+	const recorder = options.record && dir ? recordReporter(path.join(dir, `${freeName(dir, "events", [".jsonl"])}.jsonl`)) : undefined;
 	const elapsedMs = () => performance.now() - startedAt;
 
 	return {
-		onEvent: combineReporters(picture.reporter, recorder, ...(options.listeners ?? [])),
+		onEvent: combineReporters(picture.reporter, flow.listener, recorder, ...(options.listeners ?? [])),
 		picture,
 		elapsedMs,
 		finish() {
-			const { dir } = options;
 			const main = dir && options.mainSessionFile ? [copyMainSession(options.mainSessionFile, dir)] : undefined;
-			const report = usageReport(picture.snapshot(), elapsedMs(), main);
+			const report = withFlow(usageReport(picture.snapshot(), elapsedMs(), main), flow, dir, opened);
 			if (dir) {
 				try {
 					writeUsageReport(dir, report);
