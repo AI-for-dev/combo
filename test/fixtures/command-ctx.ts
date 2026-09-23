@@ -27,11 +27,12 @@ export function fakeCtx(answers: ScriptedAnswers = {}) {
 	const confirmAnswers = [...(answers.confirm ?? [])];
 	const editorAnswers = [...(answers.editor ?? [])];
 
+	const theme = testTheme();
 	const ctx: CommandCtx = {
 		cwd: "/repo",
 		hasUI: true,
 		ui: {
-			theme: testTheme(),
+			theme,
 			async custom<T>(): Promise<T> {
 				throw new Error("the card must not be reached: whatever asks is injected");
 			},
@@ -41,7 +42,8 @@ export function fakeCtx(answers: ScriptedAnswers = {}) {
 			},
 			notify: (message, type) => void notes.push({ message, type }),
 			setStatus: (_key, text) => void statuses.push(text),
-			setWidget: (_key, lines) => void widgets.push(lines),
+			// A widget given as a component is drawn as pi would, 120 columns wide.
+			setWidget: (_key, content) => void widgets.push(typeof content === "function" ? content(undefined, theme).render(120) : content),
 			async editor(title, prefill) {
 				editors.push(title);
 				return editorAnswers.length ? editorAnswers.shift() : prefill;

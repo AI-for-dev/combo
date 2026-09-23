@@ -98,7 +98,7 @@ builtin · /repo/agents
   coder        Implements a change, and applies review remarks across iterations
   reviewer     Reviews code and returns at most five actionable remarks
 
-A project agent needs scope "project" or "both" from the subagent tool. /run and /build load all three.
+A project agent needs scope "project" or "both" from the subagent tool. /run and /step load all three.
 ```
 
 Grouped by where each definition came from, most specific first, because that is
@@ -254,12 +254,12 @@ The cost of that is invisible unless it is said out loud: a run with no `--model
 runs on your `~/.pi/agent/settings.json`, whatever is in it that day. Fine for
 using the thing; useless for measuring it. So **anything whose numbers will be
 compared names its model** - `experiment({ models })`, `--model` on `/run` and
-`/build`, `--model` in the examples' argv. An agent you write for your own
+`/step`, `--model` in the examples' argv. An agent you write for your own
 machine is welcome to declare one; it is only what ships that must not.
 
 ## Agents shipped here
 
-`agents/` holds the demo definitions used by the examples and by `/build`:
+`agents/` holds the demo definitions used by the examples and by the shipped flows:
 `scout`, `coder`, `reviewer`, `planner`, `router`, `synthesiser`, `interviewer`,
 `auditor`, `committer`, `explorer`, `member`. They are symlinked into `.pi/agents/` so the extension
 can find them - with an explicit scope, like anyone else's. None of them pins a

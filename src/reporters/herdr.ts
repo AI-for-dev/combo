@@ -114,7 +114,7 @@ export function createHerdrReporterWith(send: HerdrSend, options: HerdrOptions =
 		if (event.type === "spawn") {
 			// Opt-in per subagent, unless the whole run was asked to be watched.
 			if (!event.openInHerdr && !all) return;
-			panes.set(event.id, openPane(send, event.id, options, paneCommand(event.id, options.mirror ?? mirrorSocket())));
+			panes.set(event.id, openPane(send, event.id, options, paneCommand(event.id, options.mirror ?? mirrorSocket()), paneLabel(event)));
 			return;
 		}
 
@@ -178,7 +178,7 @@ type BoardPane = Pane & {
  * `pane.split` is asynchronous, but events arrive immediately: everything is
  * queued behind the pending pane id, so nothing is lost and nothing blocks.
  */
-function openPane(send: HerdrSend, id: string, options: HerdrOptions, command: string): Pane {
+function openPane(send: HerdrSend, id: string, options: HerdrOptions, command: string, label = id): Pane {
 	// Only a pane that had an agent reported on it has one to release. The board
 	// is a pane and not an agent, and releasing one herdr never heard of is a
 	// call that can only go wrong.
@@ -195,7 +195,7 @@ function openPane(send: HerdrSend, id: string, options: HerdrOptions, command: s
 		if (!paneId) return undefined;
 		// A split is an anonymous shell. The name is how three member panes are
 		// told apart, and the board's is the only thing saying what it is.
-		await send("pane.rename", { pane_id: paneId, label: id });
+		await send("pane.rename", { pane_id: paneId, label });
 		await send("pane.send_input", { pane_id: paneId, text: command, keys: ["enter"] });
 		return paneId;
 	})().catch(() => undefined);
@@ -269,6 +269,17 @@ function openBoard(send: HerdrSend, dir: string, options: HerdrOptions): BoardPa
 			}
 		},
 	};
+}
+
+/**
+ * What a subagent's split is called: its id, or for a flow's, its agent and
+ * where the flow keeps it, `coder @ deliver#2/work[1]/review`. A flow's ids
+ * count spawns across the whole run, so `coder#3` says nothing of which
+ * pair it codes for; the home does, and it is the subagent's whole life.
+ */
+export function paneLabel(event: Extract<SubagentEvent, { type: "spawn" }>): string {
+	if (event.home === undefined) return event.id;
+	return event.home === "" ? event.agent : `${event.agent} @ ${event.home}`;
 }
 
 /**

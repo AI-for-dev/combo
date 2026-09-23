@@ -8,7 +8,7 @@
  */
 
 export { livePlan, type LiveLine, type LivePlan, type LiveState } from "./live.ts";
-export { showLive, showSummary } from "./live-text.ts";
+export { liveRows, showLive, showSummary, type LiveRow } from "./live-text.ts";
 export { mermaidOf } from "./mermaid.ts";
 export { planOf, type Plan, type PlanLine } from "./plan.ts";
 export type { LiveSummary } from "./summary.ts";

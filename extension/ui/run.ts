@@ -2,18 +2,35 @@
  * What everything that runs subagents needs while they work: the dots, the
  * footer, the transcripts.
  *
- * It exists because the `subagent` tool, `/build` and `/run` must look
+ * It exists because the `subagent` tool, `/run` and `/step` must look
  * **identical** while they run. They had every reason to drift - three call
  * sites, three timers, three ways of clearing a widget - and the one that drifts
  * is the one nobody is watching that day. One painter, one `finally`, one
- * report.
+ * report. A run that walks a flow draws the flow's plan in the same widget,
+ * through `flow.ts`, and everything else about it is the same.
  *
  * Painting lives here rather than in `execute.ts` so the dependency runs one
  * way: the tool body and the commands both reach for this file, and it reaches
  * for none of them.
  */
 
-import { createHerdrReporter, measuredRun, statusColour, stopSwitch, widgetRows, type EventListener, type RunPicture, type RunSnapshot, type SpawnFn } from "../../src/index.ts";
+import {
+	createHerdrReporter,
+	isVisit,
+	livePlan,
+	measuredRun,
+	statusColour,
+	stopSwitch,
+	widgetRows,
+	type CheckedFlow,
+	type EventListener,
+	type JournalEntry,
+	type RunPicture,
+	type RunSnapshot,
+	type SpawnFn,
+	type SubagentEvent,
+} from "../../src/index.ts";
+import { planWidget } from "./flow.ts";
 import { watchEverything } from "./herdr-switch.ts";
 import type { RunUi, WidgetTheme } from "../pi.ts";
 import { forgetRun, watchRun } from "../commands/index.ts";
@@ -60,6 +77,12 @@ export type LiveRunOptions = {
 	dir?: string;
 	/** The parent session's JSONL, from `ctx.sessionManager.getSessionFile()`, copied in beside the subagents' transcripts. */
 	mainSessionFile?: string;
+	/**
+	 * The flow this run walks, and what its earlier lives wrote in its
+	 * journal: the widget then draws its plan, filled as the visits go,
+	 * rather than a row per subagent.
+	 */
+	flow?: { readonly checked: CheckedFlow; readonly journal: readonly JournalEntry[] };
 };
 
 /** A live view of a run, and the one call that takes it down. */
@@ -87,18 +110,37 @@ export type LiveRun = {
 
 /** Starts painting a run. `ui` is absent for a headless caller: nothing is drawn. */
 export function liveRun(ui: RunUi | undefined, options: LiveRunOptions = {}): LiveRun {
+	// What a flow's plan is folded from: the visits, and the spawns naming them.
+	// Text and tool calls come by the thousand, and the fold reads none of them.
+	const told: SubagentEvent[] = [];
+	const { flow } = options;
+	const plan = () => (flow === undefined ? undefined : livePlan(flow.checked, flow.journal, told));
 	// A view is a measured run with a terminal on top. `herdrAll` belongs to the
 	// reporter, not to the spawn: whether a pane opens is a display decision,
 	// and the workflow runs identically either way.
 	const run = measuredRun({
 		dir: options.dir,
 		mainSessionFile: options.mainSessionFile,
-		listeners: [options.reporter ?? createHerdrReporter({ all: options.herdrAll || watchEverything() })],
+		listeners: [
+			options.reporter ?? createHerdrReporter({ all: options.herdrAll || watchEverything() }),
+			flow &&
+				((event) => {
+					if (event.type !== "spawn" && !isVisit(event)) return;
+					told.push(event);
+					paint();
+				}),
+		],
 	});
 	const { picture } = run;
 
 	const stopping = stopSwitch({ signal: options.signal, spawn: options.spawn });
-	const paint = () => ui?.setWidget?.(STATUS, paintWidget(picture.snapshot(), ui.theme, watched.selected));
+	const paint = () => {
+		if (!ui?.setWidget) return;
+		const now = plan();
+		const selected = watched.selected;
+		if (now === undefined) return ui.setWidget(STATUS, paintWidget(picture.snapshot(), ui.theme, selected));
+		ui.setWidget(STATUS, planWidget(now, ui.theme, { snapshot: picture.snapshot(), selected }, hint(now.summary.state === "working", ui.theme)));
+	};
 	// The terminal reads the selection from here and writes it back: a run is
 	// what a key acts on, and it is the only thing that knows when it is over.
 	const watched = { stop: stopping, snapshot: () => picture.snapshot(), repaint: paint, selected: undefined as string | undefined };
@@ -160,8 +202,12 @@ export function paintWidget(snapshot: RunSnapshot, theme: WidgetTheme, selected?
 		return [`${indent}${dot} ${id}`, ...said].join("  ");
 	});
 
-	if (snapshot.done < snapshot.total) lines.push(theme.fg("muted", HINT));
-	return lines;
+	return [...lines, ...hint(snapshot.done < snapshot.total, theme)];
+}
+
+/** {@link HINT}, while there is something left to stop. */
+function hint(running: boolean, theme: WidgetTheme): string[] {
+	return running ? [theme.fg("muted", HINT)] : [];
 }
 
 /**

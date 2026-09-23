@@ -33,20 +33,21 @@ import {
 	type SubagentSnapshot,
 } from "../src/index.ts";
 import {
-	PIPELINE_MESSAGE,
+	RESULT_MESSAGE,
 	registerAgentCommands,
-	registerBuildCommand,
 	registerFlowsCommand,
 	registerHerdrCommand,
 	registerInterviewCommand,
-	registerPipelineCommands,
+	registerRunCommand,
 	registerStepCommands,
 	registerStopCommand,
 	registerSwarmCommand,
+	type ResultDetails,
 } from "./commands/index.ts";
 import { executeSubagent, type Details } from "./execute.ts";
 import { inferMode, Schema, type Params } from "./params.ts";
 import { toolDeps, type PiApi } from "./pi.ts";
+import { PlanFrame } from "./ui/index.ts";
 import { STEP_ENTRY, type StepEntry } from "./relay.ts";
 
 /** How many tool lines the collapsed view shows before it starts eliding. */
@@ -56,28 +57,32 @@ export default function (pi: PiApi) {
 	// The interactive flows are commands, not tools: an interview owns the
 	// terminal question by question, which a model's turn cannot.
 	registerInterviewCommand(pi);
-	registerBuildCommand(pi);
 	registerHerdrCommand(pi);
-	registerPipelineCommands(pi);
+	registerRunCommand(pi);
 	registerFlowsCommand(pi);
 	registerAgentCommands(pi);
 	registerStepCommands(pi);
 	registerSwarmCommand(pi);
 	registerStopCommand(pi);
 
-	// A finished pipeline leaves its answer in the conversation. Drawn as its own
+	// A finished run leaves its answer in the conversation. Drawn as its own
 	// block, because pi hands custom messages to the model as *user* messages,
 	// and a wall of synthesised Markdown looking like something the user typed is
-	// the one reading that must not happen.
-	pi.registerMessageRenderer(PIPELINE_MESSAGE, (message, _options, theme: Theme) => {
-		const details = message.details as { pipeline?: string; steps?: string[] } | undefined;
+	// the one reading that must not happen. A flow's last frame is drawn under
+	// it, from the details, which the model never reads.
+	pi.registerMessageRenderer(RESULT_MESSAGE, (message, _options, theme: Theme) => {
+		const details = message.details as ResultDetails | undefined;
 		const container = new Container();
 		const steps = details?.steps?.length ? ` · ${details.steps.join(" → ")}` : "";
 
 		container.addChild(
-			new Text(`${theme.fg("accent", "◆")} ${theme.fg("toolTitle", theme.bold(details?.pipeline ?? "pipeline"))}${theme.fg("dim", steps)}`, 0, 0),
+			new Text(`${theme.fg("accent", "◆")} ${theme.fg("toolTitle", theme.bold(details?.name ?? "result"))}${theme.fg("dim", steps)}`, 0, 0),
 		);
 		container.addChild(new Markdown(String(message.content).trim(), 0, 0, getMarkdownTheme()));
+		if (details?.live) {
+			container.addChild(new Spacer(1));
+			container.addChild(new PlanFrame(details.live, theme));
+		}
 		return container;
 	});
 

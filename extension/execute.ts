@@ -96,7 +96,7 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 	// close, so it has to exist before the first one finishes.
 	const exportDir = params.export ? (deps.runDir ?? createRunDir)() : undefined;
 
-	// The same floor `/build` and `/run` stand on: the dots, the timer, the
+	// The same floor `/run` and `/step` stand on: the dots, the timer, the
 	// `finally` and `usage.json`. Streaming the progress line is the one thing
 	// only the tool does: the row redraws as the subagents work, rather than
 	// sitting on an opaque spinner until the end.

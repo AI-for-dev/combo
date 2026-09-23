@@ -98,6 +98,8 @@ export type SpawnOptions = {
 	parentId?: string;
 	/** The flow visit this subagent is spawned for. It reaches the reporters on the `spawn` event. */
 	visit?: string;
+	/** Where a flow keeps it: its memory scope's path, else its visit's. It reaches the reporters on the `spawn` event. */
+	home?: string;
 	/**
 	 * Model pattern for this subagent, e.g. `"anthropic/claude-sonnet-5"`.
 	 *
@@ -265,6 +267,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 		model,
 		parentId: options.parentId,
 		visit: options.visit,
+		home: options.home,
 		...(options.exportDir !== undefined && { transcript: path.join(options.exportDir, options.exportName ?? exportBaseName(id)) }),
 	});
 	bus.emit({ type: "status", id, status: "idle" });

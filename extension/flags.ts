@@ -1,37 +1,7 @@
 /**
- * Reading what was typed after a command: the leading `--flags`, and the free
- * text that follows them.
+ * Reading what was typed after a command: the leading `--flags`, the free
+ * text that follows them, and for `/run`, the flags that end the line.
  */
-
-/**
- * `/build [--pipeline <name>] [--model <pattern>] [--worktree] [--check "<command>"] <request>`.
- *
- * Flags rather than positional words, because a request is free text: any
- * convention that reads the first word as a pipeline name eventually swallows
- * someone's "build fix the parser". Every flag, in any order.
- */
-export function parseBuildArgs(args: string): {
-	pipeline?: string;
-	model?: string;
-	worktree?: boolean;
-	check?: string[];
-	request: string;
-} {
-	const { flags, rest } = parseLeadingFlags(args, ["pipeline", "model", "check"], ["worktree"]);
-	const parsed: ReturnType<typeof parseBuildArgs> = { request: rest };
-	if (flags.pipeline) parsed.pipeline = flags.pipeline;
-	if (flags.model) parsed.model = flags.model;
-	// Set only when it was written: an explicit `undefined` spread over a default
-	// silently wins, and the default is the whole point of leaving it unsaid.
-	const worktree = switchValue(flags, "worktree");
-	if (worktree !== undefined) parsed.worktree = worktree;
-
-	// Split on whitespace and nothing else: the command runs with no shell, so
-	// `&&` or a `|` in it is an argument, never a second command.
-	const check = flags.check?.split(/\s+/).filter(Boolean);
-	if (check?.length) parsed.check = check;
-	return parsed;
-}
 
 /** `/interview [--model <pattern>] [--questions <n>] <request>`. */
 export function parseInterviewArgs(args: string): { model?: string; questions?: number; request: string } {
@@ -116,6 +86,32 @@ export function parseLeadingFlags(
 	}
 
 	return { flags, rest: rest.trim() };
+}
+
+/** A valued flag ending the line, and the gap before it. */
+const TRAILING = new RegExp(String.raw`\s--([a-z]+)(?:=|\s+)(?:"([^"]*)"|(\S+))\s*$`, "i");
+
+/**
+ * Reads leading flags, then the valued ones among `names` that end the line.
+ *
+ * A known flag written after the text was read as the text, in silence.
+ * Measured: `/run explore where is the wall time measured --model
+ * ilaas/mistral-small-4-119b` ran three scouts on another model, and one of
+ * them spent its turn grepping the repository for the model's name. A line
+ * does not end on `--model <pattern>` as prose; a flag in the middle of it
+ * still is prose, and stays in the text.
+ */
+export function parseFlags(args: string, names: readonly string[]): { flags: Record<string, string>; rest: string } {
+	const { flags, rest } = parseLeadingFlags(args, names);
+	let text = rest;
+	for (let found = TRAILING.exec(text); found !== null; found = TRAILING.exec(text)) {
+		const name = found[1]?.toLowerCase() as string;
+		const value = found[2] ?? found[3];
+		if (!names.includes(name) || !value || flags[name] !== undefined) break;
+		flags[name] = value;
+		text = text.slice(0, found.index);
+	}
+	return { flags, rest: text.trim() };
 }
 
 /**

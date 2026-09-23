@@ -81,7 +81,7 @@ export function agentLines(agents: Agent[], cwd: string): string[] {
 	// and the user's agents, and a repository's only when it is asked to.
 	if (groups[0]?.agents.length) {
 		lines.push("");
-		lines.push('A project agent needs scope "project" or "both" from the subagent tool. /run and /build load all three.');
+		lines.push('A project agent needs scope "project" or "both" from the subagent tool. /run and /step load all three.');
 	}
 	return lines;
 }

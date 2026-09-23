@@ -38,7 +38,7 @@ docs/
     measurements.md     what Usage counts, and what it refuses to guess
     export.md           runs/<timestamp>/, HTML, JSONL, usage.json
     experiments.md      one workflow, M models, N repetitions, one table
-    extension.md        the subagent tool, /interview, /build, /herdr
+    extension.md        the subagent tool, /run, /interview, /herdr
   tutorials/            problem-oriented: twelve sittings in front of pi, in order
   reference/            lookup-oriented: what an export or a file does
     api/                generated from the TSDoc by `npm run docs`

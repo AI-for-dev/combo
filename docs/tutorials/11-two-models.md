@@ -2,6 +2,12 @@
 
 ![Same work, two models](../_static/tutorials/11-two-models.svg)
 
+```{note}
+This page was captured before `/run` ran flows. `/build` is `/run build` now,
+and its flags are keys of the [`build` flow](../reference/flows/build.md); see
+[Deliver a change](../guide/build.md). The frames below predate that change.
+```
+
 "Which model should the coder run on" gets asked a lot, and most answers are
 benchmarks nobody ran on their own code. The honest version is small: the same
 workflow, on the same repository, on two models, with the bills side by side.

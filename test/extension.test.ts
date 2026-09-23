@@ -13,7 +13,9 @@ import { describe, test } from "node:test";
 import { initTheme } from "@earendil-works/pi-coding-agent";
 import type { Component } from "@earendil-works/pi-tui";
 import extension from "../extension/index.ts";
-import { PIPELINE_MESSAGE } from "../extension/commands/pipeline.ts";
+import { RESULT_MESSAGE } from "../extension/commands/answer.ts";
+import { livePlan } from "../src/flow/index.ts";
+import { checked } from "./fixtures/flow.ts";
 import { sessionDoors, toolDeps, type PiApi } from "../extension/pi.ts";
 import { STEP_ENTRY } from "../extension/relay.ts";
 import { emptyUsage } from "../src/usage.ts";
@@ -106,6 +108,11 @@ describe("what the extension registers", () => {
 			assert.ok(commands.get(name)?.description, "a command with no description is invisible");
 		}
 		assert.ok(!commands.has("pipelines"), "/flows replaces /pipelines");
+	});
+
+	test("a flow runs through /run, and /build is gone", () => {
+		assert.ok(commands.get("run")?.description, "/run must be a command");
+		assert.ok(!commands.has("build"), "`/run build` starts the shipped build");
 	});
 });
 
@@ -258,31 +265,42 @@ describe("renderResult", () => {
 	});
 });
 
-describe("the message a finished pipeline leaves in the conversation", () => {
+describe("the message a finished run leaves in the conversation", () => {
 	const render = (message: unknown) => {
-		const renderer = messageRenderers.get(PIPELINE_MESSAGE);
-		assert.ok(renderer, "a pipeline's answer must not fall back to pi's default rendering");
+		const renderer = messageRenderers.get(RESULT_MESSAGE);
+		assert.ok(renderer, "a run's answer must not fall back to pi's default rendering");
 		return (renderer(message, { expanded: false }, theme) as Component).render(80).join("\n");
 	};
 
-	test("names the pipeline and its steps, and renders the answer as Markdown", () => {
+	test("names what ran and its steps, and renders the answer as Markdown", () => {
 		const drawn = render({
-			customType: PIPELINE_MESSAGE,
-			content: "Result of the `explore` pipeline.\n\n# Findings\n\nIt reads files.",
+			customType: RESULT_MESSAGE,
+			content: "Result of the chain.\n\n# Findings\n\nIt reads files.",
 			display: true,
-			details: { pipeline: "explore", steps: ["look", "answer"] },
+			details: { name: "chain", steps: ["look", "answer"] },
 		});
 
-		assert.match(drawn, /explore/);
+		assert.match(drawn, /chain/);
 		assert.match(drawn, /look → answer/);
 		assert.match(drawn, /Findings/);
 		assert.match(drawn, /It reads files\./);
 	});
 
+	test("a flow's last frame is drawn under its answer, at the width pi draws in", () => {
+		const flow = checked("  - id: look\n    agent: scout\n    reads: [input]", { look: "Look." });
+		const drawn = render({ customType: RESULT_MESSAGE, content: "Result of the `f` flow.\n\nFound it.\n\nok · runs/x", display: true, details: { name: "f", runDir: "runs/x", live: livePlan(flow, [], []) } }).replace(/\x1b\[[0-9;]*m/g, "");
+
+		assert.match(drawn, /Found it\./);
+		assert.match(drawn, /○ f · 0 visits/);
+		assert.match(drawn, /○ look · agent scout/);
+		assert.ok(drawn.split("\n").every((line) => line.length <= 80), "a frame line wider than the terminal wraps back to column one");
+	});
+
 	test("details it did not write do not make it throw", () => {
 		// A renderer that throws makes pi fall back silently, so the shapes that
 		// can reach it - an older session, a hand-written entry - must all render.
-		assert.doesNotThrow(() => render({ customType: PIPELINE_MESSAGE, content: "bare", display: true }));
+		assert.doesNotThrow(() => render({ customType: RESULT_MESSAGE, content: "bare", display: true }));
+		assert.doesNotThrow(() => render({ customType: RESULT_MESSAGE, content: "old", display: true, details: { pipeline: "explore", steps: ["look"] } }));
 	});
 });
 

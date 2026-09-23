@@ -166,6 +166,7 @@ export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, Commit
 			model,
 			customTools: (id) => [submit?.tool, verdict?.tool, delegate?.(id)].filter((tool) => tool !== undefined),
 			visit: path,
+			home,
 		};
 		const subagent = await (transcripts?.atHome(spawn, holder, options, home) ?? spawn(holder, options));
 		return { subagent, submit, verdict };

@@ -131,7 +131,9 @@ so a fan-out leaves no orphan panes.
 
 Opening one takes three calls, because herdr has no single call that does all
 three: `pane.split` makes the pane beside ours and answers with its id,
-`pane.rename` puts the subagent's name on it, and `pane.send_input` types the
+`pane.rename` puts the subagent's name on it (for a flow's subagent, its
+agent and where the flow keeps it: `coder @ deliver#2/work[1]/pair`), and
+`pane.send_input` types the
 client's command into the shell the split started. `agent.start` sounds like the call
 that opens one and is not: it puts a *recognised* agent into a pane that already
 exists, and mistaking the two is how `/herdr on` once opened nothing at all
@@ -330,6 +332,14 @@ same split as everywhere else here: the picture knows the depth, the terminal
 decides what a level looks like. A run with no delegation is drawn exactly as
 it always was.
 
+A run that walks a **flow** draws the flow's plan instead, filled as its
+visits go: a running visit expanded, with each of its subagents under it on one
+line, what it is doing, its model, tokens and clock; an ended one a single
+line; what is not visited yet dimmed under `○`. The plan takes sixteen rows at
+most, cut above and below what runs now, and it is a component painted at the
+width pi gives it, since pi cuts a widget given as lines at ten. See
+[Extension](extension.md#running-a-flow).
+
 ### Stopping what you are watching
 
 The dots are also the list of what can be called off. Under them, while
@@ -341,8 +351,8 @@ esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
 
 `esc` stops every subagent of the run. It is **not** intercepted: pi's own
 interrupt fires as well, so inside a model's turn the turn goes with the
-subagents and the model gets no chance to delegate again. During `/run`,
-`/build` or `/step` pi has no turn to abort, and this is what stops them.
+subagents and the model gets no chance to delegate again. During `/run` or
+`/step` pi has no turn to abort, and this is what stops them.
 
 The one time it does not is while a question card is up. There `esc` is the
 card's, and means what its help line says. On the interview's card that is

@@ -28,10 +28,15 @@ export function count(value: unknown, at: string, faults: FaultList): number | u
 
 /** A duration written `90s`, `10m` or `1h`, in milliseconds. */
 export function duration(value: unknown, at: string, faults: FaultList): number | undefined {
-	const match = typeof value === "string" ? DURATION.exec(value.trim()) : null;
-	if (match) return Number(match[1]) * UNIT_MS[match[2] as keyof typeof UNIT_MS];
-	faults.add("key-type", at, "takes a duration written `90s`, `10m` or `1h`");
-	return undefined;
+	const ms = typeof value === "string" ? parseDuration(value) : undefined;
+	if (ms === undefined) faults.add("key-type", at, "takes a duration written `90s`, `10m` or `1h`");
+	return ms;
+}
+
+/** `text` read as a duration the way a flow writes one, `90s`, `10m` or `1h`, in milliseconds; nothing when it is not one. */
+export function parseDuration(text: string): number | undefined {
+	const match = DURATION.exec(text.trim());
+	return match ? Number(match[1]) * UNIT_MS[match[2] as keyof typeof UNIT_MS] : undefined;
 }
 
 /** A list of non-empty strings, none twice. */

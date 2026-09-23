@@ -18,6 +18,7 @@ export const FAULT_CODES = [
 	"not-a-flow",
 	"pipeline-format-removed",
 	"name-mismatch",
+	"reserved-name",
 	"unknown-flow",
 	"broken-flow",
 	"call-cycle",

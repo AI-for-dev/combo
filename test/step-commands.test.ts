@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, beforeEach, describe, test } from "node:test";
 import { initTheme } from "@earendil-works/pi-coding-agent";
-import { PIPELINE_MESSAGE } from "../extension/commands/pipeline.ts";
+import { RESULT_MESSAGE } from "../extension/commands/answer.ts";
 import type { StepDeps } from "../extension/deps.ts";
 import { chainLines, currentChain, forgetChain, STEP_ENTRY, type StepEntry } from "../extension/relay.ts";
 import { quoteStep, runStep, showChain } from "../extension/commands/step.ts";
@@ -298,7 +298,7 @@ describe("/quote", () => {
 
 		quoteStep("planner", ctx, injected);
 
-		assert.deepEqual(sent[0]?.details, { pipeline: "chain", steps: ["planner", "coder"], exportDir: join(runs, "1-planner") });
+		assert.deepEqual(sent[0]?.details, { name: "chain", steps: ["planner", "coder"], runDir: join(runs, "1-planner") });
 		assert.match(sent[0]?.content ?? "", /^Result of the `planner` step/);
 	});
 
@@ -321,6 +321,6 @@ describe("/quote", () => {
 		assert.equal(entries.length, 1, "drawn once");
 		assert.deepEqual(sent, [], "and in context never, until asked");
 		assert.equal(STEP_ENTRY, "chain-step");
-		assert.notEqual(STEP_ENTRY, PIPELINE_MESSAGE, "an entry is invisible to the model; a message is not");
+		assert.notEqual(STEP_ENTRY, RESULT_MESSAGE, "an entry is invisible to the model; a message is not");
 	});
 });

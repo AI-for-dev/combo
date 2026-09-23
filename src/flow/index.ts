@@ -9,9 +9,11 @@
  * `checkFlow` is how a flow is read, `checkRun` holds it to the project it is
  * launched in, and `runFlow` and `dryRunFlow` are how a checked one runs.
  * `readSnapshot` and `readJournal` read back what a run left in its run
- * directory, `resumePoint` says where it picks up, and `resumeFlow` resumes it.
+ * directory, `resumePoint` says where it picks up, `resumeFlow` resumes it,
+ * and `latestResumable` finds the newest run a resume would take.
  * `planOf` and `mermaidOf` render a checked flow, whose `bounds` say its
- * worst case, and `livePlan` fills its plan as a run goes.
+ * worst case, and `livePlan` fills its plan as a run goes, which `showLive`
+ * writes and `liveRows` hands to a caller that draws it its own way.
  */
 
 export { showBound, type Bound, type Bounds } from "./bounds.ts";
@@ -52,6 +54,7 @@ export {
 export { FAULT_CODES, type Fault, type FaultCode } from "./fault.ts";
 export {
 	livePlan,
+	liveRows,
 	mermaidOf,
 	planOf,
 	showLive,
@@ -59,6 +62,7 @@ export {
 	showSummary,
 	type LiveLine,
 	type LivePlan,
+	type LiveRow,
 	type LiveState,
 	type LiveSummary,
 	type Plan,
@@ -67,6 +71,7 @@ export {
 export {
 	ANSWER_CODES,
 	dryRunFlow,
+	latestResumable,
 	readJournal,
 	readSnapshot,
 	resumeFlow,
@@ -78,6 +83,7 @@ export {
 	type DryRunOptions,
 	type FlowResult,
 	type JournalEntry,
+	type Resumable,
 	type Resumed,
 	type ResumeFlowOptions,
 	type ResumePoint,
@@ -89,3 +95,4 @@ export {
 export type { NamedAgent, Sources } from "./sources.ts";
 export { QUESTION, readSchema, type ReadSchema, type SchemaProblem } from "./schema.ts";
 export { showType, type Field, type ValueType } from "./type.ts";
+export { parseDuration } from "./value.ts";

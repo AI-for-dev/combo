@@ -23,7 +23,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`flow/checked`](flow/checked.md) | A checked flow: what validation hands the runner, the renderings and the dry run once it found no fault. | 13 |
 | [`flow/condition/compile`](flow/condition/compile.md) | A condition checked whole against the types of what it may read, before the first spawn. | 1 |
 | [`flow/fault`](flow/fault.md) | Why a flow is refused before its first spawn: a stable code, the file, where in it, and one sentence. | 2 |
-| [`flow/render/live-text`](flow/render/live-text.md) | The live view as text: the summary line, then one line per live line, indented under the line that holds it, each cut to the width the caller draws in. | 2 |
+| [`flow/render/live-text`](flow/render/live-text.md) | The live view as text: the summary line, then one line per live line, indented under the line that holds it, each cut to the width the caller draws in. | 4 |
 | [`flow/render/live`](flow/render/live.md) | The live view of a flow run: its plan, filled from the journal and the event stream, folded by the state of each visit. | 4 |
 | [`flow/render/mermaid`](flow/render/mermaid.md) | A checked flow as a Mermaid `flowchart`: the structure and nothing else. | 1 |
 | [`flow/render/plan`](flow/render/plan.md) | The plan of a checked flow: one line per node, in the tree the file writes, each saying everything the check resolved about it. | 3 |
@@ -34,10 +34,11 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`flow/run/flow`](flow/run/flow.md) | `runFlow`: a checked run walked from its first node to its last. | 3 |
 | [`flow/run/journal`](flow/run/journal.md) | The journal of a run: one JSON line per fact, appended when it happens and never rewritten, which is what a resume and the live view read back. | 3 |
 | [`flow/run/resume-point`](flow/run/resume-point.md) | `resumePoint`: where a run picks up from its journal, or why it may not. | 2 |
-| [`flow/run/resume`](flow/run/resume.md) | `resumeFlow`: a run carried on from its run directory, as deep as its journal goes. | 3 |
+| [`flow/run/resume`](flow/run/resume.md) | `resumeFlow`: a run carried on from its run directory, as deep as its journal goes. | 5 |
 | [`flow/run/snapshot`](flow/run/snapshot.md) | The snapshot of a run: what its validation read, kept in its run directory at the first start with the input and the settings, so that a resume runs the flow the run started with, whatever the disk says by then. | 3 |
 | [`flow/sources`](flow/sources.md) | What the flow stage read to check a flow: its file and the file of every flow it reaches, and each agent it names with the skills that agent's `skills:` resolved to. | 2 |
 | [`flow/type`](flow/type.md) | The type of a value a flow passes around: what a schema declares, what a condition is checked against, and what a node's typed output must match. | 2 |
+| [`flow/value`](flow/value.md) | The values a flow's keys hold, each read to one type or refused. | 1 |
 | [`git/git`](git/git.md) | The git a pipeline is allowed to do - and nothing else. | 8 |
 | [`git/land`](git/land.md) | Putting the work of several copies back into one tree. | 3 |
 | [`git/port`](git/port.md) | The `git` port of a flow run: what a flow's nodes may ask of git, and nothing more. | 2 |
@@ -61,7 +62,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`reporters/record`](reporters/record.md) | The event stream, on disk: one JSON object per line, in the order it happened. | 1 |
 | [`reporters/silent`](reporters/silent.md) | The no-op reporter. | 1 |
 | [`reporters/tree`](reporters/tree.md) | A run as a tree: a delegated subagent drawn under the one that asked for it. | 1 |
-| [`reporters/tui`](reporters/tui.md) | Formatting for the pi TUI, with no pi-tui in sight. | 8 |
+| [`reporters/tui`](reporters/tui.md) | Formatting for the pi TUI, with no pi-tui in sight. | 10 |
 | [`result`](result.md) | `Result`: the single contract shared by everything else. | 6 |
 | [`review/ledger`](review/ledger.md) | What is left to do, as a list nobody can lose track of. | 4 |
 | [`review/review`](review/review.md) | The review record: what one reviewer decided, and what it is still owed. | 4 |
@@ -127,6 +128,7 @@ flow/run/resume
 flow/run/snapshot
 flow/sources
 flow/type
+flow/value
 git/git
 git/land
 git/port

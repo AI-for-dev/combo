@@ -114,6 +114,11 @@ describe("checkFlow, the file", () => {
 		assert.deepEqual(unknown.faults.map((f) => [f.code, f.message]), [["unknown-flow", "`splt` is unknown; did you mean `split`?"]]);
 	});
 
+	test("no flow is called `resume`, the word `/run resume` takes", () => {
+		const result = checkFlow("resume", catalogue(SPLIT.replace("name: split", "name: resume"), SPLIT_BODY, "resume"));
+		assert.deepEqual(!result.ok && result.faults.map((f) => `${f.code} ${f.at}`), ["reserved-name name"]);
+	});
+
 	test("the input is a schema", () => {
 		assert.deepEqual(faults("name: split\ndescription: d\ninput: strng\nnodes:\n  - id: plan\n    agent: planner", "## plan\nPlan."), ["schema-invalid input"]);
 	});

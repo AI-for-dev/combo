@@ -11,12 +11,11 @@
  * reads any more and which would otherwise lose its name to a flow in silence.
  */
 
-import { homedir } from "node:os";
-import * as path from "node:path";
 import { checkFlow, planOf, plural, showBound, showPlan, type AgentSource, type Fault, type FlowCatalogue, type RemovedPipeline } from "../../src/index.ts";
 import { loadFlows } from "../command.ts";
 import { resolved, type CommandDeps } from "../deps.ts";
 import type { CommandCtx, PiApi } from "../pi.ts";
+import { tidy } from "../ui/index.ts";
 
 /** A line of what `/flows` shows, and the column its text goes on at when the terminal is narrower than the line. */
 export type Row = { readonly text: string; readonly hang: number };
@@ -76,10 +75,18 @@ export function showFlows(args: string, ctx: CommandCtx, deps: CommandDeps = {},
 	const removed = all.removedPipelines({ cwd: ctx.cwd, scope: "both" });
 	const name = args.trim();
 	const { rows, broken } = name === "" ? flowLines(catalogue, removed) : planLines(name, catalogue, removed);
-	// pi draws a notification one column in, and a line as wide as the terminal would wrap again.
-	const lines = rows.flatMap((row) => wrap({ ...row, text: tidy(row.text, ctx.cwd) }, width === undefined ? undefined : width - 2));
+	const lines = notified(rows, ctx.cwd, width);
 	ctx.ui.notify(lines.join("\n"), broken ? "warning" : "info");
 	return lines;
+}
+
+/**
+ * `rows` as the lines of a notification `width` columns wide, paths tidied,
+ * each row going on under its `hang`.
+ */
+export function notified(rows: readonly Row[], cwd: string, width = process.stdout.columns): string[] {
+	// pi draws a notification one column in, and a line as wide as the terminal would wrap again.
+	return rows.flatMap((row) => wrap({ ...row, text: tidy(row.text, cwd) }, width === undefined ? undefined : width - 2));
 }
 
 function checkedEntry(name: string, source: AgentSource, catalogue: FlowCatalogue): Entry {
@@ -105,16 +112,11 @@ function entryRows(entry: Entry, widths: Widths): Row[] {
 }
 
 /** Faults the way a listing writes them, one per line and indented: `file at: message`. */
-function faultRows(faults: readonly Fault[]): Row[] {
+export function faultRows(faults: readonly Fault[]): Row[] {
 	return faults.map(({ file, at, message }) => {
 		const where = [file, at].filter((part) => part !== "").join(" ");
 		return { text: `  ${where === "" ? message : `${where}: ${message}`}`, hang: 4 };
 	});
-}
-
-/** `text` with the working directory left out of its paths, and the home directory written `~`. */
-function tidy(text: string, cwd: string): string {
-	return text.replaceAll(`${cwd}${path.sep}`, "").replaceAll(`${homedir()}${path.sep}`, `~${path.sep}`);
 }
 
 /**

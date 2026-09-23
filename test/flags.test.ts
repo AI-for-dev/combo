@@ -1,122 +1,61 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { parseBuildArgs, parseInterviewArgs } from "../extension/flags.ts";
+import { parseFlags, parseInterviewArgs, parseLeadingFlags, switchValue } from "../extension/flags.ts";
 
-describe("parseBuildArgs", () => {
-	test("a bare request stays a request", () => {
-		assert.deepEqual(parseBuildArgs("build a cache"), { request: "build a cache" });
+/** A line read with `/run`'s flags and `/step`'s switch. */
+const read = (args: string) => parseLeadingFlags(args, ["model", "timeout"], ["worktree"]);
+
+describe("parseLeadingFlags", () => {
+	test("a bare line stays the rest", () => {
+		assert.deepEqual(read("explore how usage is measured"), { flags: {}, rest: "explore how usage is measured" });
 	});
 
-	test("--pipeline takes the name, and leaves the rest alone", () => {
-		assert.deepEqual(parseBuildArgs("--pipeline audit check the parser"), {
-			pipeline: "audit",
-			request: "check the parser",
-		});
-		assert.deepEqual(parseBuildArgs("--pipeline=audit x"), { pipeline: "audit", request: "x" });
+	test("a flag takes one word, with a space or an `=`, in any order", () => {
+		assert.deepEqual(read("--model local/qwen --timeout 10m explore x"), { flags: { model: "local/qwen", timeout: "10m" }, rest: "explore x" });
+		assert.deepEqual(read("--timeout=10m --model=local/qwen explore x"), { flags: { model: "local/qwen", timeout: "10m" }, rest: "explore x" });
 	});
 
-	test("a flag in the middle is part of the request: it is free text", () => {
-		assert.deepEqual(parseBuildArgs("fix the --pipeline flag"), { request: "fix the --pipeline flag" });
-	});
-
-	test("--model takes a pattern, in either order with --pipeline", () => {
-		assert.deepEqual(parseBuildArgs("--model local/qwen add a cache"), {
-			model: "local/qwen",
-			request: "add a cache",
-		});
-		assert.deepEqual(parseBuildArgs("--model local/qwen --pipeline audit x"), {
-			model: "local/qwen",
-			pipeline: "audit",
-			request: "x",
-		});
-		assert.deepEqual(parseBuildArgs("--pipeline audit --model=local/qwen x"), {
-			model: "local/qwen",
-			pipeline: "audit",
-			request: "x",
-		});
-	});
-
-	test("a line continuation between two flags is read as a gap", () => {
-		assert.deepEqual(parseBuildArgs("--pipeline audit \\\n  --model local/qwen add a cache"), {
-			pipeline: "audit",
-			model: "local/qwen",
-			request: "add a cache",
-		});
-	});
-
-	test("a backslash inside the request is the user's, and stays there", () => {
-		assert.deepEqual(parseBuildArgs("--model local/qwen escape the \\\n in the parser"), {
-			model: "local/qwen",
-			request: "escape the \\\n in the parser",
-		});
+	test("a flag after the first word is part of the rest: it is free text", () => {
+		assert.deepEqual(read("explore fix the --model flag"), { flags: {}, rest: "explore fix the --model flag" });
 	});
 
 	test("an unknown leading flag is free text, not a swallowed argument", () => {
-		assert.deepEqual(parseBuildArgs("--force the issue"), { request: "--force the issue" });
+		assert.deepEqual(read("--force the issue"), { flags: {}, rest: "--force the issue" });
+	});
+
+	test("a line continuation between two flags is read as a gap", () => {
+		assert.deepEqual(read("--model local/qwen \\\n  --timeout 10m explore x"), { flags: { model: "local/qwen", timeout: "10m" }, rest: "explore x" });
+	});
+
+	test("a backslash inside the rest is the user's, and stays there", () => {
+		assert.deepEqual(read("--model local/qwen escape the \\\n in the parser").rest, "escape the \\\n in the parser");
+	});
+
+	test("a switch takes no value, so what follows it survives", () => {
+		assert.deepEqual(read("--worktree add a cache"), { flags: { worktree: "true" }, rest: "add a cache" });
+		assert.deepEqual(read("--worktree=false --model local/one x"), { flags: { worktree: "false", model: "local/one" }, rest: "x" });
+		assert.equal(switchValue(read("add a cache").flags, "worktree"), undefined);
+		assert.equal(switchValue(read("--worktree x").flags, "worktree"), true);
+	});
+
+	test("a double-quoted value holds spaces, and a quote in the rest stays the user's", () => {
+		assert.deepEqual(read('--model "local one" x'), { flags: { model: "local one" }, rest: "x" });
+		assert.deepEqual(read('--model local/one fix the "npm test" script').rest, 'fix the "npm test" script');
 	});
 });
 
-describe("parseBuildArgs, with a switch", () => {
-	test("--worktree takes no value, so the request that follows it survives", () => {
-		assert.deepEqual(parseBuildArgs("--worktree add a cache"), { worktree: true, request: "add a cache" });
+describe("parseFlags", () => {
+	const flags = (args: string) => parseFlags(args, ["model", "timeout"]);
+
+	test("a known flag ending the line is a flag, and so are two", () => {
+		assert.deepEqual(flags("explore where is it --model local/one"), { flags: { model: "local/one" }, rest: "explore where is it" });
+		assert.deepEqual(flags('explore "where is it" --model=local/one --timeout 10m'), { flags: { model: "local/one", timeout: "10m" }, rest: 'explore "where is it"' });
 	});
 
-	test("it mixes with the valued flags, in any order", () => {
-		assert.deepEqual(parseBuildArgs("--worktree --model local/one add a cache"), {
-			worktree: true,
-			model: "local/one",
-			request: "add a cache",
-		});
-		assert.deepEqual(parseBuildArgs("--model local/one --worktree add a cache"), {
-			model: "local/one",
-			worktree: true,
-			request: "add a cache",
-		});
-	});
-
-	test("`--worktree=false` is a refusal, and saying nothing is not one", () => {
-		// The three answers are distinct now: a delivery left to itself gives each
-		// of several subtasks a copy, and this is how someone says not to.
-		assert.equal(parseBuildArgs("--worktree=false add a cache").worktree, false);
-		assert.equal(parseBuildArgs("--worktree=true add a cache").worktree, true);
-		assert.equal(parseBuildArgs("add a cache").worktree, undefined);
-	});
-
-	test("without it the request is untouched, switch or not", () => {
-		assert.deepEqual(parseBuildArgs("add a --worktree to the loader"), {
-			request: "add a --worktree to the loader",
-		});
-	});
-});
-
-describe("parseBuildArgs, with a check", () => {
-	test("--check takes a quoted command and its arguments", () => {
-		assert.deepEqual(parseBuildArgs('--check "npm test" add a cache'), { check: ["npm", "test"], request: "add a cache" });
-		assert.deepEqual(parseBuildArgs('--check="npm run lint" x'), { check: ["npm", "run", "lint"], request: "x" });
-	});
-
-	test("unquoted, the value is one word and the rest is the request", () => {
-		assert.deepEqual(parseBuildArgs("--check make add a cache"), { check: ["make"], request: "add a cache" });
-	});
-
-	test("it sits among the other flags, in any order", () => {
-		assert.deepEqual(parseBuildArgs('--worktree --check "cargo test --all" --model local/one x'), {
-			worktree: true,
-			check: ["cargo", "test", "--all"],
-			model: "local/one",
-			request: "x",
-		});
-	});
-
-	test("an empty check names nothing", () => {
-		assert.deepEqual(parseBuildArgs('--check "  " x'), { request: "x" });
-	});
-
-	test("a quote in the request stays the user's", () => {
-		assert.deepEqual(parseBuildArgs('--model local/one fix the "npm test" script'), {
-			model: "local/one",
-			request: 'fix the "npm test" script',
-		});
+	test("in the middle of the line, or unknown, it is the text; leading, it wins over a trailing one", () => {
+		assert.deepEqual(flags("explore the --model flag and more"), { flags: {}, rest: "explore the --model flag and more" });
+		assert.deepEqual(flags("explore x --force it"), { flags: {}, rest: "explore x --force it" });
+		assert.deepEqual(flags("--model a explore x --model b"), { flags: { model: "a" }, rest: "explore x --model b" });
 	});
 });
 

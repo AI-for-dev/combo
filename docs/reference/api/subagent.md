@@ -126,6 +126,8 @@ export type SpawnOptions = {
 	parentId?: string;
 	/** The flow visit this subagent is spawned for. It reaches the reporters on the `spawn` event. */
 	visit?: string;
+	/** Where a flow keeps it: its memory scope's path, else its visit's. It reaches the reporters on the `spawn` event. */
+	home?: string;
 	/**
 	 * Model pattern for this subagent, e.g. `"anthropic/claude-sonnet-5"`.
 	 *

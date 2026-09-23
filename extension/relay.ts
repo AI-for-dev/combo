@@ -269,7 +269,9 @@ export function chainLines(relay: Relay | undefined): string[] {
  */
 export function framed(what: string, asked: string, output: string): string {
 	const about = asked.trim() ? `, asked to: ${asked.trim()}` : "";
-	return `Result of ${what}${about}.\n\n${output.trim()}`;
+	// A request ending on its own `?` or `.` is not given a second stop.
+	const stop = /[.?!]$/.test(about) ? "" : ".";
+	return `Result of ${what}${about}${stop}\n\n${output.trim()}`;
 }
 
 /** A step, framed for the conversation - what `/quote` sends. */

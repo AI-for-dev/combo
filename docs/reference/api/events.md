@@ -97,6 +97,12 @@ export type SubagentEvent =
 			 */
 			visit?: string;
 			/**
+			 * Where a flow keeps it: its memory scope's path when it has one,
+			 * its visit's otherwise, `""` for `memory: flow`. It is what a
+			 * herdr split is named after.
+			 */
+			home?: string;
+			/**
 			 * Where its transcript is written when it closes, without the
 			 * extension: `<exportDir>/<name>`. Absent when it exports nothing.
 			 */
