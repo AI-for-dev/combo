@@ -22,7 +22,12 @@ sentence, the same for every spawn.
 its point with an example - *if the work is in French, answer in French* -
 and the next English question came back in French. A sentence sitting in
 front of the model on every turn of every agent has its example read as the
-target, so the rule points at the work and stops there.
+target, so the rule points at the work and stops there. That holds for the
+prompt's own language too: a wording saying the prompt and its framing "are
+always written in English" was read as "do not answer in English", and an
+English task to a test reader came back in French four times in six.
+Without the word, twelve English tasks across two agents came back in
+English and eight French ones in French.
 
 **The English is in the turn, not only in the prompt.** A combinator frames
 the work it hands over - which round this is, what is new on the board, what
@@ -51,7 +56,7 @@ comes back exactly as it was given.
 
 ```typescript
 export const IN_THE_LANGUAGE_OF_THE_WORK =
-	"Write in the language of the work above, not in the language of these instructions.";
+	"Write in the language the work above is written in, whatever language the lines that frame it use.";
 ```
 
 The rule again, in one sentence, at the end of the turn it governs.
@@ -62,3 +67,8 @@ line says, and the exemptions they carry are already in front of the model.
 
 It points *above* itself, which is what puts it last: the work, the framing
 and this line arrive together, and the one nearest the answer wins.
+
+**It says which language, never which one to avoid.** An earlier wording
+ended "not in the language of these instructions", and a model read the
+negation as "not English": an English question to a scout came back in
+French three times in six.
