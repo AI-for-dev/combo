@@ -1,6 +1,6 @@
 /**
- * The slash commands: one file per command, and the two helpers only one of
- * them uses - `commit.ts` for `/build`, `stage.ts` for `/step`.
+ * The slash commands: one file per command, and the helper only one of them
+ * uses - `stage.ts` for `/step`.
  *
  * This is the directory's door. `index.ts` registers what is listed here;
  * `run.ts` in `ui/` reaches `watchRun` and `forgetRun` because a run has to

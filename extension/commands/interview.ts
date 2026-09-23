@@ -3,8 +3,6 @@
  *
  * A command and not a tool: a question card owns the terminal until it is
  * answered, and nobody can answer a question asked inside a model's turn.
- * `/build` opens with the same interview, which is why this is a function
- * before it is a command.
  */
 
 import { findAgent, plural, type InterviewResult } from "../../src/index.ts";
@@ -12,14 +10,14 @@ import { createAskUi } from "../ui/index.ts";
 import { checked, loadRoster, refuse, watched } from "../command.ts";
 import type { CommandCtx, PiApi } from "../pi.ts";
 import { resolved, type CommandDeps } from "../deps.ts";
-import { parseBuildArgs } from "../flags.ts";
+import { parseInterviewArgs } from "../flags.ts";
 
 /** Registers `/interview`. */
 export default function registerInterviewCommand(pi: PiApi) {
 	pi.registerCommand("interview", {
 		description: "Turn a vague request into a brief, one question at a time (`--model <pattern>`, `--questions <n>`)",
 		handler: async (args, ctx: CommandCtx) => {
-			const { model, questions, request } = parseBuildArgs(args);
+			const { model, questions, request } = parseInterviewArgs(args);
 			await runInterview(request, ctx, {}, { model, maxQuestions: questions });
 		},
 	});

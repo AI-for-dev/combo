@@ -143,8 +143,8 @@ src/                the library
 extension/          the pi extension: index.ts (tool, renderers), execute.ts
                     (the tool body) and the floor the commands stand on:
                     pi.ts deps.ts command.ts flags.ts params.ts relay.ts
-  commands/         one file per slash command; commit and stage beside /build
-                    and /step, the commands that use them
+  commands/         one file per slash command; stage beside /step, the
+                    command that uses it
   ui/               run (the live view), ask (the question card), asking and
                     herdr-switch (two switches a card and a key share)
 pane/               the client a herdr split runs, attached to the mirror

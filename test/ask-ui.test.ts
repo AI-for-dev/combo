@@ -54,7 +54,7 @@ describe("the question card", () => {
 		const entries = items(question);
 		assert.deepEqual(
 			entries.map((item) => item.label),
-			["sqlite", "postgres", "Other…", "That's enough - build it"],
+			["sqlite", "postgres", "Other…", "That's enough"],
 		);
 		assert.equal(entries[0]?.description, "a file, no server");
 	});

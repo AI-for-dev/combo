@@ -8,14 +8,21 @@ named `slugify.ts`, and the suite never loaded. Both agents had read the code.
 Neither had run it, and nothing in either prompt would have made them: a model
 reading `import "./slugify.js"` sees a plausible line.
 
-`/build` is the flow from a vague sentence to a commit, and the one thing it
-insists on is that your own check runs before anyone signs.
+`/build` is the flow from a sentence to a working tree with the change in it,
+and nobody is asked anything on the way. The one thing it insists on is that
+your own check runs before anyone signs.
 
 ## Give it a check
 
 The shipped pipeline has no `verify`, because it cannot know what your
-project's check is. Say so in a file, `.pi/pipelines/build.md`, which replaces
-the shipped one by having the same name:
+project's check is. For one run, say it on the command line:
+
+```
+/build --check "npm test" add a slugify helper with tests
+```
+
+For every run, say it in a file, `.pi/pipelines/build.md`, which replaces the
+shipped one by having the same name:
 
 ```markdown
 ---
@@ -47,75 +54,37 @@ live. Every subtask must be independently applicable to the working tree: when
 the work is sequential, it is one subtask, not three.
 ```
 
-`verify` is a list, never a command line. Splitting `"npm test"` on whitespace
-is writing a small shell, and the check runs through `execFile` with **no
-shell** so that `"npm test && rm -rf /"` is one argument and not two commands.
+`verify` is a list, never a command line, and the check runs through
+`execFile` with **no shell**, so `"npm test && rm -rf /"` in that list is one
+argument and not two commands. `--check` is split on whitespace and on nothing
+else: typed there, `&&` is an argument to `npm`. The flag beats the file's
+`verify:` when both are given; with neither, no check runs and nobody asks for
+one.
 
-## The interview
+## Run it
 
 In a throwaway clone:
 
 ```
-/build add a slugify helper with tests
+/build --check "npm test" add a slugify helper with tests
 ```
 
-The interviewer reads the repository first, then asks. This is the first card
-it drew, on a small open-weight model, after reading the code for half a minute:
+The request is the brief, as typed. Nothing asks you to confirm it, nothing
+asks for a check halfway through, and nothing asks for a commit at the end: a
+question in the middle of a run is a run waiting for whoever left it going.
+A sentence is a thin brief, though. When the request needs thinking through
+first, `/interview` asks the questions only you can answer and hands back a
+brief; that is the text to give `/build`.
+
+Everything that can be refused is refused before the first subagent spawns: an
+unknown pipeline, an agent nobody has, a model that does not resolve, and a
+directory that is not a repository:
 
 ```
-[Separator preference]
-What character should separate words in the slug?
-→ Hyphen (-)                      Standard kebab-case used for URLs (e.g., 'hello-world').
-  Underscore (_)                  Standard snake_case often used for filenames or identifiers (e.g., 'hello_world').
-  Other…                          type your own answer
-  That's enough - build it        stop asking and write the brief
-↑↓ choose • enter answer • esc build with what you have
+Error: build: this is not a git repository - nothing could show or undo what the run wrote
 ```
 
-One card at a time, two to four concrete options with the recommended one
-first, and two standing entries under them: **Other…** for an answer of your
-own and **That's enough - build it** to stop asking. What you already answered
-counts, and the brief is written from it.
-
-The card's last line says `esc` means the same as that second entry. In this
-run it did not:
-
-```
-Error: interview failed: stopped - the transcript is in /…/runs/2026-09-19_10-44-59
-```
-
-Since a run became stoppable from the keyboard, `esc` stops every subagent of
-it, the interviewer included, and the interviewer is who writes the brief. Two
-meanings for one key, and the stop won. Until that is fixed, choose the entry
-rather than pressing the key. What the failure did right is the second half of
-the line: a failed interview leaves its transcript in the run's folder, made
-before the first question so that "what was actually sent" has an answer even
-when nothing else does.
-
-One question at a time because a good second question depends on the first
-answer. Only about what you alone can decide: a preference, a constraint, a
-trade-off. Never about what it could find out by reading the code, because it
-reads the code between questions instead; the separator is a question about
-your taste, and nothing in the repository answers it. Six questions at most,
-`--questions 3` caps it lower, `--model` picks who asks.
-
-Ask in French and the questions come in French. The brief too, and that is the
-document you are about to correct, so it is in your language; the planner, the
-coder and the auditor take it from there in theirs.
-
-## The first stop
-
-```
-Brief - edit it if it got anything wrong
-```
-
-The brief opens in an editor, then a confirm: **Build this?**, with the first
-lines of it. Refuse, and it stays in the prompt editor for you to send however you like;
-nothing has been spawned. Of the two stops this is the cheap one and the one
-worth spending time at: everything downstream is built against this text and
-nobody will be there to ask a question.
-
-## What runs between the stops
+## What runs
 
 The scout maps the code. Then the planner splits the brief into subtasks and
 assigns each to a worker, and the plan is validated against the roster before
@@ -148,22 +117,11 @@ failing test, the auditor named the fix, the fix ran, the check ran again, and
 the run ended `NOT approved` rather than shipping something broken. That last
 part is the machinery working, on a worker that could not.
 
-## The second stop
+## What it leaves
 
-The committer reads the brief and the diff and writes a message. It has **no
-bash**. It holds `read`, `grep`, `find`, `ls`, and nothing else: it cannot run
-git, and it was never asked not to. The commit itself is made by our code,
-which has `add`, `commit`, `checkout -b` and no `push`, `reset`, `rebase` or
-`--force`. The message is piped to `git commit -F -`, so a message containing
-`rm -rf /` is committed as text.
-
-```
-Commit message - edit it, or empty it to skip the commit
-Commit on combo/add-a-slugify-helper-with-tests?
-```
-
-Refuse, and the work stays in the working tree, uncommitted, as the pairs left
-it. Nothing is undone on your behalf, at either stop.
+The work, in the working tree, uncommitted, as the pairs left it. `git diff`
+shows exactly what the run did, and you decide what reaches history after
+reading it. Nothing is committed, pushed or undone on your behalf.
 
 ## Interrupt it
 
@@ -172,8 +130,11 @@ the middle of the second pair and come back:
 
 ```
 /build resume
-Carry on? 1/3 subtasks already approved
+build: carrying on runs/<timestamp>, 1/2 subtasks already approved
 ```
+
+It says what it picked up rather than asking: typing `/build resume` was the
+answer.
 
 Only approved subtasks survive: one still being argued over left the tree in a
 state nobody signed off on, so it runs again. Every obligation survives, open
@@ -183,9 +144,9 @@ resumed build re-reads the code rather than replaying a transcript.
 
 ## Two things this page did not do
 
-It did not put a pipeline that only reads through `/build`. You would be
-interviewed about a request that wants no decision and then told there is
-nothing to commit; `/run` is for that. And it did not say where the two
+It did not put a pipeline that only reads through `/build`. Its answer would
+end up in `runs/` rather than in front of a model that could take the next
+question about it; `/run` is for that. And it did not say where the two
 coders were writing while they ran at once, which is the whole of the next
 page: a plan of several subtasks does not hand them one tree.
 

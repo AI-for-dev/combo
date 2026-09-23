@@ -69,7 +69,7 @@ raised when, and only when, that file is the one being asked for.
 At the top level, `verify: [npm, test]` states the project's check once. It is a
 list rather than a command line, because splitting `"npm test"` on whitespace is
 writing a small shell, and the check runs with no shell precisely so that an
-argument stays an argument.
+argument stays an argument. `/build --check "<command>"` beats it for one run.
 
 Also at the top level, `model: local/qwen` puts every subagent of the pipeline
 on one model. The caller's own `model` (a script's option, `--model` on `/run`
@@ -156,20 +156,19 @@ design; if you want your own everywhere, they go in `~/.pi/agent/pipelines/`.
 
 Two ways, and the difference is what surrounds the run.
 
-**`/build`** delivers a change: an interview to settle what "done" means, then
-the pipeline, then the commit. With no `build.md` of your own it runs the one the
-package ships - so there is exactly one default, and it is a file you can read
-and copy rather than a constant buried in the code.
+**`/build`** delivers a change: the pipeline runs on the request, asks nothing,
+saves its progress as it goes, and leaves the work uncommitted in the working
+tree. With no `build.md` of your own it runs the one the package ships - so
+there is exactly one default, and it is a file you can read and copy rather
+than a constant buried in the code.
 
 ```
-/build add a cache in front of the agent loader
+/build --check "npm test" add a cache in front of the agent loader
 /build --pipeline audit check what the parser does with an empty file
 /build resume
 ```
 
-The two stops are unchanged: the brief before any work starts, the commit before
-anything reaches history. The pipeline covers what happens between them. See
-[Deliver a change](build.md).
+See [Deliver a change](build.md).
 
 **`/run`** is the pipeline and nothing else:
 
@@ -177,7 +176,7 @@ anything reaches history. The pipeline covers what happens between them. See
 /run explore how is usage measured, and can it be trusted
 ```
 
-No interview, no commit stop. The answer lands **in the conversation**, so the
+The answer lands **in the conversation**, so the
 model has it and you can simply ask the next question about it; the transcripts
 land in `runs/<timestamp>/` as usual.
 
@@ -190,8 +189,8 @@ text is prefixed with the pipeline it came from - unattributed findings arriving
 in a user slot read as an instruction.
 
 This is where a pipeline that only *reads* belongs. Put one through `/build` and
-you will be interviewed about a request that wants no decision, then told there
-is nothing to commit.
+its answer ends up in `runs/` rather than in front of the model that could
+answer the next question about it.
 
 `/run` is **lighter than `/build`, not safer**: whatever a step writes to the
 working tree is still written. What an agent may do is decided by its toolset, as

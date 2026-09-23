@@ -14,7 +14,7 @@
  */
 
 import { findAgent, lookupPipeline, type Agent, type EventListener, type Pipeline, type SpawnFn, type Usage } from "../../src/index.ts";
-import { loadCatalogue, pipelineVerifier } from "../command.ts";
+import { loadCatalogue, checkVerifier } from "../command.ts";
 import type { Deps } from "../deps.ts";
 import type { CommandCtx } from "../pi.ts";
 
@@ -97,7 +97,7 @@ export async function runStage(target: Target, input: string, stage: Stage): Pro
 			input,
 			cwd: ctx.cwd,
 			exportDir: dir,
-			verify: deps.verify ?? pipelineVerifier(target.pipeline, ctx.cwd),
+			verify: deps.verify ?? checkVerifier(target.pipeline.verify, ctx.cwd),
 			model,
 			worktree: stage.worktree,
 			signal,

@@ -1,10 +1,10 @@
 /**
  * Who owns escape: a question card, for as long as one is on screen.
  *
- * A question card says `esc` means "build with what you have", and the
- * interviewer that will write that brief is a subagent of the very run the
- * stop key can stop. Measured: pressing `esc` on the first card of `/build`
- * ended with `interview failed: stopped`, because both meanings fired and the
+ * A question card says `esc` means "write the brief with what you have", and
+ * the interviewer that will write that brief is a subagent of the very run
+ * the stop key can stop. Measured: pressing `esc` on the first card of an
+ * interview ended with `interview failed: stopped`, because both meanings fired and the
  * stop won. While a card is open the key belongs to the card, and the run's
  * own subagents are idle anyway - nothing is running that a person would want
  * to call off by pressing it.

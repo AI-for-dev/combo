@@ -34,9 +34,9 @@ runs/
 The `.gitignore` holds `*`, and it is there because the exports land **inside
 the repository the run worked on**. Both halves of that were measured rather
 than imagined: a delivery that gives its subtasks copies of the repository
-cannot put them back while `runs/` alone makes the tree unclean, and `/build`
-ends in a `git add -A`, which would have swept a run's transcripts into
-somebody's history. A `.gitignore` already in `runs/` is left alone.
+cannot put them back while `runs/` alone makes the tree unclean, and the next
+`git add -A` in that repository would sweep a run's transcripts into somebody's
+history. A `.gitignore` already in `runs/` is left alone.
 
 ## What is in there, and what is not
 

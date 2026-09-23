@@ -1,11 +1,10 @@
 /**
  * The `/build` and `/interview` commands, offline.
  *
- * Everything is injected: the agents, the interview, the delivery, the agent
- * that writes the commit message, and every git call. What is under test is the
- * wiring and the two stops - the brief before any work starts, the commit before
- * anything reaches history - because that is where the risk lives, not in the
- * combinators underneath.
+ * Everything is injected: the agents, the interview, the pipeline run and git.
+ * What is under test is the wiring - that `/build` asks nobody anything and
+ * leaves the work uncommitted, and that `/interview` hands its brief back -
+ * because that is where the risk lives, not in the combinators underneath.
  */
 
 import assert from "node:assert/strict";
@@ -21,8 +20,8 @@ import { watchEverything, watchEverythingIs } from "../extension/ui/herdr-switch
 import { BUILD_STATE_VERSION, type BuildState } from "../src/workflows/deliver/resume.ts";
 import type { BuildProgress, DeliverResult } from "../src/workflows/deliver/deliver.ts";
 import type { PipelineRunResult } from "../src/pipeline/run.ts";
-import { succeeded } from "../src/result.ts";
 import { emptyUsage } from "../src/usage.ts";
+import type { Verify } from "../src/verify.ts";
 import { fakeCtx } from "./fixtures/command-ctx.ts";
 import { baseDeps } from "./fixtures/command-deps.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
@@ -31,36 +30,9 @@ import { deliverResult, interviewResult, pipelineRunResult } from "./fixtures/re
 
 initTheme();
 
-const agents = ["interviewer", "planner", "coder", "reviewer", "auditor", "committer"].map((name) =>
+const agents = ["interviewer", "planner", "coder", "reviewer", "auditor"].map((name) =>
 	testAgent(name, { description: `${name} for tests` }),
 );
-
-type Git = NonNullable<CommandDeps["git"]>;
-
-/** A git double that says the tree is dirty and records what was done to it. */
-function fakeGit(over: Partial<Git> = {}) {
-	const calls: string[] = [];
-	const git: Git = { ...workingTree(calls), ...over };
-	return { git, calls };
-}
-
-function workingTree(calls: string[]): Git {
-	return {
-		isRepository: async () => true,
-		status: async () => ({ ok: true as const, value: " M src/x.ts\n" }),
-		diff: async () => ({ ok: true as const, value: "--- a/src/x.ts\n+++ b/src/x.ts\n+added\n" }),
-		diffStat: async () => ({ ok: true as const, value: " src/x.ts | 1 +\n" }),
-		untracked: async () => ["src/new.ts"],
-		createBranch: async (_cwd: string, name: string) => {
-			calls.push(`branch:${name}`);
-			return { ok: true as const, value: name };
-		},
-		commitAll: async (_cwd: string, message: string) => {
-			calls.push(`commit:${message}`);
-			return { ok: true as const, value: "abc1234" };
-		},
-	};
-}
 
 /** Stands in for the `build` pipeline the package ships. */
 const shipped = parsePipeline(
@@ -80,15 +52,20 @@ function delivered(over: Partial<DeliverResult> = {}): PipelineRunResult {
 	return pipelineRunResult({ pipeline: "build", steps: [{ id: "work", kind: "deliver", result: delivery, delivery }], output: "done" });
 }
 
-/** The happy path's doubles: a brief, a delivery, a commit message. */
+/** The happy path's doubles: a brief and a delivery. */
 function deps(over: CommandDeps = {}): CommandDeps {
 	return {
 		...baseDeps(agents, [shipped]),
+		git: { isRepository: async () => true },
 		interview: async () => interviewResult(),
 		runPipeline: async () => delivered(),
-		run: async () => succeeded("committer", "Add x\n\nBecause."),
 		...over,
 	};
+}
+
+/** Every way a command can ask the user something, and what it asked. */
+function asked(fake: ReturnType<typeof fakeCtx>): string[] {
+	return [...fake.confirms, ...fake.inputs, ...fake.editors];
 }
 
 describe("/interview", () => {
@@ -144,24 +121,28 @@ describe("/interview", () => {
 });
 
 describe("/build", () => {
-	test("interviews, asks before building, builds, then asks before committing", async () => {
-		const { ctx, confirms } = fakeCtx();
-		const { git, calls } = fakeGit();
-		await runBuild("add a cache", ctx, deps({ git }));
+	test("runs the request as the brief, asks nothing, and commits nothing", async () => {
+		const fake = fakeCtx();
+		let interviewed = false;
+		let input: string | undefined;
+		await runBuild("add a cache", fake.ctx, deps({
+			interview: async () => ((interviewed = true), interviewResult()),
+			runPipeline: async (options: { input: string }) => ((input = options.input), delivered()),
+		}));
 
-		assert.deepEqual(confirms, ["Build this?", "Commit on combo/add-a-cache?"], "two stops, and only two");
-		assert.deepEqual(calls, ["branch:combo/add-a-cache", "commit:Add x\n\nBecause."]);
+		assert.equal(interviewed, false, "nobody is there to answer");
+		assert.equal(input, "add a cache");
+		assert.deepEqual(asked(fake), [], "not the brief, not the check, not a commit");
+		assert.match(fake.said(), /approved - exported to/);
 	});
 
 	test("--model reaches the pipeline run", async () => {
 		const { ctx } = fakeCtx();
-		const { git } = fakeGit();
 		let seen: string | undefined;
 		await runBuild(
 			"--model local/qwen add a cache",
 			ctx,
 			deps({
-				git,
 				checkModel: async () => {},
 				runPipeline: async (options: { model?: string }) => ((seen = options.model), delivered()),
 			}),
@@ -170,138 +151,40 @@ describe("/build", () => {
 		assert.equal(seen, "local/qwen");
 	});
 
-	test("a model that does not resolve costs a second, not an interview", async () => {
+	test("a model that does not resolve costs a second, not a run", async () => {
 		const { ctx, said } = fakeCtx();
-		const { git } = fakeGit();
-		let interviewed = false;
+		let ran = false;
 		const outcome = await runBuild(
 			"--model local/nope x",
 			ctx,
 			deps({
-				git,
 				checkModel: async () => {
 					throw new Error('No model found for "local/nope"');
 				},
-				interview: async () => ((interviewed = true), interviewResult()),
+				runPipeline: async () => ((ran = true), delivered()),
 			}),
 		);
 
 		assert.equal(outcome, undefined);
-		assert.equal(interviewed, false, "the check runs before anyone is asked anything");
+		assert.equal(ran, false, "the check runs before anything is spawned");
 		assert.match(said(), /No model found/);
 	});
 
-	test("refusing the brief stops before a single subagent is spawned", async () => {
-		const { ctx, said } = fakeCtx({ confirm: [false] });
+	test("outside a git repository nothing starts: nothing could show or undo what it wrote", async () => {
+		const { ctx, said } = fakeCtx();
 		let ran = false;
-		const { git, calls } = fakeGit();
-		await runBuild("x", ctx, deps({ git, runPipeline: async () => ((ran = true), delivered()) }));
+		await runBuild("x", ctx, deps({ git: { isRepository: async () => false }, runPipeline: async () => ((ran = true), delivered()) }));
 
 		assert.equal(ran, false);
-		assert.deepEqual(calls, [], "nothing was branched, nothing was committed");
-		assert.match(said(), /stopped before any work started/);
-	});
-
-	test("refusing the commit leaves the work in the working tree", async () => {
-		const { ctx, said } = fakeCtx({ confirm: [true, false] });
-		const { git, calls } = fakeGit();
-		await runBuild("x", ctx, deps({ git }));
-
-		assert.deepEqual(calls, [], "no branch, no commit");
-		assert.match(said(), /no commit - the work is in the working tree/);
-	});
-
-	test("emptying the message skips the commit: it is a way out, not an error", async () => {
-		const { ctx, said } = fakeCtx({ editor: [undefined, "   "] });
-		const { git, calls } = fakeGit();
-		await runBuild("x", ctx, deps({ git }));
-
-		assert.deepEqual(calls, []);
-		assert.match(said(), /no commit/);
-	});
-
-	test("the message the user edited is the one committed", async () => {
-		const { ctx } = fakeCtx({ editor: [undefined, "My own subject\n\nMy own body."] });
-		const { git, calls } = fakeGit();
-		await runBuild("x", ctx, deps({ git }));
-
-		assert.deepEqual(calls, ["branch:combo/x", "commit:My own subject\n\nMy own body."]);
-	});
-
-	test("outside a git repository nothing starts: the work would have nowhere to land", async () => {
-		const { ctx, said } = fakeCtx();
-		let interviewed = false;
-		const { git } = fakeGit({ isRepository: async () => false });
-		await runBuild("x", ctx, deps({ git, interview: async () => ((interviewed = true), interviewResult()) }));
-
-		assert.equal(interviewed, false);
 		assert.match(said(), /not a git repository/);
 	});
 
-	test("a clean tree after the build is reported, not committed as nothing", async () => {
+	test("a delivery that was not approved says so", async () => {
 		const { ctx, said } = fakeCtx();
-		const { git, calls } = fakeGit({ status: async () => ({ ok: true as const, value: "" }) });
-		await runBuild("x", ctx, deps({ git }));
-
-		assert.deepEqual(calls, []);
-		assert.match(said(), /nothing changed on disk/);
-	});
-
-	test("the committer reads the brief and the diff, not a summary of them", async () => {
-		const prompts: string[] = [];
-		const { ctx } = fakeCtx();
-		const { git } = fakeGit();
-		await runBuild("x", ctx, deps({
-			git,
-			run: async (_agent: unknown, task: string) => {
-				prompts.push(task);
-				return succeeded("committer", "Subject");
-			},
-		}));
-
-		assert.match(prompts[0] ?? "", /THE BRIEF/);
-		assert.match(prompts[0] ?? "", /\+added/);
-		assert.match(prompts[0] ?? "", /src\/new\.ts/, "untracked files are part of what gets committed");
-	});
-
-	test("the committer runs on the run's signal and spawn, within reach of esc and /stop", async () => {
-		let given: { signal?: AbortSignal; spawn?: unknown; onEvent?: unknown } | undefined;
-		const { ctx } = fakeCtx();
-		const { git } = fakeGit();
-		await runBuild("x", ctx, deps({
-			git,
-			run: async (_agent: unknown, _task: string, options: typeof given) => {
-				given = options;
-				return succeeded("committer", "Subject");
-			},
-		}));
-
-		assert.ok(given?.signal instanceof AbortSignal, "the run's signal, not pi's, which is undefined during a command");
-		assert.equal(typeof given?.spawn, "function", "the run's spawn, which is what registers it for /stop");
-		assert.equal(typeof given?.onEvent, "function", "and its dots reach the widget");
-	});
-
-	test("a branch that already exists stops the commit rather than landing on it", async () => {
-		const { ctx, said } = fakeCtx();
-		const { git, calls } = fakeGit({ createBranch: async () => ({ ok: false as const, error: "branch exists" }) });
-		await runBuild("x", ctx, deps({ git }));
-
-		assert.deepEqual(calls, [], "and nothing was committed anywhere");
-		assert.match(said(), /could not create/);
-	});
-
-	test("a delivery that was not approved still offers the commit, and says so", async () => {
-		const { ctx, said } = fakeCtx();
-		const { git, calls } = fakeGit();
-		await runBuild("x", ctx, deps({
-			git,
-			runPipeline: async () => delivered({ approved: false }),
-		}));
+		await runBuild("x", ctx, deps({ runPipeline: async () => delivered({ approved: false }) }));
 
 		assert.match(said(), /NOT approved/);
-		assert.equal(calls.length, 2, "the user decides what to do with unapproved work - it is their tree");
 	});
-
 });
 
 /** A state file for a build that stopped after one of two subtasks. */
@@ -338,11 +221,9 @@ function interrupted(over: Partial<BuildState> = {}): BuildState {
 describe("/build and its pipeline", () => {
 	test("with no pipeline of your own, the one the package ships runs", async () => {
 		const { ctx } = fakeCtx();
-		const { git } = fakeGit();
 		let ran: string | undefined;
 
 		await runBuild("add a cache", ctx, deps({
-			git,
 			runPipeline: async (options: { pipeline: { name: string; filePath: string } }) => {
 				ran = `${options.pipeline.name} from ${options.pipeline.filePath}`;
 				return delivered();
@@ -354,11 +235,9 @@ describe("/build and its pipeline", () => {
 
 	test("the agents and the pipelines shipped here are asked for, at the lowest priority", async () => {
 		const { ctx } = fakeCtx();
-		const { git } = fakeGit();
 		const asked: unknown[] = [];
 
 		await runBuild("x", ctx, deps({
-			git,
 			loadAgents: (options) => (asked.push(options), agents),
 			loadPipelines: (options) => (asked.push(options), { pipelines: [shipped], broken: [] }),
 		}));
@@ -373,11 +252,9 @@ describe("/build and its pipeline", () => {
 
 	test("no pipeline named build anywhere says so, rather than inventing one", async () => {
 		const { ctx, said } = fakeCtx();
-		const { git } = fakeGit();
 		let ran = false;
 
 		await runBuild("x", ctx, deps({
-			git,
 			loadPipelines: () => ({ pipelines: [], broken: [] }),
 			runPipeline: async () => ((ran = true), delivered()),
 		}));
@@ -388,7 +265,6 @@ describe("/build and its pipeline", () => {
 
 	test("a build.md of your own replaces it, without touching the code", async () => {
 		const { ctx } = fakeCtx();
-		const { git } = fakeGit();
 		let ran: string | undefined;
 		const mine = parsePipeline(
 			"---\nname: build\nsteps:\n  - id: look\n    chain: coder\n---\n\n## look\nGo.\n",
@@ -396,7 +272,6 @@ describe("/build and its pipeline", () => {
 		);
 
 		await runBuild("x", ctx, deps({
-			git,
 			loadPipelines: () => ({ pipelines: [mine], broken: [] }),
 			runPipeline: async (options: { pipeline: { filePath: string } }) => {
 				ran = options.pipeline.filePath;
@@ -409,7 +284,6 @@ describe("/build and its pipeline", () => {
 
 	test("--pipeline picks another one by name", async () => {
 		const { ctx } = fakeCtx();
-		const { git } = fakeGit();
 		let ran: string | undefined;
 		const audit = parsePipeline(
 			"---\nname: audit\nsteps:\n  - id: look\n    chain: coder\n---\n\n## look\nGo.\n",
@@ -417,7 +291,6 @@ describe("/build and its pipeline", () => {
 		);
 
 		await runBuild("--pipeline audit check the parser", ctx, deps({
-			git,
 			loadPipelines: () => ({ pipelines: [audit], broken: [] }),
 			runPipeline: async (options: { pipeline: { name: string } }) => {
 				ran = options.pipeline.name;
@@ -430,11 +303,9 @@ describe("/build and its pipeline", () => {
 
 	test("a build.md that does not parse is refused, never silently replaced", async () => {
 		const { ctx, said } = fakeCtx();
-		const { git } = fakeGit();
 		let ran = false;
 
 		await runBuild("x", ctx, deps({
-			git,
 			loadPipelines: () => ({
 				pipelines: [],
 				broken: [{ filePath: ".pi/pipelines/build.md", name: "build", error: 'needs a non-empty "steps" list.' }],
@@ -446,92 +317,108 @@ describe("/build and its pipeline", () => {
 		assert.match(said(), /Pipeline "build" \(.*build\.md\) does not parse/);
 	});
 
-	test("an unknown --pipeline stops before the interview, not after it", async () => {
+	test("an unknown --pipeline stops before anything is spawned", async () => {
 		const { ctx, said } = fakeCtx();
-		const { git } = fakeGit();
-		let interviewed = false;
+		let ran = false;
 
 		await runBuild("--pipeline ghost x", ctx, deps({
-			git,
 			loadPipelines: () => ({ pipelines: [], broken: [] }),
-			interview: async () => ((interviewed = true), interviewResult()),
+			runPipeline: async () => ((ran = true), delivered()),
 		}));
 
-		assert.equal(interviewed, false, "a typo costs a second, not a conversation");
+		assert.equal(ran, false, "a typo costs a second, not a run");
 		assert.match(said(), /Unknown pipeline "ghost"/);
 	});
 
-	test("a pipeline naming an agent nobody has is refused before the interview", async () => {
+	test("a pipeline naming an agent nobody has is refused before anything is spawned", async () => {
 		const { ctx, said } = fakeCtx();
-		const { git } = fakeGit();
-		let interviewed = false;
+		let ran = false;
 		const ghosts = parsePipeline(
 			"---\nname: build\nsteps:\n  - id: look\n    chain: ghost\n---\n\n## look\nGo.\n",
 			"build.md",
 		);
 
 		await runBuild("x", ctx, deps({
-			git,
 			loadPipelines: () => ({ pipelines: [ghosts], broken: [] }),
-			interview: async () => ((interviewed = true), interviewResult()),
+			runPipeline: async () => ((ran = true), delivered()),
 		}));
 
-		assert.equal(interviewed, false);
+		assert.equal(ran, false);
 		assert.match(said(), /Unknown agent "ghost"/);
 	});
 
-	test("the check a pipeline names is used instead of asking for one", async () => {
-		const { ctx, inputs } = fakeCtx();
-		const { git } = fakeGit();
+	test("the check a pipeline names is used", async () => {
+		const fake = fakeCtx();
 		let verified: unknown;
 		const withCheck = parsePipeline(
 			"---\nname: build\nverify: [npm, test]\nsteps:\n  - id: look\n    chain: coder\n---\n\n## look\nGo.\n",
 			"build.md",
 		);
 
-		await runBuild("x", ctx, deps({
-			git,
+		await runBuild("x", fake.ctx, deps({
 			verify: undefined,
 			loadPipelines: () => ({ pipelines: [withCheck], broken: [] }),
 			runPipeline: async (options: { verify?: unknown }) => ((verified = options.verify), delivered()),
 		}));
 
 		assert.ok(verified, "the file states the project's bar once, so nobody has to retype it");
-		assert.deepEqual(inputs, [], "and the user is not asked for a command they already wrote down");
+	});
+
+	test("--check gives this run a check, over the pipeline's own", async () => {
+		const withCheck = parsePipeline(
+			"---\nname: build\nverify: [\"false\"]\nsteps:\n  - id: look\n    chain: coder\n---\n\n## look\nGo.\n",
+			"build.md",
+		);
+		let verify: Verify | undefined;
+
+		await runBuild('--check "node --version" x', fakeCtx().ctx, deps({
+			verify: undefined,
+			loadPipelines: () => ({ pipelines: [withCheck], broken: [] }),
+			runPipeline: async (options: { verify?: Verify }) => ((verify = options.verify), delivered()),
+		}));
+
+		assert.equal((await verify?.())?.command, "node --version", "not the pipeline's `false`");
+	});
+
+	test("with no check anywhere, nobody is asked for one and none runs", async () => {
+		const fake = fakeCtx();
+		let verified: unknown = "unset";
+
+		await runBuild("x", fake.ctx, deps({
+			verify: undefined,
+			runPipeline: async (options: { verify?: unknown }) => ((verified = options.verify), delivered()),
+		}));
+
+		assert.equal(verified, undefined, "the audit is the only bar");
+		assert.deepEqual(asked(fake), []);
 	});
 });
 
 describe("/build resume", () => {
-	test("carries on the interrupted build: same brief, same plan, no second interview", async () => {
-		const { ctx, confirms } = fakeCtx();
-		const { git } = fakeGit();
-		let interviewed = false;
+	test("carries on the interrupted build: same brief, same plan, and it says so rather than asks", async () => {
+		const fake = fakeCtx();
 		let resumed: unknown;
 
-		await runBuild("resume", ctx, deps({
-			git,
+		await runBuild("resume", fake.ctx, deps({
 			findResumable: () => ({ dir: "runs/2026-07-19_10-00-00", state: interrupted() }),
-			interview: async () => ((interviewed = true), interviewResult()),
 			runPipeline: async (options: { delivery?: { resume?: (id: string) => unknown }; input: string }) => {
 				resumed = options.delivery?.resume?.("work");
-				assert.equal(options.input, "THE OLD BRIEF", "the user does not re-decide what they decided an hour ago");
+				assert.equal(options.input, "THE OLD BRIEF", "the brief it started from, not the word resume");
 				return delivered();
 			},
 		}));
 
-		assert.equal(interviewed, false);
-		assert.match(confirms[0] ?? "", /Carry on\? 1\/2 subtasks already approved/);
+		assert.deepEqual(asked(fake), []);
+		assert.match(fake.said(), /carrying on runs\/2026-07-19_10-00-00, 1\/2 subtasks already approved/);
 		assert.equal((resumed as { plan: unknown[] }).plan.length, 2, "the plan it already paid for");
 		assert.equal((resumed as { tasks: unknown[] }).tasks.length, 1);
 	});
 
 	test("writes into the directory the run started in, not a new one", async () => {
 		const { ctx } = fakeCtx();
-		const { git } = fakeGit();
 		const saved: string[] = [];
 
 		await runBuild("resume", ctx, deps({
-			git,
 			findResumable: () => ({ dir: "runs/2026-07-19_10-00-00", state: interrupted() }),
 			runDir: () => "runs/a-brand-new-one",
 			saveState: (dir) => (saved.push(dir), undefined),
@@ -546,11 +433,9 @@ describe("/build resume", () => {
 
 	test("progress is written as it goes, which is what makes resuming possible at all", async () => {
 		const { ctx } = fakeCtx();
-		const { git } = fakeGit();
 		const states: BuildState[] = [];
 
 		await runBuild("add a cache", ctx, deps({
-			git,
 			saveState: (_dir, state) => (states.push(state as BuildState), undefined),
 			runPipeline: async (options: { delivery?: { onProgress?: (id: string, p: BuildProgress, done: boolean) => void } }) => {
 				options.delivery?.onProgress?.("work", { plan: [], tasks: [], audits: [], obligations: [] }, false);
@@ -567,11 +452,9 @@ describe("/build resume", () => {
 
 	test("nothing to carry on says so instead of starting a build nobody asked for", async () => {
 		const { ctx, said } = fakeCtx();
-		const { git } = fakeGit();
 		let ran = false;
 
 		await runBuild("resume", ctx, deps({
-			git,
 			findResumable: () => undefined,
 			runPipeline: async () => ((ran = true), delivered()),
 		}));
@@ -582,11 +465,9 @@ describe("/build resume", () => {
 
 	test("a state whose agents no longer exist is refused, not half-applied", async () => {
 		const { ctx, said } = fakeCtx();
-		const { git } = fakeGit();
 		let ran = false;
 
 		await runBuild("resume", ctx, deps({
-			git,
 			findResumable: () => ({ dir: "runs/x", state: interrupted({ plan: [{ agent: "ghost", task: "do magic" }] }) }),
 			runPipeline: async () => ((ran = true), delivered()),
 		}));
@@ -599,9 +480,7 @@ describe("/build resume", () => {
 
 	test("an unapproved run points at the way to carry it on", async () => {
 		const { ctx, said } = fakeCtx();
-		const { git } = fakeGit();
 		await runBuild("x", ctx, deps({
-			git,
 			runPipeline: async () => delivered({ approved: false }),
 		}));
 
@@ -749,26 +628,5 @@ describe("a failed interview leaves something to read", () => {
 			notes.map((note) => note.message).join("\n"),
 			/interview failed: \[node9\] prompt blocked - the transcript is in runs\/the-one-folder/,
 		);
-	});
-
-	test("the interview and the pipeline share one folder", async () => {
-		const { ctx } = fakeCtx({ confirm: [true, true] });
-		const { git } = fakeGit();
-		const dirs: string[] = [];
-
-		await runBuild("add a cache", ctx, deps({
-			git,
-			runDir: () => "runs/one-run-one-folder",
-			interview: async (options: { exportDir?: string }) => {
-				dirs.push(options.exportDir ?? "(none)");
-				return interviewResult();
-			},
-			runPipeline: async (options: { exportDir?: string }) => {
-				dirs.push(options.exportDir ?? "(none)");
-				return delivered();
-			},
-		}));
-
-		assert.deepEqual(dirs, ["runs/one-run-one-folder", "runs/one-run-one-folder"]);
 	});
 });

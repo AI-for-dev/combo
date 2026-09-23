@@ -30,11 +30,11 @@ repository live in `.pi/agents/`, so ask for them explicitly:
 That is deliberate: project agents are repository-controlled content, so they are
 never loaded by default. See [Agents](agents.md).
 
-The interview writes its transcript into the run's folder, the same
-`runs/<timestamp>/` the pipeline uses: one run, one folder. That folder is made
-**before** the interview rather than after it, because a failed interview is the
-one moment "what was actually sent" is the only question worth asking, and it
-used to leave nothing to read. The failure names the folder.
+`/interview` writes its transcript into a `runs/<timestamp>/` folder of its own.
+That folder is made **before** the first question rather than after the last,
+because a failed interview is the one moment "what was actually sent" is the
+only question worth asking, and it used to leave nothing to read. The failure
+names the folder.
 
 The interview is watched the way the pipeline is: a row per subagent, with what
 it is reading. Measured on this repository against a small open-weight model,
@@ -46,7 +46,7 @@ hung.
 **`--model` covers the interview too**, and `--questions` caps how many it asks.
 The interviewer reads the repository between questions rather than asking what
 it could find out, so a question is an exploration and not a round trip: six of
-them on a slow model is the whole of `/build` before any work starts. Each turn
+them on a slow model is minutes before the brief exists. Each turn
 gets a five minute deadline, because pi's agent loop has no step cap and a
 person waiting cannot tell a slow turn from a stuck one.
 
@@ -105,14 +105,15 @@ and what a tree costs in [Measurements](measurements.md).
 | Command | What it does |
 | --- | --- |
 | `/interview [--model <pattern>] [--questions <n>] <request>` | Turns a vague request into a brief, one question at a time. |
-| `/build <request>` | Interview, then the build pipeline, then the commit. |
+| `/build <request>` | Runs the build pipeline on the request, asking nothing, and leaves the work uncommitted in the working tree. |
 | `/build --pipeline <name> <request>` | The same, with a pipeline of your choosing. |
-| `/build --model <pattern> <request>` | The same, with every subagent on that model. Checked before the interview: a typo costs a second. |
+| `/build --model <pattern> <request>` | The same, with every subagent on that model. Checked before the first spawn: a typo costs a second. |
+| `/build --check "<command>" <request>` | The same, with that command as the check whose verdict is final. It beats the pipeline's `verify:`. |
 | `/build --worktree=false <request>` | The same, with the subtasks sharing one working tree rather than a copy each. |
 | `/build resume` | Carries on an interrupted build from `runs/<timestamp>/build.json`. |
 | `/agents` | Lists the agents that can be spawned, grouped by where they came from. |
 | `/pipelines` | Lists the pipelines that are loaded, and the files that do not parse. |
-| `/run [--model <pattern>] [--worktree] <name> <input>` | Runs a pipeline with no interview and no commit stop; its answer lands in the conversation. |
+| `/run [--model <pattern>] [--worktree] <name> <input>` | Runs a pipeline by name; its answer lands in the conversation. |
 | `/step [--from <id>] [--model <pattern>] [--agent] <name> <instruction>` | Runs one agent or pipeline on the previous step's output. Drawn, and kept out of this session's context. |
 | `/swarm [--members <n>] [--claim a,b] [--hold <n>] [--until agree] [--rounds <n>] [--agent <name>] [--model <pattern>] <goal>` | Several copies of one agent on one job, with a board between them. Finished by coverage of what `--claim` names, or by `--until agree` when they all vote the same. Drawn as a step of the chain, like `/step`. |
 | `/chain`, `/chain reset` | The steps walked so far; or drop them and start a new chain. |
@@ -120,9 +121,9 @@ and what a tree costs in [Measurements](measurements.md).
 | `/stop [<id>\|all]` | Stops the selected subagent, one named by id, or the whole run. `esc` and `ctrl+del` do the same from the keyboard. |
 | `/herdr on\|off` | Give every subagent its own herdr split for this session. `on` asks herdr first, and says so when the answer is no. |
 
-`/interview` and `/build` are commands rather than tools because a question card
-owns the terminal until it is answered, and nobody can answer a question asked
-inside a model's turn. See [Deliver a change](build.md) and
+`/interview` is a command rather than a tool because a question card owns the
+terminal until it is answered, and nobody can answer a question asked inside a
+model's turn. `/build` asks nothing; see [Deliver a change](build.md) and
 [Pipelines](pipelines.md).
 
 `/step` is the other way of running a pipeline's worth of work: one stage per
@@ -198,15 +199,9 @@ of that shape. A step of a hand-walked chain is `extension/relay.ts`'s to begin
 and to finish - named before it runs, recorded and drawn in one call after -
 whether `/step` or `/swarm` ran it; the entry a step leaves and the door it
 leaves it through are both declared there. What one command file still
-takes from another is the design: `/build` opens with `/interview`'s function,
-and `/quote` sends the message `/run` sends.
+takes from another is the design: `/quote` sends the message `/run` sends.
 
-Each command's own file under `commands/` holds only what that command does,
-`/build` included: the interview it opens with is `interview.ts`, which is a
-command in its own right, the commit it ends on is `commit.ts`, and `build.ts`
-is the order they happen in. The two stops sit apart from the state machine on purpose -
-"the agent writes the message, this code makes the commit" is a boundary that
-should be readable in one file.
+Each command's own file under `commands/` holds only what that command does.
 
 That split exists because the path that wires the reporters and calls the
 combinators is where the three worst bugs so far have hidden, each behind a green
@@ -214,8 +209,8 @@ suite. It is now covered offline.
 
 **One live-run path.** The dots above the prompt, the repaint timer, the herdr
 reporter and the clean-up are `liveRun()` in `extension/ui/run.ts` - one
-implementation, reached only through `watched()`, which the five commands, the
-`subagent` tool and `/build`'s committer all stand on. They must look identical
+implementation, reached only through `watched()`, which the five commands and the
+`subagent` tool all stand on. They must look identical
 while they run, and several call sites with several timers is exactly how the
 one nobody is watching that day drifts. What a view measures - the picture, the
 clock, `usage.json` - is the library's `measuredRun`, the same one an

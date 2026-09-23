@@ -1,24 +1,16 @@
 /**
- * `/build`: the whole flow, and the state machine that walks it.
+ * `/build`: a pipeline run from the request to a finished working tree, with
+ * nobody asked anything on the way.
  *
- * A **command**, not a tool, and that is a design decision rather than a
- * convenience: the interview it opens with owns the terminal for the length of
- * each question, and nobody can answer a question that is being asked inside a
- * model's turn. A tool the model calls could never do this.
+ * What runs is not hard-coded here: it is a pipeline file, the user's own
+ * `build.md` if they wrote one and a built-in default otherwise. The default is
+ * itself a pipeline, parsed by the same parser and run by the same runner, so
+ * there is exactly one code path and nothing to drift. What this file adds
+ * around it is what a run left alone needs: every check before the first
+ * spawn, a saved state after every unit of work, and `/build resume`.
  *
- * Interview, then a **pipeline**, then the commit, stopping exactly twice to
- * ask: the brief before any work starts, the commit before anything is written
- * to history, and nothing else. The two stops are the two files beside this
- * one, `interview-command.ts` and `commit.ts`; what this file holds is the
- * order they happen in and what is checked before any of them does.
- *
- * What runs between those two stops is not hard-coded here: it is a pipeline
- * file, the user's own `build.md` if they wrote one and a built-in default
- * otherwise. The default is itself a pipeline, parsed by the same parser and
- * run by the same runner, so there is exactly one code path and nothing to
- * drift. The interview and the commit stay out of it deliberately: a question
- * card owns the terminal, and "the agent writes the message, this code makes
- * the commit" is a boundary a file must not be able to move.
+ * It ends with the work in the working tree, uncommitted. What reaches history
+ * is decided by whoever reads it there.
  *
  * Project agents are loaded here (`scope: "both"`). A user typing `/build` in a
  * repository *is* the explicit request the rule asks for - what must never
@@ -26,9 +18,7 @@
  */
 
 import {
-	commandVerifier,
 	fromBuildState,
-	findAgent,
 	checkPipelineAgents,
 	missingAgents,
 	plural,
@@ -40,69 +30,39 @@ import {
 	type Pipeline,
 	type PipelineRunOptions,
 	type PipelineRunResult,
-	type Verify,
 } from "../../src/index.ts";
-import { checked, choosePipeline, firstLines, loadRoster, pipelineVerifier, refuse, watched } from "../command.ts";
+import { checked, choosePipeline, checkVerifier, loadRoster, refuse, watched } from "../command.ts";
 import type { CommandCtx, PiApi } from "../pi.ts";
-import { submit } from "./commit.ts";
-import { resolved, type CommandDeps, type Deps, type Git } from "../deps.ts";
+import { resolved, type CommandDeps, type Deps } from "../deps.ts";
 import { parseBuildArgs } from "../flags.ts";
-import { runInterview } from "./interview.ts";
 
-/**
- * Registers `/build`.
- *
- * A command rather than a tool, and that is not a style choice: the interview it
- * opens with owns the terminal until each question is answered, and nobody can
- * answer a question asked inside a model's turn.
- */
+/** Registers `/build`. */
 export default function registerBuildCommand(pi: PiApi) {
 	pi.registerCommand("build", {
 		description:
-			"Interview, run the build pipeline, then commit (`--pipeline <name>`, `--model <pattern>`, `--worktree`, `--questions <n>`, or `resume` to carry on)",
+			"Run the build pipeline on a request, unattended, and leave the work uncommitted (`--pipeline <name>`, `--model <pattern>`, `--worktree`, `--check \"<command>\"`, or `resume` to carry on)",
 		handler: async (args, ctx: CommandCtx) => {
 			await runBuild(args, ctx);
 		},
 	});
 }
 
-/** Which agent plays which part. Names, so a user can substitute their own. */
-const CAST = {
-	planner: "planner",
-	reviewer: "reviewer",
-	auditor: "auditor",
-	committer: "committer",
-	/** Everyone the planner may delegate to. */
-	workers: ["coder"],
-} as const;
-
 /**
- * `/build <request>` - the whole flow, with three stops.
+ * `/build <request>` - the pipeline, then a report of what it amounted to.
  *
- * Interview → **confirm the brief** → plan, pairs, audit → **confirm the
- * commit** → branch and commit. Nothing else asks, and nothing irreversible
- * happens without one of those two answers.
- *
- * A refusal at either stop leaves everything exactly where it is: the brief is
- * still in the editor, the work is still in the working tree. Nothing is undone
- * on the user's behalf.
+ * The request is the brief. Nothing asks: a question in the middle of a run is
+ * a run that waits for whoever left it going.
  */
 export async function runBuild(args: string, ctx: CommandCtx, injected: CommandDeps = {}): Promise<PipelineRunResult | undefined> {
 	const deps = resolved(injected);
 	const plan = await validateBuild(args, ctx, deps);
 	if (!plan) return undefined;
 
-	// One run, one folder - and it is made before the interview rather than
-	// after it. An interview that fails used to leave nothing to read, which is
-	// the one moment "what was actually sent" is the only question worth asking.
-	const exportDir = plan.previous ? plan.previous.dir : deps.runDir();
-
-	const started = await loadOrResume(plan, ctx, deps, exportDir);
+	const started = startingPoint(plan, ctx);
 	if (!started) return undefined;
 
-	if (!(await confirmBrief(started, ctx))) {
-		return refuse(ctx, "build: stopped before any work started - the brief is in the editor", "info");
-	}
+	// One run, one folder: a resumed build writes where it started.
+	const exportDir = plan.previous ? plan.previous.dir : deps.runDir();
 
 	const ran = await runTheWork(plan, started, exportDir, ctx, deps);
 
@@ -111,23 +71,18 @@ export async function runBuild(args: string, ctx: CommandCtx, injected: CommandD
 	// that was never audited would be a lie about the work.
 	const built = ran.done.steps.map((step) => step.delivery).filter(Boolean).at(-1);
 	report(ran.done, built, ran.exportDir, ctx);
-
-	await submit(ran.label, started.brief, built?.approved ?? ran.done.ok, plan.committer, ctx, deps);
 	return ran.done;
 }
 
-/** What a build needs settled before anybody is asked anything. */
+/** What a build needs settled before anything is spawned. */
 type BuildPlan = {
-	git: Git;
 	agents: Agent[];
 	pipeline: Pipeline;
-	/** The agent that writes the commit message. Resolved early: it is needed last. */
-	committer: Agent;
 	model?: string;
 	/** Whether each subtask gets a copy of the repository. See `--worktree`. */
 	worktree?: boolean;
-	/** How many questions the interview may ask. See `--questions`. */
-	questions?: number;
+	/** The command that checks the work, as typed after `--check`. */
+	check?: string[];
 	/** What the user typed, minus the flags. */
 	request: string;
 	/** The interrupted build being carried on, when this is a `/build resume`. */
@@ -135,15 +90,14 @@ type BuildPlan = {
 };
 
 /**
- * Everything a mistake can cost, spent before the interview.
+ * Everything a mistake can cost, spent before the first spawn.
  *
- * The repository, the roster, the pipeline, the cast and `--model` are all
- * checked while the only thing at stake is the user's next second - not the
- * conversation they would otherwise have sat through first.
+ * The repository, the roster, the pipeline and `--model` are all checked while
+ * the only thing at stake is the user's next second - not a run they would
+ * come back to find stopped at its first step.
  */
 async function validateBuild(args: string, ctx: CommandCtx, deps: Deps): Promise<BuildPlan | undefined> {
-	const { git } = deps;
-	const { pipeline: wanted, model, worktree, questions, request } = parseBuildArgs(args);
+	const { pipeline: wanted, model, worktree, check, request } = parseBuildArgs(args);
 
 	// `/build resume` carries on the last interrupted build in this directory:
 	// same brief, same plan, the approved subtasks kept. Everything the workers
@@ -157,21 +111,18 @@ async function validateBuild(args: string, ctx: CommandCtx, deps: Deps): Promise
 		return refuse(ctx, "build: say what you want built, for example /build add a cache to the loader", "warning");
 	}
 
-	if (!(await git.isRepository(ctx.cwd))) {
-		// Not pedantry: the whole point of the last step is that the work lands
-		// on a branch of its own, and there is no branch without a repository.
-		return refuse(ctx, "build: this is not a git repository - the work would have nowhere to land", "error");
+	if (!(await deps.git.isRepository(ctx.cwd))) {
+		// Nobody watches the run write, so git is how its work gets read and, if
+		// need be, undone. Without it the tree simply changes.
+		return refuse(ctx, "build: this is not a git repository - nothing could show or undo what the run wrote", "error");
 	}
 
 	const agents = loadRoster(ctx, deps);
 	return await checked(ctx, async () => {
 		const pipeline = choosePipeline(wanted, ctx, deps);
 		checkPipelineAgents(pipeline, agents);
-		const committer = findAgent(agents, CAST.committer);
-		// Same reasoning as the lines above: a mistyped model must cost a second,
-		// not the interview it would otherwise sit through first.
 		if (model) await deps.checkModel(model);
-		return { git, agents, pipeline, committer, model, worktree, questions, request, previous };
+		return { agents, pipeline, model, worktree, check, request, previous };
 	});
 }
 
@@ -179,21 +130,14 @@ async function validateBuild(args: string, ctx: CommandCtx, deps: Deps): Promise
 type StartingPoint = { brief: string; resume?: BuildProgress };
 
 /**
- * Where the work starts: the saved brief and progress, or a fresh interview.
+ * Where the work starts: the request as typed, or the saved brief and progress.
  *
- * A resumed build is never re-interviewed - that would ask the user to decide
- * again what they decided an hour ago.
+ * A resumed build is said out loud rather than asked about: `/build resume` is
+ * already the answer, and the line tells whoever comes back what it picked up.
  */
-async function loadOrResume(plan: BuildPlan, ctx: CommandCtx, deps: Deps, exportDir: string): Promise<StartingPoint | undefined> {
+function startingPoint(plan: BuildPlan, ctx: CommandCtx): StartingPoint | undefined {
 	const previous = plan.previous;
-	if (!previous) {
-		const outcome = await runInterview(plan.request, ctx, deps, {
-			model: plan.model,
-			maxQuestions: plan.questions,
-			exportDir,
-		});
-		return outcome?.brief ? { brief: outcome.brief } : undefined;
-	}
+	if (!previous) return { brief: plan.request.trim() };
 
 	const resume = fromBuildState(previous.state, plan.agents);
 	if (!resume) {
@@ -208,17 +152,9 @@ async function loadOrResume(plan: BuildPlan, ctx: CommandCtx, deps: Deps, export
 				: "it was saved by another version of combo";
 		return refuse(ctx, `build: ${previous.dir} cannot be carried on - ${why}`, "error");
 	}
+	const kept = resume.tasks.filter((task) => task.approved).length;
+	ctx.ui.notify(`build: carrying on ${previous.dir}, ${kept}/${plural(resume.plan.length, "subtask")} already approved`, "info");
 	return { brief: previous.state.brief, resume };
-}
-
-/** The first of the two stops: the brief, before anything runs. */
-async function confirmBrief(started: StartingPoint, ctx: CommandCtx): Promise<boolean> {
-	const resume = started.resume;
-	const kept = resume?.tasks.filter((task) => task.approved).length ?? 0;
-	return await ctx.ui.confirm(
-		resume ? `Carry on? ${kept}/${plural(resume.plan.length, "subtask")} already approved` : "Build this?",
-		firstLines(started.brief, 12),
-	);
 }
 
 /** The work itself: the check, the transcripts, the progress saves, the dots. */
@@ -233,11 +169,10 @@ async function runTheWork(
 	const { brief } = started;
 	const label = previous ? previous.state.request : plan.request.trim();
 
-	// The bar the agents cannot talk their way past. A pipeline that names its
-	// own check has already stated it, once, in a file; otherwise the user is
-	// asked, because only they know what "it works" means in their project - and
-	// an empty answer is a legitimate "there is nothing to run".
-	const verify = deps.verify ?? pipelineVerifier(pipeline, ctx.cwd) ?? (await askForCheck(ctx));
+	// The bar the agents cannot talk their way past. `--check` says it for this
+	// run, a pipeline's `verify:` says it for every run of that file, and with
+	// neither the audit is the only bar.
+	const verify = deps.verify ?? checkVerifier(plan.check, ctx.cwd) ?? checkVerifier(pipeline.verify, ctx.cwd);
 
 	const done = await watched(ctx, deps, {
 		status: "building…",
@@ -310,18 +245,3 @@ function report(done: PipelineRunResult, built: DeliverResult | undefined, expor
 		built.approved ? "info" : "warning",
 	);
 }
-
-/**
- * Asks once for the command that says whether the work is good.
- *
- * A prompt cannot make an agent honest about its own work; running the tests
- * can. Nothing is imposed, though: an empty answer means there is nothing to
- * run, and the audit stays the only bar.
- */
-async function askForCheck(ctx: CommandCtx): Promise<Verify | undefined> {
-	const typed = await ctx.ui.input("Command that checks the work, e.g. npm test (empty: none)", "npm test");
-	const parts = typed?.trim().split(/\s+/).filter(Boolean) ?? [];
-	if (parts.length === 0) return undefined;
-	return commandVerifier({ cwd: ctx.cwd, command: parts[0] as string, args: parts.slice(1) });
-}
-

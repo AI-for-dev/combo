@@ -33,7 +33,7 @@ docs/
     lifetime.md         the central choice: disposable or persistent
     workflows.md        the ten combinators and the options they share
     pipelines.md        a workflow written in Markdown, next to your agents
-    build.md            interview, plan, pair, check, audit, commit
+    build.md            plan, pair, check, audit, unattended
     display.md          reporters, herdr splits, the pi TUI widget
     measurements.md     what Usage counts, and what it refuses to guess
     export.md           runs/<timestamp>/, HTML, JSONL, usage.json

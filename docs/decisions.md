@@ -1104,7 +1104,8 @@ it is used.
   parser and run by the same runner. Had the command kept a hard-coded path
   "for the simple case", that path and the pipeline path would have drifted
   within two changes, and the file would have become the untested one.
-- **Only the middle is a pipeline.** The interview and the commit stay stops of
+- **Only the middle is a pipeline** (the two stops have since gone, see
+  [`/build` asks nothing](#build-asks-nothing)). The interview and the commit stay stops of
   the command: a question card owns the terminal, and "the agent writes the
   message, our code makes the commit" is a boundary a file must not be able to
   move. A pipeline describes *work*, not *acts on the world* - which is also why
@@ -1202,7 +1203,8 @@ it is used.
   which is the drift the constant was introduced to prevent in the first place.
   The shipped file names **no `verify`**, deliberately - imposing `npm test` on a
   project that has none is worse than asking, and `/build` asks when the pipeline
-  is silent.
+  is silent. It no longer asks: `--check` names the command instead, see
+  [`/build` asks nothing](#build-asks-nothing).
 - **`/build` and `/run` paint the same run the same way**, through one
   `liveRun` in `extension/ui/run.ts`: two call sites, two timers and two ways of
   clearing a widget is exactly how the one nobody is watching that day drifts.
@@ -2140,7 +2142,37 @@ model's turn. `/interview` and `/build` are therefore `pi.registerCommand`, and
 `/build` stops exactly twice: the brief before any work starts, the commit before
 anything reaches history. A refusal at either stop leaves everything where it is
 - the brief in the editor, the work in the working tree. Nothing is undone on the
-user's behalf.
+user's behalf. Both stops have since gone: see [`/build` asks
+nothing](#build-asks-nothing).
+
+## `/build` asks nothing
+
+**This reverses a decision.** `/build` stopped twice, on the brief and on the
+commit, and asked for a check when the pipeline named none. Each question made
+sense on its own. Together they meant a build could not run without somebody
+in front of it, and a build is the work you most want to leave running.
+
+- **The request is the brief.** The interview is `/interview`, a command of its
+  own, and what it hands back is text to give `/build`. Opening every build
+  with it questioned people who had typed a precise request, and would question
+  nobody in a run left alone.
+- **Nothing is committed.** The work stays in the working tree, and `git diff`
+  is the report. A commit is a decision about the work, taken by whoever read
+  it. `extension/commands/commit.ts` went, and the commands' `Git` port shrank
+  to `isRepository`. The committer agent and `src/git/git.ts` stay in the
+  library, where a script can still use them.
+- **The check is a flag or a file.** `--check "npm test"` for one run, `verify:`
+  for every run of that pipeline, and the flag wins. With neither, no check
+  runs. The flag is split on whitespace and on nothing else, which is not the
+  small shell the `verify:` list exists to avoid: no quote, `&&` or `$` is
+  interpreted, and every word is an argument. A double-quoted value is the one
+  thing the flag parser learnt for it.
+- **Resuming says what it picked up.** Typing `/build resume` is already the
+  answer, so "Carry on?" became a line.
+- **A git repository is still required**, for a new reason: nobody watches the
+  run write, and git is how its work gets read and, if need be, undone.
+- **`/interview` parses its own flags.** It borrowed `/build`'s parser for
+  `--questions`, a flag `/build` no longer has.
 
 ## A check the auditor contradicts goes out with the fix
 

@@ -102,21 +102,15 @@ export function choosePipeline(wanted: string | undefined, ctx: CommandCtx, deps
 	return findPipeline(loadCatalogue(ctx, deps), wanted ?? "build");
 }
 
-/** The first `n` lines, for a dialog that must stay readable. */
-export function firstLines(text: string, n: number): string {
-	const lines = text.trim().split("\n");
-	return lines.length <= n ? lines.join("\n") : `${lines.slice(0, n).join("\n")}\n…`;
-}
-
 /**
- * The check a pipeline names, as a port. Absent means the pipeline names none.
+ * A check named as a command and its arguments, as a port. Absent or empty
+ * means none was named.
  *
- * A pipeline *names* a command; running one is a decision that belongs to
- * whoever owns the working tree, which is why this lives beside the commands and
- * not inside the runner.
+ * A pipeline's `verify:` or a `--check` *names* a command; running one is a
+ * decision that belongs to whoever owns the working tree, which is why this
+ * lives beside the commands and not inside the runner.
  */
-export function pipelineVerifier(pipeline: Pipeline, cwd: string): Verify | undefined {
-	const parts = pipeline.verify;
+export function checkVerifier(parts: readonly string[] | undefined, cwd: string): Verify | undefined {
 	if (!parts || parts.length === 0) return undefined;
 	return commandVerifier({ cwd, command: parts[0] as string, args: parts.slice(1) });
 }

@@ -112,24 +112,24 @@ Cells run one at a time by default, failed ones stay in the report with their
 usage, and the flag columns are whatever the callback returned. See
 [Experiments](docs/guide/experiments.md).
 
-## The whole flow: question to commit
+## The whole flow: request to working tree
 
 ```
-/build add a cache in front of the agent loader
+/build --check "npm test" add a cache in front of the agent loader
 
-  interview   one question at a time, until you submit   -> a brief
+  locate      a scout maps the code the request touches
   plan        who does what, validated before anything spawns
   pair        a worker and a reviewer per subtask, until accepted
   check       your own command runs; its verdict is final
   audit       one agent reads the whole, names what still has to change
-  commit      an agent writes the message, this code makes the commit
 ```
 
-It stops exactly twice: the brief before any work starts, the commit before
-anything reaches history. An interrupted build resumes with `/build resume`, and
-only approved subtasks survive.
+It asks nothing on the way, and it commits nothing at the end: the work stays in
+the working tree for you to read. An interrupted build resumes with
+`/build resume`, and only approved subtasks survive. `/interview` turns a vague
+request into a brief first, when the request needs one.
 
-What runs between the two stops is a **pipeline**: a Markdown file, next to your
+What runs is a **pipeline**: a Markdown file, next to your
 agents, that says which combinators run in which order. The package ships one, so
 `/build` works as soon as the extension is loaded; drop a `build.md` in
 `.pi/pipelines/` and yours replaces it, with no code to change.

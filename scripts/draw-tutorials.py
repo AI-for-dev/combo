@@ -131,15 +131,13 @@ s+=check(380,96,s=1.4,w=5)
 s+=term_result(440,44,160,132,line_w=90)
 D["07-until-lgtm"]=s
 
-# 08 - the pair, then a box with a check running, then a commit dot on a branch line.
-s=head("Two brackets, then a box with a check mark, then a dot on a branch line")
+# 08 - the pair, then a box with a check running, then the report in the session.
+s=head("Two brackets, then a box with a check mark, then one line in a terminal")
 s+=bracket(36,60,100,w=24,t=11)+bracket(120,60,100,mirror=True,w=24,t=11)
 s+=arrow(150,110,200,110)
 s+=stroke("M210 70 H310 V150 H210 Z",w=2.5,op=.8)+check(238,98,s=1.2,w=4.5)
-s+=arrow(320,110,380,110)
-s+=stroke("M400 110 H600",w=3,op=.6)
-s+=f'  <circle cx="470" cy="110" r="10" fill="{G}" fill-opacity=".6" />\n'
-s+=f'  <circle cx="540" cy="110" r="12" fill="{V}" />\n'
+s+=arrow(320,110,346,110)
+s+=term_result(360,44,240,132)
 D["08-build"]=s
 
 # 09 - two brackets each in a dashed copy, merging one after the other onto one line.
