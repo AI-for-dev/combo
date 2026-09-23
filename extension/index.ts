@@ -217,7 +217,7 @@ function renderCollapsed(details: Details, theme: Theme): Container {
 
 		const shown = one.tools.slice(-COLLAPSED_TOOLS);
 		const hidden = one.tools.length - shown.length;
-		if (hidden > 0) container.addChild(new Text(theme.fg("muted", `${indent}    … ${hidden} earlier calls`), 0, 0));
+		if (hidden > 0) container.addChild(new Text(theme.fg("muted", `${indent}    … ${plural(hidden, "earlier call")}`), 0, 0));
 		for (const tool of shown) {
 			container.addChild(new Text(theme.fg("muted", `${indent}    ${formatToolCall(tool.name, tool.args)}`), 0, 0));
 		}

@@ -267,6 +267,11 @@ describe("renderResult", () => {
 		const text = lines(tool.renderResult(busy, { expanded: false, isPartial: false }, theme, context));
 		assert.match(text, /6 earlier calls/);
 	});
+
+	test("says one elided call in the singular", () => {
+		const four = result({ subagents: [subagent({ tools: Array.from({ length: 4 }, (_, i) => ({ name: "read", args: { path: `/x/${i}.ts` } })) })] });
+		assert.match(lines(tool.renderResult(four, { expanded: false, isPartial: false }, theme, context)), /… 1 earlier call\b(?!s)/);
+	});
 });
 
 describe("the message a finished run leaves in the conversation", () => {
