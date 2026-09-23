@@ -30,6 +30,7 @@ src/                 the library - the only thing that matters
 extension/           the pi extension: the tool and the floor at its root,
   commands/ ui/      one file per slash command; what paints the terminal
 agents/              example agent definitions (symlinked into .pi/agents/)
+flows/               the shipped flows (symlinked into .pi/flows/)
 examples/            one runnable script per shape
 scripts/             the documentation generator and its coverage checker
 test/                node --test, with fakes for pi

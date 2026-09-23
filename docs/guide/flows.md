@@ -81,6 +81,53 @@ agent that declares `skills:` needs `read` in its `tools:`, and each skill has
 to be found [where agents look for skills](agents.md#skills). These are the
 refusals spawn would make, moved before the first turn.
 
+## The shipped flows
+
+Five flows ship in the package's `flows/`, each drawn in
+[the reference](../reference/flows/index.md). They run the shipped agents and
+name no model, so the model is yours to choose. A file of the same name in
+`~/.pi/agent/flows/` or `.pi/flows/` replaces one, inside the flows that call
+it too.
+
+**`explore`** reads the code to answer a question. Three scouts run at once,
+each on one task written in the file: where the thing is implemented, how it
+is tested, what documents it. A synthesiser answers from the three reports. A
+scout that fails reaches it as a failed report, which it says leaves a hole,
+rather than failing the run.
+
+**`split`** answers a read-only request the same way, with the tasks written
+by a planner: one to four, each for a `scout` or a `reviewer`, run two at a
+time, then one answer. A plan of more than four tasks fails the run before any
+worker starts, since the list is never cut.
+
+**`interview`** asks the person running it one question at a time, on a card
+the interviewer writes in their language, then writes the specification from
+the answers. The interviewer keeps the whole conversation (`memory: flow`). It
+stops when it submits no question, when the person picks "That's enough", or
+after six questions, which the loop reports as not converged while the
+specification is still written. With nobody there, the first card gives
+"enough", so the specification is written from the request alone.
+
+**`build`** is unattended. A scout locates the code, a planner splits the
+brief into subtasks, and each subtask goes to a pair, two at a time, each pair
+in its own copy of the repository: a coder and a reviewer who remember each
+other, for three rounds at most, the reviewer deciding through a verdict. A
+pair that reaches three rounds still goes on, marked not converged. Once the
+patches land, `.pi/checks/test.sh` runs and an auditor reads the whole change
+against the brief. When the tests fail or the audit is not approved, what the
+audit raised and nobody closed becomes the subtasks of a second round, and
+there is no third. With nothing left open to hand round, the build gives up.
+A build that gives up or ends its second round unapproved fails. The check
+is a script of your project: the run is refused before its first turn when
+`.pi/checks/test.sh` is not there.
+
+**`build-attended`** is `build` with somebody there. It calls `interview` on
+the request, shows the specification and asks "Build this?". Answered yes, it
+calls `build` on the specification, has the committer write the message from
+the specification and the diff, and commits on the run's own branch. Answered
+no, the run ends `ok: true` with nothing built and nothing committed. With
+nobody there, the confirm defaults to yes.
+
 ## Nodes
 
 A node is `id:` plus exactly one kind key, which holds its main argument, and

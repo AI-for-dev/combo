@@ -1922,6 +1922,73 @@ read.
 - **The width is the caller's.** `showLive` and `showSummary` take it with
   no default, like `truncate`, and cut a line while keeping its indent.
 
+### The shipped flows are the pipelines' work, written as flows
+
+`flows/` holds `build`, `explore`, `split`, `interview` and `build-attended`,
+symlinked into `.pi/flows/` like the agents and pipelines, and listed in the
+package's `files`. Nothing runs them yet. Each is checked against the shipped
+agents by `npm test`, drawn in `docs/reference/flows/`, and walked with
+`dryRunFlow`. Their first drafts predate rules the validator now holds, and
+writing them for real moved them in the places below.
+
+- **The attended build is `build-attended`.** It sorts beside `build`, and
+  names its one difference in the word the run stage already uses: somebody
+  is there. A flow's name is a file name, not an id, so the dash costs
+  nothing.
+- **Ids are CEL identifiers.** `ask-next` became `ask_next`, since a condition
+  reads it and a dash is subtraction to CEL.
+- **A whole output is read by its bare id.** `input: spec` and
+  `commit: message`, as the guide writes them, where the drafts had
+  `spec.output` and `message.output`: both check, and one spelling reads
+  better than two.
+- **The interviewer submits a question or none.** Its output is
+  `{ question?: Question }` rather than `{ ready, question? }`. One optional
+  field cannot contradict itself, where `ready: false` with no question was a
+  card with nothing on it. The choice asks when there is a question, and the
+  loop ends when there is none or the card was answered "enough".
+- **Six questions end the interview, not the run.** The loop has `on-fail:
+  continue`, so reaching its cap ends it `converged: false` and the brief is
+  still written, as the interview combinator wrote one at `maxQuestions`.
+  Failing the run would throw six answers away.
+- **The brief shares the interviewer's subagent with no `output:`.** It needs
+  the conversation, which only `memory: flow` keeps. The subagent carries the
+  `submit` tool `ask_next` declared, so the brief's prose says the turn calls
+  no tool.
+- **A pair that reaches its cap goes on to the audit.** `pair` has `on-fail:
+  continue`, and the audit reads `work`, where that pair shows
+  `converged: false`. The delivery handed the auditor a subtask "reviewed, NOT
+  approved" the same way. Failing the build at the first stubborn review would
+  leave the auditor, the one reader of the whole, no say. A coder that fails
+  past its retry is absorbed the same way, and shows as a failed item.
+- **The audit reads `work` in place of `plan`.** From the second round the
+  subtasks are what the first audit raised, which the plan never held. `work`
+  is what this round did, each item with its task.
+- **The coder and the reviewer read `item.text`, not `item`.** The subtask
+  arrives as text under its own heading rather than as JSON, and from the
+  second round an item is an obligation, `{ id, text }`.
+- **The reviewer reads `diff`.** Inside a copy, `diff` is the pair's own change,
+  so the review weighs the change itself, not only the coder's summary of it.
+- **A failed branch of `explore` or `split` is a failed report.** `on-fail:
+  continue` sits on the agent node inside the `map`, not on the `map`, so the
+  synthesiser reads a failed branch as `{ ok: false, error }`, as its prompt
+  expects. A plan past `max:` still fails the run: that is the flow's bound,
+  not a missing report.
+- **The split planner's prose names the two workers.** `orchestrate` handed
+  the planner the workers' descriptions; a flow hands it only its `reads:`, so
+  the section says what a scout and a reviewer do.
+- **Prose names the heading each read arrives under.** A turn with several
+  reads holds several sections, and "the task below" pointed at none of them.
+- **The words the pipelines asked for are gone.** "The reviewer approves with
+  APPROVED" and `LGTM` were how prose was read; a verdict is a tool call now.
+- **The shipped `build` names a script, not a command.** The pipeline shipped
+  no check, since `npm test` imposed on a project that has none is worse than
+  asking. A path imposes nothing that runs: each project writes its own
+  `.pi/checks/test.sh`, and one that has none is refused at the run stage,
+  before the first turn, with `check-script-missing` naming the path. An
+  unattended build needs something to read "the tests pass" from, and the
+  audit alone is an opinion. This repository's own runs `npm test`, and a test
+  holds the shipped `build` to it through the run stage.
+
 ## A chain walked by hand
 
 `/run explore …` put its answer in the conversation, and the session picked it
