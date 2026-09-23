@@ -564,6 +564,20 @@ Two things a frame showed and nobody has judged in a real terminal yet: the
 thinking block is drawn as text, not in pi's muted style, and the pane has no
 header, since the split's own label already names the subagent.
 
+## 12. The flow format - being built
+
+A flow is a task graph in YAML + Markdown (branches, parallel forks, bounded
+loops, human nodes, sub-flows) that replaces the linear pipeline. It is built in
+`src/flow/` beside `src/pipeline/`, one PR per layer, each tested offline and
+wired to no command, in this order: conditions; the file and its validation;
+the runner and a dry run; `ask`, `check` and `commit` with their ports;
+sub-flows; persistence and resume; the renderings; the live view; the shipped
+flows. Then one breaking PR switches `/build` and `/pipelines` to `/run` and
+`/flows`. [Flows: a closed language](docs/decisions.md#flows-a-closed-language)
+says why the old "no YAML DSL" line moved.
+
+Done so far: conditions (`src/flow/condition/`).
+
 ## How to verify anything here
 
 ```bash

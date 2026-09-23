@@ -20,6 +20,8 @@ src/                 the library - the only thing that matters
   board/             the swarm's shared board and its arbiter
   git/               the working copy: git, worktrees, landing patches
   measure/           what a run leaves behind: exports, usage.json, experiments
+  flow/              a task graph written down, built beside pipeline/: the
+                     types of its values and its conditions
   pipeline/          a workflow written down: read, found, run
   review/            the review record: a verdict and a ledger, read together
   workflows/         the combinators
