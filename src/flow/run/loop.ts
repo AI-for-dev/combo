@@ -27,7 +27,7 @@ export async function visitLoop(walker: Walker, node: CheckedLoopNode, path: str
 	const usage: Usage[] = [];
 	const done = (ended: Ended, visited?: Partial<Visited>): Visited => ({ ended, usage: sumUsage(usage, 0), ...visited });
 	const ledger = node.ledger ? journaledLedger(walker.journal, path, walker.replay?.obligations(path)) : undefined;
-	const frames = here.frames.inside(node.id, ledger);
+	const frames = here.frames.inside(node.id, path, ledger);
 	try {
 		let carry = carried(node, "first", here.values);
 		let previous: Record<string, Ended> | undefined;

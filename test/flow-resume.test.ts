@@ -122,6 +122,7 @@ describe("a resume", () => {
 		const facts = readJournal(runDir)
 			.slice(kept.length)
 			.map((entry) => `${entry.type} ${"path" in entry ? entry.path : ""}`.trim());
+		assert.equal(facts.shift(), "life_start");
 		// `b` runs again in the copy it had, so only `a` opens one; the branches run together, in either order.
 		assert.deepEqual(facts.slice(0, 4).sort(), ["copy_lost both/a", "copy_opened both/a", "visit_end both/a/wa", "visit_end both/b/wb"]);
 		assert.deepEqual(facts.slice(4), ["copy_landed both/a", "copy_landed both/b", "visit_end both", "run_end"]);

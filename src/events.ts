@@ -59,6 +59,11 @@ export type SubagentEvent =
 			 * subagents.
 			 */
 			visit?: string;
+			/**
+			 * Where its transcript is written when it closes, without the
+			 * extension: `<exportDir>/<name>`. Absent when it exports nothing.
+			 */
+			transcript?: string;
 	  }
 	| {
 			type: "status";
@@ -138,6 +143,9 @@ export type VisitEvent =
 	| {
 			type: "visit_end";
 			path: string;
+			/** As on its `visit_start`, so an end read alone, from the journal, says what it was. */
+			node: string;
+			kind: CheckedNode["kind"];
 			ok: boolean;
 			/** What the node handed on, when it ran. */
 			output?: unknown;
@@ -149,6 +157,8 @@ export type VisitEvent =
 			converged?: boolean;
 			/** The agent an `agent` visit ran, the one `agent-from:` picked included. */
 			agent?: string;
+			/** The subagent an `agent` visit ran on: the last one, when a timeout renewed it. */
+			subagent?: string;
 			/** The model its subagent ran on, as pi resolved it. */
 			model?: string;
 			wallMs: number;

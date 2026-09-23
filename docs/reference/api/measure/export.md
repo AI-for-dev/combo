@@ -105,6 +105,12 @@ export type UsageReport = {
 	parallelism: number;
 	/** Where each transcript landed, and why one is missing when it is. */
 	exports?: SessionExport[];
+	/** In a flow run: every visit of every life, each life's in plan order. */
+	visits?: VisitUsage[];
+	/** In a flow run: one entry per node address, in the order first visited. */
+	nodes?: NodeUsage[];
+	/** In a flow run with a journal: each life, whose sum `total` is. */
+	lives?: LifeUsage[];
 };
 ```
 
@@ -146,6 +152,12 @@ export type UsageReportEntry = {
 	parentId?: string;
 	/** Its {@link Usage}: time measured here, tokens as pi reported them. */
 	usage: Usage;
+	/** In a flow run: the folder of its transcript, relative to the run directory - its memory scope's path, else its visit's. */
+	home?: string;
+	/** In a flow run: the life it ran in, counting from 1. */
+	life?: number;
+	/** In a flow run: every visit it ran, in the order they ended. */
+	visits?: string[];
 };
 ```
 

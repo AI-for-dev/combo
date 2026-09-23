@@ -82,7 +82,7 @@ async function join(walker: Walker, node: CheckedParallelNode | CheckedMapNode, 
 
 	const walked = await mapConcurrent(branches, concurrency, async (branch, index): Promise<Walked> => {
 		const walk = async (tree: string | undefined) => {
-			const frames = here.frames.inside(node.id, branch.ledger);
+			const frames = here.frames.inside(node.id, branch.prefix, branch.ledger);
 			try {
 				return await walker.sequence(branch.nodes, branch.prefix, { values: branch.values, frames, cut, tree });
 			} finally {

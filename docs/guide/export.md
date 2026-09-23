@@ -94,6 +94,17 @@ even though pi refuses to render its page.
 
 The run directory's path is shown in the tool row.
 
+## A flow run
+
+A flow's run directory is also its export directory. Each subagent writes
+its transcript under its home, the path of its memory scope or of its visit,
+as `<home>/<agent>.jsonl` and `.html`, and a name already taken takes the
+first free `~n`, as `main.jsonl` and `events.jsonl` do when a resume adds a
+life. Delegated children go in `<parent>.children/`. `usage.json` adds the
+run's visits, its nodes and its lives.
+[The run directory](flows.md#the-run-directory) and
+[Measuring a run](flows.md#measuring-a-run) give the layout and the fields.
+
 ## One run, or a matrix of them
 
 [Experiments](experiments.md) nests this layout one level deeper: a directory per

@@ -211,6 +211,12 @@ describe("the live view", () => {
 			]);
 			assert.equal(frame(LOOP, from, resumed.events)[0], "✓ f · 6 visits · 0s · ↑3k ↓300 · 2 lives (1 partial) · resumed from fix#2/work");
 		});
+
+		test("tells the killed life from the next by its journal alone, each opening with its `life_start`", async () => {
+			const { resumed } = await killedAndResumed();
+			assert.equal(frame(LOOP, resumed.journal, [])[0], "✓ f · 6 visits · 0s · ↑3k ↓300 · 2 lives (1 partial) · resumed from fix#2/work");
+			assert.equal(frame(LOOP, resumed.journal.slice(0, -1), [])[0], "✓ f · 6 visits · 0s · ↑3k ↓300 · 2 lives (2 partial) · resumed from fix#2/work");
+		});
 	});
 
 	test("is the same frame for the same journal and events, at every event of a run", async () => {
@@ -235,7 +241,8 @@ describe("the live view", () => {
 			},
 		});
 		const alone = await dryRunFlow(BLOCKS, "x", BLOCKS_ANSWERS);
-		const facts = (run: DryRun) => ("journal" in run ? still(run.journal) : []).map((entry) => ({ ...entry, usage: undefined, wallMs: undefined }));
+		// A clock and the process's subagent counter are all that differ between two runs.
+		const facts = (run: DryRun) => ("journal" in run ? still(run.journal) : []).map((entry) => ({ ...entry, usage: undefined, wallMs: undefined, startedAt: undefined, subagent: undefined }));
 		assert.equal(watched.ok, alone.ok);
 		assert.deepEqual(facts(watched), facts(alone));
 	});

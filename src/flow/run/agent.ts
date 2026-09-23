@@ -33,14 +33,14 @@ export type AgentRun = {
 	timeoutFor(node: CheckedAgentNode): number;
 	/** The deadline of one attempt. */
 	deadline(attempt: Attempt): AbortSignal;
-	/** A subagent of `agent` for `node`, spawned for the visit `path` in `tree`, with the tools it answers with. */
-	open(agent: Agent, node: CheckedAgentNode, path: string, tree: string | undefined): Promise<Held>;
+	/** A subagent of `agent` for `node`, spawned for the visit `path` in `tree`, with the tools it answers with, its transcript left in `home`. */
+	open(agent: Agent, node: CheckedAgentNode, path: string, tree: string | undefined, home: string): Promise<Held>;
 	/** What `tree` changed since `HEAD`, as `diff` reads it. */
 	diff(tree: string | undefined): Promise<GitResult<string>>;
 };
 
 /** How an agent visit ended, with what it cost and who ran it. */
-export type AgentVisit = { readonly ended: Ended; readonly usage: Usage; readonly agent?: string; readonly model?: string };
+export type AgentVisit = { readonly ended: Ended; readonly usage: Usage; readonly agent?: string; readonly subagent?: string; readonly model?: string };
 
 /** One visit's asking: its node and path, where it stands, and the ledger a `verdict:` node writes to. */
 type Asking = { readonly run: AgentRun; readonly node: CheckedAgentNode; readonly path: string; readonly here: Here; readonly ledger?: Ledger };
@@ -55,7 +55,9 @@ export async function visitAgent(run: AgentRun, node: CheckedAgentNode, path: st
 	const here = await withDiff((tree) => run.diff(tree), node.reads, at);
 	if (typeof here === "string") return { ended: failure("unavailable", here), usage: emptyUsage() };
 	const asking: Asking = { run, node, path, here, ledger: node.verdict === undefined ? undefined : here.frames.ledger(node.verdict).by(path) };
-	const open = () => run.open(agent, node, path, here.tree);
+	// A scope's subagent serves every visit inside it, so it lives where the scope was opened.
+	const home = node.memory === undefined ? path : here.frames.home(node.memory);
+	const open = () => run.open(agent, node, path, here.tree, home);
 	if (node.memory !== undefined) return here.frames.use(node.memory, agent.name, open, (held) => attempts(asking, held));
 	let held = await open();
 	try {
@@ -86,7 +88,8 @@ async function attempts(asking: Asking, first: Held, renew?: () => Promise<Held>
 		const { ended, usage } = await ask(asking, held, task);
 		parts.push(usage);
 		if (ended.ok || attempt >= node.retry || !RETRIED.includes(ended.error.kind)) {
-			return { ended, usage: sumUsage(parts, performance.now() - started), agent: held.subagent.agent.name, model: held.subagent.model };
+			const { subagent } = held;
+			return { ended, usage: sumUsage(parts, performance.now() - started), agent: subagent.agent.name, subagent: subagent.id, model: subagent.model };
 		}
 		if (ended.error.kind === "timeout" && renew !== undefined) {
 			held = await renew();

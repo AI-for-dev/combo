@@ -16,7 +16,7 @@ export type Failed = { readonly path: string; readonly error: FlowError };
 export type Walked = { readonly last?: Ended; readonly usage: readonly Usage[]; readonly failed?: Failed };
 
 /** How a visit ended, what it cost, the failure it started from, and for an `agent` visit who ran it. */
-export type Visited = { readonly ended: Ended; readonly usage: Usage; readonly failed?: Failed; readonly agent?: string; readonly model?: string };
+export type Visited = { readonly ended: Ended; readonly usage: Usage; readonly failed?: Failed; readonly agent?: string; readonly subagent?: string; readonly model?: string };
 
 /** A node that could not run. */
 export function failure(kind: ErrorKind, message: string): Ended {

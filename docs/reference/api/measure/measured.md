@@ -38,7 +38,8 @@ export type MeasuredRun = {
 	/**
 	 * Closes the measurement: writes `usage.json` into `dir` with the time
 	 * measured, the parent session copied in when one was named, and hands the
-	 * report back.
+	 * report back. A flow run's report adds its visits, its nodes, and when
+	 * `dir` is its run directory, every life it had.
 	 *
 	 * Never throws. An export is an observer of the run, and a full disk must not
 	 * turn a finished workflow into an error the caller has to reason about.
@@ -57,7 +58,7 @@ A run being measured, and the one call that closes the measurement.
 export type MeasuredRunOptions = {
 	/** Where `usage.json` lands when the run is over, and the stream if kept. Absent writes nothing. */
 	dir?: string;
-	/** Keep the whole event stream on disk as `events.jsonl` beside `usage.json`. Needs `dir`. */
+	/** Keep the whole event stream on disk as `events.jsonl` beside `usage.json`, `events~2.jsonl` for a resumed run's second life. Needs `dir`. */
 	record?: boolean;
 	/** Other listeners on the same stream, after the picture: a terminal, a herdr pane, a caller's own. */
 	listeners?: readonly (EventListener | undefined)[];

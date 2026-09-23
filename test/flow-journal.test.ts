@@ -26,7 +26,8 @@ const facts = (journal: readonly JournalEntry[]) => journal.map((entry) => ("pat
 
 describe("the journal", () => {
 	const ENTRIES: JournalEntry[] = [
-		{ type: "visit_end", path: "fix#1/code", ok: true, output: "done", agent: "scout", model: "p/m", wallMs: 3, usage: emptyUsage() },
+		{ type: "life_start", startedAt: "2026-09-23T10:00:00.000Z" },
+		{ type: "visit_end", path: "fix#1/code", node: "fix/code", kind: "agent", ok: true, output: "done", agent: "scout", model: "p/m", wallMs: 3, usage: emptyUsage() },
 		{ type: "carry", path: "fix#2", value: ["b"] },
 		{ type: "map_items", path: "fix#1/work", items: ["a", "b"] },
 		{ type: "obligation_raised", ledger: "fix", visit: "fix#1/audit", obligation: { id: "o1", openedBy: "reviewer", text: "more", openedAt: 1 } },
@@ -90,6 +91,7 @@ describe("a dry run's journal", () => {
 		});
 		assert.ok(run.ok && "journal" in run, JSON.stringify(run));
 		assert.deepEqual(facts(run.journal), [
+			"life_start",
 			"visit_end plan",
 			"carry fix#1",
 			"map_items fix#1/work",
@@ -106,7 +108,7 @@ describe("a dry run's journal", () => {
 			"visit_end fix",
 			"run_end",
 		]);
-		assert.deepEqual(run.journal[1], { type: "carry", path: "fix#1", value: ["a"] });
+		assert.deepEqual(run.journal[2], { type: "carry", path: "fix#1", value: ["a"] });
 		assert.deepEqual(run.journal.at(-1), { type: "run_end", ok: true, output: run.output, usage: run.usage });
 	});
 

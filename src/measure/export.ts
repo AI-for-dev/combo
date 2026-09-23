@@ -78,14 +78,26 @@ export function exportBaseName(id: string): string {
 }
 
 /**
- * Exports one **live** session into `dir`.
+ * The first of `base`, `base~2`, `base~3`... under which `dir` holds no file
+ * with any of `extensions`, and that is not in `taken` as `<dir>/<name>`:
+ * what a later life of a run, or a second subagent in the same place, is
+ * named, so that nothing already written is overwritten.
+ */
+export function freeName(dir: string, base: string, extensions: readonly string[], taken: ReadonlySet<string> = new Set()): string {
+	for (let n = 1; ; n++) {
+		const name = n === 1 ? base : `${base}~${n}`;
+		if (!taken.has(path.join(dir, name)) && extensions.every((extension) => !fs.existsSync(path.join(dir, `${name}${extension}`)))) return name;
+	}
+}
+
+/**
+ * Exports one **live** session into `dir`, as `<name>.jsonl` and `.html`.
  *
  * Must be called before `dispose()`: afterwards the session is gone and the
  * transcript with it. Each format is attempted on its own - an in-memory
  * session still yields its JSONL even though pi refuses to render its HTML.
  */
-export async function exportSession(session: SessionPort, dir: string, id: string): Promise<SessionExport> {
-	const name = exportBaseName(id);
+export async function exportSession(session: SessionPort, dir: string, id: string, name = exportBaseName(id)): Promise<SessionExport> {
 	const result: SessionExport = { id };
 	const problems: string[] = [];
 
@@ -143,6 +155,55 @@ export type UsageReportEntry = {
 	parentId?: string;
 	/** Its {@link Usage}: time measured here, tokens as pi reported them. */
 	usage: Usage;
+	/** In a flow run: the folder of its transcript, relative to the run directory - its memory scope's path, else its visit's. */
+	home?: string;
+	/** In a flow run: the life it ran in, counting from 1. */
+	life?: number;
+	/** In a flow run: every visit it ran, in the order they ended. */
+	visits?: string[];
+};
+
+/** One visit of a flow run: a node's, once, in one life. */
+export type VisitUsage = {
+	/** `deliver#2/work[1]/code`. */
+	path: string;
+	/** The node's address, without iterations: `deliver/work/code`. */
+	node: string;
+	kind: string;
+	/** The agent an `agent` visit ran. */
+	agent?: string;
+	/** The subagent it ran on, the one a `subagents` entry names. */
+	subagent?: string;
+	life: number;
+	ok: boolean;
+	wallMs: number;
+	/** The delta of pi's cumulative stats over the visit, every nested visit included. */
+	usage: Usage;
+};
+
+/** Every visit of one node address, added up. */
+export type NodeUsage = {
+	node: string;
+	visits: number;
+	/** The sum of its visits', which may overlap when they ran together. */
+	wallMs: number;
+	usage: Usage;
+};
+
+/** One life of a flow run: its first start, or a resume. */
+export type LifeUsage = {
+	/** When it started, ISO 8601. */
+	startedAt: string;
+	wallMs: number;
+	usage: Usage;
+	/** How it ended. A life killed before its end was `interrupted`. */
+	end: "ok" | "failed" | "interrupted";
+	/**
+	 * Rebuilt from the journal, because it never wrote its own `usage.json`:
+	 * what its ended visits cost, and nothing of a turn cut mid-way or of its
+	 * subagents.
+	 */
+	partial?: true;
 };
 
 /** The sum over a whole run, and how many subagents it was spread over. */
@@ -167,6 +228,12 @@ export type UsageReport = {
 	parallelism: number;
 	/** Where each transcript landed, and why one is missing when it is. */
 	exports?: SessionExport[];
+	/** In a flow run: every visit of every life, each life's in plan order. */
+	visits?: VisitUsage[];
+	/** In a flow run: one entry per node address, in the order first visited. */
+	nodes?: NodeUsage[];
+	/** In a flow run with a journal: each life, whose sum `total` is. */
+	lives?: LifeUsage[];
 };
 
 /**
@@ -220,7 +287,8 @@ export function copyMainSession(sessionFile: string | undefined, dir: string): S
 	if (!sessionFile) return { id: "main", error: "no session file: the parent session is in memory" };
 	try {
 		fs.mkdirSync(dir, { recursive: true });
-		const target = path.join(dir, "main.jsonl");
+		// A resume may come from another conversation: each keeps its own.
+		const target = path.join(dir, `${freeName(dir, "main", [".jsonl"])}.jsonl`);
 		fs.copyFileSync(sessionFile, target);
 		return { id: "main", jsonl: target };
 	} catch (cause) {

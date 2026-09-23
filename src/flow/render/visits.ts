@@ -5,13 +5,15 @@
  *
  * The journal holds what earlier lives wrote and the events what this one
  * told, so one reading takes a finished run's journal alone, a live run's
- * stream alone, or a resume's journal and stream together. A visit's last end
- * is the one the frame draws, whichever life wrote it; a `copy_lost` forgets
- * every end under its branch, as a resume does.
+ * stream alone, or a resume's journal and stream together. Each life of the
+ * journal opens with its `life_start`, and one with no `run_end` was killed.
+ * A visit's last end is the one the frame draws, whichever life wrote it; a
+ * `copy_lost` forgets every end under its branch, as a resume does.
  */
 
 import { isVisit, type SubagentEvent } from "../../events.ts";
-import { sumUsage, type Usage } from "../../usage.ts";
+import { costOf, livesOf } from "../../measure/index.ts";
+import type { Usage } from "../../usage.ts";
 import type { CheckedFlow } from "../checked.ts";
 import { resumePoint, type JournalEntry, type VisitEnd } from "../run/index.ts";
 
@@ -34,37 +36,19 @@ export class Visits {
 	readonly resumedFrom: string | undefined;
 
 	constructor(checked: CheckedFlow, journal: readonly JournalEntry[], events: readonly SubagentEvent[]) {
-		let segment: VisitEnd[] = [];
-		let start = 0;
-		let runEnd: RunEnd | undefined;
-		for (const [i, entry] of journal.entries()) {
-			switch (entry.type) {
-				case "visit_end":
-					segment.push(entry);
-					this.ends.set(entry.path, entry);
-					break;
-				case "map_items":
-					this.frozen.set(entry.path, entry.items.length);
-					break;
-				case "copy_lost":
-					for (const path of [...this.ends.keys()]) if (within(path, entry.path)) this.ends.delete(path);
-					break;
-				case "run_end":
-					this.lives.push({ usage: entry.usage, partial: false });
-					runEnd = entry;
-					segment = [];
-					start = i + 1;
-					break;
-			}
+		for (const entry of journal) {
+			if (entry.type === "visit_end") this.ends.set(entry.path, entry);
+			else if (entry.type === "map_items") this.frozen.set(entry.path, entry.items.length);
+			else if (entry.type === "copy_lost") for (const path of [...this.ends.keys()]) if (within(path, entry.path)) this.ends.delete(path);
 		}
-		// Past the last end, what a life wrote before it was killed.
-		const killed = start < journal.length;
-		if (killed) this.lives.push({ usage: costOf(segment), partial: true });
-		if (events.some(isVisit)) {
-			this.lives.push({ usage: costOf(this.tell(events)), partial: false });
-			start = journal.length;
-		} else if (!killed) this.runEnd = runEnd;
-		const point = this.lives.length > 1 ? resumePoint(checked, journal.slice(0, start)) : undefined;
+		const lives = livesOf(journal);
+		for (const life of lives) this.lives.push({ usage: life.runEnd?.usage ?? costOf(life.ends), partial: life.runEnd === undefined });
+		const live = events.some(isVisit);
+		if (live) this.lives.push({ usage: costOf(this.tell(events)), partial: false });
+		this.runEnd = live ? undefined : lives.at(-1)?.runEnd;
+		// The last life picked up where the journal before it left off.
+		const before = live ? journal : journal.slice(0, Math.max(0, journal.findLastIndex((entry) => entry.type === "life_start")));
+		const point = this.lives.length > 1 ? resumePoint(checked, before) : undefined;
 		this.resumedFrom = point?.ok && point.from !== "" ? point.from : undefined;
 	}
 
@@ -116,27 +100,6 @@ export class Visits {
 		}
 		return told;
 	}
-}
-
-/**
- * What a set of ended visits cost: each counted once, at the outermost visit
- * that holds it, since a visit's usage includes every visit inside it. The
- * time adds up, for the visits it counts ran one after the other.
- */
-export function costOf(ends: readonly VisitEnd[]): Usage {
-	const paths = new Set(ends.map((end) => end.path));
-	const outermost = ends.filter((end) => !holders(end.path).some((one) => paths.has(one)));
-	const wallMs = outermost.reduce((sum, end) => sum + end.wallMs, 0);
-	return sumUsage(
-		outermost.map((end) => end.usage),
-		wallMs,
-	);
-}
-
-/** The visits that can hold the visit `path`: each segment before its last, an iteration or an item read as its loop or `map`. */
-function holders(path: string): string[] {
-	const segments = path.split("/");
-	return segments.slice(1).map((_, i) => segments.slice(0, i + 1).join("/").replace(/(#\d+|\[\d+\])$/, ""));
 }
 
 /** Whether `key` is the visit `path` or inside it: under it, one of its iterations or one of its items. `""` holds every visit. */

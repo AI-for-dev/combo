@@ -48,7 +48,7 @@ export async function visitCall(run: CallingRun, node: CheckedCallNode, path: st
  * own, closed when it ends: the run's root, and every call.
  */
 export async function walkWhole(walker: Walker, flow: CheckedFlow, prefix: string, input: unknown, { cut, tree }: Pick<Here, "cut" | "tree">): Promise<Walked> {
-	const frames = Frames.root();
+	const frames = Frames.root(prefix);
 	try {
 		return await walker.sequence(flow.nodes, prefix, { values: Values.root(input), frames, cut, tree });
 	} finally {

@@ -10,9 +10,11 @@
  */
 
 import type { Agent } from "../../agent.ts";
+import { declaresDelegate, delegateTool } from "../../delegate.ts";
 import type { GitResult } from "../../git/index.ts";
 import { VERDICT_TOOL } from "../../review/index.ts";
-import { toolsOf } from "../../session.ts";
+import { toolsOf, type ToolDefinition } from "../../session.ts";
+import type { SpawnOptions } from "../../subagent.ts";
 import { emptyUsage, sumUsage, type Usage } from "../../usage.ts";
 import type { ScriptOutcome } from "../../verify.ts";
 import { turnTimeout } from "../bounds.ts";
@@ -142,9 +144,10 @@ export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, Commit
 	 * A subagent with the tools every node it serves answers with: one node
 	 * without `memory:`, every node sharing it with one. The flow asked for a
 	 * typed value or a verdict, so the agent is given the tool that hands it
-	 * back; `tools:` is an allowlist, and it covers ours too.
+	 * back; `tools:` is an allowlist, and it covers ours too. An agent whose
+	 * `tools:` names `subagent` is handed one. Its transcript goes in `home`.
 	 */
-	async open(agent: Agent, node: CheckedAgentNode, path: string, tree: string | undefined): Promise<Held> {
+	async open(agent: Agent, node: CheckedAgentNode, path: string, tree: string | undefined, home: string): Promise<Held> {
 		const serves = node.memory === undefined ? [node] : (this.shared.get(sharedKey(node.memory, agent.name)) ?? []);
 		const type = submitted(serves);
 		const submit = type === undefined ? undefined : submitTool(type);
@@ -152,16 +155,32 @@ export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, Commit
 		const added = [...(submit === undefined ? [] : [SUBMIT_TOOL]), ...(decides ? [VERDICT_TOOL] : [])];
 		const holder = { ...agent, tools: added.length === 0 ? agent.tools : [...toolsOf(agent), ...added] };
 		const verdict = decides ? verdictSlot(holder) : undefined;
-		const subagent = await this.walk.spawn(holder, {
+		const { spawn, transcripts, bus } = this.walk;
+		// The run's, then the flows', callee outward; `spawn` falls back on the agent's own.
+		const model = this.walk.model ?? this.stack.find((flow) => flow.model !== undefined)?.model;
+		const delegate = declaresDelegate(agent.tools) ? this.delegate(holder, node, tree, model) : undefined;
+		const options: SpawnOptions = {
 			lifetime: node.memory === undefined ? "task" : "workflow",
-			bus: this.walk.bus,
+			bus,
 			cwd: tree,
-			// The run's, then the flows', callee outward; `spawn` falls back on the agent's own.
-			model: this.walk.model ?? this.stack.find((flow) => flow.model !== undefined)?.model,
-			customTools: [submit?.tool, verdict?.tool].filter((tool) => tool !== undefined),
+			model,
+			customTools: (id) => [submit?.tool, verdict?.tool, delegate?.(id)].filter((tool) => tool !== undefined),
 			visit: path,
-		});
+		};
+		const subagent = await (transcripts?.atHome(spawn, holder, options, home) ?? spawn(holder, options));
 		return { subagent, submit, verdict };
+	}
+
+	/**
+	 * The `subagent` tool of `holder`, handed to it once its id is known: its
+	 * children are drawn from the agents the flow names, which the snapshot
+	 * keeps, and their transcripts go beside `holder`'s.
+	 */
+	private delegate(holder: Agent, node: CheckedAgentNode, tree: string | undefined, model: string | undefined): (parentId: string) => ToolDefinition {
+		const { spawn, transcripts, bus, signal } = this.walk;
+		const agents = this.walk.flow.sources.agents.map((named) => named.agent);
+		const children = transcripts?.children(spawn) ?? spawn;
+		return (parentId) => delegateTool({ agents, holder, parentId, spawn: children, bus, cwd: tree, model, signal, timeoutMs: this.timeoutFor(node) });
 	}
 
 	/**
@@ -178,8 +197,20 @@ export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, Commit
 		const visit = await this.dispatch(node, path, here);
 		const wallMs = performance.now() - started;
 		const usage = { ...visit.usage, wallMs };
-		const { ended, agent, model } = visit;
-		const end: VisitEnd = { type: "visit_end", path, ok: ended.ok, ...told(node, ended), ...(agent !== undefined && { agent }), ...(model !== undefined && { model }), wallMs, usage };
+		const { ended, agent, subagent, model } = visit;
+		const end: VisitEnd = {
+			type: "visit_end",
+			path,
+			node: this.address(node.at),
+			kind: node.kind,
+			ok: ended.ok,
+			...told(node, ended),
+			...(agent !== undefined && { agent }),
+			...(subagent !== undefined && { subagent }),
+			...(model !== undefined && { model }),
+			wallMs,
+			usage,
+		};
 		this.journal.append(end);
 		bus.emit(end);
 		return { ended, usage, failed: visit.failed ?? (ended.ok ? undefined : { path, error: ended.error }) };
