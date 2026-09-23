@@ -11,6 +11,7 @@
 
 import type { Agent } from "../agent.ts";
 import { AgentNames } from "./agents.ts";
+import { checkAsk } from "./check-ask.ts";
 import type { FlowCatalogue } from "./catalogue.ts";
 import { checkChoice, checkMap, checkParallel } from "./check-blocks.ts";
 import { checkLoop } from "./check-loop.ts";
@@ -144,6 +145,8 @@ export class Checker {
 				return { node, output: CHECK };
 			case "commit":
 				return { node: checkCommit(this, node, scope), output: COMMIT };
+			case "ask":
+				return checkAsk(this, node, scope);
 		}
 	}
 

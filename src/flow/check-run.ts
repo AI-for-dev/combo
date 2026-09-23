@@ -5,21 +5,27 @@
  * What the flow stage cannot know is here: the working tree, the ports the
  * launch hands over, and whether somebody is there. A flow valid on its own may
  * be refused on one project, since a check script belongs to the project,
- * and a commit, a copy or a read of `diff` needs a repository.
+ * and a commit, a copy or a read of `diff` needs a repository. With nobody
+ * there, a flow that could reach a question nobody can leave unanswered is
+ * refused now rather than failed there, behind a `choice` too: whether a case
+ * is taken is only known once the run has spent what came before it.
  * What passes is a `CheckedRun`, which carries the tree and ports it was
  * checked against, so a flow checked for one project cannot run in another.
  */
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { AskUser } from "../ask.ts";
 import type { GitPort } from "../git/index.ts";
 import type { CheckScript } from "../verify.ts";
 import type { CheckedCheckNode, CheckedFlow, CheckedNode } from "./checked.ts";
 import { FaultList, type Fault } from "./fault.ts";
 import { everyNode } from "./node.ts";
 
-/** How a run reaches the world. A node whose port is absent refuses the run. */
+/** How a run reaches the world. A node whose port is absent refuses the run; without `ask`, nobody is there. */
 export type FlowPorts = {
+	/** Puts an `ask` node's question to the person. */
+	readonly ask?: AskUser;
 	/** Runs a `check` node's script. */
 	readonly check?: CheckScript;
 	/** Commits, reads `diff`, and makes and lands the copies of a `copies: true` block. */
@@ -31,7 +37,7 @@ export type RunStage = {
 	/** The working tree, at the repository root: a check's path starts there. */
 	readonly cwd: string;
 	readonly ports: FlowPorts;
-	/** Whether a person can answer. */
+	/** Whether a person can answer. With no `ask` port, nobody can, whatever this says. */
 	readonly somebodyThere: boolean;
 };
 
@@ -66,6 +72,12 @@ export async function checkRun(flow: CheckedFlow, stage: RunStage): Promise<Chec
 	if (first !== undefined && stage.ports.check === undefined) {
 		faults.add("check-port-missing", `${first.at}.check`, "this run was given no `check` port to run a script with");
 	}
+	const there = stage.somebodyThere && stage.ports.ask !== undefined;
+	for (const node of nodes) {
+		if (there || node.kind !== "ask" || node.default !== undefined || node.enough !== undefined) continue;
+		const why = stage.ports.ask === undefined ? "this run was given no `ask` port" : "this run is launched with nobody there";
+		faults.add("unattended-ask", `${node.at}.${"from" in node.question ? "ask-from" : "ask"}`, `${why}, and nobody answering this question has no value: give it \`default:\`, or \`enough:\` on a choice card`);
+	}
 	const scripts = new Map<string, string>();
 	const missing = new Set<string>();
 	for (const node of checks) {
@@ -90,6 +102,6 @@ export async function checkRun(flow: CheckedFlow, stage: RunStage): Promise<Chec
 function needsGit(node: CheckedNode): string | undefined {
 	if (node.kind === "commit") return `${node.at}.commit`;
 	if ((node.kind === "parallel" || node.kind === "map") && node.copies) return `${node.at}.copies`;
-	if (node.kind === "agent" && node.reads.some((read) => read.address === "diff")) return `${node.at}.reads`;
+	if ((node.kind === "agent" || node.kind === "ask") && node.reads.some((read) => read.address === "diff")) return `${node.at}.reads`;
 	return undefined;
 }

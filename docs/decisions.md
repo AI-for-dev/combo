@@ -1620,6 +1620,57 @@ runner never runs git itself.
   message comes from the node that writes it. `diff` reads as an empty text,
   and every branch of a copies block reads as landed.
 
+### An ask says what not answering gives, and a model's labels compare to nothing
+
+The `ask` node puts a question through the `ask` port, the same `AskUser` the
+interview uses. Nothing of the extension is wired to it yet.
+
+- **The port grows an optional second argument, not a second port.** `Asking`
+  says the card's form, the reads shown above the question, the visit asking,
+  the label of "enough" or `false`, and a signal that takes the card down. An
+  existing `AskUser` ignores it and keeps working. `undefined` stays "the
+  person declined": "that's enough" where it is offered, the stop key where it
+  is not.
+- **Declining a card with no "enough" stops the whole run.** The card owns
+  `esc` while it is up, so that key press is the run's stop, and it ends the
+  run `stopped` the way `stopSwitch.all()` does. `on-fail: continue` does not
+  catch it. Ending only the node would turn the stop key into a way of failing
+  one question.
+- **Literal options make a closed card.** `answer` is then a strict enum of
+  the labels, so the card offers no typed answer beside them: a typed one
+  would be a value off its own type. `custom` stays in the output for one
+  shape across choice cards, and is `false` there.
+- **`ask-from:` is a choice card.** A `Question` carries its options, so
+  `options:` and `confirm:` beside it are refused, and `enough:` is refused on
+  a yes or no and on a free text, which are always answered.
+- **A model's labels are marked on the type, not on the node.** The answer of
+  an `ask-from:` is a `string` with `free: true`, and the condition checker
+  refuses a literal on the other side of `==`, `!=`, `in` and the ordered
+  comparisons, as `condition-free-string`. One flag on the existing type model
+  travels through every address and field the checker already follows. A free
+  text's answer is a plain `string`, as the format says: a person typed it.
+- **`default:` is a literal of the node's form.** A label of its options on a
+  literal card, any text after `ask-from:` (its `custom` is worked out at run
+  time against the question), `true` or `false` on a yes or no, and a text on
+  a free text.
+- **A `timeout:` starts when the card is shown.** A card waiting its turn in
+  the queue is not a person failing to answer, as an agent turn waiting for a
+  shared subagent is not a slow one.
+- **No `ask` port is nobody there, whatever the launch says.** The run stage
+  refuses the flow, as `unattended-ask`, when an `ask` with neither
+  `default:` nor `enough:` could be reached. At run time, nobody there takes
+  the same rule as a timeout.
+- **An `ask` may read `diff`.** "Commit these changes?" wants the changes
+  above it, so the read goes through the code an agent's does and needs the
+  `git` port the same way. What a turn shows and what a card shows are one
+  function, `showRead`, and differ only in the fence around JSON.
+- **A dry run answers an ask with its output.** `{ fail: "nobody" }` and
+  `{ fail: "timeout" }` take the node's own path, its `default:` or `enough:`
+  included, and `{ fail: "stopped" }` is the card declined. Each is accepted
+  only where the node's keys allow it, and a choice card's answer is held to
+  what a card can give: `answered: false` only with `enough:`, an `answer`
+  whenever it is answered.
+
 ## A chain walked by hand
 
 `/run explore …` put its answer in the conversation, and the session picked it

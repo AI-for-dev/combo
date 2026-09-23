@@ -25,6 +25,7 @@ import { parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import { yamlError } from "../markdown.ts";
 import { FaultList, type Fault } from "./fault.ts";
 import { readAgent } from "./agent-node.ts";
+import { readAsk } from "./ask-node.ts";
 import { readChoice, readMap, readParallel } from "./blocks.ts";
 import { readLoop } from "./loop.ts";
 import { everyNode, type FlowNode, type KindReader, type NodeKind } from "./node.ts";
@@ -39,7 +40,7 @@ import { readCheck, readCommit } from "./world.ts";
 export const FLOW_KEYS = { name: true, description: true, input: true, model: false, timeout: false, nodes: true } as const;
 
 /** The reader of each kind of node. */
-const KINDS: Readonly<Record<NodeKind, KindReader>> = { agent: readAgent, choice: readChoice, parallel: readParallel, map: readMap, loop: readLoop, check: readCheck, commit: readCommit };
+const KINDS: Readonly<Record<NodeKind, KindReader>> = { agent: readAgent, choice: readChoice, parallel: readParallel, map: readMap, loop: readLoop, check: readCheck, commit: readCommit, ask: readAsk };
 
 /** A flow file, read: nothing in it is resolved against a catalogue yet. */
 export type FlowFile = {
@@ -119,7 +120,7 @@ function checkSections(body: string, nodes: readonly FlowNode[], refused: Readon
 	for (const problem of problems) faults.add(problem.code, problem.at, problem.message);
 	for (const id of sections.keys()) {
 		const node = nodes.find((candidate) => candidate.id === id);
-		if (node !== undefined && node.kind !== "agent") faults.add("section-not-agent", node.at, `\`## ${id}\`: \`${id}\` is a ${node.kind} node, and only an agent node's turn reads prose`);
+		if (node !== undefined && node.kind !== "agent") faults.add("section-not-agent", node.at, `\`## ${id}\`: \`${id}\` is ${/^[aeiou]/.test(node.kind) ? "an" : "a"} ${node.kind} node, and only an agent node's turn reads prose`);
 		else if (node === undefined && !refused.has(id)) faults.unknown("section-unknown", id, id, nodes.filter((n) => n.kind === "agent").map((n) => n.id), "agent node ids");
 	}
 	for (const node of nodes) {

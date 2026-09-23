@@ -38,14 +38,15 @@ What came back: the question, the answer, and whether it was typed or picked.
 *type*
 
 ```typescript
-export type AskUser = (question: Question) => Promise<Answer | undefined>;
+export type AskUser = (question: Question, asking?: Asking) => Promise<Answer | undefined>;
 ```
 
 Puts one question to the user.
 
-Returning `undefined` is **the submit**: the user has decided there is enough
-to go on. It is not an error and not a cancellation of what came before -
-every answer already given still counts.
+Returning `undefined` is the person declining. Where "that's enough" is
+offered, it is **the submit**: the user has decided there is enough to go
+on. It is not an error and not a cancellation of what came before - every
+answer already given still counts. Where it is not, it is the stop.
 
 ## `Choice`
 

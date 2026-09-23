@@ -19,7 +19,11 @@
  */
 export type ValueType = { readonly description?: string } & (
 	| { readonly kind: "text" }
-	| { readonly kind: "string" }
+	/**
+	 * `free`: written by a model in the person's language, as an `ask-from`'s
+	 * answer is, so no literal of the file can be expected to equal it.
+	 */
+	| { readonly kind: "string"; readonly free?: true }
 	| { readonly kind: "number" }
 	| { readonly kind: "boolean" }
 	/** A closed set of strings. Compared strictly: a literal outside it is refused. */

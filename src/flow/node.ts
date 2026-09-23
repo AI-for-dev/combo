@@ -6,6 +6,7 @@
  * outside them is ever read; `read-node.ts` refuses it.
  */
 
+import type { Choice } from "../ask.ts";
 import type { FaultList } from "./fault.ts";
 import type { ValueType } from "./type.ts";
 
@@ -24,6 +25,8 @@ export const KIND_KEYS = {
 	loop: "loop",
 	check: "check",
 	commit: "commit",
+	ask: "ask",
+	"ask-from": "ask",
 } as const;
 
 /** Every key a node of each kind may carry. Anything else is refused. */
@@ -35,6 +38,7 @@ export const NODE_KEYS = {
 	loop: ["id", "loop", "max", "give-up", "carry", "ledger", "do", "on-fail"],
 	check: ["id", "check", "timeout", "on-fail"],
 	commit: ["id", "commit", "on-fail"],
+	ask: ["id", "ask", "ask-from", "options", "confirm", "enough", "default", "reads", "timeout", "on-fail"],
 } as const;
 
 /**
@@ -45,6 +49,7 @@ export const NODE_KEYS = {
 export const RETRY_REFUSED: Partial<Record<NodeKind, string>> = {
 	check: "a check is not retried: raise `timeout:`, or make the check stable",
 	commit: "a commit is not retried: what git refused is a hook or a lock to fix, and the node writing the message can take `retry:`",
+	ask: "an ask is not retried: a person answered it, or nobody was there to; `default:` says what nobody answering gives",
 };
 
 /** A kind of node. */
@@ -134,8 +139,30 @@ export type CommitNode = Common & {
 	readonly message: string;
 };
 
+/**
+ * What an `ask` puts to a person, by what is written: a choice card with
+ * `options:` or `ask-from:`, a yes or no with `confirm: true`, a free text
+ * with neither.
+ */
+export type AskForm = "choice" | "confirm" | "text";
+
+/** A question put to a person, written in the file or taken from a `Question` value. */
+export type AskNode = Common & {
+	readonly kind: "ask";
+	readonly question: { readonly text: string } | { readonly from: string };
+	readonly form: AskForm;
+	/** The literal options of a choice card, in order. */
+	readonly options?: readonly Choice[];
+	/** The label of "that's enough", offered only on a choice card. */
+	readonly enough?: string;
+	/** What nobody answering gives: a label, a text, or `true`/`false` for a confirm. */
+	readonly default?: string | boolean;
+	readonly reads: readonly string[];
+	readonly timeoutMs?: number;
+};
+
 /** A node of any kind. */
-export type FlowNode = AgentNode | ChoiceNode | ParallelNode | MapNode | LoopNode | CheckNode | CommitNode;
+export type FlowNode = AgentNode | ChoiceNode | ParallelNode | MapNode | LoopNode | CheckNode | CommitNode | AskNode;
 
 /** What reading a whole file shares, from one node to the next and into nested ones. */
 export type ReadContext = {

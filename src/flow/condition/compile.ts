@@ -5,7 +5,9 @@
  * Every address must exist and be typed, the result must be a boolean and
  * compared sides must agree. Enums are strict: `"aproved"` compared with an
  * `approved | rejected` field is refused here, since at run time it would only
- * ever be `false` and the loop would spin to its cap.
+ * ever be `false` and the loop would spin to its cap. A string a model wrote
+ * in the person's language compares to no literal at all, for the same reason:
+ * `"Yes"` against a clicked `"Oui"` is silently false.
  *
  * Problems are collected, not thrown at the first: a flow is refused with
  * every fault at once. A part already refused is read no further, so one typo
@@ -17,7 +19,7 @@ import { parse, type Expr } from "./parse.ts";
 import { SyntaxFault } from "./tokens.ts";
 
 /** Why a condition was refused. Stable, so tests and the documentation's table can name them. */
-export const CONDITION_CODES = ["condition-syntax", "condition-unknown-address", "condition-type", "condition-enum-value"] as const;
+export const CONDITION_CODES = ["condition-syntax", "condition-unknown-address", "condition-type", "condition-enum-value", "condition-free-string"] as const;
 
 /** One of {@link CONDITION_CODES}. */
 export type ConditionCode = (typeof CONDITION_CODES)[number];
@@ -168,6 +170,8 @@ export class Checker {
 		}
 		if (expr.op === "==" || expr.op === "!=") return this.equatable(left, right, expr.left, expr.right) ? { type: BOOLEAN } : undefined;
 		const ordered = (left.type.kind === "number" || left.type.kind === "string") && left.type.kind === right.type.kind;
+		const free = ordered ? this.freeAgainstLiteral(left, right, expr.left, expr.right) : undefined;
+		if (free !== undefined) return this.problem(...free);
 		if (ordered) return { type: BOOLEAN };
 		return this.problem("condition-type", `\`${expr.op}\` orders two numbers or two strings, and \`${this.text(expr)}\` compares ${article(left.type)} with ${article(right.type)}`);
 	}
@@ -194,6 +198,8 @@ export class Checker {
 
 	private incomparable(a: NonNullable<Typed>, b: NonNullable<Typed>, aExpr: Expr, bExpr: Expr): [ConditionCode, string] | undefined {
 		const [l, r] = [this.text(aExpr), this.text(bExpr)];
+		const free = this.freeAgainstLiteral(a, b, aExpr, bExpr);
+		if (free !== undefined) return free;
 		for (const [side, other, expr] of [[a, b, bExpr], [b, a, aExpr]] as const) {
 			if (side.type.kind !== "enum" || other.literals === undefined) continue;
 			const values = side.type.values;
@@ -213,6 +219,15 @@ export class Checker {
 		const textual = (kind: string) => kind === "string" || kind === "enum";
 		if (x.kind === y.kind || (textual(x.kind) && textual(y.kind))) return undefined;
 		return ["condition-type", `\`${l}\` is ${article(x)} and \`${r}\` ${article(y)}: they never compare equal`];
+	}
+
+	/** Why a side is a string a model wrote, met by a literal of the file, when it is. */
+	private freeAgainstLiteral(a: NonNullable<Typed>, b: NonNullable<Typed>, aExpr: Expr, bExpr: Expr): [ConditionCode, string] | undefined {
+		for (const [side, other, expr] of [[a, b, aExpr], [b, a, bExpr]] as const) {
+			if (side.type.kind !== "string" || side.type.free !== true || other.literals === undefined) continue;
+			return ["condition-free-string", `\`${this.text(expr)}\` is written by a model in the person's language, so no literal compares to it: read \`answered\` or \`custom\`, or have an agent node read the answer and output an enum`];
+		}
+		return undefined;
 	}
 
 	private text(expr: Expr): string {

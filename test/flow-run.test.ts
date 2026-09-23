@@ -208,7 +208,7 @@ describe("`timeout:`", () => {
 			const flow = checked(`  - id: look\n    agent: scout${timeout}`, { look: "Look." }, `input: string${head}`);
 			const node = flow.nodes[0];
 			assert.equal(node?.kind, "agent");
-			const run = new Run({ flow, bus: createEventBus(), signal: new AbortController().signal, spawn: flowSpawn([]).spawn, timeoutMs, deadline: () => new AbortController().signal, check: async () => ({ ok: false, kind: "unavailable", message: "" }), commit: async () => ({ ok: false, kind: "unavailable", message: "" }), diff: async () => ({ ok: true, value: "" }) });
+			const run = new Run({ flow, bus: createEventBus(), signal: new AbortController().signal, spawn: flowSpawn([]).spawn, timeoutMs, deadline: () => new AbortController().signal, check: async () => ({ ok: false, kind: "unavailable", message: "" }), commit: async () => ({ ok: false, kind: "unavailable", message: "" }), diff: async () => ({ ok: true, value: "" }), ask: async () => ({ missed: "nobody" }), stop: () => {} });
 			return run.timeoutFor(node as Extract<typeof node, { kind: "agent" }>);
 		};
 		assert.deepEqual([bound("\ntimeout: 2m", "\n    timeout: 90s", 5), bound("\ntimeout: 2m", "\n    timeout: 90s"), bound("\ntimeout: 2m", ""), bound("", "")], [5, 90_000, 120_000, 1_800_000]);
