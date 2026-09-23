@@ -11,7 +11,7 @@
  * putting a child under its parent is `tree.ts`.
  */
 
-import type { EventListener, SubagentStatus } from "../events.ts";
+import { isVisit, type EventListener, type SubagentStatus } from "../events.ts";
 import { emptyUsage, sumUsage, type Usage } from "../usage.ts";
 
 /** A tool call as it happened, kept for the expanded view. */
@@ -131,6 +131,7 @@ export function createRunPicture(): RunPicture {
 			return;
 		}
 
+		if (isVisit(event)) return;
 		const snapshot = byId.get(event.id);
 		if (!snapshot) return;
 

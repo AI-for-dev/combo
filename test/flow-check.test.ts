@@ -208,6 +208,13 @@ describe("checkFlow, names", () => {
 	test("`memory:` names an enclosing node, or the flow", () => {
 		assert.deepEqual(flow("  - id: next\n    agent: reviewer\n    memory: pair"), ["unknown-scope next.memory"]);
 	});
+
+	test("nodes sharing a subagent through `memory:` submit one type", () => {
+		const shared = (brief: string) => checkFlow("split", catalogue(`${HEAD}\nnodes:\n  - id: ask\n    agent: reviewer\n    memory: flow\n    output: { ready: boolean }\n  - id: brief\n    agent: reviewer\n    memory: flow${brief}`, "## ask\nAsk.\n\n## brief\nBrief."));
+		const refused = shared("\n    output: { done: boolean }");
+		assert.deepEqual(!refused.ok && refused.faults.map(({ code, at }) => `${code} ${at}`), ["memory-output-mismatch brief.output"]);
+		assert.ok(shared("").ok, "a text turn shares the subagent of a typed one");
+	});
 });
 
 describe("the fault codes", () => {

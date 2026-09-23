@@ -15,7 +15,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`board/claims`](board/claims.md) | One owner per thing, decided here rather than agreed between members. | 6 |
 | [`board/tool`](board/tool.md) | How a member reaches the board. | 2 |
 | [`delegate`](delegate.md) | Letting a subagent have subagents of its own. | 4 |
-| [`events`](events.md) | The event stream: one core, many reporters. | 4 |
+| [`events`](events.md) | The event stream: one core, many reporters. | 6 |
 | [`git/git`](git/git.md) | The git a pipeline is allowed to do - and nothing else. | 8 |
 | [`git/land`](git/land.md) | Putting the work of several copies back into one tree. | 3 |
 | [`git/scratch`](git/scratch.md) | A working copy with a lifetime: made for one piece of work, and released when that work is done. | 2 |

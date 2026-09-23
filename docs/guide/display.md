@@ -25,8 +25,13 @@ type SubagentEvent =
 	| { type: "claim";  id: string; key: string; action: "take" | "release"; ok: boolean; heldBy?: string }
 	| { type: "steer";  id: string; text: string }
 	| { type: "usage";  id: string; usage: Usage }
-	| { type: "close";  id: string; result: Result };
+	| { type: "close";  id: string; result: Result }
+	| { type: "visit_start"; path: string; node: string; kind: string }
+	| { type: "visit_end";   path: string; ok: boolean; wallMs: number; usage: Usage /* ... */ };
 ```
+
+The two `visit_` events are a [flow](flows.md#memory-and-events)'s, and carry no
+subagent id: a reader that follows subagents skips them with `isVisit(event)`.
 
 **The task rides on the `"working"` transition**, not on `spawn`: at spawn time
 nobody knows yet what the subagent will be asked, and a persistent subagent is

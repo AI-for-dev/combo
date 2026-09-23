@@ -18,6 +18,7 @@ import { VERDICT, type CheckedAgentNode, type CheckedFlow, type CheckedNode, typ
 import { compileCondition, typeOfAddress, type Condition, type Readable } from "./condition/index.ts";
 import { FaultList, type Fault } from "./fault.ts";
 import { readFlow, type FlowFile } from "./file.ts";
+import { checkShared } from "./memory.ts";
 import { everyNode, type AgentNode, type FlowNode } from "./node.ts";
 import { Scope } from "./scope.ts";
 import { showType, type ValueType } from "./type.ts";
@@ -44,6 +45,7 @@ export function checkFlow(name: string, catalogue: FlowCatalogue): CheckFlow {
 	if (flow.name !== "" && flow.name !== name) faults.add("name-mismatch", "name", `\`${flow.name}\` is in \`${name}.md\`: a flow is found by its file name, so the two say the same`);
 	const checker = new Checker(flow, new AgentNames(catalogue), faults);
 	const { nodes } = checker.sequence(flow.nodes, Scope.root(flow.input));
+	checkShared(nodes, faults);
 	faults.sort(flow.rank);
 	if (faults.list.length > 0) return { ok: false, faults: faults.list };
 	const { file, description, input, model, timeoutMs } = flow;

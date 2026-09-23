@@ -140,9 +140,12 @@ src/                the library
                     resolved, skills checked), check, check-blocks and
                     check-loop (the flow stage, against a catalogue), scope
                     (what a node can read), checked (what it hands on),
-                    type (what a value is), schema (how a file writes one),
-                    condition/ (a CEL subset: tokens, parse, compile,
-                    evaluate, address); index.ts is its door
+                    memory (the subagents a scope shares), type (what a
+                    value is), schema (how a file writes one), condition/
+                    (a CEL subset: tokens, parse, compile, evaluate,
+                    address), run/ (the runner: flow, walk, agent, turn,
+                    submit, frames, values, ended; dry-run on answers and
+                    scripted); index.ts is each one's door
   pipeline/         pipeline (the file), load (where it is), run (our code
                     walks the steps); index.ts is its door
   review/           review (the record), verdict (a decision as a tool call),

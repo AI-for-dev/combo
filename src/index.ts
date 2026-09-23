@@ -97,10 +97,12 @@ export {
 // ── Watching a run: reporters, and the picture they read ─────────────────────
 
 export {
+	isVisit,
 	type EventBus,
 	type EventListener,
 	type SubagentEvent,
 	type SubagentStatus,
+	type VisitEvent,
 } from "./events.ts";
 export {
 	autoReporter,

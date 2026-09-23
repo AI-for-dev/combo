@@ -34,6 +34,7 @@ export const FAULT_CODES = [
 	"among-without-from",
 	"among-mismatch",
 	"unknown-scope",
+	"memory-output-mismatch",
 	"carry-mismatch",
 	"verdict-with-output",
 	"copies-needed",

@@ -24,7 +24,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { EventListener, SubagentEvent, SubagentStatus } from "../events.ts";
+import { isVisit, type EventListener, type SubagentEvent, type SubagentStatus } from "../events.ts";
 import { mirrorSocket } from "../mirror.ts";
 import { plural } from "../text.ts";
 import { trafficLine } from "./traffic.ts";
@@ -127,6 +127,7 @@ export function createHerdrReporterWith(send: HerdrSend, options: HerdrOptions =
 			return;
 		}
 
+		if (isVisit(event)) return;
 		const pane = panes.get(event.id);
 		if (!pane) return; // a subagent that did not ask for a split
 
