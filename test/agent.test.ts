@@ -54,6 +54,10 @@ describe("parseAgent", () => {
 		assert.equal(parseAgent("no frontmatter at all", "/x/c.md", "user"), undefined);
 	});
 
+	test("ignores a definition whose frontmatter is not valid YAML", () => {
+		assert.equal(parseAgent("---\nname: a\ndescription: [unclosed\n---\nbody", "/x/a.md", "user"), undefined);
+	});
+
 	test("leaves tools and model undefined when absent, so spawn applies its defaults", () => {
 		const agent = parseAgent("---\nname: a\ndescription: d\ntools:   \n---\nbody", "/x/a.md", "user");
 		assert.equal(agent?.tools, undefined);
@@ -103,6 +107,22 @@ describe("loadAgentsFromDir", () => {
 			["good"],
 		);
 		assert.equal(agents[0]?.source, "project");
+	});
+
+	test("a file with invalid YAML is dropped, and the others still load", () => {
+		const dir = tmpAgentsDir({
+			"broken.md": "---\nname: broken\ndescription: [unclosed\n---\nbody",
+			"good.md": "---\nname: good\ndescription: d\n---\nbody",
+		});
+
+		assert.deepEqual(
+			loadAgentsFromDir(path.join(dir, ".pi", "agents"), "project").map((agent) => agent.name),
+			["good"],
+		);
+		assert.deepEqual(
+			loadAgents({ cwd: dir, scope: "project" }).map((agent) => agent.name),
+			["good"],
+		);
 	});
 
 	test("a missing directory yields an empty list, not an error", () => {

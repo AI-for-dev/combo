@@ -172,6 +172,7 @@ export function parseAgent(content: string, filePath: string, source: AgentSourc
 
 Parses an agent definition.
 
-Returns `undefined` when `name` or `description` is missing: this is pi's
-behaviour, an incomplete file is ignored **silently**. Kept separate from
-{@link loadAgents} so it stays testable without touching the disk.
+Returns `undefined` when the frontmatter is not valid YAML, or when `name` or
+`description` is missing: this is pi's behaviour, a file that is not an agent
+is ignored **silently**. Kept separate from {@link loadAgents} so it stays
+testable without touching the disk.
