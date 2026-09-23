@@ -13,7 +13,7 @@ import type { Agent } from "../../agent.ts";
 import type { GitResult } from "../../git/index.ts";
 import { VERDICT_TOOL } from "../../review/index.ts";
 import { toolsOf } from "../../session.ts";
-import { sumUsage, type Usage } from "../../usage.ts";
+import { emptyUsage, sumUsage, type Usage } from "../../usage.ts";
 import type { ScriptOutcome } from "../../verify.ts";
 import type { CheckedAgentNode, CheckedAskNode, CheckedCallNode, CheckedCheckNode, CheckedCommitNode, CheckedFlow, CheckedNode, FlowError } from "../checked.ts";
 import { sharedKey, sharedSubagents, submitted } from "../memory.ts";
@@ -30,6 +30,7 @@ import type { Frames, Held } from "./frames.ts";
 import type { Journal, VisitEnd } from "./journal.ts";
 import { visitLoop } from "./loop.ts";
 import { SUBMIT_TOOL, submitTool } from "./submit.ts";
+import type { Replay } from "./replay.ts";
 import type { Values } from "./values.ts";
 import { verdictSlot } from "./verdict.ts";
 import type { Walk } from "./world.ts";
@@ -45,11 +46,12 @@ export const DEFAULT_TIMEOUT_MS = 30 * 60_000;
  */
 export type Here = { readonly values: Values; readonly frames: Frames; readonly cut: AbortSignal; readonly tree: string | undefined };
 
-/** What a block needs of the walk: the run's signal, the copies it makes, the journal, and a sequence walked inside it. */
+/** What a block needs of the walk: the run's signal, the copies it makes, the journal, what a resume kept of it, and a sequence walked inside it. */
 export type Walker = {
 	readonly signal: AbortSignal;
 	readonly copies?: Copies;
 	readonly journal: Journal;
+	readonly replay?: Replay;
 	sequence(nodes: readonly CheckedNode[], prefix: string, here: Here): Promise<Walked>;
 };
 
@@ -65,6 +67,7 @@ export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, Commit
 	readonly signal: AbortSignal;
 	readonly copies?: Copies;
 	readonly journal: Journal;
+	readonly replay?: Replay;
 	private readonly walk: Walk;
 	/** The flow walked, then each one that called it, outward. */
 	private readonly stack: readonly CheckedFlow[];
@@ -77,6 +80,7 @@ export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, Commit
 		this.signal = walk.signal;
 		this.copies = walk.copies;
 		this.journal = walk.journal;
+		this.replay = walk.replay;
 		this.stack = stack;
 		this.prefix = prefix;
 		this.shared = sharedSubagents((stack[0] as CheckedFlow).nodes);
@@ -162,8 +166,14 @@ export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, Commit
 		return { subagent, submit, verdict };
 	}
 
-	/** One visit, between its `visit_start` and its `visit_end`, which is written down before it is told. */
+	/**
+	 * One visit, between its `visit_start` and its `visit_end`, which is
+	 * written down before it is told; or, on a resume, how it ended before,
+	 * neither told nor written again.
+	 */
 	private async visit(node: CheckedNode, path: string, here: Here): Promise<Visited> {
+		const kept = this.replay?.ended(path);
+		if (kept !== undefined) return { ended: kept, usage: emptyUsage(), ...(!kept.ok && { failed: { path, error: kept.error } }) };
 		const { bus } = this.walk;
 		bus.emit({ type: "visit_start", path, node: this.address(node.at), kind: node.kind });
 		const started = performance.now();

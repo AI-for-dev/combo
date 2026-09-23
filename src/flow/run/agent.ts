@@ -54,7 +54,7 @@ export async function visitAgent(run: AgentRun, node: CheckedAgentNode, path: st
 	if (typeof agent === "string") return { ended: failure("condition", agent), usage: emptyUsage() };
 	const here = await withDiff((tree) => run.diff(tree), node.reads, at);
 	if (typeof here === "string") return { ended: failure("unavailable", here), usage: emptyUsage() };
-	const asking: Asking = { run, node, path, here, ledger: node.verdict === undefined ? undefined : here.frames.ledger(node.verdict) };
+	const asking: Asking = { run, node, path, here, ledger: node.verdict === undefined ? undefined : here.frames.ledger(node.verdict).by(path) };
 	const open = () => run.open(agent, node, path, here.tree);
 	if (node.memory !== undefined) return here.frames.use(node.memory, agent.name, open, (held) => attempts(asking, held));
 	let held = await open();

@@ -10,6 +10,7 @@
  */
 
 import type { Ledger } from "../../review/index.ts";
+import type { KeptLedger } from "./journal.ts";
 import type { Subagent } from "../../subagent.ts";
 import type { SubmitTool } from "./submit.ts";
 import type { VerdictSlot } from "./verdict.ts";
@@ -27,7 +28,7 @@ export type Held = {
 /** A subagent a scope keeps, and the turn of the last visit that asked it, which the next one waits for. */
 type Kept = { readonly held: Promise<Held>; queue: Promise<unknown> };
 
-type Frame = { readonly id: string; readonly kept: Map<string, Kept>; readonly ledger?: Ledger };
+type Frame = { readonly id: string; readonly kept: Map<string, Kept>; readonly ledger?: KeptLedger };
 
 /** The memory scopes open where a visit stands, outermost first. */
 export class Frames {
@@ -43,7 +44,7 @@ export class Frames {
 	}
 
 	/** The scopes inside the structural node `id`, which opens one of its own, keeping `ledger` when it has one. */
-	inside(id: string, ledger?: Ledger): Frames {
+	inside(id: string, ledger?: KeptLedger): Frames {
 		return new Frames([...this.frames, { id, kept: new Map(), ledger }]);
 	}
 
@@ -67,7 +68,7 @@ export class Frames {
 	}
 
 	/** The ledger of the scope named `scope`, the nearest one. */
-	ledger(scope: string): Ledger {
+	ledger(scope: string): KeptLedger {
 		const { ledger } = this.frame(scope);
 		if (ledger === undefined) throw new Error(`The memory scope \`${scope}\` keeps no ledger`);
 		return ledger;

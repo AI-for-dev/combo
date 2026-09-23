@@ -10,7 +10,8 @@
  * working directory is given, no script is read, no model is reached and git
  * is never run. `diff` reads as an empty text, since no agent wrote anything,
  * and a `copies: true` block makes no copy: each of its branches reads as
- * landed, and its copy is a journal fact alone.
+ * landed, and its copy is a journal fact alone. Given `from`, it resumes that
+ * journal through the same `resumePoint` a real resume takes.
  */
 
 import { spawn } from "../../subagent.ts";
@@ -24,22 +25,28 @@ import { Script, type AnswerFault, type Answers } from "./answers.ts";
 import type { CommitOutcome } from "./commit.ts";
 import { checkInput, walkFlow, type FlowResult, type RunFlowOptions } from "./flow.ts";
 import type { JournalEntry } from "./journal.ts";
+import { resumePoint } from "./resume-point.ts";
 import { scriptedSession, type ScriptedSession } from "./scripted.ts";
 
 /** What a dry run varies: what a run does, short of reaching the world. */
-export type DryRunOptions = Pick<RunFlowOptions, "signal" | "onEvent" | "model" | "timeoutMs">;
+export type DryRunOptions = Pick<RunFlowOptions, "signal" | "onEvent" | "model" | "timeoutMs"> & {
+	/** A journal to resume, as `resumeFlow` resumes a run directory's: its facts come first in the one handed back. */
+	readonly from?: readonly JournalEntry[];
+};
 
 /**
  * How a dry run ended: as the flow did, or at the first visit its script did
  * not answer, which is no outcome of the flow's; or refused before the start,
- * with every fault of the script. The journal holds every fact a run would
+ * with every fault of the script, or a journal `from` a resume would refuse,
+ * with why. The journal holds every fact a run would
  * write, in order, the run's end last. Its tokens and cost are zero, since a
  * script spends nothing; the time is measured, like any run's.
  */
 export type DryRun =
 	| (FlowResult & { readonly journal: readonly JournalEntry[] })
 	| { readonly ok: false; readonly unscripted: string; readonly journal: readonly JournalEntry[]; readonly usage: Usage }
-	| { readonly ok: false; readonly faults: readonly AnswerFault[] };
+	| { readonly ok: false; readonly faults: readonly AnswerFault[] }
+	| { readonly ok: false; readonly refused: string };
 
 /** Runs `checked` on `input`, each agent turn, check, commit and question answered from `answers`. */
 export async function dryRunFlow(checked: CheckedFlow, input: unknown, answers: Answers, options: DryRunOptions = {}): Promise<DryRun> {
@@ -47,8 +54,10 @@ export async function dryRunFlow(checked: CheckedFlow, input: unknown, answers: 
 	if (!checkedScript.ok) return { ok: false, faults: checkedScript.faults };
 	const { script } = checkedScript;
 	checkInput(checked, input);
+	const point = options.from && resumePoint(checked, options.from);
+	if (point !== undefined && !point.ok) return point;
 
-	const journal: JournalEntry[] = [];
+	const journal: JournalEntry[] = [...(options.from ?? [])];
 	// A hole in the script stops the run the way a person would, so nothing
 	// in the flow can absorb it, and it is reported apart from the flow's end.
 	const halt = new AbortController();
@@ -81,9 +90,10 @@ export async function dryRunFlow(checked: CheckedFlow, input: unknown, answers: 
 	const ask = async (node: CheckedAskNode, path: string): Promise<Heard> => script.heard(path, node.at) ?? (hole(path), { declined: true });
 	const whole = (node: CheckedCallNode, path: string) => script.whole(path, node.at);
 	const diff = async () => ({ ok: true as const, value: "" });
-	const world = { deadline, check: ran<ScriptOutcome>, commit: ran<CommitOutcome>, diff, ask, whole, journal: { append: (entry: JournalEntry) => journal.push(entry) } };
+	const world = { deadline, check: ran<ScriptOutcome>, commit: ran<CommitOutcome>, diff, ask, whole, journal: { append: (entry: JournalEntry) => journal.push(entry) }, replay: point?.replay };
 
-	const result = await walkFlow(checked, input, { ...options, signal, spawn: scripted }, world);
+	const { onEvent, model, timeoutMs } = options;
+	const result = await walkFlow(checked, input, { onEvent, model, timeoutMs, signal, spawn: scripted }, world);
 	if (unscripted !== undefined) return { ok: false, unscripted, journal, usage: result.usage };
 	return { ...result, journal };
 }

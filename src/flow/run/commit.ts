@@ -42,10 +42,10 @@ export async function visitCommit(run: CommittingRun, node: CheckedCommitNode, p
 /**
  * The commits of one real run, in `cwd`: the first opens the run's branch,
  * `combo/<slug of input>`, written to `journal`, and each later one checks
- * `HEAD` is still on it.
+ * `HEAD` is still on it. A resumed run holds to the `opened` one.
  */
-export function committer(git: GitPort, cwd: string, input: unknown, journal: Journal): (message: string) => Promise<CommitOutcome> {
-	let branch: string | undefined;
+export function committer(git: GitPort, cwd: string, input: unknown, journal: Journal, opened?: string): (message: string) => Promise<CommitOutcome> {
+	let branch = opened;
 	const refused = (message: string): CommitOutcome => ({ ok: false, kind: "unavailable", message });
 	return async (message) => {
 		if (branch === undefined) {

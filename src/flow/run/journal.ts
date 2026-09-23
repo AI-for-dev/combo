@@ -20,7 +20,7 @@ import type { FlowError } from "../checked.ts";
 export const JOURNAL_FILE = "journal.jsonl";
 
 /** Every kind of fact the journal holds, as its entries' `type`. */
-export const ENTRY_TYPES = ["visit_end", "carry", "map_items", "obligation_raised", "obligation_closed", "copy_opened", "copy_landed", "branch_opened", "run_end"] as const;
+export const ENTRY_TYPES = ["visit_end", "carry", "map_items", "obligation_raised", "obligation_closed", "copy_opened", "copy_landed", "copy_lost", "branch_opened", "run_end"] as const;
 
 /** A visit that ended: its `visit_end`, written down. */
 export type VisitEnd = Extract<VisitEvent, { type: "visit_end" }>;
@@ -32,13 +32,15 @@ export type JournalEntry =
 	| { readonly type: "carry"; readonly path: string; readonly value: unknown }
 	/** The list the `map` visit `path` runs over, frozen when it starts. */
 	| { readonly type: "map_items"; readonly path: string; readonly items: readonly unknown[] }
-	/** An obligation raised in the ledger of the scope opened at the visit `ledger`: a loop's, or a `map` item's. */
-	| { readonly type: "obligation_raised"; readonly ledger: string; readonly obligation: Obligation }
-	| { readonly type: "obligation_closed"; readonly ledger: string; readonly id: string; readonly closure: Closure }
-	/** The copy the branch `path` runs in: its directory and git branch, none in a dry run, which makes no copy. */
-	| { readonly type: "copy_opened"; readonly path: string; readonly dir?: string; readonly branch?: string }
+	/** An obligation the `verdict:` visit `visit` raised in the ledger of the scope opened at the visit `ledger`: a loop's, or a `map` item's. */
+	| { readonly type: "obligation_raised"; readonly ledger: string; readonly visit: string; readonly obligation: Obligation }
+	| { readonly type: "obligation_closed"; readonly ledger: string; readonly visit: string; readonly id: string; readonly closure: Closure }
+	/** The copy the branch `path` runs in: its directory, git branch and the commit it started from, none in a dry run, which makes no copy. */
+	| { readonly type: "copy_opened"; readonly path: string; readonly dir?: string; readonly branch?: string; readonly base?: string }
 	/** What landing the branch `path`'s patch gave, once every branch of its block ended. */
 	| { readonly type: "copy_landed"; readonly path: string; readonly landed: boolean; readonly refused?: string }
+	/** A resume found the copy of the branch `path` gone, or its work not landed: every fact under it before this line is forgotten, and it starts over. */
+	| { readonly type: "copy_lost"; readonly path: string; readonly why: string }
 	/** The run's own branch, opened by its first commit. */
 	| { readonly type: "branch_opened"; readonly branch: string }
 	/** How the run ended: what `runFlow` returned, written down. */
@@ -92,32 +94,43 @@ function entry(line: string, where: string): JournalEntry {
 	return parsed as JournalEntry;
 }
 
+/** The ledger a scope keeps, and how one visit writes to it. */
+export type KeptLedger = {
+	/** What `<scope>.ledger` reads, and a `verdict:` turn is shown. */
+	readonly ledger: Ledger;
+	/** The ledger as the visit `visit` writes to it: each raise and each accepted close written down with the visit that made it. */
+	by(visit: string): Ledger;
+};
+
 /**
- * A fresh ledger for the scope opened at the visit `at`, each obligation
- * raised or closed in it written to `journal` as it happens. A close the
- * ledger refuses changed nothing, and writes nothing.
+ * The ledger of the scope opened at the visit `at`, carrying on from
+ * `restored`, what a resume kept of it. A close the ledger refuses changed
+ * nothing, and writes nothing.
  */
-export function journaledLedger(journal: Journal, at: string): Ledger {
-	const ledger = createLedger();
+export function journaledLedger(journal: Journal, at: string, restored: readonly Obligation[] = []): KeptLedger {
+	const ledger = createLedger(restored);
 	return {
-		raise(openedBy, text, round) {
-			const obligation = ledger.raise(openedBy, text, round);
-			journal.append({ type: "obligation_raised", ledger: at, obligation: { ...obligation } });
-			return obligation;
-		},
-		close(id, by, closure) {
-			const outcome = ledger.close(id, by, closure);
-			if (outcome.ok) journal.append({ type: "obligation_closed", ledger: at, id, closure: outcome.obligation.closed as Closure });
-			return outcome;
-		},
-		get all() {
-			return ledger.all;
-		},
-		get open() {
-			return ledger.open;
-		},
-		get settled() {
-			return ledger.settled;
-		},
+		ledger,
+		by: (visit) => ({
+			raise(openedBy, text, round) {
+				const obligation = ledger.raise(openedBy, text, round);
+				journal.append({ type: "obligation_raised", ledger: at, visit, obligation: { ...obligation } });
+				return obligation;
+			},
+			close(id, by, closure) {
+				const outcome = ledger.close(id, by, closure);
+				if (outcome.ok) journal.append({ type: "obligation_closed", ledger: at, visit, id, closure: outcome.obligation.closed as Closure });
+				return outcome;
+			},
+			get all() {
+				return ledger.all;
+			},
+			get open() {
+				return ledger.open;
+			},
+			get settled() {
+				return ledger.settled;
+			},
+		}),
 	};
 }

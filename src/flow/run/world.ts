@@ -15,13 +15,15 @@ import type { CommitOutcome } from "./commit.ts";
 import type { Copies } from "./copies.ts";
 import type { Ended } from "./ended.ts";
 import type { Journal } from "./journal.ts";
+import type { Replay } from "./replay.ts";
 
 /**
  * How a walk reaches the world: the deadline of each agent attempt, a
  * check's script run in a tree, a commit, the `diff` of a tree, the copies of
- * a block, a question put to the person, and the journal each fact is written
- * to. A real run's come from its `CheckedRun` and its run directory; a dry
- * run's are scripted, and it makes no copy.
+ * a block, a question put to the person, the journal each fact is written
+ * to, and on a resume what the journal already held. A real run's come from
+ * its `CheckedRun` and its run directory; a dry run's are scripted, and it
+ * makes no copy.
  */
 export type World = {
 	deadline(attempt: Attempt): AbortSignal;
@@ -33,6 +35,8 @@ export type World = {
 	whole?(node: CheckedCallNode, path: string): Ended | undefined;
 	readonly copies?: Copies;
 	readonly journal: Journal;
+	/** What a resume kept of the journal: a visit it holds that survives is not visited again. */
+	readonly replay?: Replay;
 };
 
 /** What a run is given: the flow, its settings, and how it reaches the world. */

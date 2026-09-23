@@ -12,7 +12,7 @@
 import { branchExists, branchName, commitAll, createBranch, currentBranch, isRepository, status } from "./git.ts";
 import { land, type Landed, type Landing } from "./land.ts";
 import type { GitResult } from "./run.ts";
-import { scratchWorktree, type Scratch } from "./scratch.ts";
+import { reopenScratch, scratchWorktree, type Scratch } from "./scratch.ts";
 import { snapshot, treeDiff } from "./tree.ts";
 
 /** How a flow run reaches git. Injected, so the run stage and the runner never run git of their own. */
@@ -23,6 +23,8 @@ export type GitPort = {
 	diff(cwd: string): Promise<GitResult<string>>;
 	/** The branch `HEAD` is on, `undefined` when detached. */
 	currentBranch(cwd: string): Promise<string | undefined>;
+	/** Whether the branch `name` exists. */
+	hasBranch(cwd: string, name: string): Promise<boolean>;
 	/**
 	 * A branch of the run's own, `combo/<slug of request>`, suffixed `-2`, `-3`
 	 * while the name is taken, created from `HEAD` and switched to.
@@ -32,6 +34,8 @@ export type GitPort = {
 	commit(cwd: string, message: string): Promise<GitResult<string | undefined>>;
 	/** A copy of the tree as it stands, uncommitted changes included, for one branch of a block. */
 	copy(cwd: string, label: string): Promise<GitResult<Scratch>>;
+	/** The copy a previous process made for `label` and left open, taken back when it is still there. */
+	reopen(cwd: string, label: string, copy: Omit<Scratch, "release">): Promise<GitResult<Scratch>>;
 	/** Applies patches one at a time onto a tree holding the run's own changes. */
 	land(cwd: string, landings: readonly Landing[]): Promise<Landed>;
 };
@@ -42,6 +46,7 @@ export function gitPort(): GitPort {
 		isRepository,
 		diff: (cwd) => treeDiff(cwd),
 		currentBranch,
+		hasBranch: branchExists,
 		async openBranch(cwd, request) {
 			const name = branchName(request);
 			for (let n = 1; ; n++) {
@@ -58,6 +63,7 @@ export function gitPort(): GitPort {
 			const base = await snapshot(cwd);
 			return base.ok ? scratchWorktree(cwd, label, base.value) : base;
 		},
+		reopen: reopenScratch,
 		// The tree holds what the run wrote, which the copies started from.
 		land: (cwd, landings) => land(cwd, landings, { requireCleanTree: false }),
 	};
