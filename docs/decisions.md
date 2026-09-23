@@ -1367,6 +1367,28 @@ resolves its names against a catalogue; `checkFlow` is the one door, and a
   that reads the block is reported again, and neither are the nodes read under
   the refused one.
 
+### A loop reads its body one iteration back
+
+`src/flow/loop.ts` reads a `loop`, and `src/flow/check-loop.ts` checks it.
+
+- **`until` and `max` are both required.** A loop with no condition would
+  repeat a body a fixed number of times, which no flow needs; one with no cap
+  is an unbounded cycle, which a flow cannot write.
+- **The body is checked twice, the first time in silence.** Inside it,
+  `<loop>.previous.<node>` is a body node one iteration back, so the body's
+  output types are needed before the body is checked. A node's output type
+  never depends on what it reads, so the silent pass cannot disagree with the
+  one that reports.
+- **A carry's type is what both of its sides share.** `first` is read before
+  the loop and `next` after each iteration; only the fields both have, with the
+  same name and type, are readable, so `build` carries the plan's `text` and
+  then the ledger's, and reading the ledger's `id` is refused. Sides with
+  nothing in common are refused once, as `carry-mismatch`.
+- **A ledger is named after the node that opens it.** `ledger: deliver` on
+  `deliver`, and a `verdict: deliver` inside it writes there. A `map` may keep
+  one too, one per item. A `verdict:` node's output is the verdict,
+  `{ approved, remarks? }`, so an `output:` beside it is refused.
+
 ## A chain walked by hand
 
 `/run explore …` put its answer in the conversation, and the session picked it

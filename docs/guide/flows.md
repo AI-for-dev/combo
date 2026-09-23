@@ -83,6 +83,7 @@ One turn of an agent from the catalogue.
 | `reads` | the addresses handed to the turn, in order |
 | `output` | a [schema](#schemas): the output is typed, instead of the agent's text |
 | `memory` | an enclosing node's id, or `flow`: every node naming this agent and scope resumes the same subagent |
+| `verdict` | an enclosing node with a `ledger:`: the turn answers with the `verdict` tool, and its output is `{ approved, remarks? }` |
 | `retry` | how many more attempts after a failed one, default 0 |
 | `timeout` | the bound of one attempt, `90s`, `10m`, `1h` |
 | `on-fail` | `continue`: a failure stops at this node instead of ending the flow |
@@ -153,6 +154,36 @@ body's last node ended.
 | `concurrency` | how many items run at once, default 1 |
 | `copies` | `true`: each item works in its own copy of the repository |
 | `fail-fast` | `true`: the first failed item cuts the others |
+| `ledger` | its own id: each item keeps a ledger, read as `<map>.ledger` |
+
+### `loop`
+
+Its body, `do:`, again at the end of each iteration until its condition holds,
+at most `max:` times. The condition is the main argument; it reads the body's
+nodes as they ended in that iteration.
+
+```yaml
+- id: deliver
+  loop: audit.output.approved
+  max: 2
+  ledger: deliver
+  carry: { first: plan.output.subtasks, next: deliver.ledger }
+  give-up: size(deliver.ledger) == 0
+  do: [ ... ]
+```
+
+| Key | Meaning |
+| --- | --- |
+| `max` | required: the most iterations; reaching it fails the loop |
+| `give-up` | a condition read when the main one is false; true ends the loop not converged |
+| `carry` | `{ first, next }`: what `<loop>.carry` reads, `first` on the first iteration, `next` after each |
+| `ledger` | its own id: the loop keeps a ledger across iterations, read as `<loop>.ledger` |
+
+Inside the body, `<loop>.previous.<node>` is a body node as it ended one
+iteration back, absent on the first. The type of `carry` is what both sides
+share: the fields they have with the same name and type. The loop's output is
+`{ converged, stop, iterations, last }`: `stop` is `until`, `give-up` or `cap`,
+and `last` holds each body node as it ended in the last iteration.
 
 ### Branches that run together
 
@@ -236,6 +267,8 @@ then the offending key: `first.agent-from`.
 | `among-without-from` | `among:` beside `agent:` | use `agent-from:`, or drop `among:` |
 | `among-mismatch` | `among:` does not name exactly the enum's values | make the two lists agree |
 | `unknown-scope` | `memory:` names no enclosing node | name one, or `flow` |
+| `carry-mismatch` | a loop's `carry:` sides share no field | make `first` and `next` agree on the fields carried |
+| `verdict-with-output` | a `verdict:` node also declares `output:` | drop `output:`: the verdict is the output |
 | `copies-needed` | branches that run together write without copies | add `copies: true`, or run a `map` with `concurrency: 1` |
 | `section-missing` | an `agent` node has no `## <id>` section | write its section |
 | `section-empty` | a section has no text | say what the turn is asked |

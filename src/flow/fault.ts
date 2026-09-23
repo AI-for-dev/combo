@@ -31,6 +31,8 @@ export const FAULT_CODES = [
 	"among-without-from",
 	"among-mismatch",
 	"unknown-scope",
+	"carry-mismatch",
+	"verdict-with-output",
 	"copies-needed",
 	"section-missing",
 	"section-empty",

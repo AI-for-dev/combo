@@ -50,6 +50,8 @@ export type CheckedAgentNode = Common & {
 	readonly memory?: string;
 	readonly reads: readonly CheckedRead[];
 	readonly output?: ValueType;
+	/** The enclosing node whose ledger the `verdict` tool writes to; the output is then {@link VERDICT}. */
+	readonly verdict?: string;
 	readonly retry: number;
 	readonly timeoutMs?: number;
 };
@@ -77,11 +79,23 @@ export type CheckedMapNode = Common & {
 	readonly concurrency: number;
 	readonly copies: boolean;
 	readonly failFast: boolean;
+	readonly ledger: boolean;
+	readonly nodes: readonly CheckedNode[];
+};
+
+/** A `loop`, its conditions compiled. */
+export type CheckedLoopNode = Common & {
+	readonly kind: "loop";
+	readonly until: Condition;
+	readonly max: number;
+	readonly giveUp?: Condition;
+	readonly carry?: { readonly first: string; readonly next: string };
+	readonly ledger: boolean;
 	readonly nodes: readonly CheckedNode[];
 };
 
 /** A node of any kind, resolved. */
-export type CheckedNode = CheckedAgentNode | CheckedChoiceNode | CheckedParallelNode | CheckedMapNode;
+export type CheckedNode = CheckedAgentNode | CheckedChoiceNode | CheckedParallelNode | CheckedMapNode | CheckedLoopNode;
 
 declare const checked: unique symbol;
 
@@ -96,6 +110,23 @@ export type CheckedFlow = {
 	readonly nodes: readonly CheckedNode[];
 	readonly [checked]: true;
 };
+
+const STRING: ValueType = { kind: "string" };
+
+/** What a `verdict:` node outputs: the decision, and the short form of why. */
+export const VERDICT: ValueType = {
+	kind: "object",
+	fields: { approved: { type: { kind: "boolean" }, optional: false }, remarks: { type: STRING, optional: true } },
+};
+
+/** The open obligations of a ledger, as `<scope>.ledger` reads them. */
+export const LEDGER: ValueType = {
+	kind: "list",
+	of: { kind: "object", fields: { id: { type: STRING, optional: false }, text: { type: STRING, optional: false } } },
+};
+
+/** How a loop stopped: its condition held, it gave up, or it reached its cap. */
+export const STOPS = ["until", "give-up", "cap"] as const;
 
 /** The value of each `choice` case, and of its default, as `case` names them: `"1"` for the first. */
 export function caseNames(count: number): string[] {

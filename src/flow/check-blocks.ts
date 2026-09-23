@@ -11,7 +11,7 @@
 
 import type { Agent } from "../agent.ts";
 import type { CheckedOne, Checker } from "./check.ts";
-import { caseNames, endedNode, type CheckedNode } from "./checked.ts";
+import { caseNames, endedNode, LEDGER, type CheckedNode } from "./checked.ts";
 import type { ChoiceNode, MapNode, ParallelNode } from "./node.ts";
 import { everyNode } from "./node.ts";
 import type { Scope } from "./scope.ts";
@@ -52,14 +52,16 @@ export function checkParallel(checker: Checker, node: ParallelNode, scope: Scope
 /** A `map`: its list typed, its body in a scope that lends `item`, joined into a list in item order. */
 export function checkMap(checker: Checker, node: MapNode, scope: Scope): CheckedOne {
 	const item = "items" in node.over ? ({ kind: "string" } as const) : listElement(checker, node, node.over.from, scope);
-	const body = checker.sequence(node.nodes, scope.inside(node.id).lend("item", item ?? { kind: "text" }));
+	const inner = scope.inside(node.id, node.ledger).lend("item", item ?? { kind: "text" });
+	if (node.ledger) inner.lend(node.id, { kind: "object", fields: { ledger: { type: LEDGER, optional: false } } });
+	const body = checker.sequence(node.nodes, inner);
 	const ended = endedNode(body.last as ValueType);
 	const fields = { item: { type: item ?? { kind: "text" }, optional: false }, ...(ended.kind === "object" ? ended.fields : {}) };
 	const output: ValueType = { kind: "list", of: { kind: "object", fields } };
 	if (!node.copies && node.concurrency > 1) needsCopies(checker, node.at, [body.nodes], `\`concurrency: ${node.concurrency}\` runs items at once`, true);
 	if (item === undefined) return { output };
-	const { id, at, continueOnFail, over, max, concurrency, copies, failFast } = node;
-	return { output, node: { kind: "map", id, at, continueOnFail, over, max, concurrency, copies, failFast, nodes: body.nodes } };
+	const { id, at, continueOnFail, over, max, concurrency, copies, failFast, ledger } = node;
+	return { output, node: { kind: "map", id, at, continueOnFail, over, max, concurrency, copies, failFast, ledger, nodes: body.nodes } };
 }
 
 function listElement(checker: Checker, node: MapNode, from: string, scope: Scope): ValueType | undefined {
