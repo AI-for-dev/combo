@@ -1,5 +1,5 @@
 /**
- * The agents and pipelines this package ships with.
+ * The agents, pipelines and flows this package ships with.
  *
  * They are the lowest-priority source, always: a definition of the same name in
  * `~/.pi/agent/` or in the repository **replaces** one of these. Shipping a
@@ -29,3 +29,6 @@ export const BUILTIN_AGENTS_DIR = path.join(PACKAGE_ROOT, "agents");
 
 /** The pipelines shipped here. Lowest priority of the three sources. */
 export const BUILTIN_PIPELINES_DIR = path.join(PACKAGE_ROOT, "pipelines");
+
+/** The flows shipped here. Lowest priority of the three sources. */
+export const BUILTIN_FLOWS_DIR = path.join(PACKAGE_ROOT, "flows");

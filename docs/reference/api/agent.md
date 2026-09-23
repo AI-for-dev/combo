@@ -144,7 +144,10 @@ instructions. They are only loaded on explicit request.
 
 Precedence runs from the least specific to the most: the shipped definitions
 first when `builtin` is set, then the user's, then the repository's. Whoever
-is closer to the work wins the name.
+is closer to the work wins the name. `builtin` is off by default: a script
+that asks for "the user's agents" must not be handed ours as well. The
+extension asks for them, because there it is the difference between working
+out of the box and not working at all.
 
 Discovery happens on every call: editing a `.md` is enough to reload it.
 

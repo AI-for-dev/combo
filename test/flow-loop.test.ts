@@ -17,7 +17,7 @@ const AGENTS = ["scout", "planner", "reviewer", "auditor"].map((name) => agent(n
 
 function check(nodes: string, sections: string[]) {
 	const body = sections.map((id) => `## ${id}\nDo it.`).join("\n\n");
-	const catalogue: FlowCatalogue = { flows: [{ name: "f", filePath: "flows/f.md", content: `---\nname: f\ndescription: d\ninput: string\nnodes:\n${nodes}\n---\n${body}` }], agents: AGENTS };
+	const catalogue: FlowCatalogue = { flows: [{ name: "f", filePath: "flows/f.md", content: `---\nname: f\ndescription: d\ninput: string\nnodes:\n${nodes}\n---\n${body}` }], agents: AGENTS, brokenAgents: [], cwd: "." };
 	return checkFlow("f", catalogue);
 }
 

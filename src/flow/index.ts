@@ -5,10 +5,12 @@
  * This is the module's door. Nothing outside the library reaches it yet: the
  * format is built beside the linear pipeline, and the package exports it when
  * it replaces that. The file's reader, its nodes and its sections are
- * implementation: `checkFlow` is how a flow is read.
+ * implementation: `loadFlowCatalogue` finds what a flow runs against, and
+ * `checkFlow` is how a flow is read.
  */
 
-export { checkFlow, type CheckFlow, type FlowCatalogue } from "./check.ts";
+export { loadFlowCatalogue, type FlowCatalogue } from "./catalogue.ts";
+export { checkFlow, type CheckFlow } from "./check.ts";
 export {
 	ERROR_KINDS,
 	LEDGER,

@@ -175,6 +175,11 @@ export function lastTurn(messages: readonly AgentMessage[]): TurnReading {
 /** Tools of an exploration agent: read, never write. This is the default. */
 export const READ_ONLY_TOOLS = ["read", "grep", "find", "ls"] as const;
 
+/** The tools an agent is spawned with: the ones it names, or {@link READ_ONLY_TOOLS}. */
+export function toolsOf(agent: Agent): string[] {
+	return agent.tools ?? [...READ_ONLY_TOOLS];
+}
+
 /** Session creation settings, passed through by `spawn()`. */
 export type CreateSessionOptions = {
 	/** Working directory of the session. Defaults to the process's own. */
@@ -216,7 +221,7 @@ export type CreateSession = (agent: Agent, options: CreateSessionOptions) => Pro
  */
 export const createDefaultSession: CreateSession = async (agent, options) => {
 	const cwd = options.cwd ?? process.cwd();
-	const tools = agent.tools ?? [...READ_ONLY_TOOLS];
+	const tools = toolsOf(agent);
 
 	const { session } = await createAgentSession({
 		cwd,

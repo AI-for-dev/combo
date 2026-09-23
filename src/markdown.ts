@@ -1,12 +1,12 @@
 /**
  * Definitions on disk: how a `.md` with frontmatter is found and read.
  *
- * Agents and pipelines are the same file format, discovered the same way - a
- * directory of `.md` files, and a walk up the parents to the first
+ * Agents, pipelines and flows are the same file format, discovered the same
+ * way - a directory of `.md` files, and a walk up the parents to the first
  * `.pi/<something>/`. Only what happens to a file *after* it is read differs,
- * and that difference is the point: an agent that does not parse is dropped in
- * silence, a pipeline that does not parse is collected and reported by name.
- * So this file finds and reads; it never decides what a file means.
+ * and that difference is the point: `loadAgents` drops an agent that does not
+ * parse in silence, a pipeline or a flow's catalogue collects it and reports it
+ * by name. So this file finds and reads; it never decides what a file means.
  *
  * The frontmatter coercions live here too, because "YAML-ish" is a property of
  * the format rather than of either reader: a flag written `true` in a file
@@ -15,7 +15,8 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
+import { CONFIG_DIR_NAME, getAgentDir } from "@earendil-works/pi-coding-agent";
+import type { AgentScope, AgentSource } from "./agent.ts";
 
 /** One Markdown file, read. */
 export type MarkdownFile = {
@@ -62,6 +63,28 @@ export function readMarkdownDir(dir: string): MarkdownFile[] {
 	return files;
 }
 
+/** A directory definitions are read from, and whose they are. */
+export type DefinitionDir = { dir: string; source: AgentSource };
+
+/**
+ * Where the definitions kept under `<sub>/` are looked for, **least specific
+ * first**: the package's own (`builtinDir`) when `builtin` is set, then the
+ * user's `~/.pi/agent/<sub>/`, then the repository's nearest `.pi/<sub>/`.
+ *
+ * A caller reads them in this order into one map by name, so whoever is closer
+ * to the work wins it. The scope defaults to `"user"`: a repository's
+ * definitions are third-party instructions, loaded only on explicit request.
+ */
+export function definitionDirs(sub: string, builtinDir: string, options: { cwd?: string; scope?: AgentScope; builtin?: boolean }): DefinitionDir[] {
+	const scope = options.scope ?? "user";
+	const dirs: DefinitionDir[] = [];
+	if (options.builtin) dirs.push({ dir: builtinDir, source: "builtin" });
+	if (scope !== "project") dirs.push({ dir: path.join(getAgentDir(), sub), source: "user" });
+	const projectDir = scope === "user" ? undefined : findProjectDir(options.cwd ?? process.cwd(), sub);
+	if (projectDir) dirs.push({ dir: projectDir, source: "project" });
+	return dirs;
+}
+
 /** Walks up from `cwd` to the first `.pi/<sub>/` that exists. */
 export function findProjectDir(cwd: string, sub: string): string | undefined {
 	let dir = path.resolve(cwd);
@@ -76,6 +99,17 @@ export function findProjectDir(cwd: string, sub: string): string | undefined {
 		if (parent === dir) return undefined;
 		dir = parent;
 	}
+}
+
+/**
+ * A YAML error in a file's frontmatter, as one line: the reason, then the line
+ * in the file. `yaml` counts from the first line of the frontmatter, which is
+ * the file's second, after the opening `---`.
+ */
+export function yamlError(error: unknown): string {
+	const line = (error as { linePos?: { line: number }[] }).linePos?.[0]?.line;
+	const reason = (error as Error).message.split(" at line")[0] ?? (error as Error).message;
+	return line === undefined ? reason : `${reason}, line ${line + 1}`;
 }
 
 /** Frontmatter text, trimmed. Blank counts as absent: `name:` with nothing after it says nothing. */

@@ -22,6 +22,7 @@
  */
 
 import { parseFrontmatter } from "@earendil-works/pi-coding-agent";
+import { yamlError } from "../markdown.ts";
 import { FaultList, type Fault } from "./fault.ts";
 import { readAgent } from "./agent-node.ts";
 import { readChoice, readMap, readParallel } from "./blocks.ts";
@@ -78,9 +79,7 @@ export function readFlow(content: string, file: string): ReadFlow {
 	try {
 		parsed = parseFrontmatter<Record<string, unknown>>(content);
 	} catch (error) {
-		const line = (error as { linePos?: { line: number }[] }).linePos?.[0]?.line;
-		const reason = (error as Error).message.split(" at line")[0] ?? (error as Error).message;
-		faults.add("yaml-syntax", "", line === undefined ? reason : `${reason}, line ${line + 1}`);
+		faults.add("yaml-syntax", "", yamlError(error));
 		return { faults };
 	}
 	const { frontmatter, body } = parsed;

@@ -60,6 +60,27 @@ headings inside a section are prose, and so is a `##` inside a fenced code
 block. Text before the first section is refused: no turn would read it.
 `description:` and YAML comments are where a flow is documented.
 
+## Where flows live
+
+A flow is one `.md` file, found by its file name where agents are found:
+
+1. `flows/` in the package, when the shipped ones are asked for;
+2. `~/.pi/agent/flows/`, yours;
+3. `.pi/flows/` in the repository, found by walking up from the working
+   directory, and read only with scope `"project"` or `"both"`.
+
+When two places hold the same name, the later one in this list wins, so your
+own `build.md` replaces the shipped one. The agents a flow names come from the
+same three places, under `agents/`.
+
+A flow's agents are checked with the flow, before anything runs. A name that
+matches an agent file which does not parse is reported as that file being
+broken, with its path and the cause, rather than as unknown, and that file keeps
+its name: a broken `.pi/agents/scout.md` is not replaced by your own `scout`. An
+agent that declares `skills:` needs `read` in its `tools:`, and each skill has
+to be found [where agents look for skills](agents.md#skills). These are the
+refusals spawn would make, moved before the first turn.
+
 ## Nodes
 
 A node is `id:` plus exactly one kind key, which holds its main argument, and
@@ -262,6 +283,10 @@ then the offending key: `first.agent-from`.
 | `reserved-id` | an id is a word an address or CEL uses | rename it |
 | `duplicate-id` | two nodes of the file share an id | rename one |
 | `unknown-agent` | no agent of the catalogue has that name | use the name offered, or add the agent |
+| `broken-agent` | the agent file of that name is not an agent: its YAML, or a missing `name:` or `description:` | fix the file at the path given |
+| `skills-without-read` | the agent declares `skills:` and its `tools:` leave out `read`, so it could not open one | add `read` to its `tools:`, or drop `skills:` |
+| `unknown-skill` | a skill the agent declares is in none of the directories listed | fix the name, or add the skill |
+| `skill-hidden` | a skill the agent declares sets `disable-model-invocation`, so pi never shows it | drop it from `skills:`, or unset the flag |
 | `unknown-address` | an address names nothing readable here | read a node that already ended, or a field that exists |
 | `invalid-address` | an address is not a name followed by fields, or reads into text | write `node.output.field`, and read an agent's text whole |
 | `among-without-from` | `among:` beside `agent:` | use `agent-from:`, or drop `among:` |

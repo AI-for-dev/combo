@@ -9,8 +9,8 @@
  *
  * pi does the rest: the system prompt carries a name, a description and a path,
  * and the model opens `SKILL.md` itself with `read`. That is why a declared
- * skill the model cannot reach is a configuration error here rather than a
- * silence at runtime.
+ * skill the model cannot reach is a configuration error rather than a silence
+ * at runtime: a flow's validation reports it, and spawn throws it.
  */
 
 import * as path from "node:path";
@@ -53,22 +53,31 @@ export function skillDirs(agent: Agent, cwd: string): SkillDir[] {
 	return dirs;
 }
 
+/** Every code a {@link SkillProblem} can carry, in the order they are found. */
+export const SKILL_CODES = ["skills-without-read", "unknown-skill", "skill-hidden"] as const;
+
+/** One reason an agent's `skills:` cannot be handed to it. */
+export type SkillProblem = { readonly code: (typeof SKILL_CODES)[number]; readonly message: string };
+
 /**
- * Resolves what an agent's `skills:` names, in the order it named them.
+ * What an agent's `skills:` names, looked up nearest first, and every reason
+ * one of them would never reach the model: a toolset without `read` (pi hides
+ * the whole section), a name found nowhere, and a skill whose frontmatter says
+ * `disable-model-invocation` (pi hides that one).
  *
- * Throws rather than dropping one: a missing skill is a typo in a definition,
- * and finding out through prose that quietly lacks a step costs more than
- * failing at spawn. Same reason for the two ways a skill can resolve and still
- * never be seen - a toolset without `read` (pi hides the whole section), and a
- * skill whose frontmatter says `disable-model-invocation` (pi hides that one).
+ * The one lookup, for the two callers that must agree on it: spawn, which
+ * throws the first problem, and a flow's validation, which reports them all
+ * before anything runs. `skills` is in declaration order and holds what was
+ * found, problems or not.
  */
-export function resolveSkills(agent: Agent, cwd: string, tools: readonly string[]): Skill[] {
+export function findSkills(agent: Agent, cwd: string, tools: readonly string[]): { skills: Skill[]; problems: SkillProblem[] } {
 	// A set: a name written twice is one skill, not one advertised twice.
 	const names = [...new Set(agent.skills ?? [])];
-	if (names.length === 0) return [];
+	if (names.length === 0) return { skills: [], problems: [] };
 
+	const problems: SkillProblem[] = [];
 	if (!tools.includes("read")) {
-		throw new Error(`Agent "${agent.name}" declares skills but has no "read" tool: it could not open one.`);
+		problems.push({ code: "skills-without-read", message: `Agent "${agent.name}" declares skills but has no "read" tool: it could not open one.` });
 	}
 
 	const dirs = skillDirs(agent, cwd);
@@ -84,21 +93,33 @@ export function resolveSkills(agent: Agent, cwd: string, tools: readonly string[
 
 	const missing = names.filter((name) => !found.has(name));
 	if (missing.length > 0) {
-		throw new Error(
-			`Agent "${agent.name}" declares unknown skill(s) ${missing.join(", ")}. ` +
-				`Looked in: ${dirs.map(({ dir }) => dir).join(", ")}.`,
-		);
+		const message = `Agent "${agent.name}" declares unknown skill(s) ${missing.join(", ")}. Looked in: ${dirs.map(({ dir }) => dir).join(", ")}.`;
+		problems.push({ code: "unknown-skill", message });
 	}
 
 	const hidden = names.filter((name) => found.get(name)?.disableModelInvocation);
 	if (hidden.length > 0) {
-		throw new Error(
+		const message =
 			`Agent "${agent.name}" declares skill(s) ${hidden.join(", ")}, which set "disable-model-invocation": ` +
-				"pi keeps those out of the system prompt, so the agent would never see them.",
-		);
+			"pi keeps those out of the system prompt, so the agent would never see them.";
+		problems.push({ code: "skill-hidden", message });
 	}
 
 	// Declaration order, not discovery order: the definition decides what the
 	// prompt says, and a run is the same whatever the filesystem returns.
-	return names.map((name) => found.get(name) as Skill);
+	return { skills: names.flatMap((name) => found.get(name) ?? []), problems };
+}
+
+/**
+ * Resolves what an agent's `skills:` names, in the order it named them.
+ *
+ * Throws rather than dropping one: a missing skill is a typo in a definition,
+ * and finding out through prose that quietly lacks a step costs more than
+ * failing at spawn. A TypeScript workflow has no validation before it runs, so
+ * this is where it finds out; a flow found out before its first spawn.
+ */
+export function resolveSkills(agent: Agent, cwd: string, tools: readonly string[]): Skill[] {
+	const { skills, problems } = findSkills(agent, cwd, tools);
+	if (problems[0] !== undefined) throw new Error(problems[0].message);
+	return skills;
 }
