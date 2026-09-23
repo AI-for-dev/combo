@@ -3,9 +3,11 @@
 ![Reading code is not running it](../_static/tutorials/08-build.svg)
 
 ```{note}
-This page was captured before `/run` ran flows. `/build` is `/run build` now,
-and its flags are keys of the [`build` flow](../reference/flows/build.md); see
-[Deliver a change](../guide/build.md). The frames below predate that change.
+This page was captured before flows replaced the linear pipeline. `/build` is
+`/run build` now, its flags are keys of the [`build` flow](../reference/flows/build.md),
+and a file left in `pipelines/` is refused; see [Deliver a change](../guide/build.md)
+and [From pipelines to flows](../guide/from-pipelines.md). The frames and the
+files below predate that change.
 ```
 
 A pair once wrote a helper and its tests. The reviewer approved. The auditor,

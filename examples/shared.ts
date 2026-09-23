@@ -27,7 +27,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
  */
 const args = process.argv.slice(2);
 const flag = args.indexOf("--model");
-const modelOverride = flag >= 0 ? args[flag + 1] : undefined;
+export const modelOverride: string | undefined = flag >= 0 ? args[flag + 1] : undefined;
 const rest = flag >= 0 ? [...args.slice(0, flag), ...args.slice(flag + 2)] : args;
 
 /**

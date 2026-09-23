@@ -30,16 +30,6 @@ A judgement stays a judgement through all of this. What changes is that the
 unfinished set is explicit, and each judgement in it covers one sentence
 rather than the whole of the work.
 
-## `CloseOutcome`
-
-*type*
-
-```typescript
-export type CloseOutcome = { ok: true; obligation: Obligation } | { ok: false; error: string };
-```
-
-What a `close` did, or why it did nothing.
-
 ## `Closure`
 
 *type*
@@ -56,33 +46,6 @@ export type Closure = {
 ```
 
 How an obligation stopped being open.
-
-## `Ledger`
-
-*type*
-
-```typescript
-export type Ledger = {
-	/** Raises one and returns it, with the id it will keep. */
-	raise(openedBy: string, text: string, round: number): Obligation;
-	/**
-	 * Closes one, if `by` is the agent that opened it.
-	 *
-	 * A refusal comes back as `ok: false` rather than a throw: an agent naming
-	 * the wrong id is a runtime outcome the caller reports, not a programming
-	 * error.
-	 */
-	close(id: string, by: string, closure: Closure): CloseOutcome;
-	/** Every obligation, open and closed, in the order they were raised. */
-	readonly all: readonly Obligation[];
-	/** Those still open, in the same order. What a round is asked about. */
-	readonly open: readonly Obligation[];
-	/** Whether nothing is left open. This is what "finished" means. */
-	readonly settled: boolean;
-};
-```
-
-The list, and the rules that govern it.
 
 ## `Obligation`
 

@@ -20,12 +20,10 @@ src/                 the library - the only thing that matters
   board/             the swarm's shared board and its arbiter
   git/               the working copy: git, worktrees, landing patches
   measure/           what a run leaves behind: exports, usage.json, experiments
-  flow/              a task graph written down, built beside pipeline/: the
-                     file, its validation, its schemas and its conditions
-  pipeline/          a workflow written down: read, found, run
+  flow/              a task graph written down: the file, its validation, its
+                     schemas, its conditions, its runner and its renderings
   review/            the review record: a verdict and a ledger, read together
   workflows/         the combinators
-    deliver/         the delivery, its git policy and its saved state
   reporters/         herdr, pi TUI, console, silent
 extension/           the pi extension: the tool and the floor at its root,
   commands/ ui/      one file per slash command; what paints the terminal
@@ -244,7 +242,7 @@ title Release Please reads. `feat:` gives a minor version, `fix:` a patch, and a
 vocabulary, rather than letting a change vanish from the changelog.
 
 What goes out is this tree, with no build step: `src/`, `extension/`, `pane/`,
-`agents/`, `pipelines/` and these pages, as `files` lists them. The same tarball
+`agents/`, `flows/` and these pages, as `files` lists them. The same tarball
 is a library and a pi package, `exports` answering
 `import … from "@ai-for-dev/combo"` and the `pi` manifest answering
 `pi install npm:@ai-for-dev/combo`. `npm pack --dry-run` says what would be sent.

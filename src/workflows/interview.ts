@@ -105,8 +105,8 @@ export async function interview(options: InterviewOptions): Promise<InterviewRes
 	let submitted = false;
 
 	// An interview is a conversation: the interviewer keeps its memory unless
-	// the caller insists otherwise. After the spread, not before - see `pair`:
-	// an explicit `undefined` from a merging caller must not read as a choice.
+	// the caller insists otherwise. After the spread, not before: an explicit
+	// `undefined` from a merging caller must not read as a choice.
 	const pool = new SubagentPool({ ...options, lifetime: options.lifetime ?? "workflow" });
 	// The last turn speaks for the interview: the brief when it was written,
 	// the turn that failed otherwise.

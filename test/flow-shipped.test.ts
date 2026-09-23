@@ -33,7 +33,11 @@ describe("the shipped flows", () => {
 	test("they are reachable at pi's project location, and the tarball carries them", () => {
 		assert.deepEqual(readdirSync(join(ROOT, ".pi", "flows")), readdirSync(join(ROOT, "flows")));
 		const manifest = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { files: string[] };
-		assert.ok(manifest.files.includes("flows"), 'package.json "files" must list flows');
+		// The loaders find `agents/` and `flows/` inside the package: dropping one
+		// from `files` breaks every installed user while the repository still has it.
+		for (const needed of ["src", "extension", "agents", "flows"]) {
+			assert.ok(manifest.files.includes(needed), `package.json "files" must list ${needed}`);
+		}
 	});
 });
 

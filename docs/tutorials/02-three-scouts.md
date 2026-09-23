@@ -2,6 +2,13 @@
 
 ![Three scouts, one answer](../_static/tutorials/02-three-scouts.svg)
 
+```{note}
+This page was captured when `explore` was a linear pipeline,
+`pipelines/explore.md`. It is a flow now, [`flows/explore.md`](../reference/flows/explore.md),
+and [From pipelines to flows](../guide/from-pipelines.md) sets the two side by
+side. The file and the frames below predate that change.
+```
+
 A question that spans a repository has three parts hiding in it: where the
 thing is implemented, how it is tested, and what the documentation claims. One
 agent answering all three reads everything, and a small one gets the first part

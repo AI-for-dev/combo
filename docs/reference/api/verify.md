@@ -11,15 +11,10 @@ reviewer approved, the auditor approved, and the test file imported
 `./slugify.js` for a file named `slugify.ts`. The suite did not even load.
 Both agents had read the code; neither had run it.
 
-So verification is a **port**, like {@link AskUser}, and the default
-implementation runs a command the caller names - no shell, arguments as an
-array. The pattern is the one `git.ts` already follows: the agents produce
-text, our code performs the act, and the result comes back as evidence
-nobody can argue with.
-
-A flow's `check` node has a port of its own, {@link CheckScript}: it runs a
-script whose content was read before the run, so it takes more than
-`Verify`'s nothing. `Verify` stays for the linear pipeline, and goes with it.
+So a flow's `check` node runs a script of the project through a **port**,
+like {@link AskUser}. The pattern is the one `git.ts` already follows: the
+agents produce text, our code performs the act, and the result comes back as
+evidence nobody can argue with.
 
 ## `bashCheck`
 
@@ -46,41 +41,6 @@ export type CheckScript = (request: ScriptRequest) => Promise<ScriptOutcome>;
 ```
 
 Runs a check script. Injected, so a flow's dry run and its tests spawn nothing.
-
-## `commandVerifier`
-
-*function*
-
-```typescript
-export function commandVerifier(options: CommandVerifierOptions): Verify { /* … */ }
-```
-
-A {@link Verify} that runs one command.
-
-The **tail** of the output is kept, not the head: a test runner says what
-failed at the end, and a truncated head would hand the agents a wall of
-passing tests and hide the one that did not.
-
-## `CommandVerifierOptions`
-
-*type*
-
-```typescript
-export type CommandVerifierOptions = {
-	/** Where to run it - the working tree the agents have been editing. */
-	cwd: string;
-	/** The executable. Not a shell line: `"npm"`, not `"npm test && lint"`. */
-	command: string;
-	/** Its arguments, one per entry: `["test"]`, not `"test --watch=false"`. */
-	args?: string[];
-	/** How long the check may take. Defaults to two minutes. */
-	timeoutMs?: number;
-	/** How much output the agents get to read. Defaults to 8000 bytes. */
-	maxBytes?: number;
-};
-```
-
-The check to run: an executable and its arguments, never a shell line.
 
 ## `ScriptOutcome`
 
@@ -116,30 +76,3 @@ export type ScriptRequest = {
 ```
 
 A check script to run, its content read before the run started.
-
-## `Verification`
-
-*type*
-
-```typescript
-export type Verification = {
-	/** Whether the command exited zero. When a check is given, this verdict is final. */
-	ok: boolean;
-	/** Command output, truncated. Both streams: a failure usually speaks on stderr. */
-	output: string;
-	/** What was run, for a human reading the report. */
-	command?: string;
-};
-```
-
-What a verification says. `output` is fed to the agents, so it is trimmed.
-
-## `Verify`
-
-*type*
-
-```typescript
-export type Verify = () => Promise<Verification>;
-```
-
-Runs the project's own check. Injected, so a test never spawns anything.

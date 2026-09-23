@@ -2,6 +2,14 @@
 
 ![Write the chain down](../_static/tutorials/04-write-it-down.svg)
 
+```{note}
+This page shows the linear pipeline, which flows replaced: a file in
+`.pi/pipelines/` is refused now with `pipeline-format-removed`, and `/pipelines`
+is `/flows`. [Flows](../guide/flows.md) is the format that replaced it, and
+[From pipelines to flows](../guide/from-pipelines.md) rewrites a pipeline as a
+flow. The files and frames below predate that change.
+```
+
 By the third time you have typed the same two steps, the workflow exists. It
 lives in your shell history, where nobody can review it, nobody else can run
 it, and a change to it is not a diff. Most agent tooling answers that with a
@@ -190,7 +198,7 @@ request, and the previous step's output. Nothing else flows.
 When you need more than that, the same two steps in TypeScript are eight lines
 and every combinator the file can name is a function you can call. That is
 where [Workflows](../guide/workflows.md) picks up. The rest of this file's
-vocabulary is in [Pipelines](../guide/pipelines.md).
+vocabulary is in [From pipelines to flows](../guide/from-pipelines.md).
 
 The pipeline used our agents. The next page writes one of yours, and the first
 thing it decides is what the agent may not do.

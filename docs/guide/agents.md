@@ -130,9 +130,10 @@ allowlist.
 
 ## Tools combo brings
 
-Some names in `tools:` are not pi's. `verdict` is combo's, and a reviewer that
-names it is handed it by [`pair`](workflows.md) so it can declare its decision as
-a call rather than as a word in its prose.
+Some names in `tools:` are not pi's. `verdict` is combo's: a flow node written
+with `verdict:` hands it to its agent, so the reviewer declares its decision as
+a call rather than as a word in its prose. See
+[Ledgers and verdicts](flows.md#ledgers-and-verdicts).
 
 `subagent` is combo's too, and an agent that names it can split its task across
 children of its own. Two levels deep by default, and the roster it may reach is
@@ -223,7 +224,7 @@ it hold when a workflow wraps a French request in English scaffolding - a review
 a plan, an audit - and it names no language itself, because an example in a
 standing instruction is read as the target. Measured on a small open-weight
 model: an English task answers English and a French one answers French;
-`/step scout` and the whole `explore` pipeline answer in French, and a reviewer
+`/step scout` and the whole `explore` flow answer in French, and a reviewer
 handed a French goal answers in French while the router still answers an agent
 name and the planner still answers JSON.
 

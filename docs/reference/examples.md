@@ -13,17 +13,18 @@ node examples/07-reduce.ts       # 3 scouts, then one synthesiser: N to 1
 node examples/08-route.ts        # a classifier sends two tasks to two agents
 node examples/09-orchestrate.ts  # the planner decides the split, then it runs
 node examples/10-interview.ts    # the interview, in a plain terminal
-node examples/11-build.ts        # the pipeline on a throwaway repository
+node examples/11-build.ts        # the shipped build flow on a throwaway repository
 node examples/12-experiment.ts   # the same loop on several models, twice each
-node examples/13-concurrent-writers.ts  # two pairs writing at once, a copy each
+node examples/13-concurrent-writers.ts  # two coders writing at once, a copy each
 node examples/14-delegation-tree.ts     # one explorer, three scouts, one answer
 node examples/15-swarm.ts               # three members, one board, nobody dividing it
 ```
 
 `11-build.ts` and `13-concurrent-writers.ts` write code, and both refuse to run
-anywhere but a throwaway repository you name. `13` leaves that repository
-untouched all the same: each pair works in a copy of it, and what comes back is
-a patch.
+anywhere but a throwaway repository you name. `11` needs a
+`.pi/checks/test.sh` there, the script the flow's `tests` node runs. In `13`
+each coder works in a copy, and only the patches come back, one at a time.
+Neither commits.
 
 ## Choosing a model
 

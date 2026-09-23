@@ -1,8 +1,9 @@
 # Workflows
 
 A workflow is a function from an input to a `Result` or a list of them. They
-compose because they share that contract, and for no other reason. Agents are
-data; workflows are code. There is no YAML DSL.
+compose because they share that contract, and for no other reason. Agents and
+flows are data; our code decides what runs next. A workflow is the TypeScript
+for what a [flow](flows.md) file cannot say.
 
 ```typescript
 type Result = {
@@ -20,10 +21,9 @@ workflow, plus `steps`, the trail that led to it. The reading is the
 combinator's own and is decided nowhere else. A chain is its last step and a
 reduce its synthesis; a fan-out is its branches labelled one after the other,
 failed if any of them failed; an orchestration is its synthesis when it has
-one and its planner otherwise; a delivery is its planner over every subtask's
-report. What a workflow says beyond that - `converged`, `approved`, `plan`,
-`answers` - it says in fields of its own, because `ok` only ever means that
-every turn ran. A pipeline step or a tool call therefore reads any of them the
+one and its planner otherwise. What a workflow says beyond that - `converged`,
+`plan`, `answers` - it says in fields of its own, because `ok` only ever means
+that every turn ran. A caller or a tool call therefore reads any of them the
 same way, and never has to rebuild one.
 
 Every combinator is an exported function. No classes, no inheritance, no global
@@ -113,59 +113,15 @@ done.plan;     // validated against the known agents, before anything spawns
 done.answer;   // present only when reduceWith was given
 ```
 
-### `pair` - worker and reviewer, until accepted
+### A reviewer until approval, and a delivery
 
-```typescript
-const built = await pair({ worker: coder, reviewer, input: task, maxRounds: 3 });
-built.approved;   // distinct from ok
-built.verdict;    // what the reviewer declared, when it declared it through a tool
-```
-
-**How the reviewer decides** depends on what its definition asks for. A reviewer
-whose `tools:` names `verdict` is given that tool, and its call is the decision;
-any other reviewer is read from `LGTM` alone on a line. Its record states both:
-the terms every round ends on - what is still owed, by id, and how to answer -
-are the record's words, the same for a pair's reviewer and a build's auditor.
-
-Prefer the tool. A word has to be recovered from prose written for a human, and
-the match is only ever as good as the agreement about how to write it. A tool
-call is a discrete event with a schema, so "did it decide" and "what did it
-decide" are closed questions.
-
-A reviewer that holds the tool and calls nothing has **not** approved, and
-`verdict` is then absent rather than `false`: it never answered, which is a
-different thing from a refusal and the caller gets to tell them apart.
-
-**The tool carries the decision, not the argument for it.** What goes back to the
-worker between rounds is the reviewer's own prose, because that is what its
-definition disciplines: `agents/reviewer.md` asks for at most five remarks, each
-naming a defect, a file, a line and a concrete failure. `verdict.remarks` is the
-short form the reviewer attached to its decision, kept on the result for whoever
-reads the outcome.
-
-#### What is still owed
-
-Everything the reviewer raises becomes an **obligation** with an id that combo
-assigns and that never changes. Later rounds list the open ones and ask the
-reviewer what became of each, by id.
-
-```typescript
-built.obligations;                                // every one, open and closed, in order
-built.obligations.filter((one) => !one.closed);   // what stopped the run
-```
-
-So `approved` means two things at once: the reviewer had nothing further to ask,
-and nothing it raised is still open. A reviewer that says yes over an obligation
-it never closed does not finish the work, and the result names the ones left.
-
-Only the agent that raised an obligation can close it, and one that a round does
-not name stays open. [Design decisions](../decisions.md) has the reasoning for
-both.
-
-`worktree: true` gives the pair a copy of the repository to itself, so two of
-them can run at once without writing over each other - or reading each other,
-which is the half that is easy to miss. `deliver` turns it on by itself from two
-subtasks up; a lone `pair` is the caller's to set. See [Worktrees](worktree.md).
+A coder and a reviewer talking until the reviewer approves, and a delivery
+(plan, a pair per subtask, the project's check, an audit of the whole), are
+written as a flow now: the `pair` and `deliver` loops of the shipped
+[`build`](../reference/flows/build.md). The reviewer decides through the
+`verdict` tool, what it raises is kept as obligations until it closes them,
+and each subtask works in a copy of the repository. See [Flows](flows.md) and
+[Deliver a change](build.md).
 
 ### `interview` - the agent questions the user
 
@@ -174,14 +130,6 @@ const { brief, answers } = await interview({ agent: interviewer, input: request,
 ```
 
 See [Deliver a change](build.md).
-
-### `deliver` - brief in, audited work out
-
-Plan, a pair per subtask, the project's own check, then the audit cycle: one
-auditor reads the whole, asks for fixes, and reads them again until it holds
-together. The cycle is `audit` on its own, handed a function that runs a fix
-and says what the tree is afterwards; `deliver` is what puts the work in the
-tree. See [Deliver a change](build.md).
 
 ### `swarm` - several members, one job, nobody dividing it
 
@@ -250,9 +198,8 @@ and it prints what the tree cost.
 ## Writing one in Markdown
 
 A task graph of agents, branches, loops and questions can be written as a
-file rather than as code, and run by `/run`. See [Flows](flows.md). A linear
-sequence of these combinators can still be written as a [pipeline](pipelines.md),
-which `/step` and the `subagent` tool run until they take flows.
+file rather than as code, and run by `/run`, `/step` and the `subagent` tool.
+See [Flows](flows.md).
 
 ## What they all accept
 
@@ -388,7 +335,7 @@ sequential, use `chain`.
 
 - [`workflows/chain`](../reference/api/workflows/chain.md), [`fan-out`](../reference/api/workflows/fan-out.md), [`loop`](../reference/api/workflows/loop.md), [`reduce`](../reference/api/workflows/reduce.md)
 - [`workflows/route`](../reference/api/workflows/route.md), [`orchestrate`](../reference/api/workflows/orchestrate.md), [`plan`](../reference/api/workflows/plan.md)
-- [`workflows/pair`](../reference/api/workflows/deliver/pair.md), [`interview`](../reference/api/workflows/interview.md), [`deliver`](../reference/api/workflows/deliver/deliver.md), [`audit`](../reference/api/workflows/deliver/audit.md)
+- [`workflows/interview`](../reference/api/workflows/interview.md), [`swarm`](../reference/api/workflows/swarm.md)
 - [`workflows/options`](../reference/api/workflows/options.md) - `WorkflowOptions`, what every combinator takes.
 - [`workflows/pool`](../reference/api/workflows/pool.md) - `SubagentPool`, where a workflow's turns are played.
 - [`workflows/trail`](../reference/api/workflows/trail.md) - `Trail`, what the turns add up to.

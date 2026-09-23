@@ -97,8 +97,8 @@ on a block; see [Worktrees](worktree.md) for what it costs and what it buys.
 `until` is a **whole-line match**: the loop stops when the word stands alone on
 one of the lines, whatever decoration the model put around it. A line with
 anything else on it does not count, so a review that writes "I cannot say LGTM
-yet" keeps the loop going. A pipeline step's `until:` and `pair`'s approval read
-the same way, through [`saysWord`](../reference/api/text.md).
+yet" keeps the loop going. It reads through
+[`saysWord`](../reference/api/text.md), which a workflow of your own can call.
 
 The tool also takes `model`, which puts every subagent of the call on one model,
 whatever their frontmatter says. **The parent session's model is never

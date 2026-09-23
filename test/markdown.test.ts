@@ -1,7 +1,7 @@
 /**
  * Finding and reading definitions on disk.
  *
- * The two readers that share this - agents and pipelines - are tested through
+ * The two readers that share this - agents and flows - are tested through
  * their own files; what is pinned here is the contract between them, on a real
  * temporary directory, because a discovery walk mocked away discovers nothing.
  */

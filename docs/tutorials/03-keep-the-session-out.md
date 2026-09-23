@@ -2,6 +2,11 @@
 
 ![Keep the session out of it](../_static/tutorials/03-keep-the-session-out.svg)
 
+```{note}
+This page was captured before `/step` took flows: a stage names a flow or an
+agent now. The frames below predate that change.
+```
+
 Here is a failure that is hard to see because it looks like competence. You
 ask the session to have a scout find something, then a planner to plan from
 it, then a coder to build the plan. Each report lands in the conversation, the
@@ -85,7 +90,7 @@ trustworthy, and answered with the one word its definition allows for
 approval. It read a report rather than code, and a reviewer is written to
 review code: handed a paragraph, it said the only thing it knows how to say.
 
-Nothing acted on that. Had this been `/run` on a pipeline, the next step would
+Nothing acted on that. Had this been `/run` on a flow, the next node would
 have been handed `LGTM` as its input and carried on. Here it is a line in the
 transcript, and you are the join between the steps: you read it, you decide
 the reviewer was asked the wrong thing, and you type a better step or none.
@@ -142,9 +147,9 @@ Two more flags, and then the command is learnt:
 
 - `/step --from 1 coder` carries the scout's report instead of the last step.
   `--from none` starts from nothing.
-- `/step --agent scout …` when a pipeline and an agent share a name. A `<name>`
-  is resolved against the pipelines first, because a stage of a chain is often
-  a whole pipeline: `/step explore …` runs three scouts and a synthesis as one
+- `/step --agent scout …` when a flow and an agent share a name. A `<name>`
+  is resolved against the flows first, because a stage of a chain is often
+  a whole flow: `/step explore …` runs three scouts and a synthesis as one
   step.
 
 `/chain reset` drops the chain. The next `/step` starts a new one, in a new
@@ -165,10 +170,8 @@ The wall time of a subagent is measured in src/subagent.ts …
 ```
 
 Your instruction is the request, and what came before is labelled with the
-step it came from. A step of a [pipeline](../guide/pipelines.md) receives the
-same two sections under its own `## <id>` prose, through the same function.
-A chain walked by hand and the same chain written down as a file send the
-model the same bytes, so what you learn from one transfers to the other.
+step it came from. A step that names a [flow](../guide/flows.md) is started on
+the same two sections, as its `input`.
 
 By the third time you have typed `scout`, then `planner`, then `coder`, the
 chain exists. The next page writes it down.

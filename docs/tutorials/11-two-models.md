@@ -3,9 +3,11 @@
 ![Same work, two models](../_static/tutorials/11-two-models.svg)
 
 ```{note}
-This page was captured before `/run` ran flows. `/build` is `/run build` now,
-and its flags are keys of the [`build` flow](../reference/flows/build.md); see
-[Deliver a change](../guide/build.md). The frames below predate that change.
+This page was captured before flows replaced the linear pipeline. `/build` is
+`/run build` now, its flags are keys of the [`build` flow](../reference/flows/build.md),
+and a file left in `pipelines/` is refused; see [Deliver a change](../guide/build.md)
+and [From pipelines to flows](../guide/from-pipelines.md). The frames and the
+files below predate that change.
 ```
 
 "Which model should the coder run on" gets asked a lot, and most answers are
@@ -21,9 +23,9 @@ started with, because nothing overrode it. That is the last resort in a chain of
 overrides, and the chain is worth knowing because comparing models requires the
 model to be an **argument**:
 
-1. `--model` on `/run`, `/build` or `/step`, or `model` on the `subagent` tool.
+1. `--model` on `/run` or `/step`, or `model` on the `subagent` tool.
    Every subagent of that call, whatever its file says.
-2. `model:` at the top of a pipeline file.
+2. `model:` at the top of a flow file.
 3. `model:` in the agent's frontmatter.
 4. pi's own settings.
 
@@ -172,9 +174,9 @@ runs/2026-09-19_10-46-58/
     └── …
 ```
 
-A pipeline needs no special support: `runPipeline({ ...cell.options, pipeline,
-agents, input })` in the callback runs `explore` per cell, and the quick
-version above becomes the proper one in four lines.
+A flow needs no special support: `runFlow(checked, input, { ...cell.options,
+runDir: cell.dir })` in the callback runs `explore` per cell, and the quick
+version above becomes the proper one in a few lines.
 
 Every subagent in these eleven pages was placed by you, through a call, a file
 or a flag. The last page is about the one that places its own.

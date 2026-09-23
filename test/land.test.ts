@@ -2,8 +2,8 @@
  * Landing patches, on real throwaway repositories.
  *
  * What is pinned here is the order and what survives a failure: a patch that
- * does not fit touches nothing, a check that fails stops the rest, and whatever
- * already landed stays landed.
+ * does not fit touches nothing and stops the rest, and whatever already landed
+ * stays landed.
  */
 
 import assert from "node:assert/strict";
@@ -13,7 +13,6 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, test } from "node:test";
 import { land } from "../src/git/land.ts";
-import type { Verification } from "../src/verify.ts";
 
 const scratch: string[] = [];
 
@@ -36,7 +35,7 @@ function repo(): string {
 	return dir;
 }
 
-/** The patch that adds `name` with `body`. What a pair hands back. */
+/** The patch that adds `name` with `body`. What a copy hands back. */
 const adds = (name: string, body: string) =>
 	[
 		`diff --git a/${name} b/${name}`,
@@ -61,8 +60,6 @@ const rewrites = (to: string) =>
 		`+${to}`,
 		"",
 	].join("\n");
-
-const passes = (): Promise<Verification> => Promise.resolve({ ok: true, output: "", command: "check" });
 
 describe("land", () => {
 	test("disjoint patches all go in, in the order they were given", async () => {
@@ -91,30 +88,7 @@ describe("land", () => {
 		assert.equal(fs.readFileSync(path.join(dir, "kept.txt"), "utf8"), "two\n", "and no marker was written into it");
 	});
 
-	test("the check runs between them, and its failure names the patch that caused it", async () => {
-		const dir = repo();
-		let call = 0;
-		const verify = async (): Promise<Verification> => ({ ok: ++call < 2, output: "boom", command: "check" });
-
-		const done = await land(
-			dir,
-			[
-				{ label: "one", patch: adds("a.txt", "first") },
-				{ label: "two", patch: adds("b.txt", "second") },
-				{ label: "three", patch: adds("c.txt", "third") },
-			],
-			{ verify },
-		);
-
-		assert.equal(done.ok, false);
-		assert.equal(done.rejected, "two");
-		assert.match(done.error ?? "", /the check failed after two/);
-		assert.deepEqual(done.applied, ["one", "two"]);
-		assert.equal(done.checks.length, 2, "it stopped rather than piling the third onto a broken tree");
-		assert.equal(fs.existsSync(path.join(dir, "c.txt")), false);
-	});
-
-	test("a pair that wrote nothing is skipped rather than failing the landing", async () => {
+	test("a copy nobody wrote in is skipped rather than failing the landing", async () => {
 		const dir = repo();
 		const done = await land(dir, [
 			{ label: "empty", patch: "" },
@@ -150,27 +124,5 @@ describe("land", () => {
 		});
 		assert.equal(allowed.ok, true);
 		assert.deepEqual(allowed.applied, ["two"]);
-	});
-
-	test("with no check, nothing runs between them", async () => {
-		const dir = repo();
-		const done = await land(dir, [{ label: "one", patch: adds("a.txt", "first") }]);
-
-		assert.equal(done.ok, true);
-		assert.deepEqual(done.checks, []);
-	});
-
-	test("every check is kept, so a reader sees what the tree said at each step", async () => {
-		const dir = repo();
-		const done = await land(
-			dir,
-			[
-				{ label: "one", patch: adds("a.txt", "first") },
-				{ label: "two", patch: adds("b.txt", "second") },
-			],
-			{ verify: passes },
-		);
-
-		assert.equal(done.checks.length, 2);
 	});
 });

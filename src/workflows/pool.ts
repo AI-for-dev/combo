@@ -74,8 +74,7 @@ export class SubagentPool {
 
 	/**
 	 * `trail` is the caller's when its clock has to start before the pool can
-	 * exist - a pair makes its working copy first - or when it records steps of
-	 * its own beside the pool's.
+	 * exist, or when it records steps of its own beside the pool's.
 	 */
 	constructor(options: WorkflowOptions, trail = new Trail()) {
 		this.trail = trail;

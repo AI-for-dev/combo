@@ -262,6 +262,10 @@ than a rename through every caller and every page.
 
 ### One shape for where a build stands
 
+**Removed:** `deliver`, its progress and `BuildState` went with the linear
+pipeline; a flow run's journal is the one record of where it stands. See
+[The linear pipeline is removed](#the-linear-pipeline-is-removed). The reasons below are why the shape was one while it lasted.
+
 "What a delivery has done so far" was spelled four ways: `AuditProgress` from
 the audit cycle, `BuildProgress` for the hook and the resume, `BuildState` on
 disk, and `DeliverResult` at the end. `deliver` held a fifth in four `let`s,
@@ -351,8 +355,8 @@ workflows still assert is that the terms reach their prompt.
 | `loop` | 1→1 | iterates until a criterion (judge, test, regex) is met | done |
 | `reduce` | N→1 | one agent synthesises a fan-out's results | done |
 | `interview` | user→1 | an agent questions the *user*, one question at a time, and writes a brief | done |
-| `pair` | 1→1 | a worker and a reviewer discuss until the work is accepted | done |
-| `deliver` | brief→? | plan, a pair per subtask, a check, an audit, fixes | done |
+| `pair` | 1→1 | a worker and a reviewer discuss until the work is accepted | removed, a loop of the `build` flow |
+| `deliver` | brief→? | plan, a pair per subtask, a check, an audit, fixes | removed, the `build` flow |
 | `orchestrate` | 1→? | an agent *decides* the split, then delegates (dynamic fan-out) | done |
 | `route` | 1→1 | a classifier agent picks the destination agent | done |
 
@@ -534,7 +538,8 @@ command reads. `test/fixtures/results.ts` builds an `InterviewResult`, a
 `DeliverResult` and a `PipelineRunResult` whole, from the few fields a test
 cares about, the way `fixtures/picture.ts` builds a snapshot. The casts are
 gone, and a double that stops matching the real shape now fails to compile
-rather than passing on a lie.
+rather than passing on a lie. **Removed:** the file went with the linear
+pipeline; no test had used it since the commands took flows.
 
 ### An offer of tools composes, and a combo tool shares its constant parts
 
@@ -855,6 +860,9 @@ back the copies it left open. See
 
 ### How the work reaches the tree is one policy, asked once
 
+**Removed:** `settle.ts` went with `deliver`, its one caller; a flow's copies
+are the file's (`copies: true`), landed by the runner. See [The linear pipeline is removed](#the-linear-pipeline-is-removed).
+
 `deliver` decided its copies in five places: whether to isolate, from the
 number of writers; the pre-flight on the tree, only when that decision was its
 own, with a refusal in two spellings; the `worktree` it handed each pair; a
@@ -1104,8 +1112,15 @@ it is used.
 
 ## Pipelines: a workflow written down
 
-`src/pipeline/pipeline.ts` parses one, `src/pipeline/load.ts` finds it, and
-`src/pipeline/run.ts` walks it. `/build` runs one.
+**Removed:** the linear format, its parser, its runner and the shipped
+`pipelines/` are gone, and a file left in an old `pipelines/` directory is
+refused with `pipeline-format-removed`. See [The linear pipeline is removed](#the-linear-pipeline-is-removed). What follows is kept for
+its reasons, several of which the flow format took over: a broken file is
+refused, everything is resolved before the first spawn, what a turn is handed
+arrives under headings of its own, and an agent does not write the file.
+
+`src/pipeline/pipeline.ts` parsed one, `src/pipeline/load.ts` found it, and
+`src/pipeline/run.ts` walked it. `/build` ran one.
 
 - **Reversed: a branch no longer makes a run a TypeScript workflow.** A pipeline
   was linear on purpose, and "the moment a run needs a branch, it is a
@@ -2249,6 +2264,47 @@ linear pipeline any more.
   extension. A step's kind is `flow` now; an entry an older session wrote as
   `pipeline` still draws.
 
+### The linear pipeline is removed
+
+The fourth step of the switch. `src/pipeline/`, `pipelines/` and its links in
+`.pi/pipelines/`, `docs/guide/pipelines.md` and their tests are gone, and the
+package's `files` no longer lists `pipelines`. A pipeline written down is a
+flow now, and [From pipelines to flows](guide/from-pipelines.md) is where the
+old format is still described, beside the flows that replaced it.
+
+- **`deliver`, `pair` and `audit` retire, with `settle` and `resume`.** They
+  were pipelines written in TypeScript, and keeping them beside the `build`
+  flow would be two implementations of one shape, of which only the flow has
+  a journal, restored copies and a script as its check. Nothing else used
+  them: `orchestrate`, `plan` and `swarm` stand on the pool and the parser,
+  and the flow runner on `review/`, `git/` and `mapConcurrent`, which all
+  stay. The generic combinators stay public.
+- **`examples/13-concurrent-writers.ts` is rewritten, not kept on `pair`.** It
+  was the one caller left, and what it shows, two writers in two copies and
+  their patches landed one at a time, is `scratchWorktree`, `run` and `land`,
+  the primitives a flow's `copies: true` stands on. It loses the reviewer,
+  which the `build` flow has.
+- **`Verify` and `commandVerifier` go, and `land` loses `verify`.** Its own
+  header said `Verify` stayed for the linear pipeline only, and after it no
+  caller passed one. A flow checks the tree with a `check` node after the block, not
+  between two patches.
+- **The review record's public types narrow to `Obligation` and `Closure`.**
+  Those are what a `JournalEntry` names. `Verdict`, `Ledger`, `ReviewRecord`
+  and the rest were named by `pair`'s and `audit`'s results, and a type no
+  public signature names is off the list.
+- **`/flows` keeps its scan of old `pipelines/` directories, with no parser.**
+  `removedPipelines` reads file names, never a file's content, so nothing of
+  the linear format is needed to refuse it. `definitionDirs` takes no package
+  directory for a kind the package does not ship, rather than one that must be
+  switched off.
+- **`examples/11-build.ts` runs the shipped `build` flow.** `checkFlow`, then
+  `checkRun` with `bashCheck`, `gitPort` and nobody there, then `runFlow` in a
+  run directory of the target repository. It needs the target's own
+  `.pi/checks/test.sh`, and is refused before any model runs without it.
+- **The tutorials keep their frames until they are recaptured.** A frame is
+  captured, never composed, so each page that shows the linear format says so
+  in a note, and its prose stops describing it as current.
+
 ## A chain walked by hand
 
 `/run explore …` put its answer in the conversation, and the session picked it
@@ -2884,6 +2940,9 @@ yet working.
 
 ### One lookup for a pipeline
 
+**Removed** with the linear format; `checkFlow` is the one lookup of a flow.
+See [The linear pipeline is removed](#the-linear-pipeline-is-removed).
+
 The rule that a broken file is refused rather than silently replaced was
 implemented three times, with three message shapes: in `findPipeline`, which
 the extension never reached for a broken file because two of its callers
@@ -3159,6 +3218,9 @@ members pi has and the extension never reads.
 
 ### The audit cycle is the audit's
 
+**Removed:** `audit` went with `deliver`; the audit is a node of the `build`
+flow, inside its `deliver` loop. See [The linear pipeline is removed](#the-linear-pipeline-is-removed).
+
 `auditOnce` took ten fields and did three things: a pool, a prompt, a turn.
 Everything that made a round of audit a cycle - asking, closing the round in
 the record, deriving the fixes and attaching the standing check to each, running
@@ -3262,6 +3324,10 @@ in front of it, and a build is the work you most want to leave running.
 
 ## A check the auditor contradicts goes out with the fix
 
+**Removed** with `deliver`: in the `build` flow the auditor reads the check's
+report among its `reads:`, and the round ends only on
+`tests.output.passed && audit.output.approved`, a condition our code reads. See [The linear pipeline is removed](#the-linear-pipeline-is-removed).
+
 The auditor is handed the check's command and its output, and it can still
 write the opposite. Measured on a delivery that worked: four green tests, then
 `"Test file has a syntax error causing failure."` and a fix raised for it, and a
@@ -3293,9 +3359,10 @@ says so the moment the worker runs it.
 
 ## Resuming a build
 
-**Replaced for pi: `/run resume` carries on a flow run from its journal**, and
-`/build resume` and `build.json` are gone from the extension; `deliver`'s own
-`resume` goes with the linear pipeline. See [A resume goes as deep as the
+**Replaced: `/run resume` carries on a flow run from its journal**, and
+`/build resume`, `build.json` and `deliver`'s own `resume` are gone, removed
+with the linear pipeline (see [The linear pipeline is
+removed](#the-linear-pipeline-is-removed)). See [A resume goes as deep as the
 journal](#a-resume-goes-as-deep-as-the-journal-and-replays-only-what-did-not-end).
 
 A delivery is long, it costs money and it writes to a working tree. `deliver`
@@ -3645,9 +3712,10 @@ models is code the operator writes.
 A cell is handed a ready-made `WorkflowOptions` and the contract is to **spread
 it**. That is what puts every subagent on the cell's model, in the cell's export
 directory, and under the cell's collector - a callback that rebuilds those by
-hand silently measures something else. It is also why pipelines need no support
-of their own: `PipelineRunOptions` extends `WorkflowOptions`, so `run: (cell) =>
-runPipeline({ ...cell.options, … })` is the whole integration.
+hand silently measures something else. It is also why flows need no support
+of their own: `runFlow` takes the same `model`, `signal`, `timeoutMs`, `spawn`
+and `onEvent`, so `run: (cell) => runFlow(checked, input, { ...cell.options,
+runDir: cell.dir })` is the whole integration, as `runPipeline` was before it.
 
 Three rules the arithmetic depends on:
 
@@ -3921,6 +3989,9 @@ depth, `PACKAGE_ROOT` in `builtin.ts` and the pane's entry in
 
 ### The delivery owns its git policy and its saved state
 
+**Removed:** `workflows/deliver/` went whole with the linear pipeline. See
+[The linear pipeline is removed](#the-linear-pipeline-is-removed).
+
 The first module to become a directory was the one whose two files pointed the
 wrong way. `resume.ts` sat at the root and imported four files from
 `workflows/` - `audit`, `deliver`, `pair`, `plan` - while none imported it back:
@@ -3989,6 +4060,9 @@ agreement. The one arrow into the module from the core is `events.ts` naming
 that arrow readable where a flat listing hid it.
 
 ### Running a pipeline is not a combinator
+
+**Removed:** `src/pipeline/` went with the linear format. The reason it was
+not under `workflows/` holds for `src/flow/run/`. See [The linear pipeline is removed](#the-linear-pipeline-is-removed).
 
 `pipeline-run.ts` sat in `workflows/` and was the one file there that depended
 on every neighbour: it imported the eight combinators and dispatched on a
