@@ -19,10 +19,14 @@ to use what these decisions produced.
 2. **Two surfaces, one core**: the logic lives in a pure TS library (`src/`),
    and a **pi extension** (`extension/`) exposes it as a tool in the TUI. Every
    feature must be usable from a script *before* it is exposed in the extension.
-3. **Agents are data, workflows are code.** An agent is declared in Markdown +
-   frontmatter (pi's convention); a workflow is written in TypeScript with
-   combinators. No YAML DSL: we want composable code, not a configuration
-   engine.
+3. **Agents and flows are data; our code decides what runs next.** An agent is
+   declared in Markdown + frontmatter (pi's convention); a flow is YAML +
+   Markdown built from a closed set of nodes; a workflow is written in
+   TypeScript with combinators, for what a file cannot say. A model produces
+   values, never the next node. **Reversed:** this used to read "Agents are
+   data, workflows are code. No YAML DSL: we want composable code, not a
+   configuration engine." See [Flows: a closed language](#flows-a-closed-language)
+   for why the line moved.
 4. **Display is an observer, never a participant.** No workflow may depend on a
    UI being present. *Reporters* (herdr, pi TUI, silent) subscribe to an event
    stream; unplug them all and the result is identical.
@@ -1099,6 +1103,13 @@ it is used.
 `src/pipeline/pipeline.ts` parses one, `src/pipeline/load.ts` finds it, and
 `src/pipeline/run.ts` walks it. `/build` runs one.
 
+- **Reversed: a branch no longer makes a run a TypeScript workflow.** A pipeline
+  was linear on purpose, and "the moment a run needs a branch, it is a
+  TypeScript workflow" was the rule. The flow format replaces it with a closed
+  language that has branches and loops; see
+  [Flows: a closed language](#flows-a-closed-language). The linear format keeps
+  its rules for as long as it ships.
+
 - **`/build` has no built-in behaviour any more, it has a default file.**
   `DEFAULT_BUILD_PIPELINE` is a pipeline like any other, parsed by the same
   parser and run by the same runner. Had the command kept a hard-coded path
@@ -1208,6 +1219,61 @@ it is used.
 - **`/build` and `/run` paint the same run the same way**, through one
   `liveRun` in `extension/ui/run.ts`: two call sites, two timers and two ways of
   clearing a widget is exactly how the one nobody is watching that day drifts.
+
+## Flows: a closed language
+
+A flow is a task graph written in YAML + Markdown: branches, parallel forks,
+bounded loops, human nodes, sub-flows. It is built in `src/flow/` beside the
+linear pipeline, and exported once it replaces it.
+
+- **The line was drawn in the wrong place.** What protected a run was never
+  "no branch", it was "our runner decides what runs next". The linear format
+  kept that guarantee only by hiding the real shape of `build` (a loop, a
+  coder/reviewer pair, a check, an audit) inside `deliver`, a combinator the
+  file called without showing. A closed language keeps the guarantee and puts
+  the shape in the file. What follows from it: validation, a rendering and a
+  dry run exist only for what is written as data.
+- **Closed, not general.** Every construct comes from a closed set, every loop
+  and every `map` has a bound written in the file, and every condition
+  terminates and gives the same answer for the same values, so the worst case
+  is known before the first spawn. A new key has to pass the same test.
+- **An agent still never writes one.** Nothing in the format stops it, which is
+  why the rule stays in the invariant rather than in the parser.
+
+### A condition is CEL, cut down
+
+`src/flow/condition/` parses, type-checks and evaluates the expressions a
+`choice` case and a loop read.
+
+- **A subset of CEL syntax, parsed by us.** CEL is the one condition language
+  whose specification guarantees termination and determinism, and the project
+  takes no dependency without discussion. Every expression the module accepts
+  is valid CEL, so a real CEL library could replace it without breaking a file.
+  The subset only removes productions from CEL's grammar, it never adds one, so
+  precedence is CEL's: `!a == b` is `(!a) == b`.
+- **What it leaves out, and why.** No string functions: a node that decides
+  declares an enum, and nothing is read out of prose. No arithmetic: a count is
+  what `max` is for. No ternary: branching is what `choice` is for. No clock and
+  no randomness. What is left is literals, addresses, comparisons, `&& || !`,
+  `in` on a list, `size()`, `has()`, and the `all`/`exists` macros.
+- **Checked whole before the first spawn, and enums are strict.** Every address
+  exists and is typed, the result is a boolean, and compared sides agree. A
+  string literal compared with an enum must be one of its values:
+  `status == "aproved"` would otherwise be `false` on every visit and spin its
+  loop to the cap. Problems are collected rather than thrown at the first, and
+  a part already refused is read no further, so one typo is one problem.
+- **A condition that cannot be evaluated fails, never reads as `false`.** A node
+  that failed has no `output`, an optional field can be absent, and `previous`
+  is empty on a first iteration; each of these would otherwise read as "not
+  yet". `&&`, `||`, `all` and `exists` follow CEL's rule for errors, which goes
+  further than short-circuit: the side that decides wins over a side that errs,
+  whichever comes first, so `audit.output.approved && audit.ok` is `false` for a
+  failed audit just as `audit.ok && audit.output.approved` is. A module that
+  only short-circuited would disagree with the CEL library meant to be able to
+  replace it.
+- **A name read by a condition has no dash.** CEL reads `ask-next.output` as
+  `ask - next.output`, so a node id a condition reads is letters, digits and
+  `_`, and the dash is refused where it is written, with the name to use.
 
 ## A chain walked by hand
 

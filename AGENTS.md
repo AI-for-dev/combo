@@ -32,9 +32,13 @@ no enums, no namespaces, no parameter properties.
 2. **The pi API lives in `src/session.ts` and nowhere else.** Everything else
    talks to `SessionPort`, a minimal subset - which is what lets tests inject a
    fake with no network, no disk and no `~/.pi`.
-3. **Agents are data, workflows are code.** An agent is Markdown + frontmatter,
-   a workflow is TypeScript combinators, a pipeline is a workflow written down.
-   No YAML DSL, and **an agent never writes a pipeline**.
+3. **Agents and flows are data; our code decides what runs next.** An agent is
+   Markdown + frontmatter, a flow is YAML + Markdown built from a closed set of
+   nodes, and a workflow is TypeScript combinators, for what a file cannot say.
+   A model produces values, never the next node: our code reads them. A flow
+   runs no code of its own (a `check` names a project script) and carries no
+   templating (a node lists its `reads:`). It is validated whole before the
+   first spawn, and **an agent never writes a flow**.
 4. **Display is an observer, never a participant.** Reporters subscribe to the
    event stream; unplug them all and the result is identical. A listener that
    throws is swallowed.
@@ -127,6 +131,9 @@ src/                the library
   builtin.ts        where the package's own agents/ and pipelines/ are
   board/            the swarm's board (board, claims, tool, agreement,
                     announced); index.ts is its door
+  flow/             the flow format, built beside pipeline/ until it replaces
+                    it: type (what a value is), condition/ (a CEL subset:
+                    tokens, parse, compile, evaluate); index.ts is its door
   pipeline/         pipeline (the file), load (where it is), run (our code
                     walks the steps); index.ts is its door
   review/           review (the record), verdict (a decision as a tool call),
