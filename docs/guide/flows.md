@@ -788,7 +788,9 @@ with `condition`.
 
 `ledger: <id>` opens a ledger: once for a loop, across its iterations, and
 once per item for a `map`. A `verdict: <id>` node is given the `verdict` tool,
-added to its agent's `tools:`, and writes to that ledger. Only the node that
+added to its agent's `tools:`, and writes to that ledger. The node is the only
+thing that grants it, so a definition does not name it: the shipped `reviewer`
+and `auditor` do not, and decide in prose everywhere else. Only the node that
 raised an obligation may close it, one it does not mention stays open, and
 nothing is rewritten. Its output is `{ approved, remarks? }`, where
 `approved` is true only when it said yes and nothing is left open. A turn

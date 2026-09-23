@@ -50,7 +50,7 @@ export const Schema = Type.Object({
 	until: Type.Optional(
 		Type.String({
 			description:
-				'Loop stops when the last output says this word alone on a line, e.g. "LGTM". A line with anything else on it does not count.',
+				'Loop stops when the last output says this word alone on a line: "LGTM" for the shipped reviewer, "APPROVED" for the auditor, the words their definitions answer with. A line with anything else on it does not count.',
 		}),
 	),
 	maxIterations: Type.Optional(Type.Number({ description: "Loop iteration cap. Default 5." })),

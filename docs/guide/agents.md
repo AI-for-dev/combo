@@ -130,10 +130,14 @@ allowlist.
 
 ## Tools combo brings
 
-Some names in `tools:` are not pi's. `verdict` is combo's: a flow node written
-with `verdict:` hands it to its agent, so the reviewer declares its decision as
-a call rather than as a word in its prose. See
-[Ledgers and verdicts](flows.md#ledgers-and-verdicts).
+Some names in `tools:` are not pi's. `verdict` is combo's, and it is not one
+to write there: a flow node written with `verdict:` adds it to its agent's
+`tools:`, the way a typed node adds `submit`, so the reviewer declares its
+decision as a call rather than as a word in its prose. See
+[Ledgers and verdicts](flows.md#ledgers-and-verdicts). Nothing else offers it,
+not a `/step`, not the tool's `loop`, not a TypeScript `loop`, so the shipped
+`reviewer` and `auditor` name only pi's tools and decide in prose there: `LGTM`
+and `APPROVED`, the words a `loop`'s `until` is given.
 
 `subagent` is combo's too, and an agent that names it can split its task across
 children of its own. Two levels deep by default, and the roster it may reach is
@@ -166,8 +170,11 @@ is used. A count that is not a positive whole number is ignored, since
 is the one shipped agent that asks for it.
 
 The allowlist covers these exactly as it covers pi's own, which is what keeps
-the rule readable: what an agent can do is in its file. Naming `verdict` in an
-agent nobody offers it to costs nothing, and the tool is simply absent.
+the rule readable: what an agent can do is in its file. A name nothing offers
+is not free, though: the tool is absent, and a model whose prompt speaks of it
+calls it anyway and is refused, turn after turn. Measured against
+`ilaas/gemma-4-31b`, a reviewer naming `verdict` in a plain `/step` called it
+three times, each answered `Tool verdict not found`, before its prose.
 
 ## Skills
 

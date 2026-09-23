@@ -11,16 +11,17 @@
  * with a schema, so "did it decide" and "what did it decide" are closed
  * questions, and the prose beside it stays prose.
  *
- * The tool is granted the way every tool is granted: an agent whose `tools:`
- * does not name it does not have it, which keeps what an agent can do readable
- * in its own file.
+ * The flow grants it, as it grants `submit`: a `verdict:` node adds it to its
+ * agent's `tools:`, and nothing else offers it. A definition that named it
+ * would send its model after a tool that a `/step` or a `loop` never holds,
+ * and every call there is refused.
  */
 
 import { Type } from "typebox";
 import { defineTool, type ToolDefinition } from "../session.ts";
 import { declares, refuse, said } from "../tool.ts";
 
-/** The name an agent writes in its `tools:` to be given the tool. */
+/** The tool's name, which a `verdict:` node adds to its agent's `tools:`. */
 export const VERDICT_TOOL = "verdict";
 
 /** What an agent said about one obligation it had raised. */
@@ -172,7 +173,7 @@ export function verdictTool(options: VerdictToolOptions = {}): VerdictTool {
 	};
 }
 
-/** Whether an agent's definition asks for the tool. */
+/** Whether an agent's `tools:` names the tool, as a `verdict:` node's agent's do. */
 export function declaresVerdict(tools: readonly string[] | undefined): boolean {
 	return declares(tools, VERDICT_TOOL);
 }
