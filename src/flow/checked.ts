@@ -10,6 +10,8 @@
  */
 
 import type { Agent } from "../agent.ts";
+import type { Choice } from "../ask.ts";
+import type { AskForm } from "./node.ts";
 import type { Condition } from "./condition/index.ts";
 import type { Field, ValueType } from "./type.ts";
 
@@ -114,8 +116,21 @@ export type CheckedCommitNode = Common & {
 	readonly message: string;
 };
 
+/** An `ask`, its reads typed and its output typed by its form. */
+export type CheckedAskNode = Common & {
+	readonly kind: "ask";
+	readonly question: { readonly text: string } | { readonly from: string };
+	readonly form: AskForm;
+	readonly options?: readonly Choice[];
+	readonly enough?: string;
+	readonly default?: string | boolean;
+	readonly reads: readonly CheckedRead[];
+	readonly timeoutMs?: number;
+	readonly output: ValueType;
+};
+
 /** A node of any kind, resolved. */
-export type CheckedNode = CheckedAgentNode | CheckedChoiceNode | CheckedParallelNode | CheckedMapNode | CheckedLoopNode | CheckedCheckNode | CheckedCommitNode;
+export type CheckedNode = CheckedAgentNode | CheckedChoiceNode | CheckedParallelNode | CheckedMapNode | CheckedLoopNode | CheckedCheckNode | CheckedCommitNode | CheckedAskNode;
 
 declare const checked: unique symbol;
 

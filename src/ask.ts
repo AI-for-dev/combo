@@ -40,14 +40,43 @@ export type Answer = {
 	custom: boolean;
 };
 
+/** A value shown above a question, under its name, so the person answers knowing what it is about. */
+export type Shown = { readonly name: string; readonly body: string };
+
+/**
+ * How a question is put, beyond the question itself: what a flow's `ask`
+ * node says of its card. Nothing said is the interview's card.
+ */
+export type Asking = {
+	/**
+	 * What the card takes. `open`, the default: one of the options, or a typed
+	 * answer (`custom`). `closed`: one of the options only. `confirm`: yes or
+	 * no, answered `"yes"` or `"no"`. `text`: a typed answer, `""` when left
+	 * empty.
+	 */
+	readonly form?: "open" | "closed" | "confirm" | "text";
+	/** Shown above the question, in order. */
+	readonly context?: readonly Shown[];
+	/** The visit path of whoever asks, when more than one may. */
+	readonly visit?: string;
+	/**
+	 * The label of "that's enough". Absent: offered, in the card's own words.
+	 * `false`: not offered, and declining is the run's stop.
+	 */
+	readonly enough?: string | false;
+	/** Aborted when the question no longer stands, a timeout or a stop: the card closes, and its answer is not read. */
+	readonly signal?: AbortSignal;
+};
+
 /**
  * Puts one question to the user.
  *
- * Returning `undefined` is **the submit**: the user has decided there is enough
- * to go on. It is not an error and not a cancellation of what came before -
- * every answer already given still counts.
+ * Returning `undefined` is the person declining. Where "that's enough" is
+ * offered, it is **the submit**: the user has decided there is enough to go
+ * on. It is not an error and not a cancellation of what came before - every
+ * answer already given still counts. Where it is not, it is the stop.
  */
-export type AskUser = (question: Question) => Promise<Answer | undefined>;
+export type AskUser = (question: Question, asking?: Asking) => Promise<Answer | undefined>;
 
 /**
  * An `AskUser` that replays a script, for tests and non-interactive runs.

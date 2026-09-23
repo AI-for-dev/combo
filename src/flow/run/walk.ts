@@ -16,9 +16,10 @@ import { toolsOf } from "../../session.ts";
 import { sumUsage, type Usage } from "../../usage.ts";
 import type { ScriptOutcome } from "../../verify.ts";
 import type { SpawnFn } from "../../workflows/options.ts";
-import { type CheckedAgentNode, type CheckedCheckNode, type CheckedCommitNode, type CheckedFlow, type CheckedNode, type FlowError } from "../checked.ts";
+import { type CheckedAgentNode, type CheckedAskNode, type CheckedCheckNode, type CheckedCommitNode, type CheckedFlow, type CheckedNode, type FlowError } from "../checked.ts";
 import { sharedKey, sharedSubagents, submitted } from "../memory.ts";
 import { visitAgent, type AgentRun, type Attempt } from "./agent.ts";
+import { visitAsk, type AskingRun, type Card, type Heard } from "./ask.ts";
 import { visitMap, visitParallel } from "./blocks.ts";
 import { visitCheck, type CheckingRun } from "./check.ts";
 import { visitChoice } from "./choice.ts";
@@ -51,15 +52,16 @@ export type Walker = {
 
 /**
  * How a walk reaches the world: the deadline of each agent attempt, a
- * check's script run in a tree, a commit, the `diff` of a tree, and the
- * copies of a block. A real run's come from its `CheckedRun`; a dry run's are
- * scripted, and it makes no copy.
+ * check's script run in a tree, a commit, the `diff` of a tree, the copies of
+ * a block, and a question put to the person. A real run's come from its
+ * `CheckedRun`; a dry run's are scripted, and it makes no copy.
  */
 export type World = {
 	deadline(attempt: Attempt): AbortSignal;
 	check(node: CheckedCheckNode, path: string, signal: AbortSignal, tree: string | undefined): Promise<ScriptOutcome>;
 	commit(node: CheckedCommitNode, path: string, message: string): Promise<CommitOutcome>;
 	diff(tree: string | undefined): Promise<GitResult<string>>;
+	ask(node: CheckedAskNode, path: string, card: Card, cut: AbortSignal): Promise<Heard>;
 	readonly copies?: Copies;
 };
 
@@ -71,10 +73,12 @@ export type Walk = World & {
 	readonly spawn: SpawnFn;
 	readonly model?: string;
 	readonly timeoutMs?: number;
+	/** Aborts `signal`: the stop key, pressed on a card that offers no "enough". */
+	stop(): void;
 };
 
 /** One run of a checked flow. */
-export class Run implements AgentRun, CheckingRun, CommittingRun, Walker {
+export class Run implements AgentRun, AskingRun, CheckingRun, CommittingRun, Walker {
 	readonly signal: AbortSignal;
 	readonly copies?: Copies;
 	private readonly walk: Walk;
@@ -123,6 +127,14 @@ export class Run implements AgentRun, CheckingRun, CommittingRun, Walker {
 
 	diff(tree: string | undefined): Promise<GitResult<string>> {
 		return this.walk.diff(tree);
+	}
+
+	ask(node: CheckedAskNode, path: string, card: Card, cut: AbortSignal): Promise<Heard> {
+		return this.walk.ask(node, path, card, cut);
+	}
+
+	stop(): void {
+		this.walk.stop();
 	}
 
 	/**
@@ -180,6 +192,8 @@ export class Run implements AgentRun, CheckingRun, CommittingRun, Walker {
 				return visitCheck(this, node, path, here);
 			case "commit":
 				return visitCommit(this, node, path, here);
+			case "ask":
+				return visitAsk(this, node, path, here);
 		}
 	}
 }

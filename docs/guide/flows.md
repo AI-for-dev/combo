@@ -266,6 +266,70 @@ with git's own words. `retry:` is refused: the node writing the message can
 take one. A commit inside a `copies: true` block is refused, since a commit in
 a copy would break the patch that brings the branch home.
 
+### `ask`
+
+A question put to the person running the flow. What is written chooses the
+form:
+
+```yaml
+- id: go
+  ask: "Build this?"
+  options: [Build it, Change the plan]
+  enough: "Stop here"
+  reads: [brief]
+- id: sure
+  ask: "Commit these changes?"
+  confirm: true
+  default: false
+  reads: [diff]
+- id: note
+  ask: "Anything the reviewer should know?"
+  timeout: 10m
+  default: ""
+```
+
+| Written | Form | Output |
+| --- | --- | --- |
+| `options: [...]`, or `ask-from:` | a choice card | `{ answered, answer?, custom? }` |
+| `confirm: true` | yes or no | `{ yes }` |
+| neither | a free text | a `string`, `""` when left empty |
+
+| Key | Meaning |
+| --- | --- |
+| `ask` | the question, as it is shown |
+| `ask-from` | an address typed `Question`, whose options come with it |
+| `options` | two to four labels, or `{ label, description? }`, no label twice |
+| `confirm` | `true`: a yes or no |
+| `enough` | on a choice card, the label of "that's enough", which gives `answered: false` |
+| `default` | what nobody answering gives: a label of the options, `true` or `false`, or a text |
+| `reads` | the addresses shown above the question, each under its name, a typed value as JSON |
+| `timeout` | how long the card stays up, from when it is shown |
+| `on-fail` | `continue`: a failure stops at this node instead of ending the flow |
+
+The runner shows every text of the file exactly as written: the question, the
+options, `enough:` and `default:`. A card in the person's language is an
+`agent` node that outputs a `Question`, then an `ask-from:` reading it.
+
+Literal options make `answer` an enum of their labels, and the card takes no
+typed answer beside them, so `when: go.output.answer == "Build it"` is checked
+against the labels before the run. After `ask-from:`, the labels are a model's,
+in the person's language, so a condition may read `answered` and `custom` and
+may not compare `answer` with a literal. To branch on what was picked there,
+an `agent` node reads the answer and outputs an enum.
+
+Not answering is a value where the file says what it is. `esc` on a card with
+`enough:` is "that's enough". On any other card it is the run's stop key: the
+whole run ends `stopped`, and `on-fail: continue` does not catch it. When
+nobody is there to answer, or the card's `timeout:` fires, the node takes its
+`default:`, else `answered: false` when it has `enough:`, else it fails with
+`nobody` or `timeout`. Only a `timeout:` on the node bounds a card: the run's
+`timeoutMs` and the flow's `timeout:` are for agent turns. `retry:` is
+refused, and an `ask` has no `## <id>` section.
+
+Questions asked at once, by branches running together, are shown one card at a
+time in the order they came, each naming the visit that asks. Only the branch
+asking waits for its card.
+
 ### Branches that run together
 
 A `parallel` with several branches, or a `map` with `concurrency` above 1, runs
@@ -342,15 +406,15 @@ It has no arithmetic, no ternary and no string functions: a node that decides
 declares an enum.
 
 A condition reads typed values only, and is type-checked before the first spawn.
-A string compared with an enum must be one of its values. A condition that cannot
+A string compared with an enum must be one of its values, and the answer of an
+`ask-from:` is compared with no literal. A condition that cannot
 be evaluated (a failed node, an absent optional field) fails its node rather than
 reading as `false`; guard it the CEL way, `audit.ok && audit.output.approved`.
 
 ## Running a flow
 
 ```{note}
-Not exported yet, like the rest of the format; the `ask` and `flow` nodes
-come next.
+Not exported yet, like the rest of the format; the `flow` node comes next.
 ```
 
 A run is launched in three steps, each refusing with faults rather than
@@ -359,7 +423,7 @@ starting:
 ```ts
 const flow = checkFlow("build", loadFlowCatalogue({ cwd }));
 if (!flow.ok) return flow.faults;
-const run = await checkRun(flow.flow, { cwd, ports: { check: bashCheck(), git: gitPort() }, somebodyThere: true });
+const run = await checkRun(flow.flow, { cwd, ports: { ask, check: bashCheck(), git: gitPort() }, somebodyThere: true });
 if (!run.ok) return run.faults;
 const result = await runFlow(run.run, "add a cache", { model });
 ```
@@ -369,10 +433,19 @@ flow stage cannot know, since it depends on the project. `cwd` is the working
 tree, at the repository root. The flow is refused when it holds a `check` and
 the launch gave no `check` port, or when a check's script is not there; and
 when it holds a `commit`, a `copies: true` block or a read of `diff`, and the
-launch gave no `git` port or `cwd` is not in a repository. Each script is read
+launch gave no `git` port or `cwd` is not in a repository. With nobody there,
+because `somebodyThere` is false or the launch gave no `ask` port, it is
+refused when any `ask` with neither `default:` nor `enough:` could be reached,
+behind a `choice` too, and each such `ask` is named. Each script is read
 here, and what runs is what was read: an agent that edits the file during the
 run changes nothing. What passes is a `CheckedRun`, holding the tree and the
 ports it was checked against.
+
+The `ask` port is an `AskUser`: it is handed the question and how to put it,
+its form, the reads shown above it, the visit asking, the label of "enough" or
+`false` when there is none, and a signal that takes the card down on a
+timeout or a stop. It returns the answer, or `undefined` when the person
+declined the card.
 
 `bashCheck()` is the `check` port: it runs a script's content with `bash -c`
 in a directory, `$0` being the script's path, and kills the script and every
@@ -489,7 +562,8 @@ over the visit, every attempt and nested visit included.
 ### A dry run
 
 `dryRunFlow(checked, input, answers, options)` is the same run with every agent
-turn, every check and every commit answered by a script, and nothing of the
+turn, every check, every commit and every question answered by a script, and
+nothing of the
 world touched: it takes what `checkFlow` returned, reads no check script, runs
 none, and never runs git. `diff` reads as an empty text, and a `copies: true`
 block makes no copy, each of its branches reading as landed. It returns what
@@ -510,18 +584,23 @@ the enclosing path: each `map` item has its own list, and a loop's iterations
 share one. A list is always a list of answers, so a list-typed output is
 written inside one. An answer is an output, the `verdict` call of a
 `verdict:` node (`{ approved, remarks?, resolved?, raised? }`), a check's
-`{ passed, report }`, a commit's `{ committed, sha?, branch }`, or a failure:
-`{ fail: "provider" | "timeout" | "schema" }` for an agent turn,
-`{ fail: "unavailable" | "timeout" }` for a check, `{ fail: "unavailable" }`
-for a commit. A commit's `empty-message` is not scripted: an empty answer to
+`{ passed, report }`, a commit's `{ committed, sha?, branch }`, an ask's
+output, or a failure: `{ fail: "provider" | "timeout" | "schema" }` for an
+agent turn, `{ fail: "unavailable" | "timeout" }` for a check,
+`{ fail: "unavailable" }` for a commit. An ask takes `{ fail: "nobody" }`,
+`{ fail: "timeout" }` when it has a `timeout:`, and `{ fail: "stopped" }`, the
+card declined, when it has no `enough:`. The first two take the node's own
+path, its `default:` or `enough:` included. A choice card answered with
+`{ answered: false }` needs `enough:`, and one answered with
+`{ answered: true }` names its `answer`. A commit's `empty-message` is not scripted: an empty answer to
 the node that writes the message gives it. The
 script is checked before the start, and refused with every fault in it:
 
 | Code | What it means |
 | --- | --- |
-| `answer-unknown-node` | the key names no `agent`, `check` or `commit` node, or its path leads to none; the message offers the address meant |
+| `answer-unknown-node` | the key names no `agent`, `check`, `commit` or `ask` node, or its path leads to none; the message offers the address meant |
 | `answer-past-max` | a visit path's iteration or item is past its bound, or a list holds more answers than the node can be asked for |
-| `answer-off-schema` | the answer does not match the node's `output:`, is not a text for a node with none, or is not a check's `{ passed, report }` or a commit's `{ committed, sha?, branch }` |
+| `answer-off-schema` | the answer does not match the node's `output:`, is not a text for a node with none, is not a check's `{ passed, report }` or a commit's `{ committed, sha?, branch }`, or is not an output of the ask's form |
 | `answer-fail-kind` | `fail:` names a kind the node cannot fail with |
 
 A visit the script does not answer stops the dry run with
@@ -534,7 +613,8 @@ A flow that does not pass is refused with every fault at once, in file order,
 each as `{ code, file, at, message }`. `at` is the node's id, or the flow's key,
 then the offending key: `first.agent-from`. `checkFlow` and `checkRun` both
 refuse this way; `check-script-missing`, `check-port-missing`,
-`git-port-missing` and `not-a-repository` are the run stage's.
+`git-port-missing`, `not-a-repository` and `unattended-ask` are the run
+stage's.
 
 | Code | What it means | How to fix it |
 | --- | --- | --- |
@@ -564,13 +644,18 @@ refuse this way; `check-script-missing`, `check-port-missing`,
 | `carry-mismatch` | a loop's `carry:` sides share no field | make `first` and `next` agree on the fields carried |
 | `verdict-with-output` | a `verdict:` node also declares `output:` | drop `output:`: the verdict is the output |
 | `copies-needed` | branches that run together write without copies | add `copies: true`, or run a `map` with `concurrency: 1`; a `commit` goes after the block |
-| `retry-refused` | `retry:` on a node that is not retried, a `check` or a `commit` | raise a check's `timeout:` or make it stable; retry the node writing a commit's message |
+| `retry-refused` | `retry:` on a node that is not retried: a `check`, a `commit` or an `ask` | raise a check's `timeout:` or make it stable; retry the node writing a commit's message; give an ask a `default:` |
 | `check-script-missing` | a check's script is not in the working tree, or is not a file | add the script, or fix its path from the repository root |
 | `check-port-missing` | the flow holds a `check` and the launch gave no `check` port | pass one, `bashCheck()` |
 | `commit-in-copies` | a `commit` inside a `copies: true` block | commit after the block |
 | `memory-outside-copies` | a node inside a `copies: true` block names a `memory:` scope that opens outside it | name a scope inside the block, or none |
+| `ask-form-conflict` | an `ask` holds keys its form does not take together: `options:` with `confirm:`, either with `ask-from:`, or `enough:` on a yes or no or a free text | keep the keys of one form |
+| `ask-options-count` | literal `options:` offer fewer than two or more than four | offer two to four |
+| `ask-options-duplicate` | literal `options:` offer a label twice | make each label its own |
+| `ask-default-mismatch` | an ask's `default:` is not of its form: not one of its labels, not `true` or `false` on a yes or no, not a text | write a value its card could have given |
 | `git-port-missing` | the flow holds a `commit`, a `copies: true` block or a read of `diff`, and the launch gave no `git` port | pass one, `gitPort()` |
 | `not-a-repository` | the same, launched in a directory that is not in a git repository | launch it at the root of a repository |
+| `unattended-ask` | nobody is there, or there is no `ask` port, and an `ask` with neither `default:` nor `enough:` could be reached | launch it with somebody there, or give the ask a `default:` |
 | `section-missing` | an `agent` node has no `## <id>` section | write its section |
 | `section-empty` | a section has no text | say what the turn is asked |
 | `section-duplicate` | two sections share a heading | merge them |
@@ -582,3 +667,4 @@ refuse this way; `check-script-missing`, `check-port-missing`,
 | `condition-unknown-address` | a condition names nothing readable | read what the message lists |
 | `condition-type` | a condition's parts do not fit together, or it is not a boolean | compare values of one type |
 | `condition-enum-value` | a string compared with an enum is not one of its values | use one of the values listed |
+| `condition-free-string` | a literal compared with the answer of an `ask-from:`, which a model wrote in the person's language | read `answered` or `custom`, or have an agent node read the answer and output an enum |

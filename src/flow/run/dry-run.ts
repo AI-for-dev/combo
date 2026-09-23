@@ -1,6 +1,6 @@
 /**
- * `dryRunFlow`: `runFlow` itself, with every agent turn, every check and
- * every commit answered by a script.
+ * `dryRunFlow`: `runFlow` itself, with every agent turn, every check, every
+ * commit and every question answered by a script.
  *
  * The same walk, the same `spawn`, the same events. Only the session under
  * each subagent and the `check` port are scripted, so a typed answer goes
@@ -18,7 +18,8 @@ import { spawn } from "../../subagent.ts";
 import type { Usage } from "../../usage.ts";
 import type { SpawnFn } from "../../workflows/options.ts";
 import type { ScriptOutcome } from "../../verify.ts";
-import type { CheckedCheckNode, CheckedCommitNode, CheckedFlow } from "../checked.ts";
+import type { CheckedAskNode, CheckedCheckNode, CheckedCommitNode, CheckedFlow } from "../checked.ts";
+import type { Heard } from "./ask.ts";
 import type { Attempt } from "./agent.ts";
 import { Script, type AnswerFault, type Answers } from "./answers.ts";
 import type { CommitOutcome } from "./commit.ts";
@@ -43,7 +44,7 @@ export type DryRun =
 	| { readonly ok: false; readonly unscripted: string; readonly journal: readonly JournalEntry[]; readonly usage: Usage }
 	| { readonly ok: false; readonly faults: readonly AnswerFault[] };
 
-/** Runs `checked` on `input`, each agent turn and each check answered from `answers`. */
+/** Runs `checked` on `input`, each agent turn, check, commit and question answered from `answers`. */
 export async function dryRunFlow(checked: CheckedFlow, input: unknown, answers: Answers, options: DryRunOptions = {}): Promise<DryRun> {
 	const checkedScript = Script.check(checked, answers);
 	if (!checkedScript.ok) return { ok: false, faults: checkedScript.faults };
@@ -82,7 +83,9 @@ export async function dryRunFlow(checked: CheckedFlow, input: unknown, answers: 
 		halt.abort();
 		return { ok: false, kind: "stopped", message: "unscripted" } as T;
 	};
-	const world = { deadline, check: ran<ScriptOutcome>, commit: ran<CommitOutcome>, diff: async () => ({ ok: true as const, value: "" }) };
+	// A hole takes the card down the way a stop does: the visit reads the stop, not this.
+	const ask = async (node: CheckedAskNode, path: string): Promise<Heard> => script.heard(path, node.at) ?? (hole(path), { declined: true });
+	const world = { deadline, check: ran<ScriptOutcome>, commit: ran<CommitOutcome>, diff: async () => ({ ok: true as const, value: "" }), ask };
 
 	const result = await walkFlow(checked, input, { ...options, signal, onEvent, spawn: scripted }, world);
 	if (unscripted !== undefined) return { ok: false, unscripted, journal, usage: result.usage };

@@ -1,6 +1,7 @@
 /**
- * A dry run's script: the answers that stand in for each agent turn and each
- * check's script run, checked against the flow before the first one is taken.
+ * A dry run's script: the answers that stand in for each agent turn, each
+ * check's script run, each commit and each question, checked against the flow
+ * before the first one is taken.
  *
  * A key is a node's address (`gate/ask`) or an exact visit path
  * (`deliver#2/gate/ask`), the path winning. Its value is one answer, which
@@ -9,12 +10,16 @@
  * iterations share one. A list is always a list of answers, so a node whose
  * output is a list is answered inside one: `[["a", "b"]]`. An answer is an
  * output, the `verdict` call of a `verdict:` node, a check's `{ passed,
- * report }`, a commit's `{ committed, sha?, branch }`, or `{ fail: <kind> }`.
+ * report }`, a commit's `{ committed, sha?, branch }`, an ask's output, or
+ * `{ fail: <kind> }`. An ask's `nobody` and `timeout` take the node's real
+ * path, its `default:` or its `enough:` included, and its `stopped` is the
+ * card declined.
  */
 
 import { VERDICT_TOOL } from "../../review/index.ts";
 import type { ScriptOutcome } from "../../verify.ts";
-import { CHECK, COMMIT, type CheckedAgentNode, type CheckedFlow } from "../checked.ts";
+import { CHECK, COMMIT, type CheckedAgentNode, type CheckedAskNode, type CheckedFlow } from "../checked.ts";
+import type { Heard } from "./ask.ts";
 import type { CommitOutcome } from "./commit.ts";
 import { nearest } from "../fault.ts";
 import { mismatch, type ValueType } from "../type.ts";
@@ -31,11 +36,16 @@ export type AnswerFault = { readonly code: (typeof ANSWER_CODES)[number]; readon
 /** The answers of a dry run, by node address or visit path. */
 export type Answers = Readonly<Record<string, unknown>>;
 
-/** How a scripted node can fail: what it can end with on its own, short of a person or a cut. */
-const FAILS = { agent: ["provider", "timeout", "schema"], check: ["unavailable", "timeout"], commit: ["unavailable"] } as const;
+/** How a scripted node can fail: what it can end with on its own, short of a cut; an ask, as its keys allow. */
+function failsOf(node: AnsweredNode): readonly string[] {
+	if (node.kind === "agent") return ["provider", "timeout", "schema"];
+	if (node.kind === "check") return ["unavailable", "timeout"];
+	if (node.kind === "commit") return ["unavailable"];
+	return ["nobody", ...(node.timeoutMs === undefined ? [] : ["timeout"]), ...(node.enough === undefined ? ["stopped"] : [])];
+}
 
 /** What each kind of node a script answers is asked to say, by name in a fault. */
-const ANSWERED = { agent: "an agent turn", check: "a check", commit: "a commit" } as const;
+const ANSWERED = { agent: "an agent turn", check: "a check", commit: "a commit", ask: "an ask" } as const;
 
 const TEXT: ValueType = { kind: "text" };
 const STRING: ValueType = { kind: "string" };
@@ -119,6 +129,14 @@ export class Script {
 		return { ok: false, kind, message: `scripted ${kind} failure` } as T;
 	}
 
+	/** What the person's side of the ask at `at` gives at visit `path`, or `undefined` when nothing scripts it. */
+	heard(path: string, at: string): Heard | undefined {
+		const answer = this.take(path, at);
+		if (answer === undefined) return undefined;
+		if (!isFail(answer.value)) return { output: answer.value };
+		return answer.value.fail === "stopped" ? { declined: true } : { missed: answer.value.fail as "nobody" | "timeout" };
+	}
+
 	/** The answer the visit `path` of the node at `at` takes: its path's, else its address's, one per attempt from a list. */
 	private take(path: string, at: string): { readonly value: unknown } | undefined {
 		const key = [path, at].find((one) => Object.hasOwn(this.answers, one));
@@ -138,7 +156,7 @@ function unkeyed(key: string, { code, why }: Unkeyed, nodes: ReadonlyMap<string,
 	// An id alone is the likeliest slip: it is how the node is written.
 	const near = [...nodes.values()].find(({ node }) => node.id === key)?.node.at ?? nearest(key.replace(/#\d+|\[\d+\]/g, ""), nodes.keys());
 	const said = why ?? (near === undefined ? undefined : `did you mean \`${near}\`?`);
-	return `\`${key}\` names no agent, check or commit node${said === undefined ? "" : `: ${said}`}`;
+	return `\`${key}\` names no agent, check, commit or ask node${said === undefined ? "" : `: ${said}`}`;
 }
 
 function isFail(answer: unknown): answer is { fail: unknown } {
@@ -148,16 +166,32 @@ function isFail(answer: unknown): answer is { fail: unknown } {
 /** Checked by the same `mismatch` a real submission passes, or a check's output is held to. */
 function checkAnswer(answer: unknown, node: AnsweredNode, at: string): AnswerFault | undefined {
 	if (isFail(answer)) {
-		const fails: readonly unknown[] = FAILS[node.kind];
+		const fails: readonly unknown[] = failsOf(node);
 		if (fails.includes(answer.fail)) return undefined;
 		return { code: "answer-fail-kind", at, message: `${ANSWERED[node.kind]} fails with ${fails.join(", ")}, not ${JSON.stringify(answer.fail)}` };
 	}
-	const problem = mismatch(answer, node.kind === "check" ? CHECK : node.kind === "commit" ? COMMIT : node.verdict === undefined ? (node.output ?? TEXT) : VERDICT_CALL);
+	const problem = mismatch(answer, typeOfAnswer(node)) ?? (node.kind === "ask" ? offCard(answer, node) : undefined);
 	return problem === undefined ? undefined : { code: "answer-off-schema", at, message: problem };
 }
 
+function typeOfAnswer(node: AnsweredNode): ValueType {
+	if (node.kind === "check") return CHECK;
+	if (node.kind === "commit") return COMMIT;
+	if (node.kind === "ask") return node.output;
+	return node.verdict === undefined ? (node.output ?? TEXT) : VERDICT_CALL;
+}
+
+/** What a choice card's output says that its type cannot: an answer when answered, and "not answered" only where "enough" is offered. */
+function offCard(answer: unknown, node: CheckedAskNode): string | undefined {
+	if (node.form !== "choice") return undefined;
+	const { answered, answer: picked } = answer as { answered: boolean; answer?: string };
+	if (answered && picked === undefined) return "an answered card says its `answer`";
+	if (!answered && node.enough === undefined) return "a card with no `enough:` is answered, or declined with `{ fail: \"stopped\" }`";
+	return undefined;
+}
+
 function turn(answer: unknown, node: CheckedAgentNode): ScriptedTurn {
-	if (isFail(answer)) return { fail: answer.fail as (typeof FAILS.agent)[number] };
+	if (isFail(answer)) return { fail: answer.fail as Extract<ScriptedTurn, { fail: unknown }>["fail"] };
 	if (node.verdict !== undefined) return { call: VERDICT_TOOL, args: answer };
 	return node.output === undefined ? { say: answer as string } : { call: SUBMIT_TOOL, args: submission(answer, node.output) };
 }

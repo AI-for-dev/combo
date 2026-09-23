@@ -16,6 +16,7 @@ import type { SpawnFn } from "../../workflows/options.ts";
 import type { CheckedRun } from "../check-run.ts";
 import type { CheckedFlow, FlowError } from "../checked.ts";
 import { mismatch } from "../type.ts";
+import { personAsks } from "./card.ts";
 import { committer } from "./commit.ts";
 import { Frames } from "./frames.ts";
 import { Values } from "./values.ts";
@@ -26,7 +27,7 @@ import { Run, type World } from "./walk.ts";
 export type RunFlowOptions = {
 	/** Defaults to the real `spawn`. Pass a `stopSwitch`'s, with its `signal`, to stop a visit or the run. */
 	spawn?: SpawnFn;
-	/** Aborting it stops the run: no node starts, and nothing catches the failure. */
+	/** Aborting it stops the run: no node starts, and nothing catches the failure. Declining a card that offers no "enough" does the same. */
 	signal?: AbortSignal;
 	/** The run's events, its visits and its subagents' alike. */
 	onEvent?: EventListener;
@@ -63,6 +64,7 @@ export function runFlow(run: CheckedRun, input: unknown, options: RunFlowOptions
 		commit: (_node, _path, message) => commit(message),
 		diff: (tree = cwd) => git.diff(tree),
 		copies: ports.git,
+		ask: personAsks(run.somebodyThere ? ports.ask : undefined),
 	}, cwd);
 }
 
@@ -72,8 +74,10 @@ export async function walkFlow(checked: CheckedFlow, input: unknown, options: Ru
 	if (problem !== undefined) throw new Error(`The input of \`${checked.name}\` does not match its \`input:\`: ${problem}`);
 
 	const started = performance.now();
-	const signal = options.signal ?? new AbortController().signal;
-	const run = new Run({ ...world, flow: checked, bus: busFor(options), signal, spawn: options.spawn ?? defaultSpawn, model: options.model, timeoutMs: options.timeoutMs });
+	const stopped = new AbortController();
+	const signal = options.signal === undefined ? stopped.signal : AbortSignal.any([options.signal, stopped.signal]);
+	const stop = () => stopped.abort();
+	const run = new Run({ ...world, flow: checked, bus: busFor(options), signal, stop, spawn: options.spawn ?? defaultSpawn, model: options.model, timeoutMs: options.timeoutMs });
 	const frames = Frames.root();
 	let walked: Walked;
 	try {

@@ -20,6 +20,7 @@ export {
 	STOPS,
 	VERDICT,
 	type CheckedAgentNode,
+	type CheckedAskNode,
 	type CheckedCheckNode,
 	type CheckedChoiceNode,
 	type CheckedFlow,

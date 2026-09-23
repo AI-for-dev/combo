@@ -15,6 +15,7 @@ import { emptyUsage, sumUsage, type Usage } from "../../usage.ts";
 import type { CheckedAgentNode, ErrorKind } from "../checked.ts";
 import { failure, interruption, type Ended } from "./ended.ts";
 import type { Held } from "./frames.ts";
+import { withDiff } from "./reads.ts";
 import { closingPart, composeTurn, retryTurn } from "./turn.ts";
 import type { Here } from "./walk.ts";
 
@@ -46,19 +47,13 @@ type Asking = { readonly run: AgentRun; readonly node: CheckedAgentNode; readonl
 
 /**
  * Visits `node` at `path`. A node with `memory:` resumes its scope's
- * subagent; any other gets a fresh one. A read of `diff` is taken now, in the
- * node's own tree: it is the one address whose value depends on when and
- * where it is read.
+ * subagent; any other gets a fresh one.
  */
 export async function visitAgent(run: AgentRun, node: CheckedAgentNode, path: string, at: Here): Promise<AgentVisit> {
 	const agent = pick(node, at);
 	if (typeof agent === "string") return { ended: failure("condition", agent), usage: emptyUsage() };
-	let here = at;
-	if (node.reads.some((read) => read.address === "diff")) {
-		const diff = await run.diff(here.tree);
-		if (!diff.ok) return { ended: failure("unavailable", `\`diff\`: ${diff.error}`), usage: emptyUsage() };
-		here = { ...here, values: here.values.inside().lend("diff", diff.value) };
-	}
+	const here = await withDiff((tree) => run.diff(tree), node.reads, at);
+	if (typeof here === "string") return { ended: failure("unavailable", here), usage: emptyUsage() };
 	const asking: Asking = { run, node, path, here, ledger: node.verdict === undefined ? undefined : here.frames.ledger(node.verdict) };
 	const open = () => run.open(agent, node, path, here.tree);
 	if (node.memory !== undefined) return here.frames.use(node.memory, agent.name, open, (held) => attempts(asking, held));

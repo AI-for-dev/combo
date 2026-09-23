@@ -13,6 +13,7 @@
 import type { Ledger } from "../../review/index.ts";
 import type { CheckedAgentNode, CheckedRead, FlowError } from "../checked.ts";
 import type { Held } from "./frames.ts";
+import { showRead } from "./reads.ts";
 import { SUBMIT_TOOL } from "./submit.ts";
 import type { Values } from "./values.ts";
 
@@ -39,32 +40,11 @@ export function closingPart(node: CheckedAgentNode, held: Held, ledger: Ledger |
 	return node.output === undefined ? [] : [SUBMIT_CLOSING];
 }
 
-/**
- * One read as a section. Text, and a value typed `string`, goes as it is:
- * `input: string` is what a person typed, and a JSON string with its quotes
- * and escaped newlines would change how a model reads it. Any other value is
- * JSON, and so is a node that failed, the shape a block's failed branch has.
- */
+/** One read as a section under `## <address>`, JSON in a fenced block. */
 function section(read: CheckedRead, values: Values): string[] {
-	const heading = `## ${read.address}`;
-	const reading = values.read(read.address);
-	switch (reading.kind) {
-		case "failed":
-			return [`${heading}\n\n${json(reading.ended)}`];
-		case "first":
-			return [];
-		case "absent":
-			// An optional field left out: the address still gets its section, as
-			// an empty text does, and the runner writes no "(empty)" of its own.
-			return [heading];
-		case "value": {
-			const plain = typeof reading.value === "string" && (read.type.kind === "text" || read.type.kind === "string");
-			const body = plain ? (reading.value as string).trim() : json(reading.value);
-			return [body === "" ? heading : `${heading}\n\n${body}`];
-		}
-	}
-}
-
-function json(value: unknown): string {
-	return `\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``;
+	const shown = showRead(read, values);
+	if (shown === undefined) return [];
+	const heading = `## ${shown.name}`;
+	const body = shown.json ? `\`\`\`json\n${shown.body}\n\`\`\`` : shown.body;
+	return [body === "" ? heading : `${heading}\n\n${body}`];
 }
