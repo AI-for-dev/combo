@@ -13,6 +13,7 @@ import path from "node:path";
 import type { EventListener } from "../events.ts";
 import { copyMainSession, freeName, usageReport, writeUsageReport, type UsageReport } from "./export.ts";
 import { flowFold, withFlow } from "./flow-usage.ts";
+import type { MainSession } from "../session.ts";
 import { combineReporters, createRunPicture, recordReporter, type RunPicture } from "../reporters/index.ts";
 
 /** What a measured run may vary. Everything else is the same everywhere. */
@@ -24,12 +25,14 @@ export type MeasuredRunOptions = {
 	/** Other listeners on the same stream, after the picture: a terminal, a herdr pane, a caller's own. */
 	listeners?: readonly (EventListener | undefined)[];
 	/**
-	 * The parent session's JSONL, copied in beside the subagents' transcripts.
+	 * The parent session, whose JSONL is written in beside the subagents'
+	 * transcripts when the run is over.
 	 *
 	 * An export that lost the parent would be half a story, and only the caller
-	 * that has the session knows where it is.
+	 * that has the session can hand it over. It is read at the end, not at the
+	 * start: what the run added to it belongs in its transcript too.
 	 */
-	mainSessionFile?: string;
+	mainSession?: MainSession;
 };
 
 /** A run being measured, and the one call that closes the measurement. */
@@ -67,7 +70,7 @@ export function measuredRun(options: MeasuredRunOptions = {}): MeasuredRun {
 		picture,
 		elapsedMs,
 		finish() {
-			const main = dir && options.mainSessionFile ? [copyMainSession(options.mainSessionFile, dir)] : undefined;
+			const main = dir && options.mainSession ? [copyMainSession(options.mainSession, dir)] : undefined;
 			const report = withFlow(usageReport(picture.snapshot(), elapsedMs(), main), flow, dir, opened);
 			if (dir) {
 				try {

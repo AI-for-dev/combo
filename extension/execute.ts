@@ -118,7 +118,7 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 		live: {
 			reporter: deps.reporter,
 			herdrAll: params.herdrAll,
-			mainSessionFile: deps.mainSessionFile,
+			mainSession: deps.mainSession,
 			spawn: deps.spawn,
 			onChange: (snapshot) => deps.onUpdate?.({ content: [{ type: "text", text: progressLine(snapshot) }], details: undefined }),
 		},

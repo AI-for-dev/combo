@@ -82,7 +82,7 @@ async function start(name: string, input: string, settings: Settings, ctx: Comma
 	if (model !== undefined && !(await checked(ctx, async () => (await deps.checkModel(model), true)))) return undefined;
 
 	const runDir = deps.runDir();
-	const at = { runDir, model, timeoutMs, status: `running ${name}…`, mainSessionFile: mainSession(ctx) };
+	const at = { runDir, model, timeoutMs, status: `running ${name}…`, mainSession: ctx.sessionManager };
 	const result = await caught(ctx, () => launch(ctx, deps, flow.run, input, at));
 	if (result !== undefined) answer(ctx, doors, flow.run.flow, input, runDir, result);
 	return result;
@@ -111,7 +111,7 @@ async function resume(where: string, settings: Settings, ctx: CommandCtx, deps: 
 	if (!point.ok) return refuse(ctx, `run: ${shown(ctx, runDir)} cannot be resumed - ${point.refused}`, "warning");
 	ctx.ui.notify(`run: resuming ${snapshot.flow} in ${shown(ctx, runDir)}, from ${point.from === "" ? "its end" : point.from}`, "info");
 
-	const at = { runDir, status: `resuming ${snapshot.flow}…`, mainSessionFile: mainSession(ctx) };
+	const at = { runDir, status: `resuming ${snapshot.flow}…`, mainSession: ctx.sessionManager };
 	const resumed = await caught(ctx, () =>
 		underPlan(ctx, deps, flow.flow, journal, at, (options: Launched) => resumeFlow(runDir, { ...options, ports: portsOf(ctx), somebodyThere: somebodyThere(ctx), timeoutMs: settings.timeoutMs })),
 	);
@@ -121,11 +121,6 @@ async function resume(where: string, settings: Settings, ctx: CommandCtx, deps: 
 	if (resumed.changed !== undefined) ctx.ui.notify(`run: ${resumed.changed}`, "warning");
 	answer(ctx, doors, flow.flow, snapshot.input, runDir, resumed);
 	return resumed;
-}
-
-/** This session's JSONL, which a run copies in beside its subagents'. */
-function mainSession(ctx: CommandCtx): string | undefined {
-	return ctx.sessionManager?.getSessionFile();
 }
 
 /**

@@ -21,7 +21,7 @@ import path from "node:path";
 import type { RunSnapshot } from "../reporters/picture.ts";
 import type { Usage } from "../usage.ts";
 import { treeOrder } from "../reporters/tree.ts";
-import type { SessionPort } from "../session.ts";
+import type { MainSession, SessionPort } from "../session.ts";
 
 /** What one subagent left on disk. Both paths are absent when nothing could be written. */
 export type SessionExport = {
@@ -285,6 +285,7 @@ export function usageReport(snapshot: RunSnapshot, wallMs: number, exports?: Ses
 		})),
 		total: { ...total, wallMs, subagents: snapshot.subagents.length, failed: snapshot.failed },
 		parallelism: wallMs > 0 ? total.busyMs / wallMs : 0,
+		...(exports !== undefined && { exports }),
 	};
 }
 
@@ -304,14 +305,25 @@ export function writeUsageReport(dir: string, report: UsageReport): string {
  * and an extension only ever sees a `ReadonlySessionManager` - the renderer is
  * not on pi's public surface. `pi --export <file>` turns this JSONL into the
  * same HTML whenever it is wanted.
+ *
+ * pi's own file is copied once pi has written it. Until then, which is the
+ * whole of a run launched before the parent's first reply, the same lines
+ * are written from what pi holds: its header and its entries, each as the
+ * one JSON line pi's file keeps it as. Nothing is rendered, and nothing pi
+ * does not hold is added.
  */
-export function copyMainSession(sessionFile: string | undefined, dir: string): SessionExport {
-	if (!sessionFile) return { id: "main", error: "no session file: the parent session is in memory" };
+export function copyMainSession(session: MainSession, dir: string): SessionExport {
 	try {
 		fs.mkdirSync(dir, { recursive: true });
 		// A resume may come from another conversation: each keeps its own.
 		const target = path.join(dir, `${freeName(dir, "main", [".jsonl"])}.jsonl`);
-		fs.copyFileSync(sessionFile, target);
+		const file = session.getSessionFile();
+		if (file !== undefined && fs.existsSync(file)) fs.copyFileSync(file, target);
+		else {
+			const header = session.getHeader();
+			const lines = header === null ? session.getEntries() : [header, ...session.getEntries()];
+			fs.writeFileSync(target, lines.map((line) => `${JSON.stringify(line)}\n`).join(""));
+		}
 		return { id: "main", jsonl: target };
 	} catch (cause) {
 		return { id: "main", error: message(cause) };

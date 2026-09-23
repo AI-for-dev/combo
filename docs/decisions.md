@@ -2460,6 +2460,18 @@ through `exportDir`.
   package root - the `exports` map blocks a deep import. So we copy the parent's
   JSONL, which pi's own `pi --export <file>` turns into the same HTML on demand.
   Writing our own HTML would break "we reimplement nothing".
+- **`main.jsonl` is written from what pi holds when pi has no file yet.**
+  pi creates a session's file with its first assistant message, so the
+  first command typed in a fresh pi runs in a session whose file does not
+  exist, and `--no-session` never writes one. Copying the path alone left
+  `main.jsonl` out of those runs, seen in real ones. A run is handed the
+  session itself (`MainSession`, the part of `ctx.sessionManager` it reads)
+  rather than its path, and reads it when the run ends. pi's file is copied
+  when it exists; otherwise the header and the entries pi holds are written
+  one JSON object per line, which is all a session file is. Nothing is
+  rendered and nothing is added, so this is not a second JSONL writer.
+  Waiting for the file was the other way, and a parent that never replies
+  never writes one.
 - **`exportDir` implies a session directory**, `<exportDir>/.sessions`.
   `SessionManager.inMemory()` persists nothing, and pi answers a request to
   export one with `Cannot export in-memory session to HTML`. Asking for an

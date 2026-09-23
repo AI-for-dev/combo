@@ -93,6 +93,18 @@ export type SessionPort = {
 	readonly model?: { provider?: string; id?: string };
 };
 
+/**
+ * What the library reads of the parent pi session, the one a run is launched
+ * from: pi's `ctx.sessionManager` fits it as it is.
+ *
+ * The file's path alone is not enough. pi creates a session's file with its
+ * first assistant message, so a command typed first in a fresh pi runs in a
+ * session whose file does not exist yet, and `--no-session` never writes one.
+ * The header and the entries are in memory from the start, and the file is
+ * those and nothing else, one JSON object per line.
+ */
+export type MainSession = Pick<SessionManager, "getSessionFile" | "getHeader" | "getEntries">;
+
 /** `provider/id`, or `undefined` when pi has not resolved a model. */
 export function modelLabel(session: SessionPort): string | undefined {
 	const model = session.model;

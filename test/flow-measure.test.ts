@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, test } from "node:test";
+import { SessionManager } from "@earendil-works/pi-coding-agent";
 import type { Agent } from "../src/agent.ts";
 import { checkFlow, readJournal, resumeFlow, runFlow, type CheckedFlow } from "../src/flow/index.ts";
 import { JOURNAL_FILE } from "../src/flow/run/journal.ts";
@@ -136,8 +137,7 @@ describe("a measured flow run", () => {
 		const flow = flowOf("  - id: look\n    agent: scout\n  - id: more\n    agent: planner\n  - id: last\n    agent: synthesiser", { look: "Look.", more: "More.", last: "Last." });
 		const cwd = fs.realpathSync(plainDirectory());
 		const runDir = path.join(cwd, "run");
-		const main = path.join(cwd, "main-session.jsonl");
-		fs.writeFileSync(main, '{"type":"session"}\n');
+		const main = SessionManager.inMemory(cwd);
 
 		// Life 1 is killed before `more` ended: its journal stops there, and it never finished its measurement.
 		const first = measuredRun({ dir: runDir, record: true });
@@ -148,7 +148,7 @@ describe("a measured flow run", () => {
 
 		// Life 2 fails at `last`; life 3 replays it.
 		for (const turns of [[[said("more again")], [said("down", { stopReason: "error" })]], [[said("last again")]]]) {
-			const life = measuredRun({ dir: runDir, record: true, mainSessionFile: main });
+			const life = measuredRun({ dir: runDir, record: true, mainSession: main });
 			await resumeFlow(runDir, { ports: {}, somebodyThere: false, spawn: flowSpawn(turns).spawn, onEvent: life.onEvent });
 			life.finish();
 		}

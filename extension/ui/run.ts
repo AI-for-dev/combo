@@ -25,6 +25,7 @@ import {
 	type CheckedFlow,
 	type EventListener,
 	type JournalEntry,
+	type MainSession,
 	type RunPicture,
 	type RunSnapshot,
 	type SpawnFn,
@@ -76,8 +77,8 @@ export type LiveRunOptions = {
 	spawn?: SpawnFn;
 	/** Where `usage.json` lands when the run is over. Absent writes none. */
 	dir?: string;
-	/** The parent session's JSONL, from `ctx.sessionManager.getSessionFile()`, copied in beside the subagents' transcripts. */
-	mainSessionFile?: string;
+	/** The parent session, `ctx.sessionManager`, whose JSONL lands beside the subagents' transcripts. */
+	mainSession?: MainSession;
 	/**
 	 * The flow this run walks, and what its earlier lives wrote in its
 	 * journal: the widget then draws its plan, filled as the visits go,
@@ -121,7 +122,7 @@ export function liveRun(ui: RunUi | undefined, options: LiveRunOptions = {}): Li
 	// and the workflow runs identically either way.
 	const run = measuredRun({
 		dir: options.dir,
-		mainSessionFile: options.mainSessionFile,
+		mainSession: options.mainSession,
 		listeners: [
 			options.reporter ?? createHerdrReporter({ all: options.herdrAll || watchEverything() }),
 			flow &&

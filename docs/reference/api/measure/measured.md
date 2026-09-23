@@ -63,12 +63,14 @@ export type MeasuredRunOptions = {
 	/** Other listeners on the same stream, after the picture: a terminal, a herdr pane, a caller's own. */
 	listeners?: readonly (EventListener | undefined)[];
 	/**
-	 * The parent session's JSONL, copied in beside the subagents' transcripts.
+	 * The parent session, whose JSONL is written in beside the subagents'
+	 * transcripts when the run is over.
 	 *
 	 * An export that lost the parent would be half a story, and only the caller
-	 * that has the session knows where it is.
+	 * that has the session can hand it over. It is read at the end, not at the
+	 * start: what the run added to it belongs in its transcript too.
 	 */
-	mainSessionFile?: string;
+	mainSession?: MainSession;
 };
 ```
 

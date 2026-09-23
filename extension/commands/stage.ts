@@ -83,7 +83,7 @@ export async function runStage(target: Target, input: string, stage: Stage): Pro
 	const { ctx, deps, dir, model, status } = stage;
 
 	if (target.kind === "flow") {
-		const result = await launch(ctx, deps, target.run, input, { runDir: dir, model, status, mainSessionFile: ctx.sessionManager?.getSessionFile() });
+		const result = await launch(ctx, deps, target.run, input, { runDir: dir, model, status, mainSession: ctx.sessionManager });
 		if (result.ok) return { output: asText(result.output), usage: result.usage };
 		return { output: "", usage: result.usage, failed: { why: failure(result), next: resumeHint(ctx, target.run.flow, readJournal(dir), dir) } };
 	}

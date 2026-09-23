@@ -46,7 +46,7 @@ export async function executeFlow(params: Params, deps: ExecuteDeps): Promise<To
 		runDir,
 		model: params.model,
 		timeoutMs: params.timeoutMs,
-		mainSessionFile: deps.mainSessionFile,
+		mainSession: deps.mainSession,
 		view: {
 			reporter: deps.reporter,
 			herdrAll: params.herdrAll,

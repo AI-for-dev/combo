@@ -63,7 +63,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`result`](result.md) | `Result`: the single contract shared by everything else. | 6 |
 | [`review/ledger`](review/ledger.md) | What is left to do, as a list nobody can lose track of. | 2 |
 | [`run`](run.md) | `run()`: the disposable form. Spawn, ask, close. | 2 |
-| [`session`](session.md) | The whole pi API lives here, and nowhere else. | 9 |
+| [`session`](session.md) | The whole pi API lives here, and nowhere else. | 10 |
 | [`skills`](skills.md) | The skills an agent may load, and where they are looked up. | 2 |
 | [`stop`](stop.md) | The stop switch of a live run: everything at once, or one subagent of it. | 3 |
 | [`subagent`](subagent.md) | A subagent: a live session, a memory, a state. | 5 |
