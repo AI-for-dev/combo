@@ -1,8 +1,8 @@
 /**
  * `/swarm`: several copies of one agent on one job, from inside pi.
  *
- * Every other command here decides who does what - `/run` walks a pipeline,
- * `/step` names the agent itself, `/build` has a planner write the split. A
+ * Every other command here decides who does what - `/run` walks a flow,
+ * whose planner may write the split, and `/step` names the agent itself. A
  * swarm decides none of it: the members are told the same thing, handed a board
  * to talk on and, when the caller names what there is, a set of claims to take
  * work from. What they divide between them is theirs.

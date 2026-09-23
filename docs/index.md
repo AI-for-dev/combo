@@ -99,7 +99,7 @@ A workflow written in Markdown, next to your agents.
 :link: guide/build
 :link-type: doc
 
-Plan, pair, check, audit, with nobody asked anything.
+`/run build`: plan, pair, check, audit, with nobody asked anything.
 :::
 
 :::{grid-item-card} {octicon}`arrow-right` Walk a chain by hand
@@ -133,7 +133,7 @@ Several members on one job, a board between them, and nobody dividing it.
 
 ## Using it from pi
 
-- [Extension](guide/extension.md) - the `subagent` tool, `/interview`, `/build`, `/herdr`.
+- [Extension](guide/extension.md) - the `subagent` tool, `/run`, `/interview`, `/herdr`.
 
 ## Reference
 

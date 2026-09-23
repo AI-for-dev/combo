@@ -51,16 +51,19 @@ gets a five minute deadline, because pi's agent loop has no step cap and a
 person waiting cannot tell a slow turn from a stuck one.
 
 Flags come first, in any order, and a line may end on a `\` when the command is
-too long for one: what follows the wrap is read like the rest of it. That wrap
+too long for one: what follows the wrap is read like the rest of it. `/run`
+also reads its two flags at the end of the line, where a flag in the middle of
+the text stays text. That wrap
 used to end the parse, which is how a `/swarm` written over two lines ran every
 member on pi's own model - its `--model` had become the first two words of the
 goal, and nothing said so.
 
-`--worktree` takes no value, unlike `--model`: a flag that swallowed the word
-after it would eat the first word of the request. Saying nothing is **not** the
-same as saying no: a delivery left to itself gives each of several subtasks a
-copy of the repository, and `--worktree=false` is how you refuse that.
-`--worktree` forces it on for a delivery of one. See [Worktrees](worktree.md)
+`--worktree` on `/step` takes no value, unlike `--model`: a flag that swallowed
+the word after it would eat the first word of the request. Saying nothing is
+**not** the same as saying no: a pipeline's delivery left to itself gives each
+of several subtasks a copy of the repository, and `--worktree=false` is how you
+refuse that. `--worktree` forces it on for a delivery of one. A flow says it in
+the file instead, with `copies: true` on a block. See [Worktrees](worktree.md)
 for what it costs and what it buys.
 
 `until` is a **whole-line match**: the loop stops when the word stands alone on
@@ -105,16 +108,12 @@ and what a tree costs in [Measurements](measurements.md).
 | Command | What it does |
 | --- | --- |
 | `/interview [--model <pattern>] [--questions <n>] <request>` | Turns a vague request into a brief, one question at a time. |
-| `/build <request>` | Runs the build pipeline on the request, asking nothing, and leaves the work uncommitted in the working tree. |
-| `/build --pipeline <name> <request>` | The same, with a pipeline of your choosing. |
-| `/build --model <pattern> <request>` | The same, with every subagent on that model. Checked before the first spawn: a typo costs a second. |
-| `/build --check "<command>" <request>` | The same, with that command as the check whose verdict is final. It beats the pipeline's `verify:`. |
-| `/build --worktree=false <request>` | The same, with the subtasks sharing one working tree rather than a copy each. |
-| `/build resume` | Carries on an interrupted build from `runs/<timestamp>/build.json`. |
+| `/run [--model <pattern>] [--timeout <duration>] <flow> <input>` | Runs a flow in a run directory of its own, drawn as it goes; its answer lands in the conversation. `/run build <request>` is the shipped build. |
+| `/run resume [<run directory>]` | Carries on a run that stopped: the newest one here that can go on, or the one named. |
+| `/run` | Lists the flows, as `/flows` does. |
 | `/agents` | Lists the agents that can be spawned, grouped by where they came from. |
 | `/flows` | Lists the flows, where each comes from, the most it can cost in turns and time, and its description. A refused file is listed beside them with its faults, a file left in an old `pipelines/` directory included. |
 | `/flows <name>` | Prints that flow's plan: every node, what it reads, its agent and file, its bound. |
-| `/run [--model <pattern>] [--worktree] <name> <input>` | Runs a pipeline by name; its answer lands in the conversation. |
 | `/step [--from <id>] [--model <pattern>] [--agent] <name> <instruction>` | Runs one agent or pipeline on the previous step's output. Drawn, and kept out of this session's context. |
 | `/swarm [--members <n>] [--claim a,b] [--hold <n>] [--until agree] [--rounds <n>] [--agent <name>] [--model <pattern>] <goal>` | Several copies of one agent on one job, with a board between them. Finished by coverage of what `--claim` names, or by `--until agree` when they all vote the same. Drawn as a step of the chain, like `/step`. |
 | `/chain`, `/chain reset` | The steps walked so far; or drop them and start a new chain. |
@@ -124,15 +123,15 @@ and what a tree costs in [Measurements](measurements.md).
 
 `/interview` is a command rather than a tool because a question card owns the
 terminal until it is answered, and nobody can answer a question asked inside a
-model's turn. `/build` asks nothing; see [Deliver a change](build.md) and
-[Pipelines](pipelines.md).
+model's turn. `/run build` asks nothing; see [Deliver a change](build.md).
 
 `/flows` runs a flow's check and nothing else, so it spawns nothing and needs no
 model: a typo in a flow costs a glance at the list. What the check cannot see,
 the tree and the ports a run is launched with, is checked when a run starts.
 See [Flows](flows.md#where-flows-live).
 
-`/step` is the other way of running a pipeline's worth of work: one stage per
+`/step` is the other way of running a pipeline's worth of work, and still takes
+pipelines until it takes flows: one stage per
 command, with this session kept out of it until you say otherwise. See
 [Walk a chain by hand](chain-by-hand.md).
 
@@ -146,9 +145,96 @@ runs its code - pi's own documentation says so - so reading Markdown from the
 same directory adds no risk that installing it did not already accept. What
 matters is that it can never take a name away from you.
 
+## Running a flow
+
+`/run <flow> <input>` checks the flow whole, then holds it to this terminal:
+the working directory, its question card, the project's scripts and git. A
+fault at either stage is said before anything is spawned, one per line, `file
+at: message`, so `/run build` outside a git repository is refused at the node
+that needs one, `flows/build.md deliver/work.copies: <directory> is not in a
+git repository`, before any model is called.
+
+Everything that describes the work is in the file: its questions, its checks,
+its copies, its commit. The command line holds only what belongs to whoever
+types it: `--model`, the model every agent turn runs on, and `--timeout`, the
+bound of one turn (`90s`, `10m`, `1h`). Both may lead the line or end it, and
+an input written as one quoted string is the text inside the quotes.
+
+Every run gets `runs/<timestamp>/`, its [run directory](flows.md#the-run-directory):
+the snapshot, the journal, each subagent's transcript, this session's JSONL
+and the `usage.json` a [`measuredRun`](flows.md#measuring-a-run) writes there
+when the run ends. The widget above the prompt draws the flow's plan as the
+visits go, each running visit expanded with what its subagents are doing under
+it:
+
+```
+● build · 2 visits · 10s · ↑7.6k ↓1k
+✓ locate · scout · 3s · ↑3.8k ↓326
+✓ plan · planner · 7s · ↑3.8k ↓710
+● deliver · #1 of 2
+  ● deliver#1
+    ● deliver#1/work · 0/1 so far
+      ● deliver#1/work[1]
+        ● deliver#1/work[1]/pair · #1 of 3
+          ● deliver#1/work[1]/pair#1
+            ● deliver#1/work[1]/pair#1/code
+              ● coder#1  read slug.test.js  ilaas/gemma-4-31b · ↑0 ↓0 · 4.1s
+            ○ deliver#1/work[1]/pair#1/review · agent reviewer (agents/reviewer.md) · reads item.text, code, diff · v…
+    ○ deliver#1/tests · check .pi/checks/test.sh · timeout 10m · ≤ 20m
+    ○ deliver#1/audit · agent auditor (agents/auditor.md) · reads input, work, tests, diff, deliver.ledger · verdict …
+esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
+```
+
+The plan takes sixteen rows at most. Past that it is cut above and below what
+runs now, and each cut says how many lines it holds. The keys are those of any
+run: `esc` stops it, `ctrl+↑↓` and `ctrl+del` stop one subagent.
+
+When the run ends, its answer lands in the conversation as a message that
+triggers no turn: the output of the flow's last root node, then one line on
+how the run ended, then its last frame. The model reads the answer and the
+line; the frame is drawn for you only.
+
+```
+◆ explore
+Result of the explore flow, asked to: where is the condition language implemented?
+
+The condition language (a subset of CEL) is implemented in the src/flow/condition/ directory.
+…
+
+ok · runs/2026-09-23_20-06-33
+
+✓ explore · 5 visits · 27s · ↑44k ↓3.4k
+✓ look · 3 items · 15s · ↑41k ↓2.8k
+✓ answer · synthesiser · 12s · ↑2.4k ↓567
+```
+
+The line says `ok`, and `converged` or `not converged` when the last root node
+is a loop. A failed run says where and why, then what a resume would do:
+`failed at answer: provider: … · runs/… · /run resume runs/… picks it up at
+answer`, or why it cannot be resumed.
+
+`/run resume` takes the newest run under this directory's `runs/` that can go
+on, and says which, and from which visit, before it starts:
+
+```
+run: resuming build in runs/2026-09-23_20-21-17, from deliver#1/work[1]/pair#1/code
+```
+
+`/run resume <run directory>` takes that one. A run that cannot go on is
+refused with why: it ended well, it failed by a decision of the flow, its lock
+is held by a live process, `HEAD` is off its branch (with the `git switch` to
+type). The input and the model are the run's own, so `--model` is refused;
+`--timeout` may be given again. What a resume keeps and what it runs again is
+[Resuming a run](flows.md#resuming-a-run).
+
+With herdr, `/herdr on` gives each subagent of a flow a split named by its
+agent and where the flow keeps it, `coder @ deliver#1/work[1]/pair`, for as
+long as that subagent lives. A `check`, an `ask` or a `commit` has no subagent,
+and opens none.
+
 ## The question card
 
-`/interview` asks through a card, and a flow's `ask` node will ask through the
+`/interview` asks through a card, and a flow's `ask` node asks through the
 same one. A card holds one question. It draws the header and the visit that
 asks, the reads above the question, each under its name, then what takes the
 answer, and a help line that says what the keys do:
@@ -245,19 +331,19 @@ test builds stands in for exactly what the code asked of pi.
 The commands stand on one floor, in three files. `extension/deps.ts` is what a
 command reaches for: `CommandDeps` are the doubles a test puts in place, and
 `resolved()` fills what was left unsaid with the real thing, once, so a command
-reads `deps.runPipeline` and never asks which it is. `extension/flags.ts` reads
+reads `deps.runDir` and never asks which it is. `extension/flags.ts` reads
 what was typed. `extension/command.ts` is the shape every command that launches
 work has: `CommandCtx`, the slice of pi it is handed; `loadRoster`, the same
 roster everywhere; `checked()`, the checks that must pass before anything is
 spawned, a thrown explanation becoming a refusal; and `watched()`, the live view
 for as long as the work runs, with the `finally` that takes it down and writes
-`usage.json` whatever happened. `/build`, `/run`, `/step`, `/swarm` and
-`/interview` each write their flags, their target and their call, and nothing
-of that shape. A step of a hand-walked chain is `extension/relay.ts`'s to begin
+`usage.json` whatever happened. `/run`, `/step`, `/swarm` and `/interview`
+each write their flags, their target and their call, and nothing of that
+shape. A step of a hand-walked chain is `extension/relay.ts`'s to begin
 and to finish - named before it runs, recorded and drawn in one call after -
 whether `/step` or `/swarm` ran it; the entry a step leaves and the door it
-leaves it through are both declared there. What one command file still
-takes from another is the design: `/quote` sends the message `/run` sends.
+leaves it through are both declared there. `/quote` sends the message `/run`
+sends, which is `commands/answer.ts`'s.
 
 Each command's own file under `commands/` holds only what that command does.
 
@@ -267,13 +353,15 @@ suite. It is now covered offline.
 
 **One live-run path.** The dots above the prompt, the repaint timer, the herdr
 reporter and the clean-up are `liveRun()` in `extension/ui/run.ts` - one
-implementation, reached only through `watched()`, which the five commands and the
+implementation, reached only through `watched()`, which the four commands and the
 `subagent` tool all stand on. They must look identical
 while they run, and several call sites with several timers is exactly how the
 one nobody is watching that day drifts. What a view measures - the picture, the
 clock, `usage.json` - is the library's `measuredRun`, the same one an
 experiment's cell stands on; the view only adds a terminal to it. `ui/run.ts`
-paints and nothing else: the herdr session switch is `ui/herdr-switch.ts`, and
+paints and nothing else: a flow's plan is painted by `ui/flow.ts`, which draws
+the frame a finished run's message ends on too, the herdr session switch is
+`ui/herdr-switch.ts`, and
 who owns escape while a question card is up is `ui/asking.ts`. The one thing the
 view reaches in `commands/` is `/stop`'s `watchRun`, because a run has to be
 known to the stop key for as long as it lasts.
@@ -281,6 +369,7 @@ known to the stop key for as long as it lasts.
 ## Reference
 
 - [Display](display.md) - the widget, the tool row, herdr splits.
-- [Deliver a change](build.md) - what `/build` actually does.
+- [Deliver a change](build.md) - what `/run build` actually does.
+- [Flows](flows.md) - the format `/run` runs.
 - [Walk a chain by hand](chain-by-hand.md) - `/step`, `/chain` and `/quote`.
 - [API reference](../reference/api/index.md) - the library the extension calls.

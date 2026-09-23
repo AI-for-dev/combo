@@ -2,6 +2,12 @@
 
 ![Two coders, one tree](../_static/tutorials/09-two-coders-one-tree.svg)
 
+```{note}
+This page was captured before `/run` ran flows. `/build` is `/run build` now,
+and its flags are keys of the [`build` flow](../reference/flows/build.md); see
+[Deliver a change](../guide/build.md). The frames below predate that change.
+```
+
 Two coders writing into one working tree can each be right and together be
 wrong: one renames a function the other is calling, the check runs on a tree
 neither of them wrote, and the failure belongs to nobody. That was the reason

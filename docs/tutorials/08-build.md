@@ -2,6 +2,12 @@
 
 ![Reading code is not running it](../_static/tutorials/08-build.svg)
 
+```{note}
+This page was captured before `/run` ran flows. `/build` is `/run build` now,
+and its flags are keys of the [`build` flow](../reference/flows/build.md); see
+[Deliver a change](../guide/build.md). The frames below predate that change.
+```
+
 A pair once wrote a helper and its tests. The reviewer approved. The auditor,
 reading the whole, approved. The test file imported `./slugify.js` for a file
 named `slugify.ts`, and the suite never loaded. Both agents had read the code.

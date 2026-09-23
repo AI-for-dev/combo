@@ -311,6 +311,21 @@ describe("herdr reporter", () => {
 		);
 	});
 
+	test("a flow's subagent is named by its agent and where the flow keeps it", async () => {
+		const { send, calls } = recorder();
+		const report = createHerdrReporterWith(send, { mirror: NOWHERE, dir: tmpDir() });
+
+		report({ ...spawned("coder#3"), openInHerdr: true, visit: "deliver#2/work[1]/review#1/code", home: "deliver#2/work[1]/review" });
+		report({ ...spawned("interviewer#1"), openInHerdr: true, visit: "interview#1/ask_next", home: "" });
+		await settle();
+
+		assert.deepEqual(
+			calls.filter((call) => call.method === "pane.rename").map((call) => call.params.label),
+			["coder @ deliver#2/work[1]/review", "interviewer"],
+			"a spawn count says nothing of which pair a coder codes for; `memory: flow` is the whole run's",
+		);
+	});
+
 	test("events for an unknown id are ignored, not crashed on", async () => {
 		const { send, calls } = recorder();
 		const report = createHerdrReporterWith(send, { mirror: NOWHERE, dir: tmpDir() });

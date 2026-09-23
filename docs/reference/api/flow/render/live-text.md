@@ -12,6 +12,39 @@ The glyphs are the plan's `○` for what is not visited yet and the TUI's for
 the rest, from `statusIcon`, so a flow's visit and a subagent's row read
 alike; `–` marks a node its sequence never reached.
 
+## `LiveRow`
+
+*type*
+
+```typescript
+export type LiveRow = {
+	/** How many lines hold it. */
+	readonly depth: number;
+	/** How its visit stands, which a caller colours it by. */
+	readonly state: LiveState;
+	/** `●`, `✓`, `✗`, `○` or `–`. */
+	readonly glyph: string;
+	/** What it says after its glyph, facts joined by ` · `, without who works on it. */
+	readonly text: string;
+	/** The subagents of a visit running now, which {@link showLive} names after its text; none once it ended. */
+	readonly subagents: readonly string[];
+};
+```
+
+One line of the live view as text, before any cut.
+
+## `liveRows`
+
+*function*
+
+```typescript
+export function liveRows(live: LivePlan): LiveRow[] { /* … */ }
+```
+
+`live`'s lines under its summary, one row each, for a caller that draws
+them its own way: in colour, with what each subagent is doing under its
+visit. `subagents` are those of a visit running now.
+
 ## `showLive`
 
 *function*

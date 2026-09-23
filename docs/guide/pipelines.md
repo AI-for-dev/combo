@@ -43,7 +43,7 @@ replaces both. Nothing has to be removed to be overridden.
 
 A repository's pipelines carry prose that becomes an instruction to a model, so
 they are third-party instructions and follow the agent rule exactly:
-`scope: "both"` or `"project"`, never by default. `/build` passes `"both"`,
+`scope: "both"` or `"project"`, never by default. `/step` passes `"both"`,
 because a user typing it inside a repository *is* the explicit request.
 
 Where it differs from agents: **a malformed pipeline is never ignored.** An agent
@@ -69,11 +69,11 @@ raised when, and only when, that file is the one being asked for.
 At the top level, `verify: [npm, test]` states the project's check once. It is a
 list rather than a command line, because splitting `"npm test"` on whitespace is
 writing a small shell, and the check runs with no shell precisely so that an
-argument stays an argument. `/build --check "<command>"` beats it for one run.
+argument stays an argument.
 
 Also at the top level, `model: local/qwen` puts every subagent of the pipeline
-on one model. The caller's own `model` (a script's option, `--model` on `/run`
-and `/build`) beats it: a file pinned to one model must not survive a sweep
+on one model. The caller's own `model` (a script's option, `--model` on
+`/step`) beats it: a file pinned to one model must not survive a sweep
 that was asked to run it on another. There is deliberately no per-step
 `model:` - agent frontmatter already covers "this role runs on X", and no real
 pipeline has needed "same agent, another model at this step". Precedence, from
@@ -137,7 +137,7 @@ No command lists pipelines any more. `/flows` lists the flows, and every file of
 `~/.pi/agent/pipelines/` and `.pi/pipelines/` beside them as refused
 (`pipeline-format-removed`), since a flow replaces it; see
 [From pipelines to flows](from-pipelines.md). A pipeline that does not parse is
-still named when `/build` or `/run` asks for it.
+still named when `/step` asks for it.
 
 The pipelines shipped here are available everywhere the extension is loaded. A
 pipeline written *in a repository* stays visible only from that repository, by
@@ -145,47 +145,10 @@ design; if you want your own everywhere, they go in `~/.pi/agent/pipelines/`.
 
 ## Running one
 
-Two ways, and the difference is what surrounds the run.
-
-**`/build`** delivers a change: the pipeline runs on the request, asks nothing,
-saves its progress as it goes, and leaves the work uncommitted in the working
-tree. With no `build.md` of your own it runs the one the package ships - so
-there is exactly one default, and it is a file you can read and copy rather
-than a constant buried in the code.
-
-```
-/build --check "npm test" add a cache in front of the agent loader
-/build --pipeline audit check what the parser does with an empty file
-/build resume
-```
-
-See [Deliver a change](build.md).
-
-**`/run`** is the pipeline and nothing else:
-
-```
-/run explore how is usage measured, and can it be trusted
-```
-
-The answer lands **in the conversation**, so the
-model has it and you can simply ask the next question about it; the transcripts
-land in `runs/<timestamp>/` as usual.
-
-It arrives as a *custom* message rather than an assistant one, because pi's
-extension API has no door for an assistant message: `sendMessage` (custom, in
-the model's context), `sendUserMessage` (a user message, and it always triggers a
-turn) and `appendEntry` (drawn, invisible to the model) are the three there are.
-pi converts a custom message to the **user** role on the way to the model, so the
-text is prefixed with the pipeline it came from - unattributed findings arriving
-in a user slot read as an instruction.
-
-This is where a pipeline that only *reads* belongs. Put one through `/build` and
-its answer ends up in `runs/` rather than in front of the model that could
-answer the next question about it.
-
-`/run` is **lighter than `/build`, not safer**: whatever a step writes to the
-working tree is still written. What an agent may do is decided by its toolset, as
-always - see [Agents](agents.md).
+In pi, `/step` runs a pipeline as one stage of a chain walked by hand, until it
+takes flows. `/run` and `/build` ran pipelines before the switch; `/run` runs
+[flows](flows.md) now, and `/run build` is the shipped build, a flow as well. See [Walk a chain by
+hand](chain-by-hand.md) and [Deliver a change](build.md).
 
 From a script:
 

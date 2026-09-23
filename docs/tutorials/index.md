@@ -57,7 +57,7 @@ files you can read in a diff.
 
 7. [Two agents arguing until LGTM](07-until-lgtm.md) - the loop, the two
    lifetimes, why reaching the cap is not success, and what a verdict is.
-8. [Reading code is not running it](08-build.md) - `/build`: a run nobody
+8. [Reading code is not running it](08-build.md) - `/run build`: a run nobody
    has to sit through, the check whose verdict is final, and the resume.
 9. [Two coders, one tree](09-two-coders-one-tree.md) - why several writers
    get a copy each, patches landed one at a time, and nothing rolled back.

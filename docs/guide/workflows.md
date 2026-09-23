@@ -249,9 +249,10 @@ and it prints what the tree cost.
 
 ## Writing one in Markdown
 
-A linear sequence of these combinators can be written as a file rather than as
-code, and run by `/build`. See [Pipelines](pipelines.md). Anything that needs a
-branch or a condition stays TypeScript, deliberately.
+A task graph of agents, branches, loops and questions can be written as a
+file rather than as code, and run by `/run`. See [Flows](flows.md). A linear
+sequence of these combinators can still be written as a [pipeline](pipelines.md),
+which `/step` and the `subagent` tool run until they take flows.
 
 ## What they all accept
 

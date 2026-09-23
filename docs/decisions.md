@@ -1169,7 +1169,12 @@ it is used.
   was not told called `ls /Users/loic/gouarin/…` - a name with a dot turned into
   a slash - got "no such path", and gave up without trying a relative one. One
   branch of three, spent on a fabricated path.
-- **`/run` exists because `/build` delivers a change.** An interview settles what
+- **Reversed: `/run` and `/build` are one command.** `/run build` starts the
+  shipped build, since the interview and the commit are nodes of a flow now;
+  see [`/run` runs flows, and `/build` is `/run
+  build`](#run-runs-flows-and-build-is-run-build). The reason below is why
+  there were two.
+  **`/run` exists because `/build` delivers a change.** An interview settles what
   "done" means and a commit stop protects history; a pipeline that only reads
   needs neither, and putting one through `/build` means being interviewed about a
   request that wants no decision and then told there is nothing to commit. `/run`
@@ -1177,7 +1182,8 @@ it is used.
   safer**: what a step writes is still written, because what an agent may do is
   its toolset, never the command that started it.
 - **A finished `/run` leaves its answer in the conversation, not in the prompt
-  editor.** The editor is right for `/interview` - a brief is read, edited and
+  editor.** It still does, for every flow, and says how the run ended under
+  it; see [`/run` runs flows](#run-runs-flows-and-build-is-run-build). The editor is right for `/interview` - a brief is read, edited and
   sent - and wrong for an exploration, which is read and then *asked about*:
   putting it where the user types means they have to send their own report back
   before the model knows anything about it. It is a **custom** message and not an
@@ -1225,7 +1231,9 @@ it is used.
   project that has none is worse than asking, and `/build` asks when the pipeline
   is silent. It no longer asks: `--check` names the command instead, see
   [`/build` asks nothing](#build-asks-nothing).
-- **`/build` and `/run` paint the same run the same way**, through one
+- **Replaced: a flow run paints its plan**, through the same `liveRun`; see
+  [`/run` runs flows](#run-runs-flows-and-build-is-run-build).
+  **`/build` and `/run` paint the same run the same way**, through one
   `liveRun` in `extension/ui/run.ts`: two call sites, two timers and two ways of
   clearing a widget is exactly how the one nobody is watching that day drifts.
 
@@ -2055,8 +2063,8 @@ opens.
 ### The package exports the flow API, and `/flows` replaces `/pipelines`
 
 The first visible step of the switch: `src/index.ts` exports flows, and pi
-lists and plans them. Nothing runs a flow from pi yet, and `/build` and `/run`
-still run pipelines.
+lists and plans them. At the time nothing ran a flow from pi, and `/build` and
+`/run` still ran pipelines.
 
 - **The root exports the door, minus what nobody outside calls.** Every
   function a script or the extension calls goes out, grouped the way a run
@@ -2101,6 +2109,69 @@ still run pipelines.
   terminal pi draws in; with none, nothing is cut. The working directory is
   left out of paths and the home directory written `~`, since the checked
   flow holds absolute ones.
+
+### `/run` runs flows, and `/build` is `/run build`
+
+The second step of the switch. `/run <flow> <input>` checks the flow at both
+stages, runs it in `runs/<timestamp>/` and leaves its answer in the
+conversation; `/run resume` carries one on; `/build`, its flags and
+`build.json` go from the extension. `/step` and the `subagent` tool still take
+pipelines.
+
+- **One command, and the file says the rest.** The interview and the commit
+  were what `/build` did beyond `/run`, and both are nodes of a flow now. So
+  `/run` takes `--model` and `--timeout` and nothing else: which model you
+  hold keys for and how long you will wait are yours, what the work is, its
+  checks and its copies are the file's. `--check`, `--worktree` and
+  `--pipeline` have no successor on the line.
+- **The run stage runs with the terminal's ports.** The card is the `ask`
+  port even with nobody there: `somebodyThere` is what keeps a run from
+  showing it, and a refusal then says "launched with nobody there" rather than
+  blaming a missing port. `bashCheck` and `gitPort` are the other two. The
+  refusal outside a repository that `/build` made itself comes from the run
+  stage now, naming the node that needs git, so a flow that needs none, such
+  as `explore`, runs anywhere.
+- **Every run has a run directory, and is measured there.** The live view is
+  a `measuredRun` on the run directory, with this session's JSONL, so
+  `usage.json` lands beside the journal and a resume adds its life to it.
+- **The answer is the last root node's output, then one line on how it
+  ended, then the last frame.** The line is `ok`, with `converged` when the
+  last node is a loop, and the run directory; a failure says where and why,
+  and what `/run resume` would do or why it cannot. The model reads the
+  answer and the line. The frame is in the message's details, drawn by the
+  renderer at the terminal's width and never sent to the model, since a
+  column of glyphs costs its context and says nothing the line does not. A
+  typed output is shown as JSON. The message keeps its old `customType`,
+  so sessions that hold one still draw it.
+- **The widget draws the plan, and pi's own cap would cut it.** pi shows at
+  most ten lines of a widget given as lines, and the plan of `build` is taller
+  than that while one pair works. The widget is a component instead, painted
+  at the width pi gives it, and the plan takes sixteen rows at most: cut above
+  and below what runs now, each cut saying how many lines it holds, since the
+  finished lines are the ones to lose first. A running visit's subagents hang
+  under it with what they are doing, from the pieces the plain widget is
+  built of, and the visit line no longer names them twice. Paths leave out the
+  working directory and the package, so a shipped agent reads
+  `agents/coder.md`.
+- **`/run resume` picks the newest run that can go on.** `latestResumable`
+  reads each run directory under `runs/` newest first, keeps those whose
+  snapshot was taken in this directory, and takes the first `resumePoint`
+  accepts. When none would, it says why the newest cannot, since that is the
+  one somebody means. It names the run and the visit before it starts, so the
+  line is there while the first turn is not. A flow named `resume` would be
+  shadowed by it, so `reserved-name` refuses the file.
+- **Flags may end the line too, for `/run`.** A known flag written after the
+  text used to be read as text, and ran three scouts on the wrong model while
+  one of them grepped the repository for the model's name. A line does not
+  end on `--model <pattern>` as prose, so `parseFlags` reads `--model` and
+  `--timeout` there too; in the middle of the text they stay text. An input
+  written as one quoted string is the text inside, and a request ending on
+  its own `?` is not given a second stop in the framing line.
+- **herdr names a flow's split by agent and home.** A spawn event carries the
+  subagent's home, its memory scope's path or its visit's, and the split is
+  `coder @ deliver#2/work[1]/pair`: a flow's ids count spawns across the whole
+  run, and `coder#3` says nothing of which pair it codes for. A `check`, an
+  `ask` or a `commit` spawns nothing, so it opens no split.
 
 ## A chain walked by hand
 
@@ -3068,6 +3139,12 @@ nothing](#build-asks-nothing).
 
 ## `/build` asks nothing
 
+**Replaced: `/build` is `/run build`.** The shipped `build` flow still asks
+nothing, commits nothing and needs a git repository, now because its copies
+need one and the run stage says so; the check is a script the file names,
+`.pi/checks/test.sh`, and no longer a flag. See [`/run` runs flows, and
+`/build` is `/run build`](#run-runs-flows-and-build-is-run-build).
+
 **This reverses a decision.** `/build` stopped twice, on the brief and on the
 commit, and asked for a check when the pipeline named none. Each question made
 sense on its own. Together they meant a build could not run without somebody
@@ -3127,6 +3204,11 @@ A **failing** check is not attached. It is what the fix is for, and the suite
 says so the moment the worker runs it.
 
 ## Resuming a build
+
+**Replaced for pi: `/run resume` carries on a flow run from its journal**, and
+`/build resume` and `build.json` are gone from the extension; `deliver`'s own
+`resume` goes with the linear pipeline. See [A resume goes as deep as the
+journal](#a-resume-goes-as-deep-as-the-journal-and-replays-only-what-did-not-end).
 
 A delivery is long, it costs money and it writes to a working tree. `deliver`
 therefore takes `onProgress` and `resume`, and
@@ -3409,8 +3491,8 @@ The fix is **one option, `model`, at every level, with the nearest override
 winning** - the same "an explicit call wins" rule as `lifetime`:
 
 1. the run-time argument: `SpawnOptions.model`, `WorkflowOptions.model`, the
-   tool's `model` param, `--model` on `/run` and `/build`;
-2. the pipeline file's top-level `model:`;
+   tool's `model` param, `--model` on `/run` and `/step`;
+2. the flow or pipeline file's top-level `model:`;
 3. the agent's frontmatter `model:`;
 4. pi's own settings, as the last resort - only when nothing was set anywhere.
 
@@ -3435,7 +3517,7 @@ repository, read from `~/.pi/agent/settings.json`. An earlier run picked up a
 
 Which is why the fix is a habit, not a file: **anything whose numbers will be
 compared names its model.** `experiment()` takes `models` and refuses to guess,
-`--model` exists on `/run` and `/build`, the examples take it in argv, and a
+`--model` exists on `/run` and `/step`, the examples take it in argv, and a
 pipeline that belongs to one repository may pin its own. An agent *you* write for
 *your* machine is welcome to declare one - it is only what ships that must not.
 

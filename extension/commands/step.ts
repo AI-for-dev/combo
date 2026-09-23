@@ -24,7 +24,7 @@ import { checked, loadRoster, refuse, watched } from "../command.ts";
 import { sessionDoors, type CommandCtx, type PiApi } from "../pi.ts";
 import { resolved, type StepDeps } from "../deps.ts";
 import { parseLeadingFlags, switchValue } from "../flags.ts";
-import { PIPELINE_MESSAGE } from "./pipeline.ts";
+import { RESULT_MESSAGE, type ResultDetails } from "./answer.ts";
 import { beginStep, chainInput, chainLines, currentChain, finishStep, forgetChain, stepAnswer, stepFrom, type RelayStep } from "../relay.ts";
 import { resolveTarget, runStage } from "./stage.ts";
 
@@ -170,13 +170,13 @@ export function quoteStep(args: string, ctx: CommandCtx, deps: StepDeps): RelayS
 	if (!step || !relay) return refuse(ctx, "quote: nothing has run yet - /step <agent|pipeline> <task> starts a chain", "warning");
 
 	deps.sendMessage({
-		customType: PIPELINE_MESSAGE,
+		customType: RESULT_MESSAGE,
 		content: stepAnswer(step),
 		display: true,
 		// The header names the **chain**, not the step: the first line of the
 		// quote already says which step it is, and `scout · scout → planner` read
 		// as a repetition rather than as a position in a chain.
-		details: { pipeline: "chain", steps: relay.steps.map((one) => one.id), exportDir: step.dir },
+		details: { name: "chain", steps: relay.steps.map((one) => one.id), runDir: step.dir } satisfies ResultDetails,
 	});
 	ctx.ui.notify(`quote: ${step.id} is now in this conversation`, "info");
 	return step;

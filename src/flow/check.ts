@@ -53,6 +53,8 @@ function checkFile(source: FoundFlow, { flow, faults }: ReadFlow, callees: Calle
 	if (flow === undefined) return { ok: false, faults: faults.list };
 	const { name } = source;
 	if (flow.name !== "" && flow.name !== name) faults.add("name-mismatch", "name", `\`${flow.name}\` is in \`${name}.md\`: a flow is found by its file name, so the two say the same`);
+	// `/run resume` carries a run on: a flow of that name could never be started.
+	if (name === "resume") faults.add("reserved-name", "name", "`resume` is the word `/run resume` carries a run on with, so no flow can be called that: rename the file");
 	const checker = new Checker(name, flow, callees, faults);
 	const { nodes, last } = checker.sequence(flow.nodes, Scope.root(flow.input));
 	checkShared(nodes, faults);

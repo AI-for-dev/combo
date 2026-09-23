@@ -11,8 +11,8 @@
  * never switches to it.
  */
 
-import { readFileSync } from "node:fs";
-import { relative, resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
 import { checkFlow } from "../check.ts";
 import { checkRun, type FlowPorts } from "../check-run.ts";
 import type { Fault } from "../fault.ts";
@@ -20,7 +20,7 @@ import { realWorld, walkFlow, type FlowResult, type RunFlowOptions } from "./flo
 import { readJournal } from "./journal.ts";
 import { whileLocked } from "./lock.ts";
 import { resumePoint } from "./resume-point.ts";
-import { readSnapshot, type Snapshot } from "./snapshot.ts";
+import { readSnapshot, SNAPSHOT_FILE, type Snapshot } from "./snapshot.ts";
 
 /**
  * What a resume is given: where it runs, and the switches of a run. `model`
@@ -95,4 +95,35 @@ function changedOnDisk({ catalogue, settings }: Snapshot): string | undefined {
 	if (changed.length === 0) return undefined;
 	const names = changed.map(({ filePath }) => `\`${relative(settings.cwd, resolve(settings.cwd, filePath))}\``).join(", ");
 	return `${names} changed since the run started; resuming the version it started with`;
+}
+
+/** The run a resume would take, and the visit it picks up from; or the newest run, and why it cannot. */
+export type Resumable = { readonly ok: true; readonly runDir: string; readonly from: string } | { readonly ok: false; readonly runDir: string; readonly refused: string };
+
+/**
+ * The newest run under `runsDir` started in `cwd` that a resume would take,
+ * newest by directory name, which a run directory's timestamp makes its age.
+ * When none would, the newest run of `cwd` and why; nothing when `cwd`
+ * started none there. A directory holding no snapshot holds no run, and one
+ * that no longer reads or checks cannot be resumed by this version anyway.
+ */
+export function latestResumable(runsDir: string, cwd: string): Resumable | undefined {
+	let newest: Resumable | undefined;
+	for (const name of existsSync(runsDir) ? readdirSync(runsDir).sort().reverse() : []) {
+		const runDir = join(runsDir, name);
+		if (!existsSync(join(runDir, SNAPSHOT_FILE))) continue;
+		let snapshot: Snapshot;
+		try {
+			snapshot = readSnapshot(runDir);
+		} catch {
+			continue;
+		}
+		if (resolve(snapshot.settings.cwd) !== resolve(cwd)) continue;
+		const checked = checkFlow(snapshot.flow, snapshot.catalogue);
+		if (!checked.ok) continue;
+		const point = resumePoint(checked.flow, readJournal(runDir));
+		if (point.ok) return { ok: true, runDir, from: point.from };
+		newest ??= { ok: false, runDir, refused: point.refused };
+	}
+	return newest;
 }

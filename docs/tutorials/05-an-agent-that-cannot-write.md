@@ -2,6 +2,12 @@
 
 ![An agent that cannot do harm](../_static/tutorials/05-an-agent-that-cannot-write.svg)
 
+```{note}
+This page was captured before `/run` ran flows. `/build` is `/run build` now,
+and its flags are keys of the [`build` flow](../reference/flows/build.md); see
+[Deliver a change](../guide/build.md). The frames below predate that change.
+```
+
 Every agent framework has the same paragraph in its documentation: "instruct
 the agent not to modify files it was not asked to". Here is what that
 paragraph is worth. An example in this repository once gave its coder the full

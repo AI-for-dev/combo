@@ -19,10 +19,38 @@ import { NOT_VISITED } from "./text.ts";
 /** What a node never reached is marked with. */
 const UNREACHED = "–";
 
+/** One line of the live view as text, before any cut. */
+export type LiveRow = {
+	/** How many lines hold it. */
+	readonly depth: number;
+	/** How its visit stands, which a caller colours it by. */
+	readonly state: LiveState;
+	/** `●`, `✓`, `✗`, `○` or `–`. */
+	readonly glyph: string;
+	/** What it says after its glyph, facts joined by ` · `, without who works on it. */
+	readonly text: string;
+	/** The subagents of a visit running now, which {@link showLive} names after its text; none once it ended. */
+	readonly subagents: readonly string[];
+};
+
 /** `live` as lines of text, none longer than `width`, pure. */
 export function showLive(live: LivePlan, width: number): string {
-	const rows = [summaryText(live.flow, live.summary), ...live.lines.flatMap((line) => shown(line, 0))];
+	const rows = [summaryText(live.flow, live.summary), ...liveRows(live).map(rowText)];
 	return rows.map((row) => cut(row, width)).join("\n");
+}
+
+/**
+ * `live`'s lines under its summary, one row each, for a caller that draws
+ * them its own way: in colour, with what each subagent is doing under its
+ * visit. `subagents` are those of a visit running now.
+ */
+export function liveRows(live: LivePlan): LiveRow[] {
+	return live.lines.flatMap((line) => rowsOf(line, 0));
+}
+
+/** A row as {@link showLive} writes it, indented, naming who works on it. */
+function rowText(row: LiveRow): string {
+	return `${"  ".repeat(row.depth)}${row.glyph} ${[row.text, ...(row.subagents.length > 0 ? [row.subagents.join(", ")] : [])].join(" · ")}`;
 }
 
 /** The one line `live` collapses to, no longer than `width`: `✓ build · 14 visits · 1 failed · deliver not converged · 12m · ↑310k ↓12k`. */
@@ -43,16 +71,16 @@ function summaryText(flow: string, summary: LiveSummary): string {
 	].join(" · ")}`;
 }
 
-function shown(line: LiveLine, depth: number): string[] {
+function rowsOf(line: LiveLine, depth: number): LiveRow[] {
+	// Who is working on a visit now; once it ended, the agent it ran is in its facts.
+	const subagents = live(line.state) ? line.subagents : [];
 	const parts = [
 		line.label,
 		...line.facts,
-		// Who is working on a visit now; once it ended, the agent it ran is in its facts.
-		...(live(line.state) && line.subagents.length > 0 ? [line.subagents.join(", ")] : []),
 		...(line.bound === undefined ? [] : [showBound(line.bound)]),
 		...(line.usage === undefined ? [] : [cost(line.usage)]),
 	].filter((part) => part !== "");
-	return [`${"  ".repeat(depth)}${glyph(line.state)} ${parts.join(" · ")}`, ...line.lines.flatMap((one) => shown(one, depth + 1))];
+	return [{ depth, state: line.state, glyph: glyph(line.state), text: parts.join(" · "), subagents }, ...line.lines.flatMap((one) => rowsOf(one, depth + 1))];
 }
 
 function live(state: LiveState): boolean {

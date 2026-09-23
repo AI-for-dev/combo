@@ -1,8 +1,8 @@
 # Flows
 
 ```{note}
-The package exports the flow API, and `/flows` lists and plans flows. `/build`
-and `/run` still run [pipelines](pipelines.md) until they run flows.
+In pi, `/run` runs flows and `/flows` lists and plans them. `/step` still
+runs [pipelines](pipelines.md) until it takes flows.
 [From pipelines to flows](from-pipelines.md) rewrites a pipeline as a flow.
 ```
 
@@ -93,7 +93,9 @@ In pi, `/flows` lists every flow found, with where it comes from, the most it
 can cost in turns and time, and its description; a refused file is listed
 beside the others with each fault under it, `file at: message`. `/flows <name>`
 prints that flow's [plan](#bounds-and-renderings). Both run the flow stage
-only, so a flow listed as valid can still be refused at launch.
+only, so a flow listed as valid can still be refused at launch. `/run <flow>
+<input>` runs one, and `/run resume` carries one on: see
+[Extension](extension.md#running-a-flow). A flow cannot be called `resume`.
 
 ## The shipped flows
 
@@ -564,7 +566,9 @@ which must match its `input:`. Its options are `spawn`, `signal`, `onEvent`,
 `model`, `timeoutMs` and `runDir`, and nothing of the world: that came with
 the `CheckedRun`, so a flow checked against one project cannot run in
 another. It returns `{ ok: true, output }`, the output of the last root node,
-or `{ ok: false, error, path }`, the visit the failure started at.
+or `{ ok: false, error, path }`, the visit the failure started at. `parseDuration("10m")` reads a
+duration the way a flow writes one, in milliseconds, for a `timeoutMs` typed
+by a person: `/run --timeout` reads it so.
 
 A visit is named by its path: the ids of the nodes around it, `#n` for a loop
 iteration, `[i]` for a `map` item and the branch name for a `parallel`, all
@@ -712,6 +716,13 @@ goes:
 - **It holds the lock.** A lock held by a live process on this host refuses
   with its pid; one whose process is gone is taken over; one from another host
   refuses with its path, to be removed by hand.
+
+`latestResumable(runsDir, cwd)` finds the run to carry on when none is named:
+the newest directory under `runsDir` whose snapshot was taken in `cwd` and
+whose journal a resume would take, with the visit it picks up from, `{ ok:
+true, runDir, from }`. When none would, it gives the newest run of `cwd` and
+why it cannot, `{ ok: false, runDir, refused }`, and nothing when `cwd`
+started no run there. `/run resume` stands on it.
 
 The result is what `runFlow` returns, plus `from`, the visit it picked up at,
 and `changed`; or `{ ok: false, refused }` with why, or `{ ok: false, faults }`
@@ -987,7 +998,10 @@ Each line is folded by the state of its visit:
   is running on names its subagents, from the `visit` their `spawn` carries.
 
 `showLive(live, width)` writes it as text, the summary line first, each line
-cut to `width`. `showSummary(live, width)` is the summary line alone. The
+cut to `width`, a running visit naming its subagents. `showSummary(live,
+width)` is the summary line alone. `liveRows(live)` is the lines under it,
+uncut, for a caller that draws them its own way: each with its depth, its
+state, its glyph, its text and the subagents of a visit running now. The
 glyphs are the TUI's: `●` running, `✓` done, `✗` failed. The run of the loop
 of two around a `map`, a `parallel`, a `choice` and a verdict in the tests,
 as its second iteration starts its second item:
@@ -1023,8 +1037,10 @@ so the journal alone tells a killed life from the next one. A killed life's
 cost is what its ended visits cost, and its time adds up branches that ran
 together.
 
-Nothing wires the view to a command or to the TUI yet, and herdr opens its
-splits per subagent as it does for any run.
+In pi, `/run` draws it above the prompt, with what each subagent of a
+running visit is doing under it, and ends its answer with the last frame. A
+subagent's `spawn` carries its `home`, the path of its memory scope or of its
+visit, and herdr names a flow's split by it: `coder @ deliver#2/work[1]/pair`.
 
 ## Faults
 
@@ -1042,6 +1058,7 @@ stage's.
 | `not-a-flow` | the file has no frontmatter mapping | start the file with `---` and the flow's keys |
 | `pipeline-format-removed` | the file is in an old `pipelines/` directory, a linear pipeline nothing reads | rewrite it as a flow in `flows/` beside it, as [From pipelines to flows](from-pipelines.md) shows, then delete it |
 | `name-mismatch` | `name:` differs from the file name | rename one of them |
+| `reserved-name` | the file is `resume.md`, the word `/run resume` takes | rename the file |
 | `unknown-flow` | no flow file has that name | use the name offered, or add the file |
 | `broken-flow` | a `flow` node calls a flow that is refused; the message gives its file and first fault | fix the callee |
 | `call-cycle` | a `flow` node calls a flow that leads back to this one, directly or through others; the message gives the path | break the cycle: a flow cannot call itself |

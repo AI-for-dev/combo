@@ -31,12 +31,12 @@ whatever reaches it changes an answer you did not want changed.
 
 So `/step` does the opposite on that one point, and nothing else:
 
-| | `/run <pipeline>` | `/step <agent\|pipeline>` |
+| | `/run <flow>` | `/step <agent\|pipeline>` |
 | --- | --- | --- |
-| Runs | a pipeline, end to end | one stage, and stops |
+| Runs | a flow, end to end | one stage, and stops |
 | The answer | in the conversation | drawn in the transcript, **not** in context |
 | The next step | the model's to suggest | yours to type |
-| Carried output | between the pipeline's steps | between your commands, in the relay |
+| Carried output | between the flow's nodes | between your commands, in the relay |
 
 ## The commands
 
@@ -73,7 +73,7 @@ Usage is collected in src/usage.ts:40 …
 Which is not a detail: a chain walked by hand and the same chain written down as
 a pipeline send the model byte-for-byte the same thing, so what you learn from
 one transfers to the other. When a chain is worth keeping, write it down as a
-[pipeline](pipelines.md) and `/run` it.
+[pipeline](pipelines.md) and `/step` it, or as a [flow](flows.md) and `/run` it.
 
 An instruction is optional once something is carried: `/step reviewer` on its own
 means "review that". With nothing carried and nothing typed, the step is refused
@@ -83,7 +83,7 @@ rather than sent to answer about nothing.
 
 One `runs/<timestamp>/` for the chain, one subfolder per step -
 `1-explore/`, `2-planner/` - each with that step's transcripts and its
-`usage.json`, exactly as [`/run` exports one](export.md). `/chain` names the
+`usage.json`, exactly as [a run exports one](export.md). `/chain` names the
 folder and totals the turns.
 
 `/swarm` is a step too, of kind `swarm`: several copies of one agent on one

@@ -132,6 +132,8 @@ export {
 // Formatting a snapshot. Drawing it is the caller's - see the pi extension,
 // which is the only consumer of these today.
 export {
+	currentActivity,
+	detailLine,
 	formatToolCall,
 	progressLine,
 	standingOf,
@@ -211,6 +213,8 @@ export { gitPort, type GitPort } from "./git/index.ts";
 // Running a checked flow, for real or on scripted answers, and carrying on one that stopped.
 export {
 	dryRunFlow,
+	latestResumable,
+	parseDuration,
 	readJournal,
 	readSnapshot,
 	resumeFlow,
@@ -222,6 +226,7 @@ export {
 	type DryRunOptions,
 	type FlowResult,
 	type JournalEntry,
+	type Resumable,
 	type Resumed,
 	type ResumeFlowOptions,
 	type ResumePoint,
@@ -233,6 +238,7 @@ export {
 // Drawing one: its worst case, its plan, its diagram, and its plan filled as a run goes.
 export {
 	livePlan,
+	liveRows,
 	mermaidOf,
 	planOf,
 	showBound,
@@ -243,6 +249,7 @@ export {
 	type Bounds,
 	type LiveLine,
 	type LivePlan,
+	type LiveRow,
 	type LiveState,
 	type LiveSummary,
 	type Plan,

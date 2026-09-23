@@ -2,6 +2,12 @@
 
 ![Watch the meter](../_static/tutorials/10-the-meter.svg)
 
+```{note}
+This page was captured before `/run` ran flows. `/build` is `/run build` now,
+and its flags are keys of the [`build` flow](../reference/flows/build.md); see
+[Deliver a change](../guide/build.md). The frames below predate that change.
+```
+
 Observed in the wild, on a small model: 79 calls to a tool named `run`, which
 did not exist. Each call got "unknown tool" back, and each time the model
 asked again, sending the whole context with it. Around 500k input tokens in a

@@ -15,6 +15,30 @@ subagents are fresh, since no conversation is kept: each reads its
 lock, and the run's branch must be where `HEAD` is: a resume checks it, and
 never switches to it.
 
+## `latestResumable`
+
+*function*
+
+```typescript
+export function latestResumable(runsDir: string, cwd: string): Resumable | undefined { /* … */ }
+```
+
+The newest run under `runsDir` started in `cwd` that a resume would take,
+newest by directory name, which a run directory's timestamp makes its age.
+When none would, the newest run of `cwd` and why; nothing when `cwd`
+started none there. A directory holding no snapshot holds no run, and one
+that no longer reads or checks cannot be resumed by this version anyway.
+
+## `Resumable`
+
+*type*
+
+```typescript
+export type Resumable = { readonly ok: true; readonly runDir: string; readonly from: string } | { readonly ok: false; readonly runDir: string; readonly refused: string };
+```
+
+The run a resume would take, and the visit it picks up from; or the newest run, and why it cannot.
+
 ## `Resumed`
 
 *type*

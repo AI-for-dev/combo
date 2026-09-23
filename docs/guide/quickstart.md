@@ -109,7 +109,7 @@ pi install ./extension   # permanently, via settings
 Then, in the TUI:
 
 ```
-> /build --check "npm test" add a slugify helper with tests
+> /run build add a slugify helper with tests
 > use subagent with scope "project" and agent "scout" to find the auth code
 ```
 
@@ -121,4 +121,4 @@ explicit `scope`. See [Agents](agents.md) and [Extension](extension.md).
 
 - [Agents](agents.md) - write your own.
 - [Workflows](workflows.md) - the shapes available.
-- [Deliver a change](build.md) - the whole pipeline, from a vague request to a commit.
+- [Deliver a change](build.md) - the whole build, from a request to a finished working tree.

@@ -11,17 +11,15 @@
 import {
 	checkModel,
 	createRunDir,
-	findResumableBuild,
 	interview,
-	isRepository,
 	loadAgents,
 	loadFlowCatalogue,
 	loadPipelines,
 	removedPipelines,
 	run,
 	runPipeline,
-	saveBuildState,
 	swarm,
+	type SpawnFn,
 	type Verify,
 } from "../src/index.ts";
 import type { AppendEntry } from "./relay.ts";
@@ -36,25 +34,25 @@ export type CommandDeps = {
 	/** What is left in the old `pipelines/` directories, refused. */
 	removedPipelines?: typeof removedPipelines;
 	interview?: typeof interview;
-	/** Runs the pipeline. The command's one seam onto the whole of the work. */
+	/** Runs a pipeline: `/step` uses it for a stage that names one. */
 	runPipeline?: typeof runPipeline;
 	/** Runs one throwaway agent: `/step` uses it for a stage that names one. */
 	run?: typeof run;
 	/** Puts several copies of one agent on one job: `/swarm`'s whole of the work. */
 	swarm?: typeof swarm;
-	/** Every git call, so a test never touches a repository it did not make. */
-	git?: Git;
-	/** Where transcripts land. Defaults to a fresh `runs/<timestamp>/`. */
+	/**
+	 * The `spawn` a flow run's subagents come from, under the stop switch.
+	 * Stays optional once resolved: absent is the real one, and a test hands
+	 * sessions that answer as it scripted.
+	 */
+	spawn?: SpawnFn;
+	/** Where transcripts land, and a flow run keeps its state. Defaults to a fresh `runs/<timestamp>/`. */
 	runDir?: () => string;
 	/**
 	 * The project's own check. Stays optional once resolved: absent means
 	 * nobody said, and the command decides what that means for it.
 	 */
 	verify?: Verify;
-	/** Where an interrupted build is looked for. Defaults to `runs/`. */
-	findResumable?: typeof findResumableBuild;
-	/** Persists progress. Defaults to writing `build.json` into the run directory. */
-	saveState?: typeof saveBuildState;
 	/** Validates a `--model` pattern before anything runs. Touches the real pi. */
 	checkModel?: typeof checkModel;
 	/** Widget repaint period. `0` disables the timer - tests want that. */
@@ -87,26 +85,18 @@ export type SendMessage = (message: {
  * produced and never shown. pi's is bound in `sessionDoors`; a test hands a
  * recorder.
  */
-export type PipelineDeps = CommandDeps & { sendMessage: SendMessage };
+export type MessageDeps = CommandDeps & { sendMessage: SendMessage };
 
-/** {@link PipelineDeps}, plus the door into the transcript that `/step` and `/swarm` use. Required, for the same reason. */
-export type StepDeps = PipelineDeps & { appendEntry: AppendEntry };
-
-/** The git a command asks about the working tree. */
-export type Git = {
-	isRepository: typeof isRepository;
-};
-
-/** The real git, and the default of every `deps.git`. */
-export const REAL_GIT: Git = { isRepository };
+/** {@link MessageDeps}, plus the door into the transcript that `/step` and `/swarm` use. Required, for the same reason. */
+export type StepDeps = MessageDeps & { appendEntry: AppendEntry };
 
 /**
  * {@link CommandDeps} with every gap filled: what a command actually runs with.
  *
- * `verify` and `tickMs` keep their optionality on purpose - for them, absent is
- * an answer and not a gap.
+ * `verify`, `spawn` and `tickMs` keep their optionality on purpose - for
+ * them, absent is an answer and not a gap.
  */
-export type Deps = Required<Omit<CommandDeps, "verify" | "tickMs">> & Pick<CommandDeps, "verify" | "tickMs">;
+export type Deps = Required<Omit<CommandDeps, "verify" | "spawn" | "tickMs">> & Pick<CommandDeps, "verify" | "spawn" | "tickMs">;
 
 /**
  * Fills what the caller left unsaid with the real thing.
@@ -126,10 +116,7 @@ export function resolved(deps: CommandDeps = {}): Deps {
 		runPipeline,
 		run,
 		swarm,
-		git: REAL_GIT,
 		runDir: () => createRunDir(),
-		findResumable: findResumableBuild,
-		saveState: saveBuildState,
 		checkModel,
 		...said,
 	};

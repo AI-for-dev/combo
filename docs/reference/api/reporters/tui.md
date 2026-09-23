@@ -11,6 +11,30 @@ draws them. Nothing here holds state - the picture is `picture.ts`, folded
 once for every reader - so a line is tested by calling the function that
 makes it, never by scraping a terminal.
 
+## `currentActivity`
+
+*function*
+
+```typescript
+export function currentActivity(snapshot: SubagentSnapshot): string { /* … */ }
+```
+
+What a subagent is doing *right now*, in a few words.
+
+The last tool call while it works; its verdict once it is done. This is the
+"minimal information" of the widget - enough to know it is alive and on the
+right track, not enough to read instead of the transcript.
+
+## `detailLine`
+
+*function*
+
+```typescript
+export function detailLine(snapshot: SubagentSnapshot, now?: number): string { /* … */ }
+```
+
+`provider/model · ↑12k ↓209 · 12.4s`
+
 ## `formatToolCall`
 
 *function*

@@ -56,11 +56,11 @@ no enums, no namespaces, no parameter properties.
 
    **The model is an explicit knob at every level, and the nearest override
    wins**: `SpawnOptions.model` / `WorkflowOptions.model` (also the tool's
-   `model` param and `--model` on `/run` and `/build`) > the pipeline file's
-   top-level `model:` > the agent's frontmatter `model:` > pi's own settings.
-   The last resort is still `~/.pi/agent/settings.json` - when *nothing* was
-   set at any level, pi decides. Which side of that is right depends on what
-   the file is for:
+   `model` param and `--model` on `/run` and `/step`) > the flow's or the
+   pipeline file's top-level `model:` > the agent's frontmatter `model:` >
+   pi's own settings. The last resort is still `~/.pi/agent/settings.json` -
+   when *nothing* was set at any level, pi decides. Which side of that is
+   right depends on what the file is for:
 
    - **A definition that ships leaves it open.** None of the agents in
      `agents/` declares a `model:`, on purpose: a package that pinned one would
@@ -160,8 +160,8 @@ src/                the library
                     runner per run) and transcripts (each subagent's, under
                     its home) in its run directory; replay (what a
                     resume keeps of the journal), resume-point (where it picks
-                    up) and resume (resumeFlow); dry-run on answers, keys and
-                    scripted); render/ (plan and text, the plan of a checked
+                    up) and resume (resumeFlow, latestResumable); dry-run on
+                    answers, keys and scripted); render/ (plan and text, the plan of a checked
                     flow; mermaid, its diagram; live, the plan filled as a
                     run goes, from visits, outcome and summary, written by
                     live-text);
@@ -182,10 +182,12 @@ src/                the library
 extension/          the pi extension: index.ts (tool, renderers), execute.ts
                     (the tool body) and the floor the commands stand on:
                     pi.ts deps.ts command.ts flags.ts params.ts relay.ts
-  commands/         one file per slash command (flows is /flows); stage
-                    beside /step, the command that uses it
-  ui/               run (the live view), ask (the question card) and card
-                    (what it draws around the answer), asking and
+  commands/         one file per slash command (flows is /flows, run is /run
+                    and /run resume); stage beside /step, the command that
+                    uses it, and answer, the message /run and /quote leave
+  ui/               run (the live view), flow (a flow's plan, painted live
+                    and as a finished run's frame), ask (the question card)
+                    and card (what it draws around the answer), asking and
                     herdr-switch (two switches a card and a key share)
 pane/               the client a herdr split runs, attached to the mirror
 agents/ pipelines/ flows/
@@ -260,8 +262,9 @@ not a bibliography:
 | touch a reporter, the TUI or herdr | [docs/guide/display.md](docs/guide/display.md) |
 | touch `Usage`, or an export | [docs/guide/measurements.md](docs/guide/measurements.md), [docs/guide/export.md](docs/guide/export.md) |
 | change the extension, a command or a card | [docs/guide/extension.md](docs/guide/extension.md) |
-| add or change a pipeline | [docs/guide/pipelines.md](docs/guide/pipelines.md), [docs/guide/build.md](docs/guide/build.md) |
+| add or change a pipeline | [docs/guide/pipelines.md](docs/guide/pipelines.md) |
 | add or change a flow key, a node kind or a fault code | [docs/guide/flows.md](docs/guide/flows.md), then the header of `src/flow/file.ts` |
+| change a shipped flow, or `/run` | [docs/guide/build.md](docs/guide/build.md), [docs/guide/extension.md](docs/guide/extension.md#running-a-flow) |
 | move a pipeline to a flow | [docs/guide/from-pipelines.md](docs/guide/from-pipelines.md) |
 | define an agent | [docs/guide/agents.md](docs/guide/agents.md) |
 | pick up the project cold | [NEXT.md](NEXT.md) - what is left, and the traps already paid for |

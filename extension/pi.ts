@@ -24,13 +24,19 @@ export type PiApi = Pick<
  * The slice of pi's `ctx.ui` the extension reads. Declared once, here.
  *
  * Every member is one pi has, under the name pi gives it. Narrower where pi is
- * wider - `setWidget` takes lines and never a component, `custom` erases the
- * TUI - so that a test's double stays small.
+ * wider - a widget's component is drawn without the TUI, `custom` erases it -
+ * so that a test's double stays small.
  */
 export type Ui = {
 	notify(message: string, type?: "info" | "warning" | "error"): void;
 	setStatus(key: string, text: string | undefined): void;
 	setWidget(key: string, lines: string[] | undefined): void;
+	/**
+	 * A widget drawn at the width pi gives it. pi cuts one given as lines at
+	 * ten, and wraps each past the terminal's edge: a flow's plan is taller,
+	 * and wants cutting where it knows what it cuts.
+	 */
+	setWidget(key: string, widget: Widget | undefined): void;
 	editor(title: string, prefill?: string): Promise<string | undefined>;
 	confirm(title: string, message: string): Promise<boolean>;
 	input(title: string, placeholder?: string): Promise<string | undefined>;
@@ -40,6 +46,9 @@ export type Ui = {
 	readonly theme: Theme;
 };
 
+/** A widget as a component: what pi draws above the editor, at the width it has. */
+export type Widget = (tui: unknown, theme: Theme) => { render(width: number): string[]; invalidate(): void };
+
 /** What a command is handed. pi's own context has all of it, and a test builds one. */
 export type CommandCtx = {
 	cwd: string;
@@ -48,6 +57,8 @@ export type CommandCtx = {
 	/** pi's signal for the turn in flight, when a turn is: absent during a command. */
 	signal?: AbortSignal;
 	ui: Ui;
+	/** Where pi keeps this session, whose JSONL a run copies in beside its subagents'. */
+	sessionManager?: { getSessionFile(): string | undefined };
 };
 
 /** What the question card needs. */

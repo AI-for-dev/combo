@@ -83,7 +83,7 @@ unattended - pi's agent loop has no step cap.
 The **model is a knob at every level**: `model` on a spawn or a workflow puts
 every subagent on one model, whatever their frontmatter says - which is what
 lets the same workflow run against different LLMs with no agent file edited.
-The nearest override wins: argument, then the pipeline file, then the agent's
+The nearest override wins: argument, then the flow file, then the agent's
 frontmatter, then pi's own settings. No environment variable, anywhere.
 
 ```typescript
@@ -115,26 +115,29 @@ usage, and the flag columns are whatever the callback returned. See
 ## The whole flow: request to working tree
 
 ```
-/build --check "npm test" add a cache in front of the agent loader
+/run build add a cache in front of the agent loader
 
   locate      a scout maps the code the request touches
-  plan        who does what, validated before anything spawns
-  pair        a worker and a reviewer per subtask, until accepted
-  check       your own command runs; its verdict is final
-  audit       one agent reads the whole, names what still has to change
+  plan        a planner splits it into subtasks
+  deliver     up to two rounds of:
+    work        a coder and a reviewer per subtask, each pair in a copy of the repository
+    tests       .pi/checks/test.sh, your project's own script; its verdict is final
+    audit       one agent reads the whole change against the request
 ```
 
 It asks nothing on the way, and it commits nothing at the end: the work stays in
-the working tree for you to read. An interrupted build resumes with
-`/build resume`, and only approved subtasks survive. `/interview` turns a vague
-request into a brief first, when the request needs one.
+the working tree for you to read, and the answer lands in the conversation. An
+interrupted run carries on with `/run resume`, from the first visit that did
+not end. `/run build-attended` interviews you first, asks "Build this?", and
+commits on the run's own branch.
 
-What runs is a **pipeline**: a Markdown file, next to your
-agents, that says which combinators run in which order. The package ships one, so
-`/build` works as soon as the extension is loaded; drop a `build.md` in
-`.pi/pipelines/` and yours replaces it, with no code to change.
+What runs is a **flow**: a task graph in YAML and Markdown, next to your
+agents, checked whole before its first spawn and walked by our code. The
+package ships `build`, `build-attended`, `explore`, `split` and `interview`, so
+`/run` works as soon as the extension is loaded; drop a `build.md` in
+`.pi/flows/` and yours replaces the shipped one, with no code to change.
 
-See [Deliver a change](docs/guide/build.md) and [Pipelines](docs/guide/pipelines.md).
+See [Deliver a change](docs/guide/build.md) and [Flows](docs/guide/flows.md).
 
 ## Using it from pi
 
@@ -144,7 +147,8 @@ pi -e extension                    # from a clone, this session only
 ```
 
 ```
-> /build add a slugify helper with tests
+> /run build add a slugify helper with tests
+> /run explore where is the condition language implemented?
 > use subagent to review src/usage.ts with coder then reviewer, looping until LGTM
 > /swarm --members 3 describe each file under src/reporters/, in two sentences
 > /agents        # who can be spawned here, and from which directory
@@ -152,8 +156,9 @@ pi -e extension                    # from a clone, this session only
 > /flows build   # one flow's plan, node by node
 ```
 
-A flow is a task graph in YAML and Markdown, checked whole before its first
-spawn; see [Flows](docs/guide/flows.md), and
+Every `/run` gets a run directory, `runs/<timestamp>/`, with its journal, its
+transcripts and what it cost; the plan fills above the prompt as the visits
+go. See [Flows](docs/guide/flows.md), and
 [From pipelines to flows](docs/guide/from-pipelines.md) for a pipeline of your
 own.
 
@@ -184,7 +189,7 @@ See [Extension](docs/guide/extension.md),
 
 ## Documentation
 
-- [Manual](docs/index.md) - agents, lifetime, workflows, pipelines, display, export, experiments.
+- [Manual](docs/index.md) - agents, lifetime, workflows, flows, display, export, experiments.
 - [Tutorials](docs/tutorials/index.md) - twelve sittings in front of pi, one
   problem each, every one run on this repository.
 - [API reference](docs/reference/api/index.md) - every public export, generated from the

@@ -94,7 +94,7 @@ export function currentRun(): LiveRun | undefined {
  *
  * ctrl+del does what `/stop` does, and it exists because `/stop` cannot always
  * be typed: pi runs no submission while a slash command of its own is awaiting,
- * so during `/run` or `/build` a key is the only way in. During a tool call
+ * so during `/run` or `/step` a key is the only way in. During a tool call
  * either works.
  */
 function onKey(data: string): { consume?: boolean } | undefined {

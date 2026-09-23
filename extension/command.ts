@@ -1,7 +1,7 @@
 /**
  * What every command in this extension stands on.
  *
- * `/build`, `/run`, `/step`, `/swarm` and `/interview` all launch the same
+ * `/run`, `/step`, `/swarm` and `/interview` all launch the same
  * shape of work: a roster, a few checks that must pass before anything is
  * spawned, a live view for as long as the work runs, and a `finally` that takes
  * it down and writes what it cost. That shape is written here once. What a
@@ -10,13 +10,11 @@
 
 import {
 	commandVerifier,
-	findPipeline,
 	loadAgents,
 	loadFlowCatalogue,
 	loadPipelines,
 	type Agent,
 	type FlowCatalogue,
-	type Pipeline,
 	type PipelineCatalogue,
 	type Verify,
 } from "../src/index.ts";
@@ -31,8 +29,8 @@ import { liveRun, STATUS, type LiveRun, type LiveRunOptions } from "./ui/index.t
  * explicit request the project-agents rule asks for; `builtin: true` because the
  * agents shipped with this extension are always available, at the lowest
  * priority - one of the user's own, or the repository's, replaces any of them by
- * name. Written once: three call sites drifting on either flag is how `/build`
- * and `/run` end up disagreeing about who exists.
+ * name. Written once: three call sites drifting on either flag is how two
+ * commands end up disagreeing about who exists.
  */
 export function loadRoster(ctx: CommandCtx, deps: Pick<Deps, "loadAgents"> = { loadAgents }): Agent[] {
 	return deps.loadAgents({ cwd: ctx.cwd, scope: "both", builtin: true });
@@ -71,7 +69,7 @@ export async function checked<T>(ctx: CommandCtx, check: () => T | Promise<T>): 
 
 /** What is watched while it works, and where the trace of it lands. */
 export type Watched<T> = {
-	/** The footer while the work runs: `building…`, `running explore…`. Absent leaves the footer alone. */
+	/** The footer while the work runs: `running explore…`. Absent leaves the footer alone. */
 	status?: string;
 	/** Where `usage.json` is written when it is over. Absent writes none. */
 	dir: string | undefined;
@@ -79,7 +77,7 @@ export type Watched<T> = {
 	 * What this caller varies about the view: the tool streams a progress line
 	 * and knows the parent session, a test injects a spawn and a reporter.
 	 */
-	live?: Pick<LiveRunOptions, "reporter" | "herdrAll" | "onChange" | "mainSessionFile" | "spawn">;
+	live?: Pick<LiveRunOptions, "reporter" | "herdrAll" | "onChange" | "mainSessionFile" | "spawn" | "flow">;
 	/** The work, handed the live run: its `signal`, its `spawn`, its `onEvent`. */
 	work: (live: LiveRun) => Promise<T>;
 };
@@ -103,19 +101,6 @@ export async function watched<T>(ctx: Watcher, deps: Pick<CommandDeps, "tickMs">
 	} finally {
 		live.stop();
 	}
-}
-
-/**
- * The pipeline a command runs, or a thrown explanation.
- *
- * With no name, it is the one called `build`: the package ships one, and a
- * `build.md` of your own replaces it by having the same name. There is
- * therefore exactly **one** default, and it is a file you can read and copy -
- * a second one written in TypeScript would differ from it within two changes.
- * A broken file is refused rather than silently replaced, by the lookup itself.
- */
-export function choosePipeline(wanted: string | undefined, ctx: CommandCtx, deps: Pick<Deps, "loadPipelines">): Pipeline {
-	return findPipeline(loadCatalogue(ctx, deps), wanted ?? "build");
 }
 
 /**
