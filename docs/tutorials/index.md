@@ -39,14 +39,14 @@ spends someone else's instead.
    in parallel, the answer in your conversation, a failed branch shown rather than
    dropped.
 3. [Keep the session out of it](03-keep-the-session-out.md) - `/step`: a chain
-   walked by hand, with the main model told nothing until you say so, and a
-   different model per step.
+   walked by hand, an agent or a whole flow per step, with the main model told
+   nothing until you say so.
 
 **Writing definitions.** Agents and flows are data; our code decides what runs
 next. Both are files you can read in a diff.
 
-4. [Write the chain down](04-write-it-down.md) - your first file of steps, and
-   what a typo costs. Its frames show the linear pipeline that flows replaced.
+4. [Write the chain down](04-write-it-down.md) - your first flow, what it
+   cannot say, and what a typo costs.
 5. [An agent that cannot do harm](05-an-agent-that-cannot-write.md) - your
    first agent in `.pi/agents/`, why its toolset is the boundary and its prompt is
    not, and why a repository's agents are third-party instructions.
