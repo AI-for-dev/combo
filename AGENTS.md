@@ -158,7 +158,9 @@ src/                the library
                     resume keeps of the journal), resume-point (where it picks
                     up) and resume (resumeFlow); dry-run on answers, keys and
                     scripted); render/ (plan and text, the plan of a checked
-                    flow; mermaid, its diagram);
+                    flow; mermaid, its diagram; live, the plan filled as a
+                    run goes, from visits, outcome and summary, written by
+                    live-text);
                     index.ts is each one's door
   pipeline/         pipeline (the file), load (where it is), run (our code
                     walks the steps); index.ts is its door

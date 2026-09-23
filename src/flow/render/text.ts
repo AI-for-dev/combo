@@ -11,7 +11,7 @@ import { showBound } from "../bounds.ts";
 import type { Plan, PlanLine } from "./plan.ts";
 
 /** What a line not visited yet is marked with. */
-const NOT_VISITED = "○";
+export const NOT_VISITED = "○";
 
 /** `plan` as lines of text, pure. */
 export function showPlan(plan: Plan): string {
