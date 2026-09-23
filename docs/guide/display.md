@@ -345,9 +345,11 @@ subagents and the model gets no chance to delegate again. During `/run`,
 `/build` or `/step` pi has no turn to abort, and this is what stops them.
 
 The one time it does not is while a question card is up. There `esc` is the
-card's, and means "write the brief with what you have": the interviewer that will write
-the brief is a subagent of the same run, and a key that stopped it as well
-would end the interview it was meant to close. The run's subagents are idle
+card's, and means what its help line says. On the interview's card that is
+"write the brief with what you have": the interviewer that will write the brief
+is a subagent of the same run, and a key that stopped it as well would end the
+interview it was meant to close. On a flow's card that offers no "enough", it
+is the run's stop, pressed on the card that holds it. The run's subagents are idle
 while a question waits, so nothing is running that the key would have called
 off.
 

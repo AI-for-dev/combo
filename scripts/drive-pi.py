@@ -75,10 +75,13 @@ ROOT = Path(__file__).resolve().parent.parent
 # Escape sequences, and the carriage returns a redraw leaves behind.
 ANSI = re.compile(rb"\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b[()][A-Z0-9]|\x1b[=>]|\r")
 
-# What `key:<name>` sends. A key is how a run is interrupted, and an interrupt
-# is the one thing a line of text cannot express.
+# What `key:<name>` sends. A key is how a run is interrupted and how a question
+# card is answered, and neither is something a line of text can express.
 KEYS = {
     "escape": b"\x1b",
+    "enter": b"\r",
+    "up": b"\x1b[A",
+    "down": b"\x1b[B",
     "ctrl+up": b"\x1b[1;5A",
     "ctrl+down": b"\x1b[1;5B",
     "ctrl+delete": b"\x1b[3;5~",

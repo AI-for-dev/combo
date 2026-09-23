@@ -257,7 +257,7 @@ export {
 	type Reading,
 } from "./board/index.ts";
 export { agreed, VOTE_INSTRUCTION } from "./board/index.ts";
-export { type Answer, type AskUser, type Choice, type Question } from "./ask.ts";
+export { type Answer, type Asking, type AskUser, type Choice, type Question, type Shown } from "./ask.ts";
 export {
 	BUILD_STATE_VERSION,
 	findResumableBuild,
