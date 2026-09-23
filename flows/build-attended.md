@@ -24,7 +24,7 @@ nodes:
 
           - id: message
             agent: committer
-            reads: [spec, diff]
+            reads: [spec, work, diff]
 
           - id: commit
             commit: message
@@ -33,4 +33,5 @@ nodes:
 
 ## message
 Write the commit message for the specification under `spec` and the change
-under `diff`.
+under `diff`. The build's report is under `work`: what it says is left undone
+belongs in the body.

@@ -14,6 +14,7 @@ touching any code:
     work        each subtask to a coder and a reviewer, in a copy of the repository
     tests       .pi/checks/test.sh, your project's own script
     audit       an auditor reads the whole change against the request
+  report      a synthesiser tells you what was done and what is left
 ```
 
 **It asks nothing.** The request is the brief, the check is a script of your
@@ -50,9 +51,9 @@ The widget draws the flow's plan as it fills, the visit running now expanded
 with what its subagent is doing:
 
 ```
-● build · 2 visits · 10s · ↑7.6k ↓1k
-✓ locate · scout · 3s · ↑3.8k ↓326
-✓ plan · planner · 7s · ↑3.8k ↓710
+● build · 2 visits · 25s · ↑5.6k ↓1.7k
+✓ locate · scout · 4s · ↑2.4k ↓111
+✓ plan · planner · 22s · ↑3.2k ↓1.6k
 ● deliver · #1 of 2
   ● deliver#1
     ● deliver#1/work · 0/1 so far
@@ -60,26 +61,42 @@ with what its subagent is doing:
         ● deliver#1/work[1]/pair · #1 of 3
           ● deliver#1/work[1]/pair#1
             ● deliver#1/work[1]/pair#1/code
-              ● coder#1  read slug.test.js  ilaas/gemma-4-31b · ↑0 ↓0 · 4.1s
-            ○ deliver#1/work[1]/pair#1/review · agent reviewer (agents/reviewer.md) · reads item.text, code, diff · v…
+              ● coder#1  read slug.js  ilaas/gemma-4-31b · ↑0 ↓0 · 6.7s
+            ○ deliver#1/work[1]/pair#1/review · agent reviewer (.pi/agents/reviewer.md) · reads item.text, code, diff…
     ○ deliver#1/tests · check .pi/checks/test.sh · timeout 10m · ≤ 20m
-    ○ deliver#1/audit · agent auditor (agents/auditor.md) · reads input, work, tests, diff, deliver.ledger · verdict …
+    ○ deliver#1/audit · agent auditor (.pi/agents/auditor.md) · reads input, work, tests, diff, deliver.ledger · verd…
+○ report · agent synthesiser (.pi/agents/synthesiser.md) · reads input, diff, deliver.output.last.work, deliver.outpu…
 esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
 ```
 
 When it ends, its answer lands in the conversation: the output of its last
-root node, `deliver`, which holds how each subtask's pair ended, the tests'
-report and the audit's verdict, as JSON; then `ok · converged · runs/<timestamp>`;
-then the last frame:
+root node, `report`, a few lines a synthesiser wrote from the diff, how each
+pair of the last round ended and the audit; then `ok · runs/<timestamp>`; then
+the last frame:
 
 ```
-ok · converged · runs/2026-09-23_20-21-17
+Result of the build flow, asked to: make slugify lowercase the title, turn every run of characters that are not letters
+or digits into one dash, and trim dashes at both ends; add tests for it.
 
-✓ build · 9 visits · 1m51s · ↑43k ↓11k · 2 lives (1 partial) · resumed from deliver#1/work[1]/pair#1/code
-✓ locate · scout · 3s · ↑3.8k ↓326
-✓ plan · planner · 7s · ↑3.8k ↓710
-✓ deliver · 1 iteration · 1m41s · ↑36k ↓9.9k
+The slugify function in slug.js was updated to lowercase the title, replace every run of non-alphanumeric characters
+with a single dash, and trim dashes from both ends. Comprehensive tests verifying these requirements were added to
+slug.test.js.
+
+Nothing is left to do.
+
+ok · runs/2026-09-23_21-35-50
+
+✓ build · 10 visits · 1m12s · ↑41k ↓6.2k
+✓ locate · scout · 4s · ↑2.4k ↓111
+✓ plan · planner · 22s · ↑3.2k ↓1.6k
+✓ deliver · 1 iteration · 44s · ↑34k ↓4k
+✓ report · synthesiser · 5s · ↑2.2k ↓467
 ```
+
+The report is written from the diff, so it names what a coder did beyond the
+request too, a file nobody asked for included; it does not replace reading the
+diff. A build that fails writes no report, and its end line says where and
+why.
 
 `git diff` shows exactly what the run did. The run directory holds each
 subagent's transcript under the visit or the pair it served, and `usage.json`
@@ -107,14 +124,15 @@ with what every visit cost. See [Flows](flows.md#the-run-directory).
 ## Why nothing is committed
 
 A commit is a decision about the work, and whoever takes it has to have read
-it. So the work stays where the pairs landed it, and `git diff` is the report.
+it. So the work stays where the pairs landed it: the report says what to look
+for, and `git diff` is what you read.
 
 When you want the decision taken in the run, with somebody there,
 `/run build-attended <request>` interviews you on the request, shows the
 specification and asks "Build this?". Answered yes, it runs `build` on the
-specification, has the committer write the message from the specification and
-the diff, and commits on the run's own branch. Our code makes the commit; the
-committer has no tool that could.
+specification, has the committer write the message from the specification,
+the build's report and the diff, and commits on the run's own branch. Our code
+makes the commit; the committer has no tool that could.
 
 ## Carrying on after an interruption
 
@@ -129,8 +147,11 @@ run: resuming build in runs/2026-09-23_20-21-17, from deliver#1/work[1]/pair#1/c
 It says what it picked up rather than asking: typing it is already the answer.
 That run was killed while its coder worked, and the coder's visit ran again,
 in the copy it had left open. The summary counts both lives, the first marked
-`partial` since it was killed before it could write its measurement, as the
-frame above shows.
+`partial` since it was killed before it could write its measurement:
+
+```
+✓ build · 9 visits · 1m51s · ↑43k ↓11k · 2 lives (1 partial) · resumed from deliver#1/work[1]/pair#1/code
+```
 
 Every visit that ended survives, the plan and each approved pair included, and
 the first one that did not end runs again with fresh subagents, which re-read

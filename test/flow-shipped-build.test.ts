@@ -22,6 +22,7 @@ function approved(prefix = ""): Answers {
 		[`${prefix}deliver/work/pair/review`]: { approved: true },
 		[`${prefix}deliver/tests`]: PASSED,
 		[`${prefix}deliver/audit`]: { approved: true },
+		[`${prefix}report`]: "Added the cache in src/store.ts, and its tests. Nothing is left.",
 	};
 }
 
@@ -46,10 +47,11 @@ describe("build", () => {
 		assert.ok(run.ok, JSON.stringify(!run.ok && run.faults));
 	});
 
-	test("locates, plans, pairs on each subtask, then checks and audits the whole in one round", async () => {
+	test("locates, plans, pairs on each subtask, checks and audits the whole in one round, then reports", async () => {
 		const run = await dryRunFlow(build, "add a cache", approved());
 		assert.ok(run.ok && "output" in run, JSON.stringify(run));
-		const { converged, stop, iterations } = run.output as { converged: boolean; stop: string; iterations: number };
+		assert.equal(run.output, "Added the cache in src/store.ts, and its tests. Nothing is left.");
+		const { converged, stop, iterations } = outputAt(run, "deliver") as { converged: boolean; stop: string; iterations: number };
 		assert.deepEqual([converged, stop, iterations], [true, "until", 1]);
 		assert.deepEqual(
 			visited(run).map((entry) => entry.path),
@@ -66,6 +68,7 @@ describe("build", () => {
 				"deliver#1/tests",
 				"deliver#1/audit",
 				"deliver",
+				"report",
 			],
 		);
 		assert.deepEqual(run.journal.filter((entry) => entry.type === "copy_landed").map((entry) => entry.path), ["deliver#1/work[1]", "deliver#1/work[2]"]);
@@ -102,8 +105,8 @@ describe("build", () => {
 			"deliver/tests": [{ passed: false, report: "1 failing" }, PASSED],
 			"deliver/audit": [{ approved: false, raised: ["fix the failing test"] }, { approved: true, resolved: [{ id: "o1", how: "addressed" }] }],
 		});
-		assert.ok(run.ok && "output" in run, JSON.stringify(run));
-		assert.deepEqual((run.output as { iterations: number }).iterations, 2);
+		assert.ok(run.ok, JSON.stringify(run));
+		assert.deepEqual((outputAt(run, "deliver") as { iterations: number }).iterations, 2);
 		const carried = run.journal.filter((entry) => entry.type === "carry").map((entry) => [entry.path, entry.value]);
 		assert.deepEqual(carried, [
 			["deliver#1", [{ text: "add the cache" }, { text: "test it" }]],
@@ -112,10 +115,11 @@ describe("build", () => {
 		assert.deepEqual(ended(run, "/code"), ["deliver#1/work[1]/pair#1/code true", "deliver#1/work[2]/pair#1/code true", "deliver#2/work[1]/pair#1/code true"]);
 	});
 
-	test("gives up when the tests fail and the audit leaves nothing open to carry", async () => {
+	test("gives up when the tests fail and the audit leaves nothing open to carry, and reports nothing", async () => {
 		const run = await dryRunFlow(build, "add a cache", { ...approved(), "deliver/tests": { passed: false, report: "1 failing" }, "deliver/audit": { approved: false, remarks: "the tests fail" } });
 		assert.deepEqual(!run.ok && "error" in run && [run.error.kind, run.path], ["unconverged", "deliver"]);
 		assert.deepEqual(ended(run, "/audit"), ["deliver#1/audit true"]);
+		assert.deepEqual(ended(run, "report"), []);
 	});
 
 	test("fails at its cap when every audit raises something new", async () => {

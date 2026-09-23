@@ -2017,6 +2017,21 @@ writing them for real moved them in the places below.
   unattended build needs something to read "the tests pass" from, and the
   audit alone is an opinion. This repository's own runs `npm test`, and a test
   holds the shipped `build` to it through the run stage.
+- **`build` ends with a report, not with its loop.** A run's answer is its
+  last root node's output, and `deliver`'s is the loop's whole record as
+  JSON: long, hard to read, and read in full by the main session's model. A
+  `report` turn after it writes a few lines of prose from the request, the
+  diff, the last round's pairs and the audit: what was done, in which files,
+  and what is left. It is the `synthesiser`, which already merges several
+  reports into one answer and has no tool that writes, so no new agent. The
+  price is one more turn per build: 5s and 2.7k tokens of a 1m12s, 47k-token
+  run on `ilaas/gemma-4-31b`. It runs only when the build passed; a build
+  that fails has no report, and its end line says where and why. It reads
+  the two fields of the loop it needs, the pairs and the audit, rather than
+  the whole record. The end line loses its `converged`, which only a loop
+  gives, and which told nobody anything: a build that passes has converged.
+  `build-attended` hands the report to the committer, so what the build left
+  undone reaches the commit body and the turn is not spent for nothing.
 
 ### A flow run measures itself in its run directory
 
