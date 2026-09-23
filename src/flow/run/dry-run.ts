@@ -18,7 +18,7 @@ import { spawn } from "../../subagent.ts";
 import type { Usage } from "../../usage.ts";
 import type { SpawnFn } from "../../workflows/options.ts";
 import type { ScriptOutcome } from "../../verify.ts";
-import type { CheckedAskNode, CheckedCheckNode, CheckedCommitNode, CheckedFlow } from "../checked.ts";
+import type { CheckedAskNode, CheckedCallNode, CheckedCheckNode, CheckedCommitNode, CheckedFlow } from "../checked.ts";
 import type { Heard } from "./ask.ts";
 import type { Attempt } from "./agent.ts";
 import { Script, type AnswerFault, type Answers } from "./answers.ts";
@@ -85,7 +85,8 @@ export async function dryRunFlow(checked: CheckedFlow, input: unknown, answers: 
 	};
 	// A hole takes the card down the way a stop does: the visit reads the stop, not this.
 	const ask = async (node: CheckedAskNode, path: string): Promise<Heard> => script.heard(path, node.at) ?? (hole(path), { declined: true });
-	const world = { deadline, check: ran<ScriptOutcome>, commit: ran<CommitOutcome>, diff: async () => ({ ok: true as const, value: "" }), ask };
+	const whole = (node: CheckedCallNode, path: string) => script.whole(path, node.at);
+	const world = { deadline, check: ran<ScriptOutcome>, commit: ran<CommitOutcome>, diff: async () => ({ ok: true as const, value: "" }), ask, whole };
 
 	const result = await walkFlow(checked, input, { ...options, signal, onEvent, spawn: scripted }, world);
 	if (unscripted !== undefined) return { ok: false, unscripted, journal, usage: result.usage };

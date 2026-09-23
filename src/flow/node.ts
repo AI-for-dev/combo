@@ -27,6 +27,7 @@ export const KIND_KEYS = {
 	commit: "commit",
 	ask: "ask",
 	"ask-from": "ask",
+	flow: "flow",
 } as const;
 
 /** Every key a node of each kind may carry. Anything else is refused. */
@@ -39,6 +40,7 @@ export const NODE_KEYS = {
 	check: ["id", "check", "timeout", "on-fail"],
 	commit: ["id", "commit", "on-fail"],
 	ask: ["id", "ask", "ask-from", "options", "confirm", "enough", "default", "reads", "timeout", "on-fail"],
+	flow: ["id", "flow", "input", "on-fail"],
 } as const;
 
 /**
@@ -50,6 +52,7 @@ export const RETRY_REFUSED: Partial<Record<NodeKind, string>> = {
 	check: "a check is not retried: raise `timeout:`, or make the check stable",
 	commit: "a commit is not retried: what git refused is a hook or a lock to fix, and the node writing the message can take `retry:`",
 	ask: "an ask is not retried: a person answered it, or nobody was there to; `default:` says what nobody answering gives",
+	flow: "a flow is not retried: running it again would ask answered questions and commit again; its own agent nodes take `retry:`",
 };
 
 /** A kind of node. */
@@ -161,8 +164,17 @@ export type AskNode = Common & {
 	readonly timeoutMs?: number;
 };
 
+/** A call of another flow of the catalogue, by the name written here, never taken from a value. */
+export type CallNode = Common & {
+	readonly kind: "flow";
+	/** The callee's name, resolved in the run's catalogue. */
+	readonly flow: string;
+	/** The address of the value the callee reads as its `input`. */
+	readonly input: string;
+};
+
 /** A node of any kind. */
-export type FlowNode = AgentNode | ChoiceNode | ParallelNode | MapNode | LoopNode | CheckNode | CommitNode | AskNode;
+export type FlowNode = AgentNode | ChoiceNode | ParallelNode | MapNode | LoopNode | CheckNode | CommitNode | AskNode | CallNode;
 
 /** What reading a whole file shares, from one node to the next and into nested ones. */
 export type ReadContext = {

@@ -129,8 +129,25 @@ export type CheckedAskNode = Common & {
 	readonly output: ValueType;
 };
 
+/** A `flow` node: the flow it calls, checked whole on its own, and what it hands in. */
+export type CheckedCallNode = Common & {
+	readonly kind: "flow";
+	readonly callee: CheckedFlow;
+	/** The address the callee's `input` is read from, typed. */
+	readonly input: CheckedRead;
+};
+
 /** A node of any kind, resolved. */
-export type CheckedNode = CheckedAgentNode | CheckedChoiceNode | CheckedParallelNode | CheckedMapNode | CheckedLoopNode | CheckedCheckNode | CheckedCommitNode | CheckedAskNode;
+export type CheckedNode =
+	| CheckedAgentNode
+	| CheckedChoiceNode
+	| CheckedParallelNode
+	| CheckedMapNode
+	| CheckedLoopNode
+	| CheckedCheckNode
+	| CheckedCommitNode
+	| CheckedAskNode
+	| CheckedCallNode;
 
 declare const checked: unique symbol;
 
@@ -143,6 +160,8 @@ export type CheckedFlow = {
 	readonly model?: string;
 	readonly timeoutMs?: number;
 	readonly nodes: readonly CheckedNode[];
+	/** What its last root node outputs: what a `flow` node calling it hands on. */
+	readonly output: ValueType;
 	readonly [checked]: true;
 };
 

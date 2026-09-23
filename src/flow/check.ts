@@ -2,56 +2,63 @@
  * The flow stage of validation: a flow read against the catalogue it runs in,
  * before the first spawn.
  *
- * Every name is resolved here (the agents, and the addresses each node reads
- * in its lexical scope) and every fault is returned at once. What passes
+ * Every name is resolved here (the agents, the flows called, and the
+ * addresses each node reads in its lexical scope) and every fault is
+ * returned at once. What passes
  * becomes a `CheckedFlow`, the one thing the runner takes. What depends on the
  * project a run starts in (its working tree, its ports, whether somebody is
  * there) is the run stage's, and is not looked at here.
  */
 
-import type { Agent } from "../agent.ts";
-import { AgentNames } from "./agents.ts";
+import type { MarkdownFile } from "../markdown.ts";
+import type { AgentNames } from "./agents.ts";
+import { checkAgent } from "./check-agent.ts";
 import { checkAsk } from "./check-ask.ts";
+import { Callees, checkCall } from "./check-call.ts";
 import type { FlowCatalogue } from "./catalogue.ts";
 import { checkChoice, checkMap, checkParallel } from "./check-blocks.ts";
 import { checkLoop } from "./check-loop.ts";
 import { checkCommit } from "./check-world.ts";
-import { CHECK, COMMIT, VERDICT, type CheckedAgentNode, type CheckedFlow, type CheckedNode, type CheckedRead } from "./checked.ts";
+import { CHECK, COMMIT, type CheckedFlow, type CheckedNode, type CheckedRead } from "./checked.ts";
 import { compileCondition, typeOfAddress, type Condition, type Readable } from "./condition/index.ts";
 import { FaultList, type Fault } from "./fault.ts";
-import { readFlow, type FlowFile } from "./file.ts";
+import type { FlowFile, ReadFlow } from "./file.ts";
 import { checkShared } from "./memory.ts";
-import { everyNode, type AgentNode, type FlowNode } from "./node.ts";
+import { everyNode, type FlowNode } from "./node.ts";
 import { Scope } from "./scope.ts";
-import { showType, type ValueType } from "./type.ts";
+import type { ValueType } from "./type.ts";
 
 /** A checked flow, or every fault that refused it. */
 export type CheckFlow = { readonly ok: true; readonly flow: CheckedFlow } | { readonly ok: false; readonly faults: readonly Fault[] };
 
 /**
- * The flow named `name` in `catalogue`, checked.
+ * The flow named `name` in `catalogue`, checked, with every flow it calls.
  *
  * A flow is found by its file name, so a file that does not parse is still
  * found, and reported as broken rather than unknown; its `name:` must say the
- * same.
+ * same. A flow calling a broken one is broken too.
  */
 export function checkFlow(name: string, catalogue: FlowCatalogue): CheckFlow {
-	const source = catalogue.flows.find((file) => file.name === name);
-	if (source === undefined) {
-		const faults = new FaultList("");
-		faults.unknown("unknown-flow", "", name, catalogue.flows.map((file) => file.name), "flows");
-		return { ok: false, faults: faults.list };
-	}
-	const { flow, faults } = readFlow(source.content, source.filePath);
+	const callees = new Callees(catalogue, checkFile);
+	const source = callees.source(name);
+	if (source !== undefined) return callees.check(source);
+	const faults = new FaultList("");
+	faults.unknown("unknown-flow", "", name, catalogue.flows.map((file) => file.name), "flows");
+	return { ok: false, faults: faults.list };
+}
+
+/** One flow file checked, its calls resolved through `callees`. */
+function checkFile(source: MarkdownFile, { flow, faults }: ReadFlow, callees: Callees): CheckFlow {
 	if (flow === undefined) return { ok: false, faults: faults.list };
+	const { name } = source;
 	if (flow.name !== "" && flow.name !== name) faults.add("name-mismatch", "name", `\`${flow.name}\` is in \`${name}.md\`: a flow is found by its file name, so the two say the same`);
-	const checker = new Checker(flow, new AgentNames(catalogue), faults);
-	const { nodes } = checker.sequence(flow.nodes, Scope.root(flow.input));
+	const checker = new Checker(name, flow, callees, faults);
+	const { nodes, last } = checker.sequence(flow.nodes, Scope.root(flow.input));
 	checkShared(nodes, faults);
 	faults.sort(flow.rank);
 	if (faults.list.length > 0) return { ok: false, faults: faults.list };
 	const { file, description, input, model, timeoutMs } = flow;
-	return { ok: true, flow: { name, file, description, input, model, timeoutMs, nodes } as unknown as CheckedFlow };
+	return { ok: true, flow: { name, file, description, input, model, timeoutMs, nodes, output: last ?? { kind: "text" } } as unknown as CheckedFlow };
 }
 
 /**
@@ -64,22 +71,30 @@ export type CheckedSequence = { readonly nodes: CheckedNode[]; readonly outputs:
 export type CheckedOne = { readonly node?: CheckedNode; readonly output: ValueType };
 
 /**
- * Resolves the nodes of one file. The structural kinds live in
- * `check-blocks.ts` and `check-loop.ts`, and come back through
+ * Resolves the nodes of one file. Each kind is checked in a `check-*.ts` of
+ * its own, and the structural ones come back through
  * {@link Checker.sequence}.
  */
 export class Checker {
 	readonly faults: FaultList;
+	/** The flow's name in the catalogue: what a call back to it is refused by. */
+	private readonly name: string;
 	private readonly flow: FlowFile;
-	private readonly agents: AgentNames;
+	private readonly callees: Callees;
+	readonly agents: AgentNames;
 	/** Every id of the file, so an address to one not ended yet says so. */
 	private readonly ids: ReadonlySet<string>;
+	/** Ids nothing is reported about again: the file's refused nodes, and the calls whose callee is. */
+	private readonly refused: Set<string>;
 
-	constructor(flow: FlowFile, agents: AgentNames, faults: FaultList) {
+	constructor(name: string, flow: FlowFile, callees: Callees, faults: FaultList) {
+		this.name = name;
 		this.flow = flow;
-		this.agents = agents;
+		this.callees = callees;
+		this.agents = callees.agents;
 		this.faults = faults;
 		this.ids = new Set([...everyNode(flow.nodes)].map((node) => node.id));
+		this.refused = new Set(flow.refused);
 	}
 
 	/** `nodes` in `scope`, each ended node readable by the ones after it. */
@@ -103,7 +118,7 @@ export class Checker {
 	 * is needed to type its `previous` before the body is checked for real.
 	 */
 	quietly(): Checker {
-		return new Checker(this.flow, this.agents, new FaultList(""));
+		return new Checker(this.name, this.flow, this.callees, new FaultList(""));
 	}
 
 	/** The condition `source`, written at `at`, compiled against what `scope` can read. */
@@ -118,7 +133,7 @@ export class Checker {
 	/** The type `address` names in `scope`, or `undefined` after saying why. */
 	typeOf(address: string, at: string, scope: Scope): ValueType | undefined {
 		const root = address.split(".")[0] ?? "";
-		if (this.flow.refused.has(root)) return undefined;
+		if (this.refused.has(root)) return undefined;
 		if (this.ids.has(root) && !scope.has(root)) {
 			this.faults.add("unknown-address", at, `\`${address}\`: \`${root}\` has not ended when this node runs, or ends in a block this node is not in`);
 			return undefined;
@@ -132,7 +147,7 @@ export class Checker {
 	private node(node: FlowNode, scope: Scope): CheckedOne {
 		switch (node.kind) {
 			case "agent":
-				return { node: this.agentNode(node, scope), output: node.verdict !== undefined ? VERDICT : (node.output ?? { kind: "text" }) };
+				return checkAgent(this, node, scope);
 			case "choice":
 				return checkChoice(this, node, scope);
 			case "parallel":
@@ -147,48 +162,24 @@ export class Checker {
 				return { node: checkCommit(this, node, scope), output: COMMIT };
 			case "ask":
 				return checkAsk(this, node, scope);
+			case "flow":
+				return checkCall(this, node, scope);
 		}
 	}
 
-	private agentNode(node: AgentNode, scope: Scope): CheckedAgentNode | undefined {
-		const agent = "name" in node.agent ? this.agents.resolve(node.agent.name, `${node.at}.agent`, this.faults) : this.picked(node, node.agent.from, node.agent.among, scope);
-		if (node.memory !== undefined && node.memory !== "flow" && !scope.encloses(node.memory)) {
-			this.faults.add("unknown-scope", `${node.at}.memory`, `\`${node.memory}\` is not a node this one is in; \`memory:\` names one, or \`flow\` for the whole file`);
-		}
-		if (node.memory !== undefined && scope.outsideCopies(node.memory)) {
-			this.faults.add("memory-outside-copies", `${node.at}.memory`, `\`${node.memory}\` opens outside the \`copies: true\` block this node is in, so its subagent would work in another tree than this branch's copy: name a scope inside the block`);
-		}
-		if (node.verdict !== undefined && !scope.keepsLedger(node.verdict)) {
-			this.faults.add("unknown-scope", `${node.at}.verdict`, `\`${node.verdict}\` is not a node this one is in with a \`ledger:\`; \`verdict:\` names the one whose ledger it writes to`);
-		}
-		const reads = node.reads.map((address) => this.read(address, `${node.at}.reads`, scope)).filter((read) => read !== undefined);
-		if (agent === undefined) return undefined;
-		const prose = this.flow.sections.get(node.id) ?? "";
-		const { id, at, memory, output, verdict, retry, timeoutMs, continueOnFail } = node;
-		return { kind: "agent", id, at, agent, prose, memory, reads, output, verdict, retry, timeoutMs, continueOnFail };
+	/** The flow `name`, called at `at`, checked whole; or `undefined` after saying why not. */
+	callee(name: string, at: string): CheckedFlow | undefined {
+		return this.callees.resolve(name, this.name, at, this.faults);
 	}
 
-	/** `agent-from:` reads an enum, and `among:` names exactly its values, each an agent. */
-	private picked(node: AgentNode, from: string, among: readonly string[], scope: Scope): CheckedAgentNode["agent"] | undefined {
-		const at = `${node.at}.agent-from`;
-		const type = this.typeOf(from, at, scope);
-		const agents = new Map<string, Agent>();
-		for (const name of among) {
-			const agent = this.agents.resolve(name, `${node.at}.among`, this.faults);
-			if (agent !== undefined) agents.set(name, agent);
-		}
-		if (type === undefined) return undefined;
-		if (type.kind !== "enum") {
-			this.faults.add("key-type", at, `\`${from}\` is ${showType(type)}; \`agent-from:\` reads an enum, whose values \`among:\` names`);
-			return undefined;
-		}
-		const unnamed = type.values.filter((value) => !among.includes(value));
-		const stray = among.filter((name) => !type.values.includes(name));
-		if (unnamed.length > 0 || stray.length > 0) {
-			const said = [unnamed.length > 0 && `\`${from}\` can be ${unnamed.join(", ")}, which \`among:\` does not name`, stray.length > 0 && `${stray.join(", ")} is not a value of ${showType(type)}`];
-			this.faults.add("among-mismatch", `${node.at}.among`, said.filter(Boolean).join("; "));
-		}
-		return { from, among: agents };
+	/** The prose of the `agent` node `id`, its `## <id>` section. */
+	prose(id: string): string {
+		return this.flow.sections.get(id) ?? "";
+	}
+
+	/** Marks the node `id` refused: what reads it is not reported again. */
+	refuse(id: string): void {
+		this.refused.add(id);
 	}
 
 	/** Whether `name` is the id of a node of this file. */
@@ -206,6 +197,6 @@ export class Checker {
 
 	/** Whether a condition names a refused node, so it is not reported again. */
 	private refusedIn(source: string): boolean {
-		return [...source.matchAll(/(?<![.\w])[A-Za-z_]\w*/g)].some(([word]) => this.flow.refused.has(word));
+		return [...source.matchAll(/(?<![.\w])[A-Za-z_]\w*/g)].some(([word]) => this.refused.has(word));
 	}
 }

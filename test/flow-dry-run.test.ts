@@ -84,7 +84,7 @@ describe("a dry run", () => {
 			run.faults.map(({ code, at }) => `${code} ${at}`),
 			["answer-unknown-node pla", "answer-off-schema plan[0]", "answer-fail-kind plan[1]", "answer-unknown-node gate", "answer-unknown-node look", "answer-off-schema answer"],
 		);
-		assert.deepEqual([run.faults[0]?.message, run.faults[4]?.message], ["`pla` names no agent, check, commit or ask node: did you mean `plan`?", "`look` names no agent, check, commit or ask node: did you mean `gate/look`?"]);
+		assert.deepEqual([run.faults[0]?.message, run.faults[4]?.message], ["`pla` names no agent, check, commit, ask or flow node: did you mean `plan`?", "`look` names no agent, check, commit, ask or flow node: did you mean `gate/look`?"]);
 	});
 
 	const BLOCKS = checked(
@@ -144,9 +144,9 @@ describe("a dry run", () => {
 				"answer-past-max deliver#3/audit: `deliver#3/audit`: `deliver` runs 2 iterations at most, numbered from 1",
 				"answer-past-max deliver#1/work[3]/code: `deliver#1/work[3]/code`: `work` runs 2 items at most, numbered from 1",
 				"answer-past-max deliver/audit: `deliver/audit` is asked 2 times at most, and its list holds 3 answers",
-				"answer-unknown-node deliver#1/both/look: `deliver#1/both/look` names no agent, check, commit or ask node: a visit inside `both` names its branch: left, right",
-				"answer-unknown-node deliver#1/both/middle/look: `deliver#1/both/middle/look` names no agent, check, commit or ask node: a visit inside `both` names its branch: left, right",
-				"answer-unknown-node deliver/audit#1: `deliver/audit#1` names no agent, check, commit or ask node: a visit path numbers each loop iteration `#n` and each map item `[i]`, and nothing else",
+				"answer-unknown-node deliver#1/both/look: `deliver#1/both/look` names no agent, check, commit, ask or flow node: a visit inside `both` names its branch: left, right",
+				"answer-unknown-node deliver#1/both/middle/look: `deliver#1/both/middle/look` names no agent, check, commit, ask or flow node: a visit inside `both` names its branch: left, right",
+				"answer-unknown-node deliver/audit#1: `deliver/audit#1` names no agent, check, commit, ask or flow node: a visit path numbers each loop iteration `#n` and each map item `[i]`, and nothing else",
 				"answer-off-schema deliver#1/audit: the value has `approve`, which { approved: boolean, remarks?: string, resolved?: [{ id: string, how: addressed | withdrawn, reason?: string }], raised?: [string] } does not name",
 			],
 		);

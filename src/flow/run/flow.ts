@@ -18,10 +18,9 @@ import type { CheckedFlow, FlowError } from "../checked.ts";
 import { mismatch } from "../type.ts";
 import { personAsks } from "./card.ts";
 import { committer } from "./commit.ts";
-import { Frames } from "./frames.ts";
-import { Values } from "./values.ts";
-import type { Walked } from "./ended.ts";
-import { Run, type World } from "./walk.ts";
+import { walkWhole } from "./call.ts";
+import { Run } from "./walk.ts";
+import type { World } from "./world.ts";
 
 /** What a run varies. Each defaults to the real thing. */
 export type RunFlowOptions = {
@@ -78,13 +77,7 @@ export async function walkFlow(checked: CheckedFlow, input: unknown, options: Ru
 	const signal = options.signal === undefined ? stopped.signal : AbortSignal.any([options.signal, stopped.signal]);
 	const stop = () => stopped.abort();
 	const run = new Run({ ...world, flow: checked, bus: busFor(options), signal, stop, spawn: options.spawn ?? defaultSpawn, model: options.model, timeoutMs: options.timeoutMs });
-	const frames = Frames.root();
-	let walked: Walked;
-	try {
-		walked = await run.sequence(checked.nodes, "", { values: Values.root(input), frames, cut: signal, tree });
-	} finally {
-		await frames.close();
-	}
+	const walked = await walkWhole(run, checked, "", input, { cut: signal, tree });
 	const usage = sumUsage(walked.usage, performance.now() - started);
 	if (walked.failed !== undefined) return { ok: false, error: walked.failed.error, path: walked.failed.path, usage };
 	return { ok: true, ...(walked.last?.ok && { output: walked.last.output }), usage };
