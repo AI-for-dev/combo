@@ -12,6 +12,7 @@
 
 import type { MarkdownFile } from "../markdown.ts";
 import type { AgentNames } from "./agents.ts";
+import { boundsOf } from "./bounds.ts";
 import { checkAgent } from "./check-agent.ts";
 import { checkAsk } from "./check-ask.ts";
 import { Callees, checkCall } from "./check-call.ts";
@@ -60,7 +61,8 @@ function checkFile(source: MarkdownFile, { flow, faults }: ReadFlow, callees: Ca
 	if (faults.list.length > 0) return { ok: false, faults: faults.list };
 	const { file, description, input, model, timeoutMs } = flow;
 	const sources = sourcesOf(source, nodes, (agent) => callees.agents.skills(agent));
-	return { ok: true, flow: { name, file, description, input, model, timeoutMs, nodes, output: last ?? { kind: "text" }, sources } as unknown as CheckedFlow };
+	const bounds = boundsOf(nodes, timeoutMs);
+	return { ok: true, flow: { name, file, description, input, model, timeoutMs, nodes, output: last ?? { kind: "text" }, sources, bounds } as unknown as CheckedFlow };
 }
 
 /**

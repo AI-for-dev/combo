@@ -1829,6 +1829,51 @@ take, so a resume is tested offline through the same door.
   parameter, which is how the test puts a second taker between two steps of
   the first.
 
+### Bounds are a worst case, and a rendering draws a checked flow only
+
+`checkFlow` computes a flow's bounds, and `planOf` and `mermaidOf` take what it
+returned, so a broken file is never drawn: its faults are what is shown.
+
+- **The bounds belong to the checked flow.** They are computed once, from the
+  resolved tree, and the plan, `/flows` and the dry run read the same figures.
+  A callee's own `bounds` are its figures as a root; under a call, its nodes
+  are counted in the caller's, by their address through the call, since a
+  callee with no `timeout:` takes its caller's.
+- **The time is the sum of the bounded waits.** Each turn, check and ask runs
+  to its bound, branches running together take the longest one, and a `map`
+  runs in waves of `concurrency`. A shared subagent or a queue of cards can
+  make branches wait for each other beyond that, and the guide says so: a
+  figure that added every branch would be true and useless for a `map` of ten
+  run ten at a time.
+- **An ask with no `timeout:` is a flag, not infinity.** `waits` says a person's
+  answer is part of the time, and the rest of the figure still says what the
+  machine can take. One unbounded question would otherwise hide every other
+  bound of the flow.
+- **A `choice` is its worst case, turns and time apart.** Which case runs is
+  decided at run time; each figure is the worst any case reaches, even when no
+  single case reaches both.
+- **The plan is data, and text is one reading of it.** Each line carries its
+  kind, id and the visit path it stands for, `#n` and `[i]` where a run will
+  write numbers, so a live run fills the plan instead of drawing a second
+  picture. A call is one line: its callee's plan is the callee's own.
+- **One turn bound, read in one place.** The default of 30 minutes and the
+  order node, nearest flow, default moved beside the bounds, and the runner
+  reads the same function, so what the plan says a turn may take is what the
+  run gives it.
+- **Mermaid's ids are numbered, not the file's.** A node named `end` would
+  close a subgraph, and a branch name could collide with a node id. Numbering
+  in drawing order keeps the text the same for the same flow, and every label
+  carries the id. What Mermaid or its HTML would read as markup in a label is
+  written as an entity code.
+- **The reference always has an index.** `docs/reference/flows/index.md` is
+  written even while no flow ships, saying so, so the navigation entry exists
+  before the first flow does and the staleness test covers the directory from
+  the start. It draws the package's flows against the package's agents only,
+  files named from the repository root, so a page reads the same on every
+  machine.
+- **A plain `mermaid` fence.** `myst_fence_as_directive` makes MyST read it as
+  the directive, so the same file is drawn by GitHub and by the site.
+
 ## A chain walked by hand
 
 `/run explore …` put its answer in the conversation, and the session picked it

@@ -138,6 +138,7 @@ Several members on one job, a board between them, and nobody dividing it.
 ## Reference
 
 - [API reference](reference/api/index.md) - every public export, generated from the source.
+- [Flows](reference/flows/index.md) - each shipped flow, drawn from its file.
 - [Examples](reference/examples.md) - one runnable script per shape.
 
 ## Development
@@ -209,6 +210,7 @@ tutorials/index
 :hidden:
 
 reference/api/index
+reference/flows/index
 reference/examples
 ```
 

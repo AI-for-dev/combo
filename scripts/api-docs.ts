@@ -63,7 +63,7 @@ const ELIDED = "/* … */";
  * page of it. The URL is read from `package.json` rather than written here, so
  * the repository is named once.
  */
-const blobUrl = (root: string): string => {
+export const blobUrl = (root: string): string => {
 	const { repository } = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { repository?: { url?: string } };
 	const url = (repository?.url ?? "").replace(/^git\+/, "").replace(/\.git$/, "");
 	if (!url) throw new Error("package.json declares no repository: a generated page has nowhere to send a reader");

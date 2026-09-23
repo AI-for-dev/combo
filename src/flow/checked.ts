@@ -11,6 +11,7 @@
 
 import type { Agent } from "../agent.ts";
 import type { Choice } from "../ask.ts";
+import type { Bounds } from "./bounds.ts";
 import type { AskForm } from "./node.ts";
 import type { Condition } from "./condition/index.ts";
 import type { Sources } from "./sources.ts";
@@ -165,6 +166,8 @@ export type CheckedFlow = {
 	readonly output: ValueType;
 	/** What its check read: its file and every one it reaches, each agent it names with its skills. */
 	readonly sources: Sources;
+	/** Its worst case as a root, sub-flows unrolled: shown by the plan, never judged. */
+	readonly bounds: Bounds;
 	readonly [checked]: true;
 };
 
