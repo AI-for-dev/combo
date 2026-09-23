@@ -66,13 +66,14 @@ is ignored; a line with anything else on it still does not count.
 *function*
 
 ```typescript
-export function tail(text: string, max: number): string { /* … */ }
+export function tail(text: string, max: number, dropped = 0): string { /* … */ }
 ```
 
 The last `max` characters, marked when something was cut.
 
 For a check's output: the failure is at the end, after everything that
-passed, and the end is what a reader needs.
+passed, and the end is what a reader needs. `dropped` counts what a reader
+of a stream already let go before `text`, so the mark says the whole.
 
 ## `truncate`
 

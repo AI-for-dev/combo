@@ -10,7 +10,7 @@
 
 import { isReserved } from "./condition/tokens.ts";
 import type { Fault, FaultList } from "./fault.ts";
-import { KIND_KEYS, NODE_KEYS, type FlowNode, type KindReader, type NodeKind, type ReadContext } from "./node.ts";
+import { KIND_KEYS, NODE_KEYS, RETRY_REFUSED, type FlowNode, type KindReader, type NodeKind, type ReadContext } from "./node.ts";
 import { text } from "./value.ts";
 
 /**
@@ -76,7 +76,9 @@ function readNode(raw: unknown, place: string, path: string, context: ReadContex
 		faults.add(twins ? "twin-keys" : "node-kind", at, `\`${found.join("` and `")}\`: ${twins ? "a literal or an address, not both" : "a node has one kind"}`);
 		return undefined;
 	}
-	faults.keys(raw, NODE_KEYS[kind], at, `keys of ${kind} nodes`);
+	const noRetry = RETRY_REFUSED[kind];
+	faults.keys(raw, noRetry === undefined ? NODE_KEYS[kind] : [...NODE_KEYS[kind], "retry"], at, `keys of ${kind} nodes`);
+	if (noRetry !== undefined && raw.retry !== undefined) faults.add("retry-refused", `${at}.retry`, noRetry);
 	if (id === undefined) return undefined;
 	const continueOnFail = raw["on-fail"] !== undefined && onFail(raw["on-fail"], `${at}.on-fail`, faults);
 	const sequence = (value: unknown, key: string) => readSequence(value, `${at}.${key}`, at, context, kinds);

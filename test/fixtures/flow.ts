@@ -6,7 +6,7 @@
 
 import assert from "node:assert/strict";
 import type { Agent } from "../../src/agent.ts";
-import { checkFlow, type CheckedFlow } from "../../src/flow/index.ts";
+import { checkFlow, checkRun, runFlow, type CheckedFlow, type CheckedRun, type FlowResult, type RunFlowOptions, type RunStage } from "../../src/flow/index.ts";
 import type { CreateSession, CreateSessionOptions } from "../../src/session.ts";
 import { spawn } from "../../src/subagent.ts";
 import type { SpawnFn } from "../../src/workflows/options.ts";
@@ -29,6 +29,18 @@ export function checked(nodes: string, sections: Record<string, string>, head = 
 	const result = checkFlow("f", { flows: [{ name: "f", filePath: "flows/f.md", content }], agents: AGENTS, brokenAgents: [], cwd: "." });
 	assert.ok(result.ok, JSON.stringify(!result.ok && result.faults, null, 1));
 	return result.flow;
+}
+
+/** `flow` through the run stage: in this directory, with no port and nobody there unless `stage` says otherwise. */
+export function launched(flow: CheckedFlow, stage: Partial<RunStage> = {}): CheckedRun {
+	const result = checkRun(flow, { cwd: process.cwd(), ports: {}, somebodyThere: false, ...stage });
+	assert.ok(result.ok, JSON.stringify(!result.ok && result.faults, null, 1));
+	return result.run;
+}
+
+/** `runFlow` on `flow` {@link launched} as it is: what a flow of agents and blocks needs. */
+export function runChecked(flow: CheckedFlow, input: unknown, options?: RunFlowOptions): Promise<FlowResult> {
+	return runFlow(launched(flow), input, options);
 }
 
 /** A fake turn that may also call `submit` with `submit`, or `verdict` with `verdict`, before it ends. */

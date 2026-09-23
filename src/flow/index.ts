@@ -6,18 +6,21 @@
  * format is built beside the linear pipeline, and the package exports it when
  * it replaces that. The file's reader, its nodes and its sections are
  * implementation: `loadFlowCatalogue` finds what a flow runs against,
- * `checkFlow` is how a flow is read, and `runFlow` and `dryRunFlow` are how a
- * checked one runs.
+ * `checkFlow` is how a flow is read, `checkRun` holds it to the project it is
+ * launched in, and `runFlow` and `dryRunFlow` are how a checked one runs.
  */
 
 export { loadFlowCatalogue, type FlowCatalogue } from "./catalogue.ts";
 export { checkFlow, type CheckFlow } from "./check.ts";
+export { checkRun, type CheckRun, type CheckedRun, type FlowPorts, type RunStage } from "./check-run.ts";
 export {
+	CHECK,
 	ERROR_KINDS,
 	LEDGER,
 	STOPS,
 	VERDICT,
 	type CheckedAgentNode,
+	type CheckedCheckNode,
 	type CheckedChoiceNode,
 	type CheckedFlow,
 	type CheckedLoopNode,

@@ -134,19 +134,21 @@ src/                the library
   flow/             the flow format, built beside pipeline/ until it replaces
                     it: file (the text, read into nodes), node (what a node
                     is: the closed lists of kinds and keys), read-node,
-                    agent-node, blocks and loop (each kind), sections, value,
+                    agent-node, blocks, loop and world (each kind; world
+                    holds the nodes that act, `check`), sections, value,
                     fault (why a flow is refused), catalogue (flows and
                     agents on disk, broken files kept), agents (a name
                     resolved, skills checked), check, check-blocks and
-                    check-loop (the flow stage, against a catalogue), scope
+                    check-loop (the flow stage, against a catalogue),
+                    check-run (the run stage: the tree, the ports), scope
                     (what a node can read), checked (what it hands on),
                     memory (the subagents a scope shares), type (what a
                     value is), schema (how a file writes one), condition/
                     (a CEL subset: tokens, parse, compile, evaluate,
                     address), run/ (the runner: flow, walk, blocks, loop,
-                    agent, turn, submit, verdict, frames, values, ended;
-                    dry-run on answers, keys and scripted); index.ts is
-                    each one's door
+                    agent, check, turn, submit, verdict, frames, values,
+                    ended; dry-run on answers, keys and scripted); index.ts
+                    is each one's door
   pipeline/         pipeline (the file), load (where it is), run (our code
                     walks the steps); index.ts is its door
   review/           review (the record), verdict (a decision as a tool call),

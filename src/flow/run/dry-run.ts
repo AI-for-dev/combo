@@ -1,18 +1,21 @@
 /**
- * `dryRunFlow`: `runFlow` itself, with every agent turn answered by a script.
+ * `dryRunFlow`: `runFlow` itself, with every agent turn and every check
+ * answered by a script.
  *
  * The same walk, the same `spawn`, the same events. Only the session under
- * each subagent is scripted, so a typed answer goes through the real `submit`
- * tool, a verdict through the real `verdict` tool and its ledger, and a
- * failure takes its real path, retries and `fail-fast` included. Nothing of the
- * world is touched: no working directory is given, and no model is reached.
+ * each subagent and the `check` port are scripted, so a typed answer goes
+ * through the real `submit` tool, a verdict through the real `verdict` tool
+ * and its ledger, and a failure takes its real path, retries and `fail-fast`
+ * included. Nothing of the world is touched: it takes a `CheckedFlow`, no
+ * working directory is given, no script is read and no model is reached.
  */
 
 import type { EventListener, VisitEvent } from "../../events.ts";
 import { spawn } from "../../subagent.ts";
 import type { Usage } from "../../usage.ts";
 import type { SpawnFn } from "../../workflows/options.ts";
-import type { CheckedFlow } from "../checked.ts";
+import type { ScriptOutcome } from "../../verify.ts";
+import type { CheckedCheckNode, CheckedFlow } from "../checked.ts";
 import type { Attempt } from "./agent.ts";
 import { Script, type AnswerFault, type Answers } from "./answers.ts";
 import { walkFlow, type FlowResult, type RunFlowOptions } from "./flow.ts";
@@ -36,7 +39,7 @@ export type DryRun =
 	| { readonly ok: false; readonly unscripted: string; readonly journal: readonly JournalEntry[]; readonly usage: Usage }
 	| { readonly ok: false; readonly faults: readonly AnswerFault[] };
 
-/** Runs `checked` on `input`, each agent turn answered from `answers`. */
+/** Runs `checked` on `input`, each agent turn and each check answered from `answers`. */
 export async function dryRunFlow(checked: CheckedFlow, input: unknown, answers: Answers, options: DryRunOptions = {}): Promise<DryRun> {
 	const checkedScript = Script.check(checked, answers);
 	if (!checkedScript.ok) return { ok: false, faults: checkedScript.faults };
@@ -65,16 +68,18 @@ export async function dryRunFlow(checked: CheckedFlow, input: unknown, answers: 
 	const deadline = ({ path, at, subagent }: Attempt) => {
 		const controller = new AbortController();
 		const turn = script.next(path, at);
-		if (turn === undefined) {
-			unscripted ??= path;
-			halt.abort();
-		} else {
-			sessions.get(subagent)?.stage(turn, controller);
-		}
+		if (turn === undefined) hole(path);
+		else sessions.get(subagent)?.stage(turn, controller);
 		return controller.signal;
 	};
+	const check = async (node: CheckedCheckNode, path: string): Promise<ScriptOutcome> => script.ran(path, node.at) ?? hole(path);
+	const hole = (path: string): ScriptOutcome => {
+		unscripted ??= path;
+		halt.abort();
+		return { ok: false, kind: "stopped", message: "unscripted" };
+	};
 
-	const result = await walkFlow(checked, input, { ...options, signal, onEvent, spawn: scripted }, deadline);
+	const result = await walkFlow(checked, input, { ...options, signal, onEvent, spawn: scripted }, { deadline, check });
 	if (unscripted !== undefined) return { ok: false, unscripted, journal, usage: result.usage };
 	return { ...result, journal };
 }

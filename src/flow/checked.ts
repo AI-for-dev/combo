@@ -100,8 +100,16 @@ export type CheckedLoopNode = Common & {
 	readonly nodes: readonly CheckedNode[];
 };
 
+/** A `check`: a script of the project, whose content the run stage reads. */
+export type CheckedCheckNode = Common & {
+	readonly kind: "check";
+	/** Its path from the repository root. */
+	readonly script: string;
+	readonly timeoutMs: number;
+};
+
 /** A node of any kind, resolved. */
-export type CheckedNode = CheckedAgentNode | CheckedChoiceNode | CheckedParallelNode | CheckedMapNode | CheckedLoopNode;
+export type CheckedNode = CheckedAgentNode | CheckedChoiceNode | CheckedParallelNode | CheckedMapNode | CheckedLoopNode | CheckedCheckNode;
 
 declare const checked: unique symbol;
 
@@ -123,6 +131,15 @@ const STRING: ValueType = { kind: "string" };
 export const VERDICT: ValueType = {
 	kind: "object",
 	fields: { approved: { type: { kind: "boolean" }, optional: false }, remarks: { type: STRING, optional: true } },
+};
+
+/**
+ * What a `check` outputs once it ran: whether its script exited 0, and the
+ * end of what it wrote. A red check is a value a condition reads, not a failure.
+ */
+export const CHECK: ValueType = {
+	kind: "object",
+	fields: { passed: { type: { kind: "boolean" }, optional: false }, report: { type: STRING, optional: false } },
 };
 
 /** The open obligations of a ledger, as `<scope>.ledger` reads them. */

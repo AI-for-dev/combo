@@ -206,6 +206,32 @@ share: the fields they have with the same name and type. The loop's output is
 `{ converged, stop, iterations, last }`: `stop` is `until`, `give-up` or `cap`,
 and `last` holds each body node as it ended in the last iteration.
 
+### `check`
+
+A script of the project, run with `bash`. It is the only form: the node
+names a file, never a command, so one flow runs on projects that check
+themselves differently.
+
+```yaml
+- id: tests
+  check: .pi/checks/tests.sh
+  timeout: 10m
+```
+
+| Key | Meaning |
+| --- | --- |
+| `check` | the script, by its path from the repository root |
+| `timeout` | how long it may run, default `120s` |
+| `on-fail` | `continue`: a failure stops at this node instead of ending the flow |
+
+Its output is `{ passed, report }`. `passed` is whether the script exited 0,
+and `report` is the last 8000 bytes of what it wrote, stdout and stderr mixed
+in the order they came. A red check is a value: the node ran, and a condition
+reads it (`loop: tests.output.passed`). The node fails only when the script
+could not run: `unavailable` when `bash` cannot start, `timeout` when it runs
+past its bound. `retry:` is refused: raise `timeout:`, or make the check
+stable. A check has no `## <id>` section, since no model reads it.
+
 ### Branches that run together
 
 A `parallel` with several branches, or a `map` with `concurrency` above 1, runs
@@ -270,11 +296,35 @@ node. A `parallel` or `map` with `copies: true` is refused with an error before
 anything is spawned, because copies of the repository come with the `git` port.
 ```
 
-`runFlow(checked, input, options)` takes what `checkFlow` returned and the
-flow's input, which must match its `input:`. Its options are `spawn`, `signal`,
-`onEvent`, `model`, `timeoutMs` and `cwd`. It returns `{ ok: true, output }`,
-the output of the last root node, or `{ ok: false, error, path }`, the visit
-the failure started at.
+A run is launched in three steps, each refusing with faults rather than
+starting:
+
+```ts
+const flow = checkFlow("build", loadFlowCatalogue({ cwd }));
+if (!flow.ok) return flow.faults;
+const run = checkRun(flow.flow, { cwd, ports: { check: bashCheck() }, somebodyThere: true });
+if (!run.ok) return run.faults;
+const result = await runFlow(run.run, "add a cache", { model });
+```
+
+`checkRun(checked, { cwd, ports, somebodyThere })` is the run stage: what the
+flow stage cannot know, since it depends on the project. `cwd` is the working
+tree, at the repository root. The flow is refused when it holds a `check` and
+the launch gave no `check` port, or when a check's script is not there. Each
+script is read here, and what runs is what was read: an agent that edits the
+file during the run changes nothing. What passes is a `CheckedRun`, holding the
+tree and the ports it was checked against.
+
+`bashCheck()` is the `check` port: it runs a script's content with `bash -c`
+in a directory, `$0` being the script's path, and kills the script and every
+process it started when it ends or runs past its bound.
+
+`runFlow(run, input, options)` takes the `CheckedRun` and the flow's input,
+which must match its `input:`. Its options are `spawn`, `signal`, `onEvent`,
+`model` and `timeoutMs`, and nothing of the world: that came with the
+`CheckedRun`, so a flow checked against one project cannot run in another. It
+returns `{ ok: true, output }`, the output of the last root node, or
+`{ ok: false, error, path }`, the visit the failure started at.
 
 A visit is named by its path: the ids of the nodes around it, `#n` for a loop
 iteration, `[i]` for a `map` item and the branch name for a `parallel`, all
@@ -349,7 +399,8 @@ starts a fresh subagent asked the whole turn, unless a `memory:` scope keeps
 it. Every attempt's tokens count.
 
 A turn's bound is the run's `timeoutMs`, else the node's `timeout:`, else the
-flow's, else 30 minutes.
+flow's, else 30 minutes. A check's bound is its own `timeout:`, else two
+minutes: neither the run's `timeoutMs` nor the flow's `timeout:` reaches it.
 
 `stopSwitch()` stops a run: pass its `signal` and `spawn`. `all()` ends the run
 `stopped`: no node starts, and `on-fail: continue` does not catch it.
@@ -376,8 +427,10 @@ over the visit, every attempt and nested visit included.
 ### A dry run
 
 `dryRunFlow(checked, input, answers, options)` is the same run with every agent
-turn answered by a script, and nothing of the world touched. It returns what
-`runFlow` does plus `journal`, every `visit_end` in order, with zero tokens.
+turn and every check answered by a script, and nothing of the world touched: it
+takes what `checkFlow` returned, reads no check script and runs none. It
+returns what `runFlow` does plus `journal`, every `visit_end` in order, with
+zero tokens.
 
 ```ts
 // The `split` flow at the top of this page, its `first` node given `retry: 1`.
@@ -393,16 +446,17 @@ answer, used for every attempt, or a list consumed attempt by attempt within
 the enclosing path: each `map` item has its own list, and a loop's iterations
 share one. A list is always a list of answers, so a list-typed output is
 written inside one. An answer is an output, the `verdict` call of a
-`verdict:` node (`{ approved, remarks?, resolved?, raised? }`), or
-`{ fail: "provider" | "timeout" | "schema" }`. The script is checked before
-the start, and refused with every fault in it:
+`verdict:` node (`{ approved, remarks?, resolved?, raised? }`), a check's
+`{ passed, report }`, or a failure: `{ fail: "provider" | "timeout" | "schema" }`
+for an agent turn, `{ fail: "unavailable" | "timeout" }` for a check. The
+script is checked before the start, and refused with every fault in it:
 
 | Code | What it means |
 | --- | --- |
-| `answer-unknown-node` | the key names no `agent` node, or its path leads to none; the message offers the address meant |
+| `answer-unknown-node` | the key names no `agent` or `check` node, or its path leads to none; the message offers the address meant |
 | `answer-past-max` | a visit path's iteration or item is past its bound, or a list holds more answers than the node can be asked for |
-| `answer-off-schema` | the answer does not match the node's `output:`, or is not a text for a node with none |
-| `answer-fail-kind` | `fail:` names a kind an agent turn cannot fail with |
+| `answer-off-schema` | the answer does not match the node's `output:`, is not a text for a node with none, or is not a check's `{ passed, report }` |
+| `answer-fail-kind` | `fail:` names a kind the node cannot fail with |
 
 A visit the script does not answer stops the dry run with
 `{ ok: false, unscripted: "<visit path>" }`, which no `on-fail: continue`
@@ -412,7 +466,9 @@ absorbs: a hole in the script is the test's mistake, not the flow's.
 
 A flow that does not pass is refused with every fault at once, in file order,
 each as `{ code, file, at, message }`. `at` is the node's id, or the flow's key,
-then the offending key: `first.agent-from`.
+then the offending key: `first.agent-from`. `checkFlow` and `checkRun` both
+refuse this way; `check-script-missing` and `check-port-missing` are the run
+stage's.
 
 | Code | What it means | How to fix it |
 | --- | --- | --- |
@@ -442,6 +498,9 @@ then the offending key: `first.agent-from`.
 | `carry-mismatch` | a loop's `carry:` sides share no field | make `first` and `next` agree on the fields carried |
 | `verdict-with-output` | a `verdict:` node also declares `output:` | drop `output:`: the verdict is the output |
 | `copies-needed` | branches that run together write without copies | add `copies: true`, or run a `map` with `concurrency: 1` |
+| `retry-refused` | `retry:` on a node that is not retried, a `check` | raise `timeout:`, or make the check stable |
+| `check-script-missing` | a check's script is not in the working tree, or is not a file | add the script, or fix its path from the repository root |
+| `check-port-missing` | the flow holds a `check` and the launch gave no `check` port | pass one, `bashCheck()` |
 | `section-missing` | an `agent` node has no `## <id>` section | write its section |
 | `section-empty` | a section has no text | say what the turn is asked |
 | `section-duplicate` | two sections share a heading | merge them |
