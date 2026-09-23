@@ -21,14 +21,16 @@ export const KIND_KEYS = {
 	parallel: "parallel",
 	map: "map",
 	"map-from": "map",
+	loop: "loop",
 } as const;
 
 /** Every key a node of each kind may carry. Anything else is refused. */
 export const NODE_KEYS = {
-	agent: ["id", "agent", "agent-from", "among", "memory", "reads", "output", "retry", "timeout", "on-fail"],
+	agent: ["id", "agent", "agent-from", "among", "memory", "reads", "output", "verdict", "retry", "timeout", "on-fail"],
 	choice: ["id", "choice", "default", "on-fail"],
 	parallel: ["id", "parallel", "copies", "fail-fast", "on-fail"],
-	map: ["id", "map", "map-from", "max", "concurrency", "copies", "fail-fast", "do", "on-fail"],
+	map: ["id", "map", "map-from", "max", "concurrency", "copies", "fail-fast", "ledger", "do", "on-fail"],
+	loop: ["id", "loop", "max", "give-up", "carry", "ledger", "do", "on-fail"],
 } as const;
 
 /** A kind of node. */
@@ -53,6 +55,8 @@ export type AgentNode = Common & {
 	readonly reads: readonly string[];
 	/** The schema of a typed output. Absent: the output is the agent's text. */
 	readonly output?: ValueType;
+	/** The enclosing node whose ledger this turn's `verdict` tool writes to. */
+	readonly verdict?: string;
 	readonly retry: number;
 	readonly timeoutMs?: number;
 };
@@ -81,11 +85,28 @@ export type MapNode = Common & {
 	readonly concurrency: number;
 	readonly copies: boolean;
 	readonly failFast: boolean;
+	/** Each item keeps a ledger of its own. */
+	readonly ledger: boolean;
+	readonly nodes: readonly FlowNode[];
+};
+
+/** Its body, `do:`, again and again until its condition holds, at most `max` times. */
+export type LoopNode = Common & {
+	readonly kind: "loop";
+	/** The condition that ends the loop converged, read at the end of each iteration. */
+	readonly until: string;
+	readonly max: number;
+	/** A condition read when `until` is false, that ends the loop not converged. */
+	readonly giveUp?: string;
+	/** What the first iteration reads as `<loop>.carry`, and what each next one does. */
+	readonly carry?: { readonly first: string; readonly next: string };
+	/** The loop keeps a ledger across its iterations. */
+	readonly ledger: boolean;
 	readonly nodes: readonly FlowNode[];
 };
 
 /** A node of any kind. */
-export type FlowNode = AgentNode | ChoiceNode | ParallelNode | MapNode;
+export type FlowNode = AgentNode | ChoiceNode | ParallelNode | MapNode | LoopNode;
 
 /** What reading a whole file shares, from one node to the next and into nested ones. */
 export type ReadContext = {

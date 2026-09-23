@@ -12,7 +12,8 @@
 import type { Agent } from "../agent.ts";
 import type { MarkdownFile } from "../markdown.ts";
 import { checkChoice, checkMap, checkParallel } from "./check-blocks.ts";
-import { type CheckedAgentNode, type CheckedFlow, type CheckedNode, type CheckedRead } from "./checked.ts";
+import { checkLoop } from "./check-loop.ts";
+import { VERDICT, type CheckedAgentNode, type CheckedFlow, type CheckedNode, type CheckedRead } from "./checked.ts";
 import { compileCondition, typeOfAddress, type Condition, type Readable } from "./condition/index.ts";
 import { FaultList, type Fault } from "./fault.ts";
 import { readFlow, type FlowFile } from "./file.ts";
@@ -55,15 +56,19 @@ export function checkFlow(name: string, catalogue: FlowCatalogue): CheckFlow {
 	return { ok: true, flow: { name, file, description, input, model, timeoutMs, nodes } as unknown as CheckedFlow };
 }
 
-/** A sequence checked: its nodes, and the type of what its last node outputs, which is what leaves a block. */
-export type CheckedSequence = { readonly nodes: CheckedNode[]; readonly last?: ValueType };
+/**
+ * A sequence checked: its nodes, the type of each one's output by id, and the
+ * type of what its last node outputs, which is what leaves a block.
+ */
+export type CheckedSequence = { readonly nodes: CheckedNode[]; readonly outputs: ReadonlyMap<string, ValueType>; readonly last?: ValueType };
 
 /** A node checked: the node when it passed, and the type of its output either way, so what follows is checked too. */
 export type CheckedOne = { readonly node?: CheckedNode; readonly output: ValueType };
 
 /**
  * Resolves the nodes of one file. The structural kinds live in
- * `check-blocks.ts` and come back through {@link Checker.sequence}.
+ * `check-blocks.ts` and `check-loop.ts`, and come back through
+ * {@link Checker.sequence}.
  */
 export class Checker {
 	readonly faults: FaultList;
@@ -82,15 +87,25 @@ export class Checker {
 	/** `nodes` in `scope`, each ended node readable by the ones after it. */
 	sequence(nodes: readonly FlowNode[], scope: Scope): CheckedSequence {
 		const checked: CheckedNode[] = [];
+		const outputs = new Map<string, ValueType>();
 		let last: ValueType | undefined;
 		for (const node of nodes) {
 			const before = this.faults.list.length;
 			const one = this.node(node, scope);
 			if (one.node !== undefined && this.faults.list.length === before) checked.push(one.node);
 			scope.end(node.id, one.output);
+			outputs.set(node.id, one.output);
 			last = one.output;
 		}
-		return { nodes: checked, last };
+		return { nodes: checked, outputs, last };
+	}
+
+	/**
+	 * The same checker with its faults thrown away: what a loop's body outputs
+	 * is needed to type its `previous` before the body is checked for real.
+	 */
+	quietly(): Checker {
+		return new Checker(this.flow, [...this.agents.values()], new FaultList(""));
 	}
 
 	/** The condition `source`, written at `at`, compiled against what `scope` can read. */
@@ -119,13 +134,15 @@ export class Checker {
 	private node(node: FlowNode, scope: Scope): CheckedOne {
 		switch (node.kind) {
 			case "agent":
-				return { node: this.agentNode(node, scope), output: node.output ?? { kind: "text" } };
+				return { node: this.agentNode(node, scope), output: node.verdict !== undefined ? VERDICT : (node.output ?? { kind: "text" }) };
 			case "choice":
 				return checkChoice(this, node, scope);
 			case "parallel":
 				return checkParallel(this, node, scope);
 			case "map":
 				return checkMap(this, node, scope);
+			case "loop":
+				return checkLoop(this, node, scope);
 		}
 	}
 
@@ -134,11 +151,14 @@ export class Checker {
 		if (node.memory !== undefined && node.memory !== "flow" && !scope.encloses(node.memory)) {
 			this.faults.add("unknown-scope", `${node.at}.memory`, `\`${node.memory}\` is not a node this one is in; \`memory:\` names one, or \`flow\` for the whole file`);
 		}
+		if (node.verdict !== undefined && !scope.keepsLedger(node.verdict)) {
+			this.faults.add("unknown-scope", `${node.at}.verdict`, `\`${node.verdict}\` is not a node this one is in with a \`ledger:\`; \`verdict:\` names the one whose ledger it writes to`);
+		}
 		const reads = node.reads.map((address) => this.read(address, `${node.at}.reads`, scope)).filter((read) => read !== undefined);
 		if (agent === undefined) return undefined;
 		const prose = this.flow.sections.get(node.id) ?? "";
-		const { id, at, memory, output, retry, timeoutMs, continueOnFail } = node;
-		return { kind: "agent", id, at, agent, prose, memory, reads, output, retry, timeoutMs, continueOnFail };
+		const { id, at, memory, output, verdict, retry, timeoutMs, continueOnFail } = node;
+		return { kind: "agent", id, at, agent, prose, memory, reads, output, verdict, retry, timeoutMs, continueOnFail };
 	}
 
 	/** `agent-from:` reads an enum, and `among:` names exactly its values, each an agent. */

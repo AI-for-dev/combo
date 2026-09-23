@@ -11,9 +11,13 @@
 export { checkFlow, type CheckFlow, type FlowCatalogue } from "./check.ts";
 export {
 	ERROR_KINDS,
+	LEDGER,
+	STOPS,
+	VERDICT,
 	type CheckedAgentNode,
 	type CheckedChoiceNode,
 	type CheckedFlow,
+	type CheckedLoopNode,
 	type CheckedMapNode,
 	type CheckedNode,
 	type CheckedParallelNode,

@@ -7,6 +7,7 @@
  */
 
 import type { FaultList } from "./fault.ts";
+import type { FlowNode } from "./node.ts";
 
 const DURATION = /^([1-9][0-9]*)(s|m|h)$/;
 const UNIT_MS = { s: 1_000, m: 60_000, h: 3_600_000 } as const;
@@ -59,4 +60,21 @@ export function flag(value: unknown, at: string, faults: FaultList): boolean | u
 	if (typeof value === "boolean") return value;
 	faults.add("key-type", at, "takes `true` or `false`");
 	return undefined;
+}
+
+/** A whole number, one or more. */
+export function positive(value: unknown, at: string, faults: FaultList): number | undefined {
+	const n = count(value, at, faults);
+	if (n !== 0) return n;
+	faults.add("key-type", at, "takes a whole number, one or more");
+	return undefined;
+}
+
+/**
+ * The nodes of a sequence written with at least one, or `undefined`, saying
+ * `why` when it was written empty.
+ */
+export function body(nodes: FlowNode[], written: unknown, at: string, faults: FaultList, why: string): FlowNode[] | undefined {
+	if (Array.isArray(written) && written.length === 0) faults.add("key-type", at, why);
+	return Array.isArray(written) && written.length > 0 ? nodes : undefined;
 }

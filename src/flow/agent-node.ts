@@ -23,6 +23,9 @@ export function readAgent({ raw, id, at, faults, continueOnFail }: NodeReading):
 		if (raw.among === undefined) faults.add("missing-key", key("among"), "`agent-from:` needs `among:`, the agents it may pick, written in the file");
 		agent = from === undefined || among === undefined ? undefined : { from, among };
 	}
+	if (raw.verdict !== undefined && raw.output !== undefined) {
+		faults.add("verdict-with-output", key("verdict"), "a verdict is the node's output, `{ approved, remarks? }`: drop `output:`");
+	}
 	const node = {
 		kind: "agent",
 		id,
@@ -31,6 +34,7 @@ export function readAgent({ raw, id, at, faults, continueOnFail }: NodeReading):
 		memory: raw.memory === undefined ? undefined : text(raw.memory, key("memory"), faults),
 		reads: (raw.reads === undefined ? [] : texts(raw.reads, key("reads"), faults)) ?? [],
 		output: raw.output === undefined ? undefined : schema(raw.output, key("output"), faults),
+		verdict: raw.verdict === undefined ? undefined : text(raw.verdict, key("verdict"), faults),
 		retry: (raw.retry === undefined ? 0 : count(raw.retry, key("retry"), faults)) ?? 0,
 		timeoutMs: raw.timeout === undefined ? undefined : duration(raw.timeout, key("timeout"), faults),
 	} as const;

@@ -25,6 +25,7 @@ import { parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import { FaultList, type Fault } from "./fault.ts";
 import { readAgent } from "./agent-node.ts";
 import { readChoice, readMap, readParallel } from "./blocks.ts";
+import { readLoop } from "./loop.ts";
 import { everyNode, type FlowNode, type KindReader, type NodeKind } from "./node.ts";
 import { rankOf, readSequence } from "./read-node.ts";
 import { readSchema } from "./schema.ts";
@@ -36,7 +37,7 @@ import { duration, text } from "./value.ts";
 export const FLOW_KEYS = { name: true, description: true, input: true, model: false, timeout: false, nodes: true } as const;
 
 /** The reader of each kind of node. */
-const KINDS: Readonly<Record<NodeKind, KindReader>> = { agent: readAgent, choice: readChoice, parallel: readParallel, map: readMap };
+const KINDS: Readonly<Record<NodeKind, KindReader>> = { agent: readAgent, choice: readChoice, parallel: readParallel, map: readMap, loop: readLoop };
 
 /** A flow file, read: nothing in it is resolved against a catalogue yet. */
 export type FlowFile = {
