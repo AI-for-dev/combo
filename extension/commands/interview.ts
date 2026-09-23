@@ -8,7 +8,7 @@
 import { findAgent, plural, type InterviewResult } from "../../src/index.ts";
 import { createAskUi } from "../ui/index.ts";
 import { checked, loadRoster, refuse, watched } from "../command.ts";
-import type { CommandCtx, PiApi } from "../pi.ts";
+import { somebodyThere, type CommandCtx, type PiApi } from "../pi.ts";
 import { resolved, type CommandDeps } from "../deps.ts";
 import { parseInterviewArgs } from "../flags.ts";
 
@@ -53,7 +53,7 @@ export async function runInterview(
 	if (!request.trim()) {
 		return refuse(ctx, "interview: say what you want built, for example /interview add a cache to the loader", "warning");
 	}
-	if (ctx.hasUI === false) {
+	if (!somebodyThere(ctx)) {
 		return refuse(ctx, "interview: there is nobody to ask outside an interactive session", "error");
 	}
 

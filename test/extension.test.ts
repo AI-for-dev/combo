@@ -122,6 +122,10 @@ describe("the registered tool", () => {
 		assert.ok(tool.parameters, "the model needs a schema");
 		assert.ok(tool.description.includes("scope"), "the model must be told project agents are opt-in");
 	});
+
+	test("runs one call at a time, so two flows never put up a card or a plan at once", () => {
+		assert.equal(tool.executionMode, "sequential");
+	});
 });
 
 describe("renderCall", () => {
@@ -342,6 +346,13 @@ describe("where pi comes in", () => {
 		assert.match(said(), /No chain yet/);
 	});
 
+	test("RPC mode is nobody there: it has dialogs, but no card can be drawn", async () => {
+		const { ctx, said } = fakeCtx();
+		ctx.mode = "rpc";
+		await commands.get("interview")?.handler("add a cache", ctx as never);
+		assert.match(said(), /interview: there is nobody to ask outside an interactive session/);
+	});
+
 	test("the tool body is handed pi's working directory, its UI, and where pi keeps the parent session", () => {
 		const { ctx } = fakeCtx();
 		const signal = new AbortController().signal;
@@ -354,6 +365,7 @@ describe("where pi comes in", () => {
 		assert.equal(deps.signal, signal);
 		assert.equal(deps.onUpdate, onUpdate);
 		assert.equal(deps.mainSessionFile, "/sessions/main.jsonl");
+		assert.equal(deps.mode, "tui");
 	});
 
 	test("a pi that keeps no session file leaves the parent session out, rather than inventing one", () => {

@@ -25,21 +25,21 @@ import {
 } from "../../src/index.ts";
 import { watched } from "../command.ts";
 import type { CommandDeps } from "../deps.ts";
-import type { AskUi, RunUi } from "../pi.ts";
+import { somebodyThere, type AskUi, type CommandCtx, type RunUi } from "../pi.ts";
 import { createAskUi, type LiveRunOptions } from "../ui/index.ts";
 import { faultRows, notified } from "./flows.ts";
 
-/** What a launch reads of pi: the tree, whether somebody is there, the terminal when there is one, and pi's signal. */
-export type LaunchCtx = { cwd: string; hasUI: boolean; ui?: RunUi & AskUi; signal?: AbortSignal };
+/** What a launch reads of pi: the tree, how pi runs, the terminal when there is one, and pi's signal. */
+export type LaunchCtx = { cwd: string; mode?: CommandCtx["mode"]; ui?: RunUi & AskUi; signal?: AbortSignal };
 
 /** A flow that may run here, or the stage that refused it and every fault it found. */
 export type Launchable = { ok: true; run: CheckedRun } | { ok: false; stage: "flow" | "run"; faults: readonly Fault[] };
 
-/** The flow `name` of `catalogue`, checked whole, then held to `ctx`: its tree, its ports, and `hasUI` as whether somebody is there. */
+/** The flow `name` of `catalogue`, checked whole, then held to `ctx`: its tree, its ports, and whether somebody is there. */
 export async function launchable(name: string, catalogue: FlowCatalogue, ctx: LaunchCtx): Promise<Launchable> {
 	const flow = checkFlow(name, catalogue);
 	if (!flow.ok) return { ok: false, stage: "flow", faults: flow.faults };
-	const staged = await checkRun(flow.flow, { cwd: ctx.cwd, ports: portsOf(ctx), somebodyThere: ctx.hasUI });
+	const staged = await checkRun(flow.flow, { cwd: ctx.cwd, ports: portsOf(ctx), somebodyThere: somebodyThere(ctx) });
 	return staged.ok ? staged : { ok: false, stage: "run", faults: staged.faults };
 }
 

@@ -30,7 +30,7 @@ export function fakeCtx(answers: ScriptedAnswers = {}) {
 	const theme = testTheme();
 	const ctx: CommandCtx = {
 		cwd: "/repo",
-		hasUI: true,
+		mode: "tui",
 		ui: {
 			theme,
 			async custom<T>(): Promise<T> {

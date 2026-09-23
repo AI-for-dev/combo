@@ -44,8 +44,9 @@ const ENOUGH = "That's enough";
 /**
  * Builds an `AskUser` backed by pi's TUI.
  *
- * `hasUI` is the caller's business: outside a terminal there is nobody to ask,
- * and an interview with no user is a submit on the first question.
+ * Whether somebody is there is the caller's business: outside a terminal
+ * there is nobody to ask, and an interview with no user is a submit on the
+ * first question.
  */
 export function createAskUi(ui: AskUi): AskUser {
 	return (question, asking) => whileAsking(() => (asking === undefined ? interview(ui, question) : put(ui, question, asking)));

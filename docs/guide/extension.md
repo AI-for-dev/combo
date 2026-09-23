@@ -40,9 +40,11 @@ The model calls it with `flow: "interview"` and `task`, and the flow runs the
 way `/run` runs it: checked against this terminal before anything is spawned,
 in a `runs/<timestamp>/` of its own, its plan drawn above the prompt. Its
 questions are put to you during the model's turn, on the same [question
-card](#the-question-card). With nobody there, in `pi -p` for one, a flow that
-could reach a question with no `default:` and no `enough:` is refused before
-it starts. The model reads the output of the flow's last root node and the
+card](#the-question-card). Somebody is there only in pi's terminal: in `pi
+-p` or `pi --mode rpc`, which has no card to draw, a flow that could reach a
+question with no `default:` and no `enough:` is refused before it starts, and
+the others take their `default:` or `enough:`. Two calls in one message run
+one after the other, so only one flow puts its cards up at a time. The model reads the output of the flow's last root node and the
 line on how the run ended, which names the run directory; a run that stopped
 says what `/run resume <run directory>` would do with it. The tool does not
 resume.

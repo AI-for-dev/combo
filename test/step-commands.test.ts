@@ -95,7 +95,7 @@ describe("/step", () => {
 
 	test("a flow that cannot run here is refused before anything is spawned", async () => {
 		const { ctx, said } = fakeCtx();
-		ctx.hasUI = false;
+		ctx.mode = "print";
 		const { deps: injected, requested } = deps();
 
 		assert.equal(await runStep("asks go on", ctx, injected), undefined);

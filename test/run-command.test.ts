@@ -12,6 +12,7 @@ import { initTheme } from "@earendil-works/pi-coding-agent";
 import { RESULT_MESSAGE, type ResultDetails } from "../extension/commands/answer.ts";
 import { runCommand } from "../extension/commands/run.ts";
 import type { MessageDeps, SendMessage } from "../extension/deps.ts";
+import type { CommandCtx } from "../extension/pi.ts";
 import { readJournal } from "../src/flow/index.ts";
 import { fakeCtx } from "./fixtures/command-ctx.ts";
 import { baseDeps } from "./fixtures/command-deps.ts";
@@ -30,10 +31,10 @@ const ASKS = flowText('  - id: sure\n    ask: "Go on?"\n    confirm: true', {}, 
 type Sent = Parameters<SendMessage>[0];
 
 /** `/run <args>` in `cwd`, its subagents playing `turns`: what it returned, told and sent, and the widget it drew. */
-async function run(args: string, cwd: string, turns: FlowTurn[][] = [], over: { hasUI?: boolean; model?: string[] } = {}) {
+async function run(args: string, cwd: string, turns: FlowTurn[][] = [], over: { mode?: CommandCtx["mode"]; model?: string[] } = {}) {
 	const { ctx, notes, widgets, said } = fakeCtx();
 	ctx.cwd = cwd;
-	ctx.hasUI = over.hasUI ?? true;
+	ctx.mode = over.mode ?? "tui";
 	const sent: Sent[] = [];
 	const { spawn, requested } = flowSpawn(turns);
 	let n = fs.existsSync(path.join(cwd, "runs")) ? fs.readdirSync(path.join(cwd, "runs")).length : 0;
@@ -147,8 +148,11 @@ describe("/run", () => {
 	});
 
 	test("with nobody there, a question nobody can leave unanswered refuses the run", async () => {
-		const { said } = await run("asks q", repository(), [], { hasUI: false });
-		assert.match(said(), /sure\.ask: this run is launched with nobody there/);
+		// RPC mode has dialogs but no card: `custom()` returns nothing there.
+		for (const mode of ["print", "rpc"] as const) {
+			const { said } = await run("asks q", repository(), [], { mode });
+			assert.match(said(), /sure\.ask: this run is launched with nobody there/, mode);
+		}
 	});
 
 	test("in a repository, a flow that commits runs, and its commit lands on the run's branch", async () => {

@@ -28,7 +28,7 @@ import {
 import { checked, loadFlows, refuse } from "../command.ts";
 import { resolved, type Deps, type MessageDeps } from "../deps.ts";
 import { parseFlags } from "../flags.ts";
-import { sessionDoors, type CommandCtx, type PiApi } from "../pi.ts";
+import { sessionDoors, somebodyThere, type CommandCtx, type PiApi } from "../pi.ts";
 import { answer, shown } from "./answer.ts";
 import { showFlows } from "./flows.ts";
 import { launch, launchable, notLaunched, portsOf, refusal, underPlan, type Launched } from "./launch.ts";
@@ -113,7 +113,7 @@ async function resume(where: string, settings: Settings, ctx: CommandCtx, deps: 
 
 	const at = { runDir, status: `resuming ${snapshot.flow}…`, mainSessionFile: mainSession(ctx) };
 	const resumed = await caught(ctx, () =>
-		underPlan(ctx, deps, flow.flow, journal, at, (options: Launched) => resumeFlow(runDir, { ...options, ports: portsOf(ctx), somebodyThere: ctx.hasUI, timeoutMs: settings.timeoutMs })),
+		underPlan(ctx, deps, flow.flow, journal, at, (options: Launched) => resumeFlow(runDir, { ...options, ports: portsOf(ctx), somebodyThere: somebodyThere(ctx), timeoutMs: settings.timeoutMs })),
 	);
 	if (resumed === undefined) return undefined;
 	if ("refused" in resumed) return refuse(ctx, `run: ${shown(ctx, runDir)} cannot be resumed - ${resumed.refused}`, "error");

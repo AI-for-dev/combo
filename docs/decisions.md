@@ -2188,14 +2188,30 @@ linear pipeline any more.
   command notifies, a step records and the tool answers a model.
 - **The question card is shown during the model's turn.** `ask` cards go
   through `ctx.ui` from the tool's `execute`, as pi's own `question.ts` and
-  `questionnaire.ts` examples do, and `ctx.hasUI` is whether somebody is
-  there. A call with nobody there gets the run stage's refusal, before
-  anything is spawned. Checked in a real pi before it was written down: the
+  `questionnaire.ts` examples do, and somebody is there only in pi's
+  terminal, `ctx.mode === "tui"`. A call with nobody there gets the run
+  stage's refusal, before anything is spawned. Checked in a real pi before it was written down: the
   card came up while the tool's row said `0/1 done`, `enter` answered it and
   the loop went on to its next `ask_next`, and `esc` on the card was the card's
   "that's enough", not pi's interrupt: the brief was written and the turn
   went on. A typed answer through `Other…` went to the card's text box, not
   to pi's editor, and reached the brief.
+- **RPC mode is nobody there.** It was first read off `ctx.hasUI`, which
+  RPC mode sets too, since its dialogs go to the client. The card is drawn
+  with `custom()`, which returns `undefined` there, and a card nobody saw read
+  as declined: in `pi --mode rpc` a tool call on a flow whose `ask` has
+  `default: true` failed at once with `stopped: the run was stopped at this
+  question`. Now the `ask` takes its `default:`, its `enough:` or fails with
+  `nobody`, as in `pi -p`. `/run` and `/interview` read the same answer.
+  Putting the card through RPC's `select` and `input` instead is a second
+  card, and waits for a client that needs it.
+- **The tool runs one call at a time.** Two `subagent` calls in one message
+  ran side by side, and a flow's cards, its plan above the prompt and its stop
+  key are the terminal's, one of each: measured in RPC mode, two flow calls
+  started together and one died on the other's run directory. The tool says
+  `executionMode: "sequential"`, pi's own knob, rather than a queue of our
+  own. pi then runs every call of that message in order, other tools
+  included; a model that wants subagents side by side has `parallel`.
 - **The widget stops offering `esc` while a card is up.** The first frame of
   a card mid-turn read `esc stops everything` right above `esc That's
   enough`, and the card holds the key. The hint comes back when the card goes.
