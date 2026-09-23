@@ -52,6 +52,13 @@ export type SubagentEvent =
 			 * fact, and two copies drift.
 			 */
 			parentId?: string;
+			/**
+			 * The flow visit it was spawned for, `deliver#2/work[1]/code`, when a
+			 * flow's runner spawned it. A subagent a memory scope keeps names the
+			 * first visit that asked for it. It is how a plan line finds its
+			 * subagents.
+			 */
+			visit?: string;
 	  }
 	| {
 			type: "status";
@@ -138,6 +145,8 @@ export type VisitEvent =
 			error?: FlowError;
 			/** The case a `choice` ran: `"1"` for the first, or `"default"`. */
 			case?: string;
+			/** Whether a `loop` that ended stopped on its condition. */
+			converged?: boolean;
 			/** The agent an `agent` visit ran, the one `agent-from:` picked included. */
 			agent?: string;
 			/** The model its subagent ran on, as pi resolved it. */

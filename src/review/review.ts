@@ -12,7 +12,7 @@
  */
 
 import type { Agent } from "../agent.ts";
-import { createLedger, openList, type Obligation } from "./ledger.ts";
+import { createLedger, openList, type Ledger, type Obligation } from "./ledger.ts";
 import type { Result } from "../result.ts";
 import { saysWord } from "../text.ts";
 import { declaresVerdict, VERDICT_TOOL, verdictTool, type Verdict } from "./verdict.ts";
@@ -40,6 +40,15 @@ export type ReviewRecordOptions = {
 	approved?: ProseApproval;
 	/** Obligations a previous run recorded, for a resumed one to carry on. */
 	restored?: readonly Obligation[];
+	/**
+	 * The list the record writes to, read at every use. Defaults to one of its
+	 * own, holding `restored`.
+	 *
+	 * A flow's ledger belongs to the scope that opens it, not to a reviewer:
+	 * every verdict node naming that scope writes to it, and a reviewer a
+	 * memory scope keeps may answer to the next ledger its scope opens.
+	 */
+	ledger?: () => Ledger;
 };
 
 /** What one round of review amounted to. */
@@ -106,27 +115,28 @@ export type ReviewRecord = {
  * inside the same turn - the only moment it can still repair the mistake.
  */
 export function reviewRecord(reviewer: Agent, options: ReviewRecordOptions): ReviewRecord {
-	const ledger = createLedger(options.restored);
+	const own = createLedger(options.restored);
+	const list = options.ledger ?? (() => own);
 	const byTool = !options.approved && declaresVerdict(reviewer.tools);
 	const inProse: ProseApproval = options.approved ?? ((review) => saysWord(review.output, options.word));
 	const verdicts = byTool
 		? verdictTool({
-				knows: (id) => ledger.open.some((one) => one.id === id),
-				open: () => ledger.open.map((one) => one.id),
+				knows: (id) => list().open.some((one) => one.id === id),
+				open: () => list().open.map((one) => one.id),
 			})
 		: undefined;
 
 	return {
 		byTool,
 		get open() {
-			return ledger.open;
+			return list().open;
 		},
 		get all() {
-			return ledger.all;
+			return list().all;
 		},
 
 		terms() {
-			const owed = ledger.open;
+			const owed = list().open;
 			const parts: string[] = [];
 			if (owed.length) parts.push("Still open, from your earlier rounds:", openList(owed), "");
 			if (!verdicts) {
@@ -150,6 +160,7 @@ export function reviewRecord(reviewer: Agent, options: ReviewRecordOptions): Rev
 			// review that failed must not be read as the next round's.
 			const given = verdicts?.take() ?? [];
 			if (!review.ok) return { said: false, approved: false, raised: [] };
+			const ledger = list();
 
 			if (!verdicts) {
 				const said = await inProse(review, round);

@@ -265,9 +265,9 @@ reading as `false`; guard it the CEL way, `audit.ok && audit.output.approved`.
 ## Running a flow
 
 ```{note}
-Not exported yet, like the rest of the format. The runner walks `agent` and
-`choice` nodes so far; a flow holding a `parallel`, a `map`, a `loop` or a
-`verdict:` is refused with an error before anything is spawned.
+Not exported yet, like the rest of the format. The runner walks every kind of
+node. A `parallel` or `map` with `copies: true` is refused with an error before
+anything is spawned, because copies of the repository come with the `git` port.
 ```
 
 `runFlow(checked, input, options)` takes what `checkFlow` returned and the
@@ -276,6 +276,10 @@ flow's input, which must match its `input:`. Its options are `spawn`, `signal`,
 the output of the last root node, or `{ ok: false, error, path }`, the visit
 the failure started at.
 
+A visit is named by its path: the ids of the nodes around it, `#n` for a loop
+iteration, `[i]` for a `map` item and the branch name for a `parallel`, all
+numbered from 1: `deliver#2/work[1]/review#3/code`.
+
 ### What a turn is
 
 Every `agent` visit is asked the whole turn, with or without `memory:`:
@@ -283,8 +287,11 @@ Every `agent` visit is asked the whole turn, with or without `memory:`:
 1. the node's section;
 2. each address of `reads:`, in order, under `## <address>`. A text, or a
    value typed `string`, goes as it is; any other value goes in a ` ```json `
-   block, and so does a node that failed, as `{ "ok": false, "error": ... }`;
+   block, and so does a node that failed, as `{ "ok": false, "error": ... }`.
+   `<loop>.previous` on a first iteration gets no section;
 3. for a node with `output:`, a line saying the `submit` call is the answer;
+   for a `verdict:` node, the ledger's open obligations by id, and a line
+   saying the `verdict` call is the decision and that an id left out stays open;
 4. the line asking for an answer in the language of the work, last.
 
 A node with `output:` answers only through `submit`, a tool built from its
@@ -292,18 +299,54 @@ schema and added to its agent's `tools:`. A call off the schema is refused
 with the reason, and the model may call again; a turn that ends with no
 accepted call fails the node with `schema`. Nothing is parsed out of prose.
 
+### Blocks
+
+A `parallel` starts every branch at once, and a `map` runs `concurrency` items
+at a time over a list read once, when it starts. Both wait for every branch.
+A branch that fails does not stop the others, and the block fails with
+`child`, naming the first branch in order that failed. With `on-fail:
+continue` on the block, it ends `ok: true` instead, and its output keeps each
+failed branch as `{ ok: false, error }`.
+
+With `fail-fast: true`, the first branch to fail cuts the ones in flight and
+skips the ones not started. They end `cancelled`, which no `retry:` covers.
+
+A `map-from` list longer than `max:` fails the `map` with `too-many` before
+any item runs, naming the length and the bound.
+
+A `loop` runs its body until its condition holds. After each iteration it
+reads the condition, then `give-up:` when the condition is false, then its
+cap. Giving up or reaching `max:` fails the loop with `unconverged`, and with
+`on-fail: continue` it ends `ok: true` with `converged: false`. A body node
+that fails ends the loop at once, before the condition is read. `carry.next`
+is read only when the loop goes on, and `previous` starts over each time the
+loop is entered. A condition or a carry that cannot be read fails the loop
+with `condition`.
+
+### Ledgers and verdicts
+
+`ledger: <id>` opens a ledger: once for a loop, across its iterations, and
+once per item for a `map`. A `verdict: <id>` node is given the `verdict` tool,
+added to its agent's `tools:`, and writes to that ledger. Only the node that
+raised an obligation may close it, one it does not mention stays open, and
+nothing is rewritten. Its output is `{ approved, remarks? }`, where
+`approved` is true only when it said yes and nothing is left open. A turn
+that calls no `verdict` fails with `schema`. `<id>.ledger` reads the open
+obligations as `[{ id, text }]` at the moment it is read.
+
 ### Failures, retries and timeouts
 
-A node that fails stops its sequence, and the failure travels up: a `choice`
+A node that fails stops its sequence, and the failure travels up: a block
 failed by a node inside it fails with `child`, whose message names the visit
-and its kind (`gate/look: provider: ...`). `on-fail: continue` on any node
-stops it there, and later nodes read `x.ok` and `x.error`.
+and its kind (`gate/look: provider: ...`). `stopped` and `cancelled` keep
+their own kind on the way up. `on-fail: continue` on any node stops the travel
+there, and later nodes read `x.ok` and `x.error`.
 
 `retry: n` gives an `agent` node `n` more attempts after a `provider`,
-`timeout` or `schema` failure, never after a stop. A retry asks the same
-subagent again with the failure named, except after a timeout, which starts a
-fresh subagent asked the whole turn, unless a `memory:` scope keeps it. Every
-attempt's tokens count.
+`timeout` or `schema` failure, never after a stop or a cut. A retry asks the
+same subagent again with the failure named, except after a timeout, which
+starts a fresh subagent asked the whole turn, unless a `memory:` scope keeps
+it. Every attempt's tokens count.
 
 A turn's bound is the run's `timeoutMs`, else the node's `timeout:`, else the
 flow's, else 30 minutes.
@@ -316,16 +359,19 @@ never retried.
 ### Memory and events
 
 With `memory: <scope>`, every node naming the same agent and scope resumes one
-subagent, closed when the scope's visit ends (the run, for `flow`). Without
-it, each visit has a fresh subagent, closed when the visit ends. Nodes sharing
-a subagent declare the same `output:`, since its `submit` tool is fixed when it
-is spawned.
+subagent, closed when the scope ends: the run, for `flow`; the visit, for a
+`choice` or a `loop`, all its iterations included; each branch of a
+`parallel` and each item of a `map`, which never share one. Without it, each
+visit has a fresh subagent, closed when the visit ends. A subagent takes one
+visit at a time, so branches running together wait for each other on an outer
+scope's. Nodes sharing a subagent declare the same `output:`, since its
+`submit` tool is fixed when it is spawned.
 
 The run reports `visit_start { path, node, kind }` and
-`visit_end { path, ok, output?, error?, case?, agent?, model?, wallMs, usage }`
-on the same stream as its subagents. A visit path is the ids of the enclosing
-nodes and its own, `gate/look`; `usage` is the delta of pi's counters over the
-visit, every attempt and nested visit included.
+`visit_end { path, ok, output?, error?, case?, converged?, agent?, model?, wallMs, usage }`
+on the same stream as its subagents, and each subagent's `spawn` event
+carries the `visit` it was spawned for. `usage` is the delta of pi's counters
+over the visit, every attempt and nested visit included.
 
 ### A dry run
 
@@ -343,14 +389,18 @@ const run = await dryRunFlow(split, "add a cache", {
 ```
 
 A key is a node's address or an exact visit path, which wins. A value is one
-answer, used for every attempt, or a list consumed attempt by attempt; a list
-is always a list of answers, so a list-typed output is written inside one. An
-answer is an output or `{ fail: "provider" | "timeout" | "schema" }`. The
-script is checked before the start, and refused with every fault in it:
+answer, used for every attempt, or a list consumed attempt by attempt within
+the enclosing path: each `map` item has its own list, and a loop's iterations
+share one. A list is always a list of answers, so a list-typed output is
+written inside one. An answer is an output, the `verdict` call of a
+`verdict:` node (`{ approved, remarks?, resolved?, raised? }`), or
+`{ fail: "provider" | "timeout" | "schema" }`. The script is checked before
+the start, and refused with every fault in it:
 
 | Code | What it means |
 | --- | --- |
-| `answer-unknown-node` | the key names no `agent` node; the message offers the address meant |
+| `answer-unknown-node` | the key names no `agent` node, or its path leads to none; the message offers the address meant |
+| `answer-past-max` | a visit path's iteration or item is past its bound, or a list holds more answers than the node can be asked for |
 | `answer-off-schema` | the answer does not match the node's `output:`, or is not a text for a node with none |
 | `answer-fail-kind` | `fail:` names a kind an agent turn cannot fail with |
 

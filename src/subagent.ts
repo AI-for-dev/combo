@@ -94,6 +94,8 @@ export type SpawnOptions = {
 	 * the reporters on the `spawn` event and nothing else reads it.
 	 */
 	parentId?: string;
+	/** The flow visit this subagent is spawned for. It reaches the reporters on the `spawn` event. */
+	visit?: string;
 	/**
 	 * Model pattern for this subagent, e.g. `"anthropic/claude-sonnet-5"`.
 	 *
@@ -260,6 +262,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 		order,
 		model,
 		parentId: options.parentId,
+		visit: options.visit,
 	});
 	bus.emit({ type: "status", id, status: "idle" });
 

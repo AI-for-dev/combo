@@ -305,15 +305,16 @@ describe("a visit's report", () => {
 		assert.deepEqual(ends.map((event) => event.type === "visit_end" && [event.path, event.usage.input, event.usage.output, event.agent]), [["one", 10, 2, "scout"], ["two", 5, 1, "scout"]]);
 		assert.ok(ends.every((event) => event.type === "visit_end" && event.wallMs >= 0 && event.usage.wallMs === event.wallMs));
 		assert.deepEqual([result.usage.input, result.usage.output], [15, 3]);
-		assert.ok(events.some((event) => event.type === "spawn"), "the subagents report on the same stream");
+		const spawned = events.filter((event) => event.type === "spawn");
+		assert.deepEqual(spawned.map((event) => event.type === "spawn" && event.visit), ["one"], "a scope's subagent names the first visit that asked for it");
 	});
 });
 
 describe("what the runner refuses before the first spawn", () => {
-	test("a node kind it does not walk yet, and an input off the flow's `input:`", async () => {
+	test("`copies: true`, which it does not make yet, and an input off the flow's `input:`", async () => {
 		const fake = flowSpawn([]);
-		const parallel = checked("  - id: both\n    parallel:\n      a:\n        - id: one\n          agent: scout\n      b:\n        - id: two\n          agent: scout", { one: "One.", two: "Two." });
-		await assert.rejects(runFlow(parallel, "x", { spawn: fake.spawn }), /`both`: a `parallel` node is not run yet/);
+		const parallel = checked("  - id: both\n    copies: true\n    parallel:\n      a:\n        - id: one\n          agent: scout\n      b:\n        - id: two\n          agent: scout", { one: "One.", two: "Two." });
+		await assert.rejects(runFlow(parallel, "x", { spawn: fake.spawn }), /`both`: `copies: true` is not run yet by the flow runner/);
 		const typed = checked("  - id: one\n    agent: scout\n    reads: [input]", { one: "One." }, "input: { task: string }");
 		await assert.rejects(runFlow(typed, "x", { spawn: fake.spawn }), /does not match its `input:`: the value is "x", not \{ task: string \}/);
 		assert.equal(fake.created.length, 0);

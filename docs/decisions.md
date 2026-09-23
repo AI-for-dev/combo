@@ -1419,9 +1419,9 @@ are. `src/flow/agents.ts` resolves the names a flow gives.
 ### The runner composes every turn, and reads a typed value from a tool call
 
 `src/flow/run/` walks a `CheckedFlow`: `runFlow`, and `dryRunFlow` on scripted
-sessions. It walks `agent` and `choice` nodes so far, and throws before the
-first spawn on any other kind, since the checked flow is fine and it is the
-runner that falls short.
+sessions. It walks every kind of node, and throws before the first spawn on
+`copies: true`, since the checked flow is fine and it is the runner that falls
+short.
 
 - **`submit` is added to the agent's `tools:` for a typed node.** `tools:` is
   an allowlist that covers the tools combo offers, so without it the tool built
@@ -1470,6 +1470,56 @@ runner that falls short.
   an id. An array is always a list of answers, since an answer can itself be a
   list, and one value answers every attempt. A script's faults are a closed set
   of their own, `ANSWER_CODES`, apart from the flow's.
+
+
+### Blocks join what their branches ended with, and a ledger is a scope's
+
+`parallel`, `map` and `loop` run in `src/flow/run/blocks.ts` and `loop.ts`,
+and the ledgers and `verdict:` nodes go through the review record.
+
+- **A block names the first branch in order that failed of its own.** Branches
+  finish in any order, and the failure a flow reports must not depend on it. A
+  `cancelled` branch is named only when every failure was one, which happens
+  when the cut came from further out.
+- **`on-fail: continue` on a `parallel` or `map` ends it `ok: true`.** Its output
+  keeps each failed branch as `{ ok: false, error }`, the way a loop under the
+  same key ends `ok: true, converged: false`. Without it, the output of a
+  failed block could never be read, and "failed branches are kept" would say
+  nothing.
+- **A `parallel` branch opens a memory scope of its own, like a `map` item.** A
+  subagent takes one turn at a time, so two branches running at once cannot
+  share one. Branches running together that resume an outer scope's subagent
+  take turns on it instead of failing: its history is still one conversation.
+- **A `fail-fast` cut is a signal of the block's, carrying its reason.** Our
+  code reads `cancelled` off that signal, like `stopped` off the run's, rather
+  than off a message. A branch not started runs no visit: its entry is
+  `cancelled` at the path of its first node.
+- **`copies: true` is refused at run time for now.** Copies and their landing
+  need the `git` port, which comes with the world-touching nodes. A runner
+  that ran the branches in one tree instead would make the `copies-needed`
+  fault a lie.
+- **A `verdict:` node is a review record handed the scope's ledger.**
+  `reviewRecord` takes a `ledger` read at every use, so the three rules and
+  the terms a reviewer is asked on stay written once. It is read at every use
+  because a subagent a `memory:` scope keeps can outlive the ledger it first
+  wrote to. The runner adds `verdict` to the agent's `tools:`, as it adds
+  `submit`; `approved` is the record's own (it said yes, and nothing is left
+  open); and a turn with no call fails `schema`, like a typed node's.
+- **`<scope>.ledger` is read when the address is.** A verdict earlier in the
+  same iteration changes the open obligations, and a snapshot taken when the
+  scope opened would hand the next node a stale list.
+- **A condition, a carry or a `map-from` that cannot be read fails with
+  `condition`.** It is the kind an address that meets a failed node or an
+  absent field already has.
+- **A dry-run key is walked against the tree.** An exact visit path numbers
+  every loop iteration and map item, names every branch, and stays within each
+  bound. A list is refused as `answer-past-max` when it holds more answers
+  than the node can be asked for in its enclosing path: `1 + retry` times the
+  `max` of every loop around it. Each attempt tells the script its node's
+  address, so a path is never parsed back into one.
+- **A subagent's `spawn` event carries its `visit`.** That is the one link the
+  live view needs between a plan line and the subagents that ran it. A scope's
+  subagent names the first visit that asked for it.
 
 ## A chain walked by hand
 

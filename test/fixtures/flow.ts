@@ -1,6 +1,7 @@
 /**
  * A checked flow written inline, and a `spawn` whose sessions can answer a
- * typed node the way a model does: through the `submit` tool it was offered.
+ * typed or a verdict node the way a model does: through the `submit` or the
+ * `verdict` tool it was offered.
  */
 
 import assert from "node:assert/strict";
@@ -30,25 +31,29 @@ export function checked(nodes: string, sections: Record<string, string>, head = 
 	return result.flow;
 }
 
-/** A fake turn that may also call `submit` with `submit`, before it ends. */
-export type FlowTurn = Turn & { submit?: unknown };
+/** A fake turn that may also call `submit` with `submit`, or `verdict` with `verdict`, before it ends. */
+export type FlowTurn = Turn & { submit?: unknown; verdict?: unknown };
 
 /**
  * The real `spawn`, on fake sessions: the n-th subagent spawned plays the
- * n-th list of turns. `requested` is what each spawn asked the session for.
+ * n-th list of turns, or with a record, the n-th subagent of an agent plays
+ * the n-th list under its name, which branches spawning at once need.
+ * `requested` is what each spawn asked the session for.
  */
-export function flowSpawn(turnsPerSpawn: FlowTurn[][]): { spawn: SpawnFn; created: FakeSession[]; requested: { agent: Agent; options: CreateSessionOptions }[] } {
+export function flowSpawn(turnsPerSpawn: FlowTurn[][] | Record<string, FlowTurn[][]>): { spawn: SpawnFn; created: FakeSession[]; requested: { agent: Agent; options: CreateSessionOptions }[] } {
 	const created: FakeSession[] = [];
 	const requested: { agent: Agent; options: CreateSessionOptions }[] = [];
 	const createSession: CreateSession = async (agent, options) => {
-		const turns = turnsPerSpawn[created.length] ?? [];
+		const turns = (Array.isArray(turnsPerSpawn) ? turnsPerSpawn[created.length] : turnsPerSpawn[agent.name]?.[requested.filter((one) => one.agent.name === agent.name).length]) ?? [];
 		const session = fakeSession(turns);
 		const prompt = session.prompt.bind(session);
 		let index = 0;
 		session.prompt = async (text) => {
 			const turn = turns[index++];
-			const submit = options.customTools?.find((tool) => tool.name === "submit");
-			if (turn?.submit !== undefined && submit !== undefined) await callTool(submit, turn.submit);
+			for (const name of ["submit", "verdict"] as const) {
+				const tool = options.customTools?.find((one) => one.name === name);
+				if (turn?.[name] !== undefined && tool !== undefined) await callTool(tool, turn[name]);
+			}
 			await prompt(text);
 		};
 		created.push(session);
