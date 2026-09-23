@@ -17,6 +17,7 @@ export {
 	exportBaseName,
 	exportSession,
 	freeName,
+	newestRunFirst,
 	usageReport,
 	writeUsageReport,
 	type LifeUsage,

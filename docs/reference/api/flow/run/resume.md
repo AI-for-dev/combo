@@ -24,7 +24,8 @@ export function latestResumable(runsDir: string, cwd: string): Resumable | undef
 ```
 
 The newest run under `runsDir` started in `cwd` that a resume would take,
-newest by directory name, which a run directory's timestamp makes its age.
+newest by directory name, which a run directory's timestamp makes its age
+({@link newestRunFirst}).
 When none would, the newest run of `cwd` and why; nothing when `cwd`
 started none there. A directory holding no snapshot holds no run, and one
 that no longer reads or checks cannot be resumed by this version anyway.

@@ -2500,6 +2500,15 @@ through `exportDir`.
   instead of git being told to look away. A `.gitignore` already in `runs/` is
   left alone - the directory is the user's the moment they have said anything
   about it.
+- **A run directory is suffixed `-2`, `-3` when its second is taken**, and
+  created exclusively. A timestamp to the second alone gave two `subagent` tool
+  calls started in the same second one directory, and the second flow died on
+  `EEXIST` over `snapshot.json`: a run directory holds one run. A suffix only on
+  collision keeps the common name as it was, and reads like the run's branch
+  does. Finer timestamps or a random part make a collision rarer, not
+  impossible, and the names harder to read.
+  The names sort by start with a numeric collation (`newestRunFirst`), which is
+  how `/run resume` finds the newest.
 
 ## Display: herdr if present, pi TUI otherwise
 

@@ -38,6 +38,11 @@ cannot put them back while `runs/` alone makes the tree unclean, and the next
 `git add -A` in that repository would sweep a run's transcripts into somebody's
 history. A `.gitignore` already in `runs/` is left alone.
 
+Every call gets a directory of its own. The name is the start time to the
+second; a run started in a second already taken is `2026-07-19_17-16-48-2`,
+then `-3`. Each name is created exclusively, so two processes never share one,
+and `newestRunFirst` sorts the names by start, `-10` after `-9` included.
+
 ## What is in there, and what is not
 
 - **One HTML and one JSONL per subagent.** An orchestration export that lost the

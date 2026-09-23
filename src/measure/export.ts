@@ -36,10 +36,14 @@ export type SessionExport = {
 };
 
 /**
- * Creates `<base>/<timestamp>/` and returns its path.
+ * Creates `<base>/<timestamp>/` and returns its path: a directory of its own
+ * for every call.
  *
- * The timestamp is sortable and filesystem-safe, so two runs never collide and
- * `ls` shows them in order.
+ * The timestamp is to the second, sortable and filesystem-safe, so `ls` shows
+ * the runs in order. Two runs started in the same second would share it, and
+ * a run directory holds one run: the second is `<timestamp>-2`, then `-3`, as
+ * the run's branch is. Each candidate is created exclusively, so two processes
+ * never both take one. {@link newestRunFirst} orders the names.
  *
  * `<base>` is given a `.gitignore` of its own, because the exports land **inside
  * the repository the run works on** and git has no reason to know about them.
@@ -51,10 +55,28 @@ export type SessionExport = {
  */
 export function createRunDir(base = "runs", now = new Date()): string {
 	const stamp = now.toISOString().replace(/[:.]/g, "-").replace("T", "_").slice(0, 19);
-	const dir = path.resolve(base, stamp);
-	fs.mkdirSync(dir, { recursive: true });
-	ignoreDir(path.resolve(base));
-	return dir;
+	const root = path.resolve(base);
+	fs.mkdirSync(root, { recursive: true });
+	ignoreDir(root);
+	for (let n = 1; ; n++) {
+		const dir = path.join(root, n === 1 ? stamp : `${stamp}-${n}`);
+		try {
+			fs.mkdirSync(dir);
+			return dir;
+		} catch (cause) {
+			if ((cause as NodeJS.ErrnoException).code !== "EEXIST") throw cause;
+		}
+	}
+}
+
+const byStart = new Intl.Collator("en", { numeric: true });
+
+/**
+ * Orders run directory names newest first, `-10` after `-9` included, which
+ * a plain sort would put before `-2`.
+ */
+export function newestRunFirst(a: string, b: string): number {
+	return byStart.compare(b, a);
 }
 
 /** Writes `*` into `<dir>/.gitignore`, unless something is there already. */
