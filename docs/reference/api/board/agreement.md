@@ -7,7 +7,7 @@ Source: [`src/board/agreement.ts`](https://github.com/AI-for-dev/combo/blob/main
 When a board has agreed: who voted for what, and whether they all say one thing.
 
 Every other stop condition here reads a `Result`. `loop` asks whether a
-reviewer said a word, a pipeline step asks whether the last one was ok. A
+reviewer said a word, a flow's condition reads a node's value. A
 swarm's cannot: its members answer separately, none of them sees another's
 answer, and the only place several agents can be observed agreeing is the
 board they agreed on.

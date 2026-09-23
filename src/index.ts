@@ -71,28 +71,12 @@ export {
 	type PlanOutcome,
 } from "./workflows/plan.ts";
 export {
-	APPROVAL,
-	pair,
-	type PairOptions,
-	type PairResult,
-} from "./workflows/deliver/index.ts";
-export {
 	interview,
 	parseQuestion,
 	READY,
 	type InterviewOptions,
 	type InterviewResult,
 } from "./workflows/interview.ts";
-export { deliver, type BuildProgress, type DeliverOptions, type DeliverResult } from "./workflows/deliver/index.ts";
-export {
-	audit,
-	type AuditOptions,
-	type AuditProgress,
-	type AuditPromptOptions,
-	type AuditResult,
-	type AuditRound,
-	type Fixed,
-} from "./workflows/deliver/index.ts";
 
 // ── Watching a run: reporters, and the picture they read ─────────────────────
 
@@ -256,27 +240,7 @@ export {
 	type PlanLine,
 } from "./flow/index.ts";
 
-// ── Pipelines: a workflow written down, found, and run ───────────────────────
-
-export {
-	checkPipelineAgents,
-	findPipeline,
-	loadPipelines,
-	lookupPipeline,
-	parsePipeline,
-	runPipeline,
-	stepInput,
-	type BrokenPipeline,
-	type Pipeline,
-	type PipelineCatalogue,
-	type PipelineRunOptions,
-	type PipelineRunResult,
-	type PipelineStep,
-	type PipelineStepResult,
-	type StepKind,
-} from "./pipeline/index.ts";
-
-// ── The ports that touch the world: git, a check, a question, a saved build ──
+// ── The ports that touch the world: git, a question, a board ─────────────────
 
 export {
 	branchName,
@@ -300,27 +264,14 @@ export {
 	type Scratch,
 	type Worktree,
 } from "./git/index.ts";
-export { type Settling, type SettleOptions } from "./workflows/deliver/index.ts";
 export {
 	declaresDelegate,
 	delegateTool,
 	MAX_DEPTH,
 	type DelegateOptions,
 } from "./delegate.ts";
-export { commandVerifier, type CommandVerifierOptions, type Verification, type Verify } from "./verify.ts";
-export {
-	type Closure,
-	type CloseOutcome,
-	type Ledger,
-	type Obligation,
-	type ProseApproval,
-	type Resolution,
-	type ReviewRecord,
-	type ReviewRecordOptions,
-	type ReviewRound,
-	type Verdict,
-	type VerdictTool,
-} from "./review/index.ts";
+// What a flow's journal records of a review: an obligation, and how it closed.
+export { type Closure, type Obligation } from "./review/index.ts";
 
 export { declaresBoard, type BoardToolOptions } from "./board/index.ts";
 export { declares, refuse, said } from "./tool.ts";
@@ -346,15 +297,6 @@ export {
 } from "./board/index.ts";
 export { agreed, VOTE_INSTRUCTION } from "./board/index.ts";
 export { type Answer, type Asking, type AskUser, type Choice, type Question, type Shown } from "./ask.ts";
-export {
-	BUILD_STATE_VERSION,
-	findResumableBuild,
-	fromBuildState,
-	missingAgents,
-	saveBuildState,
-	toBuildState,
-	type BuildState,
-} from "./workflows/deliver/index.ts";
 
 // ── Reaching a live subagent from outside: the mirror a pane attaches to ─────
 

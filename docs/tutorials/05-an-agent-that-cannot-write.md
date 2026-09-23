@@ -3,9 +3,11 @@
 ![An agent that cannot do harm](../_static/tutorials/05-an-agent-that-cannot-write.svg)
 
 ```{note}
-This page was captured before `/run` ran flows. `/build` is `/run build` now,
-and its flags are keys of the [`build` flow](../reference/flows/build.md); see
-[Deliver a change](../guide/build.md). The frames below predate that change.
+This page was captured before flows replaced the linear pipeline. `/build` is
+`/run build` now, its flags are keys of the [`build` flow](../reference/flows/build.md),
+and a file left in `pipelines/` is refused; see [Deliver a change](../guide/build.md)
+and [From pipelines to flows](../guide/from-pipelines.md). The frames and the
+files below predate that change.
 ```
 
 Every agent framework has the same paragraph in its documentation: "instruct

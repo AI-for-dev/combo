@@ -4,8 +4,7 @@
  * A subagent returns a `Result`. A workflow returns a {@link WorkflowResult}:
  * a `Result` too, with the steps that led to it. Workflows compose because they
  * all speak this language - that is the whole of what makes them composable,
- * and it is what lets a pipeline step or a tool call read any of them the same
- * way.
+ * and it is what lets a caller or a tool call read any of them the same way.
  */
 
 import type { AgentMessage } from "./session.ts";

@@ -56,11 +56,11 @@ no enums, no namespaces, no parameter properties.
 
    **The model is an explicit knob at every level, and the nearest override
    wins**: `SpawnOptions.model` / `WorkflowOptions.model` (also the tool's
-   `model` param and `--model` on `/run` and `/step`) > the flow's or the
-   pipeline file's top-level `model:` > the agent's frontmatter `model:` >
-   pi's own settings. The last resort is still `~/.pi/agent/settings.json` -
-   when *nothing* was set at any level, pi decides. Which side of that is
-   right depends on what the file is for:
+   `model` param and `--model` on `/run` and `/step`) > the flow's top-level
+   `model:` > the agent's frontmatter `model:` > pi's own settings. The last
+   resort is still `~/.pi/agent/settings.json` - when *nothing* was set at
+   any level, pi decides. Which side of that is right depends on what the
+   file is for:
 
    - **A definition that ships leaves it open.** None of the agents in
      `agents/` declares a `model:`, on purpose: a package that pinned one would
@@ -81,7 +81,7 @@ no enums, no namespaces, no parameter properties.
    cancellation included; a workflow that *receives* live subagents never closes
    them. Persistent subagents do not share history: you pass `Result`s, you do
    not merge contexts.
-7. **The agents produce text, our code performs the act** (git, verify,
+7. **The agents produce text, our code performs the act** (git, a check,
    questions). **A prompt is not a permission boundary**: a subagent that must
    not write gets no `write`/`edit` tool - asking it nicely has been tried, it
    edited the repository anyway. The committer has no `bash`.
@@ -127,15 +127,14 @@ src/                the library
                     flow-usage (its visits, nodes and lives in usage.json);
                     index.ts is its door
   ask.ts verify.ts                      the ports that touch the world
-  git/              run (git itself), git (what a pipeline may do), worktree
+  git/              run (git itself), git (what a run may do), worktree
                     and scratch (the copies), tree (read without touching
                     it), land (patches come home), port (what a flow run may
                     ask); index.ts is its door
-  builtin.ts        where the package's own agents/, pipelines/ and flows/ are
+  builtin.ts        where the package's own agents/ and flows/ are
   board/            the swarm's board (board, claims, tool, agreement,
                     announced); index.ts is its door
-  flow/             the flow format, exported beside pipeline/ until it
-                    replaces it: file (the text, read into nodes), node (what
+  flow/             the flow format: file (the text, read into nodes), node (what
                     a node is: the closed lists of kinds and keys), read-node,
                     agent-node, ask-node, call-node, blocks, loop and world
                     (each kind; world holds the nodes that act, `check` and
@@ -166,15 +165,11 @@ src/                the library
                     run goes, from visits, outcome and summary, written by
                     live-text);
                     index.ts is each one's door
-  pipeline/         pipeline (the file), load (where it is), run (our code
-                    walks the steps); index.ts is its door
   review/           review (the record), verdict (a decision as a tool call),
                     ledger (what is owed); index.ts is its door
   workflows/        chain fan-out loop reduce route orchestrate
                     interview plan swarm;
                     options.ts pool.ts (turn, hold, closeAll) concurrent.ts
-    deliver/        deliver pair audit, settle (how the work reaches the
-                    tree) and resume (build.json); index.ts is its door
   reporters/        picture (the stream folded once, for every reader), tree,
                     tui (formats, draws nothing), herdr and the probe that
                     asks it first, console, silent, record (the event stream
@@ -192,8 +187,7 @@ extension/          the pi extension: index.ts (tool, renderers), execute.ts
                     and card (what it draws around the answer), asking and
                     herdr-switch (two switches a card and a key share)
 pane/               the client a herdr split runs, attached to the mirror
-agents/ pipelines/ flows/
-                    shipped definitions (symlinked into .pi/)
+agents/ flows/      shipped definitions (symlinked into .pi/)
 examples/ scripts/ test/
 docs/               guide/ (task by task), reference/ (api/ and flows/,
                     generated), the landing page and the two project pages;
@@ -264,7 +258,6 @@ not a bibliography:
 | touch a reporter, the TUI or herdr | [docs/guide/display.md](docs/guide/display.md) |
 | touch `Usage`, or an export | [docs/guide/measurements.md](docs/guide/measurements.md), [docs/guide/export.md](docs/guide/export.md) |
 | change the extension, a command or a card | [docs/guide/extension.md](docs/guide/extension.md) |
-| add or change a pipeline | [docs/guide/pipelines.md](docs/guide/pipelines.md) |
 | add or change a flow key, a node kind or a fault code | [docs/guide/flows.md](docs/guide/flows.md), then the header of `src/flow/file.ts` |
 | change a shipped flow, or `/run` | [docs/guide/build.md](docs/guide/build.md), [docs/guide/extension.md](docs/guide/extension.md#running-a-flow) |
 | move a pipeline to a flow | [docs/guide/from-pipelines.md](docs/guide/from-pipelines.md) |

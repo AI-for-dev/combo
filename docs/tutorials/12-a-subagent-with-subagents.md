@@ -104,7 +104,7 @@ than vanishing from the sum.
 
 Compare it to [three scouts on one question](02-three-scouts.md): 25k input
 here against 124k there, for the same model. The explorer wrote narrower
-tasks than the pipeline's three fixed ones, and each scout read one or two
+tasks than the flow's three fixed ones, and each scout read one or two
 files instead of hunting. Whether that holds on your question is what the
 export is for.
 
@@ -129,8 +129,8 @@ included, and a delegated child is disposable whatever the parent's lifetime.
 
 ## Where the line is
 
-An agent can split its task. It cannot write a pipeline, and it will not be
-given a way to: what a generated pipeline would buy is a reviewable artefact,
+An agent can split its task. It cannot write a flow, and it will not be
+given a way to: what a generated flow would buy is a reviewable artefact,
 and `orchestrate` already gives that with a parser and a cap. A second, larger
 place where a model decides the shape of a run is more surface for the same
 benefit. You write the file; the file is data; the run is ours.

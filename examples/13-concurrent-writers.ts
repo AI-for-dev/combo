@@ -9,17 +9,18 @@
  * never be able to rewrite the repository it ships in, which is why there is no
  * default and no fallback to the current directory.
  *
- * Each pair works in a copy of the repository and hands back a patch. The copies
- * go when the pairs are done, and `land` puts the patches into the tree one at a
- * time, so a conflict names the patch that caused it rather than leaving you to
- * bisect two.
+ * Each coder works in a copy of the repository and hands back a patch. The
+ * copies go when the coders are done, and `land` puts the patches into the tree
+ * one at a time, so a conflict names the patch that caused it rather than
+ * leaving you to bisect two. The shipped `build` flow does the same with
+ * `copies: true`, a reviewer beside each coder; this is the part underneath.
  *
  * It stops before committing: what lands stays in the working tree for you to
  * read, exactly as `11-build.ts` leaves it.
  */
 
 import * as path from "node:path";
-import { formatUsage, isRepository, land, pair } from "../src/index.ts";
+import { formatUsage, isRepository, land, run, scratchWorktree } from "../src/index.ts";
 import { agent, consoleReporter, positional } from "./shared.ts";
 
 const [target] = positional;
@@ -46,39 +47,42 @@ const subtasks = [
 	"Add src/truncate.js exporting `truncate(text, max)`: at most `max` characters, an ellipsis when it had to cut.",
 ];
 
-const shared = {
-	worker: agent("coder"),
-	reviewer: agent("reviewer"),
-	cwd,
-	worktree: true,
-	maxRounds: 2,
-	// pi's agent loop has no step cap; never run this unattended without one.
-	timeoutMs: 300_000,
-	onEvent: consoleReporter(),
-};
+const coder = agent("coder");
 
-const started = performance.now();
-const results = await Promise.all(subtasks.map((input) => pair({ ...shared, input })));
-const wall = performance.now() - started;
-
-for (const [index, result] of results.entries()) {
-	console.log(`\n──── subtask ${index + 1} ────`);
-	console.log(`branch:   ${result.worktree ?? "(none)"}`);
-	console.log(`approved: ${result.approved}${result.ok ? "" : `  (failed: ${result.error})`}`);
-	console.log(`usage:    ${formatUsage(result.usage)}`);
-
-	const patch = result.patch ?? "";
-	console.log(patch ? `\n${patch.slice(0, 800)}` : "(it wrote nothing)");
+// A copy per subtask, made from HEAD and released once its coder is done:
+// `release` takes the patch, commits it on the copy's branch, then removes the
+// copy, so the work is kept even if the patch string were lost.
+async function inCopy(input: string) {
+	const copy = await scratchWorktree(cwd, input);
+	if (!copy.ok) return { patch: "", error: copy.error };
+	try {
+		// pi's agent loop has no step cap; never run this unattended without one.
+		const result = await run(coder, input, { cwd: copy.value.path, timeoutMs: 300_000, onEvent: consoleReporter() });
+		const patch = await copy.value.release();
+		return { result, branch: copy.value.branch, patch: patch.ok ? patch.value : "", error: patch.ok ? result.error : patch.error };
+	} finally {
+		await copy.value.release();
+	}
 }
 
-console.log(`\nwall ${Math.round(wall)}ms for two pairs, each in its own copy`);
+const started = performance.now();
+const results = await Promise.all(subtasks.map(inCopy));
+const wall = performance.now() - started;
 
-// One at a time, so a conflict names the patch that caused it. There is no
-// check here: point the example at a repository that has one and pass `verify`
-// to see the tree judged between the two.
+for (const [index, done] of results.entries()) {
+	console.log(`\n──── subtask ${index + 1} ────`);
+	console.log(`branch:   ${done.branch ?? "(none)"}`);
+	console.log(`ok:       ${done.error === undefined ? "yes" : `no (${done.error})`}`);
+	if (done.result) console.log(`usage:    ${formatUsage(done.result.usage)}`);
+	console.log(done.patch ? `\n${done.patch.slice(0, 800)}` : "(it wrote nothing)");
+}
+
+console.log(`\nwall ${Math.round(wall)}ms for two coders, each in its own copy`);
+
+// One at a time, so a conflict names the patch that caused it.
 const landed = await land(
 	cwd,
-	results.map((result, index) => ({ label: `subtask ${index + 1}`, patch: result.patch ?? "" })),
+	results.map((done, index) => ({ label: `subtask ${index + 1}`, patch: done.patch })),
 );
 
 console.log(`\n──── landing ────`);

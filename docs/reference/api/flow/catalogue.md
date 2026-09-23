@@ -96,5 +96,4 @@ with `pipeline-format-removed`, on the same scope as
 
 Nothing is loaded from them. They are read so that a `build.md` of your own
 left in `.pi/pipelines/` is named, rather than shadowed in silence by the
-shipped `build` flow. The package's own `pipelines/` is never read: a fault
-nobody but us can fix is not the user's to read.
+shipped `build` flow. The package ships no `pipelines/` of its own.

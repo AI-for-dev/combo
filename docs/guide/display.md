@@ -375,8 +375,9 @@ stops the one it points at. `/stop` does the same by name:
 
 One subagent stopping is **not** the run stopping: its turn comes back as a
 failed `Result` reading `stopped`, and what the workflow does next is the
-workflow's business - a `fanOut` branch dies alone, while a pipeline step that
-fails ends the pipeline. Either way what already ran is kept, and exported.
+workflow's business - a `fanOut` branch dies alone, while a flow's node that
+fails ends the run unless its `on-fail:` says to go on. Either way what already
+ran is kept, and exported.
 
 `/stop` is only typeable while the *model* is running subagents: pi executes an
 extension command immediately during a turn, but processes no submission at all

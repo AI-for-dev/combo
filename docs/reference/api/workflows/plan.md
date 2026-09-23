@@ -6,8 +6,8 @@ Source: [`src/workflows/plan.ts`](https://github.com/AI-for-dev/combo/blob/main/
 
 Reading a plan an agent wrote: the prompt, the parser, the validation.
 
-Split out from `orchestrate` because two combinators need a plan and only one
-of them fans out over it: `deliver` runs a worker↔reviewer pair per subtask.
+Split out from `orchestrate` so the prompt, the parser and the validation
+can be read, and tested, apart from the fan-out that follows them.
 
 The open question this file answers is **how to read what an agent decided**.
 Three candidates were weighed: a tool call, structured output, or a parsed

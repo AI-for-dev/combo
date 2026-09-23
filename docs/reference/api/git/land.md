@@ -6,20 +6,19 @@ Source: [`src/git/land.ts`](https://github.com/AI-for-dev/combo/blob/main/src/gi
 
 Putting the work of several copies back into one tree.
 
-`pair` with `worktree` gives each piece of work a copy of the repository and
-hands back a patch. Two patches that each apply cleanly on their own can
-still be wrong together: one renames what the other calls, both add the same
-helper under two names, or the second simply overlaps the first.
+A copy per piece of work hands back a patch each. Two patches that each
+apply cleanly on their own can still be wrong together: one renames what the
+other calls, both add the same helper under two names, or the second simply
+overlaps the first.
 
-So they go in **one at a time**, and the project's own check runs between
-them when one was given. Which patch broke the tree is then a fact rather
-than a bisection.
+So they go in **one at a time**, and the first that does not fit stops the
+rest. Which patch broke the landing is then a fact rather than a bisection.
 
 **Nothing is undone.** A patch that does not fit is refused before it touches
-anything, and a check that fails stops the rest where it is. What already
-landed stays landed: rolling back would mean discarding work, and every patch
-here was expensive to produce. The caller is left with a tree it can read, a
-list of what went in, and the name of what did not.
+anything. What already landed stays landed: rolling back would mean
+discarding work, and every patch here was expensive to produce. The caller is
+left with a tree it can read, a list of what went in, and the name of what
+did not.
 
 ## `land`
 
@@ -29,11 +28,11 @@ list of what went in, and the name of what did not.
 export async function land(
 	repo: string,
 	landings: readonly Landing[],
-	options: { verify?: Verify; requireCleanTree?: boolean } = {},
+	options: { requireCleanTree?: boolean } = {},
 ): Promise<Landed> { /* … */ }
 ```
 
-Applies each patch in turn, checking the tree between them.
+Applies each patch in turn.
 
 The tree must be clean to start with. Landing onto work somebody else is in
 the middle of would make "which patch broke this" unanswerable, which is the
@@ -41,10 +40,9 @@ one question this function exists to answer.
 
 `requireCleanTree: false` is for the caller that put those changes there
 itself, which is the only one that can tell them from somebody else's. A
-delivery lands its subtasks, then lands the fixes its audit asked for onto a
-tree holding the first lot: the second call knows exactly what it is adding
-to, and refusing it would make the option useless the moment an audit asks
-for anything.
+flow lands each block's copies onto a tree holding what earlier blocks
+landed: it knows exactly what it is adding to, and refusing it would make a
+second round of work impossible.
 
 Order matters and is the caller's: these are applied as given.
 
@@ -58,16 +56,14 @@ export type Landed = {
 	applied: string[];
 	/** The one that stopped it. Absent when everything went in. */
 	rejected?: string;
-	/** The check after each application, when a `verify` was given, in order. */
-	checks: Verification[];
-	/** Everything landed and the last check passed. */
+	/** Everything landed. */
 	ok: boolean;
 	/** Set if and only if `ok` is false. */
 	error?: string;
 };
 ```
 
-What reached the tree, what did not, and what the check said in between.
+What reached the tree, and what did not.
 
 ## `Landing`
 
@@ -77,7 +73,7 @@ What reached the tree, what did not, and what the check said in between.
 export type Landing = {
 	/** How this patch is named when something goes wrong with it. */
 	label: string;
-	/** The diff, as `pair` gave it back. An empty one is skipped. */
+	/** The diff, as the copy gave it back. An empty one is skipped. */
 	patch: string;
 };
 ```

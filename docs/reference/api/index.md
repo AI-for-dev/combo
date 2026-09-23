@@ -39,7 +39,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`flow/sources`](flow/sources.md) | What the flow stage read to check a flow: its file and the file of every flow it reaches, and each agent it names with the skills that agent's `skills:` resolved to. | 2 |
 | [`flow/type`](flow/type.md) | The type of a value a flow passes around: what a schema declares, what a condition is checked against, and what a node's typed output must match. | 2 |
 | [`flow/value`](flow/value.md) | The values a flow's keys hold, each read to one type or refused. | 1 |
-| [`git/git`](git/git.md) | The git a pipeline is allowed to do - and nothing else. | 8 |
+| [`git/git`](git/git.md) | The git a run is allowed to do - and nothing else. | 8 |
 | [`git/land`](git/land.md) | Putting the work of several copies back into one tree. | 3 |
 | [`git/port`](git/port.md) | The `git` port of a flow run: what a flow's nodes may ask of git, and nothing more. | 2 |
 | [`git/scratch`](git/scratch.md) | A working copy with a lifetime: made for one piece of work, and released when that work is done. | 2 |
@@ -50,9 +50,6 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`measure/measured`](measure/measured.md) | A run that measures itself: the picture it is drawn from, the stream it may keep, and the `usage.json` it leaves behind. | 3 |
 | [`measure/report`](measure/report.md) | What an experiment leaves behind: one JSON document, one comparison table. | 5 |
 | [`mirror`](mirror.md) | The mirror: a live subagent's session, on a unix socket. | 4 |
-| [`pipeline/load`](pipeline/load.md) | Finding the pipelines a user wrote, wherever they put them. | 5 |
-| [`pipeline/pipeline`](pipeline/pipeline.md) | A pipeline is *data*: an ordered list of combinator calls, declared as YAML frontmatter + Markdown, following the same convention as an agent. | 4 |
-| [`pipeline/run`](pipeline/run.md) | Running a pipeline: the piece `pipeline.ts` describes and deliberately leaves to someone else. | 6 |
 | [`reporters/console`](reporters/console.md) | A plain console reporter: one line per event that matters. | 2 |
 | [`reporters/herdr-client`](reporters/herdr-client.md) | Detection and transport for herdr's socket API. Nothing else lives here. | 4 |
 | [`reporters/herdr-probe`](reporters/herdr-probe.md) | Asking herdr whether it would open a pane, without opening one. | 1 |
@@ -64,9 +61,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`reporters/tree`](reporters/tree.md) | A run as a tree: a delegated subagent drawn under the one that asked for it. | 1 |
 | [`reporters/tui`](reporters/tui.md) | Formatting for the pi TUI, with no pi-tui in sight. | 10 |
 | [`result`](result.md) | `Result`: the single contract shared by everything else. | 6 |
-| [`review/ledger`](review/ledger.md) | What is left to do, as a list nobody can lose track of. | 4 |
-| [`review/review`](review/review.md) | The review record: what one reviewer decided, and what it is still owed. | 4 |
-| [`review/verdict`](review/verdict.md) | A verdict given as a tool call, rather than recovered from prose. | 3 |
+| [`review/ledger`](review/ledger.md) | What is left to do, as a list nobody can lose track of. | 2 |
 | [`run`](run.md) | `run()`: the disposable form. Spawn, ask, close. | 2 |
 | [`session`](session.md) | The whole pi API lives here, and nowhere else. | 9 |
 | [`skills`](skills.md) | The skills an agent may load, and where they are looked up. | 2 |
@@ -75,14 +70,9 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`text`](text.md) | Reading what a model wrote, and cutting what it is handed: shortening text, and finding the structure in it. | 5 |
 | [`tool`](tool.md) | The constant parts of a tool combo defines: whether an agent asked for it, and the two shapes of answer a model reads. | 3 |
 | [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 6 |
-| [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 8 |
+| [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 4 |
 | [`workflows/chain`](workflows/chain.md) | `chain`: 1 → 1 → 1. The output of step *n* is the input of step *n+1*. | 2 |
 | [`workflows/concurrent`](workflows/concurrent.md) | Running several things at once, but not all of them: a subtask is a session, and N sessions opening together is the bill nobody meant to pay. | 1 |
-| [`workflows/deliver/audit`](workflows/deliver/audit.md) | The audit: one agent reads the whole of a delivery, and says what is left. | 7 |
-| [`workflows/deliver/deliver`](workflows/deliver/deliver.md) | `deliver`: a brief in, work done and audited out. | 4 |
-| [`workflows/deliver/pair`](workflows/deliver/pair.md) | `pair`: one worker, one reviewer, talking until the work is accepted. | 4 |
-| [`workflows/deliver/resume`](workflows/deliver/resume.md) | Saving a build so it can be picked up again. | 7 |
-| [`workflows/deliver/settle`](workflows/deliver/settle.md) | How a delivery's work reaches its tree. | 2 |
 | [`workflows/fan-out`](workflows/fan-out.md) | `fanOut`: 1 → N. N subtasks in parallel, with bounded concurrency. | 4 |
 | [`workflows/interview`](workflows/interview.md) | `interview`: a conversation with the *user*, ending in a brief. | 5 |
 | [`workflows/loop`](workflows/loop.md) | `loop`: 1 → 1, repeated until a criterion is met. | 4 |
@@ -140,9 +130,6 @@ measure/export
 measure/measured
 measure/report
 mirror
-pipeline/load
-pipeline/pipeline
-pipeline/run
 reporters/console
 reporters/herdr-client
 reporters/herdr-probe
@@ -155,8 +142,6 @@ reporters/tree
 reporters/tui
 result
 review/ledger
-review/review
-review/verdict
 run
 session
 skills
@@ -168,11 +153,6 @@ usage
 verify
 workflows/chain
 workflows/concurrent
-workflows/deliver/audit
-workflows/deliver/deliver
-workflows/deliver/pair
-workflows/deliver/resume
-workflows/deliver/settle
 workflows/fan-out
 workflows/interview
 workflows/loop

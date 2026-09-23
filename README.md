@@ -59,8 +59,8 @@ subagent, one that remembers, a workflow, and the same thing from inside pi.
 
 ## Workflows
 
-Ten combinators - `chain`, `fanOut`, `loop`, `reduce`, `route`, `orchestrate`,
-`pair`, `interview`, `deliver`, `swarm` - all taking the same options and all
+Eight combinators - `chain`, `fanOut`, `loop`, `reduce`, `route`,
+`orchestrate`, `interview`, `swarm` - all taking the same options and all
 returning `Result`s.
 
 ```typescript

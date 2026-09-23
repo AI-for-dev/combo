@@ -10,8 +10,8 @@ myst:
 > come back as a single `Result`.
 
 combo is a small TypeScript library for writing [pi](https://pi.dev) subagents and composing
-them into workflows: orchestrator, fan-out, chain, coding/review loop, and a full delivery
-pipeline. Subagents run **in-process**, through pi's SDK, so a subagent is an object with a
+them into workflows: orchestrator, fan-out, chain, coding/review loop, and flows, task
+graphs written down, the full delivery among them. Subagents run **in-process**, through pi's SDK, so a subagent is an object with a
 lifetime you control rather than a process you parse.
 
 Four things it promises:
@@ -36,9 +36,10 @@ repository with the frames it drew.
 :::{admonition} Where the line is drawn
 :class: important
 
-**Agents are data, workflows are code.** An agent is Markdown with frontmatter, a workflow
-is TypeScript combinators, and a pipeline is a workflow written down. There is no YAML DSL,
-and an agent never writes a pipeline.
+**Agents and flows are data; our code decides what runs next.** An agent is Markdown with
+frontmatter, a flow is YAML and Markdown built from a closed set of nodes, and a workflow is
+TypeScript combinators, for what a file cannot say. A model produces values, never the next
+node, and an agent never writes a flow.
 
 **A prompt is not a permission boundary.** A subagent that must not write gets no `write`
 tool - asking it nicely has been tried, and it edited the repository anyway. The agents
@@ -85,14 +86,14 @@ The central choice: disposable or persistent, and who closes what.
 :link: guide/workflows
 :link-type: doc
 
-The ten combinators, and the options they all share.
+The eight combinators, and the options they all share.
 :::
 
-:::{grid-item-card} {octicon}`checklist` Pipelines
-:link: guide/pipelines
+:::{grid-item-card} {octicon}`checklist` Flows
+:link: guide/flows
 :link-type: doc
 
-A workflow written in Markdown, next to your agents.
+A task graph written in Markdown, next to your agents, checked whole before it runs.
 :::
 
 :::{grid-item-card} {octicon}`package` Deliver a change
@@ -183,7 +184,6 @@ guide/quickstart
 guide/agents
 guide/lifetime
 guide/workflows
-guide/pipelines
 guide/flows
 guide/from-pipelines
 guide/build

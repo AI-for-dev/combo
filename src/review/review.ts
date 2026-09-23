@@ -80,7 +80,7 @@ export type ReviewRecord = {
 	/**
 	 * What the reviewer is told at the end of every round: what it still owes,
 	 * by id, and how its decision is read - a call to the tool, or the word
-	 * alone. Written here once, so a pair and an audit ask in the same words.
+	 * alone. Written here once, so every reviewer is asked in the same words.
 	 */
 	terms(): string;
 	/**

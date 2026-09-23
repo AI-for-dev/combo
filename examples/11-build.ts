@@ -1,6 +1,6 @@
 /**
- * The pipeline without the interview: a brief in, work reviewed and audited out,
- * and a commit message written from the real diff.
+ * The shipped `build` flow on a throwaway repository: a request in, work
+ * reviewed, checked and audited out.
  *
  *   node examples/11-build.ts /path/to/a/throwaway/repo "add a slugify helper"
  *
@@ -9,23 +9,38 @@
  * never be able to rewrite the repository it ships in, which is why there is no
  * default and no fallback to the current directory.
  *
- * It stops short of committing: it prints the message the committer wrote and
- * leaves everything in the working tree. `/build` inside pi is what performs the
- * branch and the commit, after asking.
+ * The flow's `tests` node runs `.pi/checks/test.sh` of that repository, so it
+ * needs one: a script running its tests, exiting 0 when they pass. Without it
+ * the run is refused before any model is called. Each subtask works in its own
+ * copy, so the tree has to be **clean** to start with.
  *
- * A plan of several subtasks gives each one a copy of the repository, so that
- * throwaway tree has to be **clean** to start with: the patches come back to it
- * one at a time. Pass `worktree: false` below to watch them share it instead.
+ * It stops short of committing: the work stays in the working tree, and the run
+ * directory under `runs/` holds the journal `/run resume` would carry on from.
  */
 
 import * as path from "node:path";
-import { branchName, commandVerifier, deliver, diff, formatUsage, isRepository, run, status, untracked } from "../src/index.ts";
-import { agent, consoleReporter, positional, show } from "./shared.ts";
+import {
+	bashCheck,
+	checkFlow,
+	checkRun,
+	createRunDir,
+	formatUsage,
+	gitPort,
+	isRepository,
+	livePlan,
+	loadFlowCatalogue,
+	readJournal,
+	runFlow,
+	showLive,
+	status,
+	type Fault,
+} from "../src/index.ts";
+import { consoleReporter, modelOverride, positional, show } from "./shared.ts";
 
 const [target, ...words] = positional;
-const brief = words.join(" ");
+const request = words.join(" ");
 
-if (!target || !brief) {
+if (!target || !request) {
 	console.error('usage: node examples/11-build.ts [--model <pattern>] <throwaway-repo> "what to build"');
 	process.exit(1);
 }
@@ -40,54 +55,31 @@ if (!(await isRepository(cwd))) {
 	process.exit(1);
 }
 
-const built = await deliver({
-	planner: agent("planner"),
-	workers: [agent("coder")],
-	reviewer: agent("reviewer"),
-	auditor: agent("auditor"),
-	brief,
-	cwd,
-	maxTasks: 2,
-	maxRounds: 2,
-	// The bar nobody can talk their way past. Without it, "approved" means two
-	// agents read the code and liked it - which is how a test file importing
-	// `./slugify.js` for `slugify.ts` once shipped as approved.
-	verify: commandVerifier({ cwd, command: process.execPath, args: ["--test"] }),
-	timeoutMs: 180_000,
+function refuse(faults: readonly Fault[]): never {
+	console.error(faults.map((fault) => fault.message).join("\n"));
+	process.exit(1);
+}
+
+// Both stages before the first spawn: the file against the agents it names,
+// then the run against this terminal - a check port, git, and nobody to ask.
+const flow = checkFlow("build", loadFlowCatalogue({ cwd, scope: "both", builtin: true }));
+if (!flow.ok) refuse(flow.faults);
+const checked = await checkRun(flow.flow, { cwd, ports: { check: bashCheck(), git: gitPort() }, somebodyThere: false });
+if (!checked.ok) refuse(checked.faults);
+
+const runDir = createRunDir(path.join(cwd, "runs"));
+const result = await runFlow(checked.run, request, {
+	model: modelOverride,
+	// pi's agent loop has no step cap; never run this unattended without one.
+	timeoutMs: 300_000,
+	runDir,
 	onEvent: consoleReporter(),
 });
 
-show("plan", built.plan.map((step, index) => `${index + 1}. ${step.agent.name}: ${step.task}`).join("\n") || "(none)");
-
-for (const [index, task] of built.tasks.entries()) {
-	show(`subtask ${index + 1} - ${task.approved ? "approved" : "NOT approved"} in ${task.rounds} round(s)`, task.output || (task.error ?? ""));
-}
-
-if (built.verification) {
-	show(`check - ${built.verification.ok ? "passed" : "FAILED"} (${built.verification.command})`, built.verification.output);
-}
-
-for (const [index, audit] of built.audits.entries()) {
-	show(`audit ${index + 1} - ${audit.approved ? "approved" : `${audit.fixes.length} fix(es)`}`, audit.review.output);
-}
+show("the run", showLive(livePlan(flow.flow, readJournal(runDir), []), 120));
+console.log(result.ok ? `ok · ${runDir}` : `failed at ${result.path}: ${result.error.message} · ${runDir}`);
+console.log(`total  ${formatUsage(result.usage)}`);
 
 const dirty = await status(cwd);
-if (!dirty.ok || !dirty.value.trim()) {
-	console.log("nothing changed on disk");
-	process.exit(built.ok ? 0 : 1);
-}
-
-// The agent writes the message; committing is the extension's job, after asking.
-const patch = await diff(cwd);
-const added = await untracked(cwd);
-const message = await run(
-	agent("committer"),
-	[`What was asked for:\n${brief}`, added.length ? `New files:\n${added.join("\n")}` : "", `The diff:\n${patch.ok ? patch.value : ""}`]
-		.filter(Boolean)
-		.join("\n\n"),
-	{ cwd, timeoutMs: 120_000 },
-);
-
-show("commit message (not committed)", message.output);
-console.log(`would land on ${branchName(brief)}`);
-console.log(`total  ${formatUsage(built.usage)}  ${built.approved ? "approved" : "NOT approved"}`);
+console.log(dirty.ok && dirty.value.trim() ? `\nleft in the working tree, uncommitted:\n${dirty.value}` : "\nnothing changed on disk");
+process.exit(result.ok ? 0 : 1);

@@ -17,7 +17,7 @@
 
 import * as path from "node:path";
 import { AGENTS_DIR, readAgentFile, type Agent, type AgentScope, type AgentSource, type BrokenAgent } from "../agent.ts";
-import { BUILTIN_AGENTS_DIR, BUILTIN_FLOWS_DIR, BUILTIN_PIPELINES_DIR } from "../builtin.ts";
+import { BUILTIN_AGENTS_DIR, BUILTIN_FLOWS_DIR } from "../builtin.ts";
 import { definitionDirs, readMarkdownDir, type MarkdownFile } from "../markdown.ts";
 import type { Fault } from "./fault.ts";
 
@@ -90,11 +90,10 @@ export type RemovedPipeline = {
  *
  * Nothing is loaded from them. They are read so that a `build.md` of your own
  * left in `.pi/pipelines/` is named, rather than shadowed in silence by the
- * shipped `build` flow. The package's own `pipelines/` is never read: a fault
- * nobody but us can fix is not the user's to read.
+ * shipped `build` flow. The package ships no `pipelines/` of its own.
  */
 export function removedPipelines(options: { cwd?: string; scope?: AgentScope } = {}): RemovedPipeline[] {
-	return definitionDirs(PIPELINES_DIR, BUILTIN_PIPELINES_DIR, { ...options, builtin: false }).flatMap(({ dir, source }) => {
+	return definitionDirs(PIPELINES_DIR, undefined, options).flatMap(({ dir, source }) => {
 		const flows = path.join(path.dirname(dir), FLOWS_DIR);
 		return readMarkdownDir(dir).map(({ name, filePath }) => ({
 			name,

@@ -1,5 +1,5 @@
 /**
- * The git a pipeline is allowed to do - and nothing else.
+ * The git a run is allowed to do - and nothing else.
  *
  * **A prompt is not a permission boundary.** An agent given `bash` and told
  * "never push" will push the day it decides that is what the user meant. So the
@@ -125,7 +125,7 @@ export async function commitAll(cwd: string, message: string): Promise<GitResult
  * A branch name from a request: `combo/add-a-cache`.
  *
  * Kept short and free of anything git dislikes. The prefix says who made it, so
- * a `git branch` listing shows at a glance what came from a pipeline.
+ * a `git branch` listing shows at a glance what came from a run.
  */
 export function branchName(request: string, prefix = "combo"): string {
 	const slug = request

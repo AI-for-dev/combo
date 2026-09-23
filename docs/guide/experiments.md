@@ -34,11 +34,15 @@ a workflow, and one that could be nested inside a workflow would be measuring
 itself. Everything else in this library is a combinator precisely because it can
 be nested; this one is deliberately not.
 
-Which also means a pipeline needs no special support - `PipelineRunOptions`
-extends `WorkflowOptions`, so a cell runs one the same way:
+Which also means a flow needs no special support: `runFlow` takes the same
+`model`, `signal`, `timeoutMs`, `spawn` and `onEvent`, and the cell's directory
+is its run directory.
 
 ```typescript
-run: (cell) => runPipeline({ ...cell.options, pipeline, agents, input, verify }),
+run: async (cell) => {
+	const result = await runFlow(checked, input, { ...cell.options, runDir: cell.dir });
+	return { ok: result.ok };
+},
 ```
 
 ## The contract: spread `cell.options`

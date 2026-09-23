@@ -94,8 +94,8 @@ is not "contains": a substring match once ended a review on it.
 The reviewer in the row also did something else: it called `verdict`. Its
 definition names that tool, so every workflow that spawns it hands it over. In
 a `loop` the word is what is read, and the call rides along as a record. In a
-[`pair`](../guide/workflows.md), the call **is** the decision, and the prose
-beside it is the argument. Prefer the tool when you write your own reviewer: a
+flow node written with [`verdict:`](../guide/flows.md#ledgers-and-verdicts),
+the call **is** the decision, and the prose beside it is the argument. Prefer the tool when you write your own reviewer: a
 word has to be recovered from prose written for a human, and a tool call is a
 discrete event with a schema. "Did it decide" and "what did it decide" become
 closed questions.
@@ -111,9 +111,9 @@ Run a loop a weak coder cannot finish and the row ends with the other word:
 
 `ok` would be true: every turn ran without a model error. `converged` is false:
 the work never reached the bar. Collapsing those two into one boolean would
-hide the only thing worth knowing, so a loop reports both, and a pipeline step
-whose loop never converges **fails the pipeline** rather than handing the next
-step work that nobody approved.
+hide the only thing worth knowing, so a loop reports both, and a flow's `loop`
+that reaches its `max:` **fails** with `unconverged` rather than handing the
+next node work that nobody approved.
 
 ## Team, or fresh eyes
 
@@ -137,10 +137,10 @@ in it. Measured on a small open-weight model, a reviewer holding the
 `a - b` while claiming to add. A clean channel does nothing about a wrong
 judgement.
 
-So in `pair`, and everything built on it, finished is a **ledger**. Every
-remark the reviewer raises becomes an obligation with an id combo assigns;
-later rounds list the open ones and ask the reviewer what became of each, by
-id; only the agent that raised one can close it. `approved` then means two
+So in a flow, finished is a **ledger**. Every remark the reviewer raises
+becomes an obligation with an id combo assigns; later rounds list the open ones
+and ask the reviewer what became of each, by id; only the agent that raised one
+can close it. `approved` then means two
 things at once: the reviewer had nothing further to ask, and nothing it raised
 is still open. A reviewer that says yes over an obligation it never closed has
 not finished the work, and the result names the ids that are left.

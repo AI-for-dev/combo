@@ -180,8 +180,9 @@ measured.finish();
 ```
 
 This is what `/run build` does, with the terminal's card as the `ask` port.
-The `deliver`, `pair` and `audit` combinators the linear pipeline ran are
-still in the library for now; [Workflows](workflows.md) covers them.
+The `deliver`, `pair` and `audit` combinators the linear pipeline ran are gone
+with it: this flow is the one implementation of that shape, and the only one
+with a journal, restored copies and a script as its check.
 
 ## Reference
 

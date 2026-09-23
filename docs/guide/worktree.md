@@ -6,10 +6,10 @@ myst:
 
 # Worktrees
 
-Two subagents writing to one directory is the constraint behind `deliver`'s
-`concurrency` default of **2**, not 4: past that, "independent subtasks" stops
-being a promise a planner can keep. A working copy each turns that into a
-question about the tasks rather than about the filesystem.
+Two subagents writing to one directory is why the shipped `build` flow runs its
+subtasks with `concurrency: 2` and `copies: true`: past one writer, "independent
+subtasks" stops being a promise a planner can keep. A working copy each turns
+that into a question about the tasks rather than about the filesystem.
 
 `src/git/worktree.ts` is the git side of it. It does four things and no more.
 
@@ -82,55 +82,38 @@ the copy goes, deletes a branch nobody wrote on, and on a patch it could not
 take leaves everything where it is: the caller gets the error and the work
 stays on disk.
 
-## A copy per piece of work, not per subagent
+## A copy per branch, not per subagent
 
-`pair` takes `worktree: true` and gives both its agents one copy, made from
-`cwd`. The result carries the branch it landed on and the patch of what changed.
+In a flow, `copies: true` on a `map` or a `parallel` gives each branch one copy,
+and every node of the branch works in it. In `build` that is the coder and the
+reviewer of one subtask: a reviewer with a copy of its own would be reading the
+code the coder did not touch, which is a review of nothing. [Flows](flows.md#branches-that-run-together)
+says when a block needs copies, what lands, and what a stopped run keeps.
 
-```typescript
-const built = await pair({ worker: coder, reviewer, input: task, cwd: repo, worktree: true });
-built.worktree;   // combo/add-a-slugify-helper-a1b2c3, with the work committed on it
-built.patch;      // the same work as a diff against what it started from
-```
-
-The copy is made from the **commit** `cwd` is on, not from its working tree:
-changes you have not committed are not there, and the patch is a diff against
-that commit. Commit before pointing a pair at a tree you are in the middle of.
-
-The work is committed on that branch before the copy goes, so a caller that
-drops the patch has still lost nothing. A pair that wrote nothing gets no branch
-and no patch: a name for no work would only pile up, one per run.
-
-A copy that cannot be released keeps the work. A commit a hook refuses, or a
-removal git will not do, leaves the copy on disk and the pair comes back
-`ok: false` with that path in its `error`. Otherwise an approved pair that lost
-its patch would read exactly like one that wrote nothing.
-
-Both agents share it deliberately. A reviewer with a copy of its own would be
-reading the code the worker did not touch, which is a review of nothing.
-
-The copy is released in a `finally`, cancellation and failure included: whoever
-opens closes. A copy that could not be made **stops the pair** rather than
-quietly writing into the tree the caller asked to spare.
+The copy is released whatever ended the branch, cancellation and failure
+included: whoever opens closes. The work is committed on the copy's branch
+before the copy goes, so a caller that drops the patch has still lost nothing,
+and a branch nobody wrote on is deleted: a name for no work would only pile up,
+one per run.
 
 ## Putting them back together
 
-`land` applies the patches to one tree, one at a time, and runs the project's
-own check between them when it is given one.
+`land` applies the patches to one tree, one at a time.
 
 ```typescript
 const landed = await land(repo, [
-	{ label: "subtask 1", patch: first.patch ?? "" },
-	{ label: "subtask 2", patch: second.patch ?? "" },
-], { verify });
+	{ label: "subtask 1", patch: first },
+	{ label: "subtask 2", patch: second },
+]);
 
 landed.applied;   // what went in, in the order it did
 landed.rejected;  // the one that stopped it, when one did
 ```
 
-One at a time because a red tree after three patches says only that one of them
-broke it. A patch is checked before it is applied, so one that does not fit
-touches nothing.
+One at a time because a conflict after three patches says only that one of
+them caused it. A patch is checked before it is applied, so one that does not
+fit touches nothing, and it stops the rest. A flow's `check` written after the
+block then judges the tree as a whole.
 
 **Nothing is rolled back.** A failure stops the rest where it is, and what
 landed stays landed: undoing would discard work, and every patch is also on its
@@ -139,23 +122,13 @@ branch.
 The tree has to be clean to start with, or "which patch broke this" stops
 having an answer. `requireCleanTree: false` is for the caller that put those
 changes there itself and is therefore the only one able to tell them from
-somebody else's.
+somebody else's: a flow run lands each block onto what earlier blocks landed.
 
 Landing adds no commit and moves no ref. What goes in stays in the working tree
 for a human to read.
 
-`deliver` does all of this for a whole delivery, by default from two subtasks
-up: a copy per subtask, then a landing per batch of them. `landable()` is the
-question it asks first - whether this tree can take the patches back at all -
-because a copy whose patch cannot come home is a subtask paid for twice.
-
-Which of the two it is doing is `settling()`, decided once for the whole
-delivery: whether the pairs are isolated, what putting a batch back means, and
-what became of each landing. With a shared tree, settling a batch is the
-project's check and nothing else. See [Deliver a change](build.md).
-
-`examples/13-concurrent-writers.ts` runs two pairs at once on two subtasks and
-prints the two patches, leaving the repository it was pointed at untouched.
+`examples/13-concurrent-writers.ts` runs two coders at once on two subtasks, a
+`scratchWorktree` each, prints the two patches, then lands them.
 
 ## What has no function here
 

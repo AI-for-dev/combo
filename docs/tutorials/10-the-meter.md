@@ -3,9 +3,11 @@
 ![Watch the meter](../_static/tutorials/10-the-meter.svg)
 
 ```{note}
-This page was captured before `/run` ran flows. `/build` is `/run build` now,
-and its flags are keys of the [`build` flow](../reference/flows/build.md); see
-[Deliver a change](../guide/build.md). The frames below predate that change.
+This page was captured before flows replaced the linear pipeline. `/build` is
+`/run build` now, its flags are keys of the [`build` flow](../reference/flows/build.md),
+and a file left in `pipelines/` is refused; see [Deliver a change](../guide/build.md)
+and [From pipelines to flows](../guide/from-pipelines.md). The frames and the
+files below predate that change.
 ```
 
 Observed in the wild, on a small model: 79 calls to a tool named `run`, which
@@ -113,11 +115,11 @@ esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
 
 `esc` stops every subagent of the run. Inside a model's turn pi's own
 interrupt fires as well, so the turn goes with them and the model gets no
-chance to delegate again; during `/run`, `/build` or `/step` there is no turn
+chance to delegate again; during `/run` or `/step` there is no turn
 to abort, and this is what stops them.
 
 `ctrl+↑↓` move a `▸` through the subagents still working, delegated children
-included, and `ctrl+del` stops the one it points at. On the explore pipeline:
+included, and `ctrl+del` stops the one it points at. On the explore flow:
 
 ```
 ▸ scout#2  read test/export.test.ts
@@ -145,8 +147,8 @@ you could still stop. `/stop scout#2` does the same by name, `/stop all` is
 One subagent stopping is **not** the run stopping, and what happens next is
 the workflow's business. The other two scouts finished; `usage.json` has all
 three, the stopped one with `"ok": false, "error": "stopped"` and the 12k
-tokens it spent before you cut it. Then the pipeline did what a pipeline does
-with a failed step:
+tokens it spent before you cut it. Then the pipeline, as `explore` was then,
+did what a pipeline did with a failed step:
 
 ```
 explore: 1 step, stopped: step "look" (fanOut) failed: stopped - exported to /…/runs/2026-09-19_10-44-29

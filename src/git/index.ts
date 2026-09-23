@@ -1,5 +1,5 @@
 /**
- * The working copy: the git a pipeline may do, the copies of the repository
+ * The working copy: the git a run may do, the copies of the repository
  * two agents write in at once, and how their work comes home.
  *
  * Files stacked in that order - `run.ts` runs git, `git.ts` and

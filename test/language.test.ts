@@ -6,8 +6,6 @@ import {
 	inTheLanguageOfTheWork,
 	IN_THE_LANGUAGE_OF_THE_WORK,
 } from "../src/language.ts";
-import { APPROVAL } from "../src/workflows/deliver/pair.ts";
-import { AUDIT_APPROVAL } from "../src/workflows/deliver/audit.ts";
 import { READY } from "../src/workflows/interview.ts";
 
 describe("answerInTheirLanguage", () => {
@@ -50,7 +48,7 @@ describe("answerInTheirLanguage", () => {
 		assert.match(ANSWER_IN_THEIR_LANGUAGE, /told to answer with is not translated/);
 		assert.match(ANSWER_IN_THEIR_LANGUAGE, /JSON key/);
 
-		for (const sentinel of [READY, APPROVAL, AUDIT_APPROVAL]) {
+		for (const sentinel of [READY, "LGTM", "APPROVED"]) {
 			assert.ok(!ANSWER_IN_THEIR_LANGUAGE.includes(sentinel), `${sentinel} is covered by the rule, not named by it`);
 		}
 	});

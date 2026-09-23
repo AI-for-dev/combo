@@ -8,7 +8,7 @@
  * An experiment is **a function, not a combinator**. It returns no `Result` and
  * composes with nothing: it is a harness placed above a workflow, and a harness
  * that could be nested inside one would be measuring itself. What runs inside a
- * cell is the caller's business - a combinator, a `runPipeline`, or a whole
+ * cell is the caller's business - a combinator, a `runFlow`, or a whole
  * script - and the only contract is that the cell's `options` are spread into
  * it, so every subagent lands on that cell's model and in that cell's directory.
  *
@@ -42,7 +42,7 @@ export type ExperimentCell = {
 	/** This cell's export directory, absolute. Already created. */
 	dir: string;
 	/**
-	 * Ready to be spread into any combinator or into `runPipeline`.
+	 * Ready to be spread into any combinator or into `runFlow`.
 	 *
 	 * Spreading it is the contract: it carries the cell's `model` and
 	 * `exportDir`, the experiment's `signal`, `timeoutMs`, `cwd` and `spawn`, and

@@ -1,12 +1,12 @@
 /**
  * Definitions on disk: how a `.md` with frontmatter is found and read.
  *
- * Agents, pipelines and flows are the same file format, discovered the same
- * way - a directory of `.md` files, and a walk up the parents to the first
+ * Agents and flows are the same file format, discovered the same way - a
+ * directory of `.md` files, and a walk up the parents to the first
  * `.pi/<something>/`. Only what happens to a file *after* it is read differs,
  * and that difference is the point: `loadAgents` drops an agent that does not
- * parse in silence, a pipeline or a flow's catalogue collects it and reports it
- * by name. So this file finds and reads; it never decides what a file means.
+ * parse in silence, a flow's catalogue collects it and reports it by name. So
+ * this file finds and reads; it never decides what a file means.
  *
  * The frontmatter coercions live here too, because "YAML-ish" is a property of
  * the format rather than of either reader: a flag written `true` in a file
@@ -68,17 +68,18 @@ export type DefinitionDir = { dir: string; source: AgentSource };
 
 /**
  * Where the definitions kept under `<sub>/` are looked for, **least specific
- * first**: the package's own (`builtinDir`) when `builtin` is set, then the
- * user's `~/.pi/agent/<sub>/`, then the repository's nearest `.pi/<sub>/`.
+ * first**: the package's own (`builtinDir`, when it ships any) when `builtin`
+ * is set, then the user's `~/.pi/agent/<sub>/`, then the repository's nearest
+ * `.pi/<sub>/`.
  *
  * A caller reads them in this order into one map by name, so whoever is closer
  * to the work wins it. The scope defaults to `"user"`: a repository's
  * definitions are third-party instructions, loaded only on explicit request.
  */
-export function definitionDirs(sub: string, builtinDir: string, options: { cwd?: string; scope?: AgentScope; builtin?: boolean }): DefinitionDir[] {
+export function definitionDirs(sub: string, builtinDir: string | undefined, options: { cwd?: string; scope?: AgentScope; builtin?: boolean }): DefinitionDir[] {
 	const scope = options.scope ?? "user";
 	const dirs: DefinitionDir[] = [];
-	if (options.builtin) dirs.push({ dir: builtinDir, source: "builtin" });
+	if (options.builtin && builtinDir) dirs.push({ dir: builtinDir, source: "builtin" });
 	if (scope !== "project") dirs.push({ dir: path.join(getAgentDir(), sub), source: "user" });
 	const projectDir = scope === "user" ? undefined : findProjectDir(options.cwd ?? process.cwd(), sub);
 	if (projectDir) dirs.push({ dir: projectDir, source: "project" });
