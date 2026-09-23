@@ -17,7 +17,7 @@ const AGENTS = [agent("scout"), agent("planner"), agent("reviewer"), agent("synt
 /** A flow `f` whose nodes are `nodes` (YAML lines under `nodes:`) and whose agent nodes each get a section. */
 function check(nodes: string, sections: string[]) {
 	const body = sections.map((id) => `## ${id}\nDo it.`).join("\n\n");
-	const catalogue: FlowCatalogue = { flows: [{ name: "f", filePath: "flows/f.md", content: `---\nname: f\ndescription: d\ninput: string\nnodes:\n${nodes}\n---\n${body}` }], agents: AGENTS };
+	const catalogue: FlowCatalogue = { flows: [{ name: "f", filePath: "flows/f.md", content: `---\nname: f\ndescription: d\ninput: string\nnodes:\n${nodes}\n---\n${body}` }], agents: AGENTS, brokenAgents: [], cwd: "." };
 	return checkFlow("f", catalogue);
 }
 

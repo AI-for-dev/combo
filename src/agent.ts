@@ -9,7 +9,10 @@
 import * as path from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import { BUILTIN_AGENTS_DIR } from "./builtin.ts";
-import { asBoolean, asCount, asList, asString, findProjectDir, readMarkdownDir } from "./markdown.ts";
+import { asBoolean, asCount, asList, asString, definitionDirs, readMarkdownDir, yamlError, type MarkdownFile } from "./markdown.ts";
+
+/** Directory name under `~/.pi/agent/` and under `.pi/`. */
+export const AGENTS_DIR = "agents";
 
 /**
  * Lifetime of a subagent - the central choice of this library.
@@ -85,6 +88,19 @@ export type Agent = {
 };
 
 /**
+ * An agent file that is not an agent: kept by a catalogue that reports it,
+ * where {@link loadAgents} drops it.
+ */
+export type BrokenAgent = {
+	/** The name it would be asked for by: its `name:` when it has one, else its file name without `.md`. */
+	name: string;
+	filePath: string;
+	source: AgentSource;
+	/** Why it is not an agent, in one sentence. */
+	error: string;
+};
+
+/**
  * Parses an agent definition.
  *
  * Returns `undefined` when the frontmatter is not valid YAML, or when `name` or
@@ -93,19 +109,38 @@ export type Agent = {
  * testable without touching the disk.
  */
 export function parseAgent(content: string, filePath: string, source: AgentSource): Agent | undefined {
+	// Agents are discovered, not asked for: one bad file among the user's must
+	// not take every other agent down with it, so a file that is not one is dropped.
+	const agent = readAgentFile({ name: "", filePath, content }, source);
+	return "error" in agent ? undefined : agent;
+}
+
+/**
+ * Reads an agent file, and says why when it is not one: the YAML error, or the
+ * keys it lacks. Where {@link parseAgent} drops a file in silence, this keeps
+ * it, for a caller that validates before it runs and must not answer "unknown
+ * agent" about a file sitting right there.
+ */
+export function readAgentFile(file: MarkdownFile, source: AgentSource): Agent | BrokenAgent {
 	let parsed: { frontmatter: Record<string, unknown>; body: string };
 	try {
-		parsed = parseFrontmatter<Record<string, unknown>>(content);
-	} catch {
-		// Agents are discovered, not asked for: one bad file among the user's
-		// must not take every other agent down with it.
-		return undefined;
+		parsed = parseFrontmatter<Record<string, unknown>>(file.content);
+	} catch (cause) {
+		return { name: file.name, filePath: file.filePath, source, error: `its frontmatter is not valid YAML: ${yamlError(cause)}` };
 	}
-	const { frontmatter, body } = parsed;
+	const agent = agentFrom(parsed.frontmatter, parsed.body, file.filePath, source);
+	if (typeof agent !== "string") return agent;
+	return { name: asString(parsed.frontmatter.name) ?? file.name, filePath: file.filePath, source, error: agent };
+}
 
+/** The agent a parsed file defines, or why it defines none. */
+function agentFrom(frontmatter: Record<string, unknown>, body: string, filePath: string, source: AgentSource): Agent | string {
 	const name = asString(frontmatter.name);
 	const description = asString(frontmatter.description);
-	if (!name || !description) return undefined;
+	if (!name || !description) {
+		const missing = [!name && "`name:`", !description && "`description:`"].filter(Boolean).join(" and no ");
+		return `it has no ${missing}, which an agent needs`;
+	}
 
 	const lifetime = asString(frontmatter.lifetime);
 	return {
@@ -132,36 +167,18 @@ export function parseAgent(content: string, filePath: string, source: AgentSourc
  *
  * Precedence runs from the least specific to the most: the shipped definitions
  * first when `builtin` is set, then the user's, then the repository's. Whoever
- * is closer to the work wins the name.
+ * is closer to the work wins the name. `builtin` is off by default: a script
+ * that asks for "the user's agents" must not be handed ours as well. The
+ * extension asks for them, because there it is the difference between working
+ * out of the box and not working at all.
  *
  * Discovery happens on every call: editing a `.md` is enough to reload it.
  */
 export function loadAgents(options: { cwd?: string; scope?: AgentScope; builtin?: boolean } = {}): Agent[] {
-	const cwd = options.cwd ?? process.cwd();
-	const scope = options.scope ?? "user";
-
 	const byName = new Map<string, Agent>();
-
-	// Off by default: a script that asks for "the user's agents" must not be
-	// handed ours as well. The extension asks for them, because there it is the
-	// difference between working out of the box and not working at all.
-	if (options.builtin) {
-		for (const agent of loadAgentsFromDir(BUILTIN_AGENTS_DIR, "builtin")) byName.set(agent.name, agent);
+	for (const { dir, source } of definitionDirs(AGENTS_DIR, BUILTIN_AGENTS_DIR, options)) {
+		for (const agent of loadAgentsFromDir(dir, source)) byName.set(agent.name, agent);
 	}
-	if (scope !== "project") {
-		for (const agent of loadAgentsFromDir(path.join(getAgentDir(), "agents"), "user")) {
-			byName.set(agent.name, agent);
-		}
-	}
-	if (scope !== "user") {
-		const projectDir = findProjectDir(cwd, "agents");
-		if (projectDir) {
-			for (const agent of loadAgentsFromDir(projectDir, "project")) {
-				byName.set(agent.name, agent);
-			}
-		}
-	}
-
 	return [...byName.values()];
 }
 
@@ -182,8 +199,8 @@ export function findAgent(agents: Agent[], name: string): Agent {
 	// definitions at all.
 	if (agents.length === 0) {
 		throw new Error(
-			`Unknown agent "${name}": no agents were loaded. User agents live in ${path.join(getAgentDir(), "agents")}; ` +
-				`project agents in ${CONFIG_DIR_NAME}/agents are only loaded with scope "project" or "both".`,
+			`Unknown agent "${name}": no agents were loaded. User agents live in ${path.join(getAgentDir(), AGENTS_DIR)}; ` +
+				`project agents in ${CONFIG_DIR_NAME}/${AGENTS_DIR} are only loaded with scope "project" or "both".`,
 		);
 	}
 	throw new Error(`Unknown agent "${name}". Loaded agents: ${agents.map((candidate) => candidate.name).join(", ")}`);

@@ -1389,6 +1389,33 @@ resolves its names against a catalogue; `checkFlow` is the one door, and a
   one too, one per item. A `verdict:` node's output is the verdict,
   `{ approved, remarks? }`, so an `output:` beside it is refused.
 
+### A flow's catalogue keeps the agent files that are not agents
+
+`src/flow/catalogue.ts` reads flows and agents from the package, the user's
+directory and the repository, least specific first, as agents and pipelines
+are. `src/flow/agents.ts` resolves the names a flow gives.
+
+- **A broken agent file is kept, with its cause.** `loadAgents` still drops it
+  in silence, which is pi's behaviour and what a TypeScript caller has always
+  had. A flow is checked before it runs, and "unknown agent" about a file that
+  is right there sends its author looking in the wrong place.
+- **A broken file wins its name like a valid one.** A repository's `scout.md`
+  that stopped parsing shadows the user's `scout`, and the flow is refused with
+  the path. Falling back to the user's would run an agent the repository did
+  not mean, and nobody would be told.
+- **A broken file is named by its `name:` when it has one.** Agents are asked
+  for by `name:`, not by file name, so `terse.md` holding `name: scout` and no
+  `description:` is the `scout` a flow meant. Only a file whose YAML does not
+  parse falls back to its file name.
+- **Everything spawn refuses about skills, the flow stage refuses first.**
+  That is `skills:` without `read`, a skill found nowhere, and a skill set to
+  `disable-model-invocation`, the last one included because a checked flow
+  should never throw at spawn. `findSkills` in `src/skills.ts` is the one lookup:
+  spawn throws its first problem, and a flow reports all of them. The throws stay
+  for TypeScript workflows, which have no validation before they run.
+- **The catalogue carries its `cwd`.** A skill resolves from the repository a
+  run starts in, so the catalogue is loaded for one directory and says which.
+
 ## A chain walked by hand
 
 `/run explore …` put its answer in the conversation, and the session picked it

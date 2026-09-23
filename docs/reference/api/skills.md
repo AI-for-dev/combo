@@ -14,8 +14,8 @@ the user's. Whoever is closest to the work wins the name.
 
 pi does the rest: the system prompt carries a name, a description and a path,
 and the model opens `SKILL.md` itself with `read`. That is why a declared
-skill the model cannot reach is a configuration error here rather than a
-silence at runtime.
+skill the model cannot reach is a configuration error rather than a silence
+at runtime: a flow's validation reports it, and spawn throws it.
 
 ## `resolveSkills`
 
@@ -29,9 +29,8 @@ Resolves what an agent's `skills:` names, in the order it named them.
 
 Throws rather than dropping one: a missing skill is a typo in a definition,
 and finding out through prose that quietly lacks a step costs more than
-failing at spawn. Same reason for the two ways a skill can resolve and still
-never be seen - a toolset without `read` (pi hides the whole section), and a
-skill whose frontmatter says `disable-model-invocation` (pi hides that one).
+failing at spawn. A TypeScript workflow has no validation before it runs, so
+this is where it finds out; a flow found out before its first spawn.
 
 ## `SkillDir`
 

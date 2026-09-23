@@ -9,6 +9,7 @@
  * this list.
  */
 
+import { SKILL_CODES } from "../skills.ts";
 import { CONDITION_CODES } from "./condition/index.ts";
 
 /** Every code a fault can carry. Adding one means adding its row to the guide's table. */
@@ -26,6 +27,8 @@ export const FAULT_CODES = [
 	"reserved-id",
 	"duplicate-id",
 	"unknown-agent",
+	"broken-agent",
+	...SKILL_CODES,
 	"unknown-address",
 	"invalid-address",
 	"among-without-from",

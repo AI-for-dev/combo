@@ -10,7 +10,8 @@
  */
 
 import type { Agent } from "../agent.ts";
-import type { MarkdownFile } from "../markdown.ts";
+import { AgentNames } from "./agents.ts";
+import type { FlowCatalogue } from "./catalogue.ts";
 import { checkChoice, checkMap, checkParallel } from "./check-blocks.ts";
 import { checkLoop } from "./check-loop.ts";
 import { VERDICT, type CheckedAgentNode, type CheckedFlow, type CheckedNode, type CheckedRead } from "./checked.ts";
@@ -20,13 +21,6 @@ import { readFlow, type FlowFile } from "./file.ts";
 import { everyNode, type AgentNode, type FlowNode } from "./node.ts";
 import { Scope } from "./scope.ts";
 import { showType, type ValueType } from "./type.ts";
-
-/** What a flow is checked against: the flow files by name, and the agents. */
-export type FlowCatalogue = {
-	/** Flow files, found by their file name without `.md`, which is the flow's name. */
-	readonly flows: readonly MarkdownFile[];
-	readonly agents: readonly Agent[];
-};
 
 /** A checked flow, or every fault that refused it. */
 export type CheckFlow = { readonly ok: true; readonly flow: CheckedFlow } | { readonly ok: false; readonly faults: readonly Fault[] };
@@ -48,7 +42,7 @@ export function checkFlow(name: string, catalogue: FlowCatalogue): CheckFlow {
 	const { flow, faults } = readFlow(source.content, source.filePath);
 	if (flow === undefined) return { ok: false, faults: faults.list };
 	if (flow.name !== "" && flow.name !== name) faults.add("name-mismatch", "name", `\`${flow.name}\` is in \`${name}.md\`: a flow is found by its file name, so the two say the same`);
-	const checker = new Checker(flow, catalogue.agents, faults);
+	const checker = new Checker(flow, new AgentNames(catalogue), faults);
 	const { nodes } = checker.sequence(flow.nodes, Scope.root(flow.input));
 	faults.sort(flow.rank);
 	if (faults.list.length > 0) return { ok: false, faults: faults.list };
@@ -73,13 +67,13 @@ export type CheckedOne = { readonly node?: CheckedNode; readonly output: ValueTy
 export class Checker {
 	readonly faults: FaultList;
 	private readonly flow: FlowFile;
-	private readonly agents: ReadonlyMap<string, Agent>;
+	private readonly agents: AgentNames;
 	/** Every id of the file, so an address to one not ended yet says so. */
 	private readonly ids: ReadonlySet<string>;
 
-	constructor(flow: FlowFile, agents: readonly Agent[], faults: FaultList) {
+	constructor(flow: FlowFile, agents: AgentNames, faults: FaultList) {
 		this.flow = flow;
-		this.agents = new Map(agents.map((agent) => [agent.name, agent]));
+		this.agents = agents;
 		this.faults = faults;
 		this.ids = new Set([...everyNode(flow.nodes)].map((node) => node.id));
 	}
@@ -105,7 +99,7 @@ export class Checker {
 	 * is needed to type its `previous` before the body is checked for real.
 	 */
 	quietly(): Checker {
-		return new Checker(this.flow, [...this.agents.values()], new FaultList(""));
+		return new Checker(this.flow, this.agents, new FaultList(""));
 	}
 
 	/** The condition `source`, written at `at`, compiled against what `scope` can read. */
@@ -147,7 +141,7 @@ export class Checker {
 	}
 
 	private agentNode(node: AgentNode, scope: Scope): CheckedAgentNode | undefined {
-		const agent = "name" in node.agent ? this.agent(node.agent.name, `${node.at}.agent`) : this.picked(node, node.agent.from, node.agent.among, scope);
+		const agent = "name" in node.agent ? this.agents.resolve(node.agent.name, `${node.at}.agent`, this.faults) : this.picked(node, node.agent.from, node.agent.among, scope);
 		if (node.memory !== undefined && node.memory !== "flow" && !scope.encloses(node.memory)) {
 			this.faults.add("unknown-scope", `${node.at}.memory`, `\`${node.memory}\` is not a node this one is in; \`memory:\` names one, or \`flow\` for the whole file`);
 		}
@@ -167,7 +161,7 @@ export class Checker {
 		const type = this.typeOf(from, at, scope);
 		const agents = new Map<string, Agent>();
 		for (const name of among) {
-			const agent = this.agent(name, `${node.at}.among`);
+			const agent = this.agents.resolve(name, `${node.at}.among`, this.faults);
 			if (agent !== undefined) agents.set(name, agent);
 		}
 		if (type === undefined) return undefined;
@@ -182,12 +176,6 @@ export class Checker {
 			this.faults.add("among-mismatch", `${node.at}.among`, said.filter(Boolean).join("; "));
 		}
 		return { from, among: agents };
-	}
-
-	private agent(name: string, at: string): Agent | undefined {
-		const agent = this.agents.get(name);
-		if (agent === undefined) this.faults.unknown("unknown-agent", at, name, [...this.agents.keys()], "agents");
-		return agent;
 	}
 
 	/** A bare id reads a node's output whole; a deeper address reads that value only. */

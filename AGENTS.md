@@ -128,14 +128,16 @@ src/                the library
   git/              run (git itself), git (what a pipeline may do), worktree
                     and scratch (the copies), land (patches come home);
                     index.ts is its door
-  builtin.ts        where the package's own agents/ and pipelines/ are
+  builtin.ts        where the package's own agents/, pipelines/ and flows/ are
   board/            the swarm's board (board, claims, tool, agreement,
                     announced); index.ts is its door
   flow/             the flow format, built beside pipeline/ until it replaces
                     it: file (the text, read into nodes), node (what a node
                     is: the closed lists of kinds and keys), read-node,
                     agent-node, blocks and loop (each kind), sections, value,
-                    fault (why a flow is refused), check, check-blocks and
+                    fault (why a flow is refused), catalogue (flows and
+                    agents on disk, broken files kept), agents (a name
+                    resolved, skills checked), check, check-blocks and
                     check-loop (the flow stage, against a catalogue), scope
                     (what a node can read), checked (what it hands on),
                     type (what a value is), schema (how a file writes one),
