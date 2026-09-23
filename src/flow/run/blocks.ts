@@ -7,13 +7,16 @@
  * output. Each branch opens a memory scope of its own, and in a `map` a
  * ledger of its own, so no two branches share a subagent or an obligation.
  * Under `fail-fast`, the first branch to fail cuts those in flight and skips
- * those not started, which end `cancelled`.
+ * those not started, which end `cancelled`. With `copies: true`, each branch
+ * runs in a copy of the tree, and `copies.ts` lands their patches.
  */
 
+import type { GitResult } from "../../git/index.ts";
 import { createLedger, type Ledger } from "../../review/index.ts";
 import { emptyUsage, sumUsage } from "../../usage.ts";
 import { mapConcurrent } from "../../workflows/concurrent.ts";
 import type { CheckedMapNode, CheckedNode, CheckedParallelNode } from "../checked.ts";
+import { inCopy, landAll } from "./copies.ts";
 import { failure, travelled, under, type Ended, type Visited, type Walked } from "./ended.ts";
 import { withLedger } from "./frames.ts";
 import type { Values } from "./values.ts";
@@ -61,20 +64,32 @@ export async function visitMap(walker: Walker, node: CheckedMapNode, path: strin
 async function join(walker: Walker, node: CheckedParallelNode | CheckedMapNode, branches: readonly Branch[], concurrency: number, here: Here, shape: (ends: Ended[]) => unknown): Promise<Visited> {
 	const cutter = new AbortController();
 	const cut = node.failFast ? AbortSignal.any([here.cut, cutter.signal]) : here.cut;
-	const walked = await mapConcurrent(branches, concurrency, async (branch): Promise<Walked> => {
-		const frames = here.frames.inside(node.id, branch.ledger);
-		try {
-			const one = await walker.sequence(branch.nodes, branch.prefix, { values: branch.values, frames, cut });
-			if (one.failed !== undefined && !cutter.signal.aborted) cutter.abort(`cut by \`fail-fast\`: ${one.failed.path} failed`);
-			return one;
-		} finally {
-			await frames.close();
-		}
+	// A dry run has no tree, so its branches have no copies to make.
+	const copies = node.copies && here.tree !== undefined ? walker.copies : undefined;
+	const patches: GitResult<string>[] = [];
+	const walked = await mapConcurrent(branches, concurrency, async (branch, index): Promise<Walked> => {
+		const walk = async (tree: string | undefined) => {
+			const frames = here.frames.inside(node.id, branch.ledger);
+			try {
+				return await walker.sequence(branch.nodes, branch.prefix, { values: branch.values, frames, cut, tree });
+			} finally {
+				await frames.close();
+			}
+		};
+		// A branch cut before it starts runs nothing, and needs no copy.
+		const one = copies === undefined || cut.aborted ? await walk(here.tree) : await inCopy(copies, here.tree as string, branch.prefix, walk, (patch) => (patches[index] = patch));
+		if (one.failed !== undefined && !cutter.signal.aborted) cutter.abort(`cut by \`fail-fast\`: ${one.failed.path} failed`);
+		return one;
 	});
+	// Landed before the block reads its failures: what lands stays, the block failing or not.
+	const landings = copies && (await landAll(copies, here.tree as string, patches, branches.map((one) => one.prefix), walker.signal));
 	const usage = sumUsage(walked.flatMap((one) => one.usage), 0);
 	const failures = walked.flatMap((one) => (one.failed === undefined ? [] : [one.failed]));
 	const failed = failures.find((one) => one.error.kind !== "cancelled") ?? failures[0];
 	if (failed !== undefined && (!node.continueOnFail || walker.signal.aborted)) return { ended: travelled(failed), usage, failed };
-	const ends = walked.map((one): Ended => (one.failed !== undefined ? travelled(one.failed) : (one.last ?? { ok: true })));
+	const ends = walked.map((one, i): Ended => {
+		const ended = one.failed !== undefined ? travelled(one.failed) : (one.last ?? { ok: true });
+		return node.copies ? { ...ended, ...(landings?.[i] ?? { landed: true }) } : ended;
+	});
 	return { ended: { ok: true, output: shape(ends) }, usage };
 }

@@ -42,7 +42,7 @@ A copy made for one piece of work, and the way to get the work back out.
 *function*
 
 ```typescript
-export async function scratchWorktree(repo: string, label: string): Promise<GitResult<Scratch>> { /* … */ }
+export async function scratchWorktree(repo: string, label: string, from?: string): Promise<GitResult<Scratch>> { /* … */ }
 ```
 
 A copy of `repo` for one piece of work, outside the repository.
@@ -53,4 +53,5 @@ and is removed by {@link Scratch.release}.
 
 The base is resolved to a commit rather than kept as a branch name, so the
 patch is against what the work actually started from even if the branch has
-moved since.
+moved since. `from` is that commit when the caller has one, a snapshot of
+the tree as it stands; otherwise it is `HEAD`.

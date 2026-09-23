@@ -232,19 +232,70 @@ could not run: `unavailable` when `bash` cannot start, `timeout` when it runs
 past its bound. `retry:` is refused: raise `timeout:`, or make the check
 stable. A check has no `## <id>` section, since no model reads it.
 
+Inside a `copies: true` block, a check runs in its branch's copy; anywhere
+else, in the run's tree.
+
+### `commit`
+
+Everything in the working tree, committed by our code. The message is the
+output of an earlier node, an ordinary `agent` node that reads what it needs:
+
+```yaml
+- id: message
+  agent: committer
+  reads: [input, diff]
+- id: commit
+  commit: message
+```
+
+| Key | Meaning |
+| --- | --- |
+| `commit` | the message: an earlier node's text, or a `string` field of its output |
+| `on-fail` | `continue`: a failure stops at this node instead of ending the flow |
+
+The run commits on a branch of its own, `combo/<slug of the input>`, created
+from `HEAD` by its first `commit` and suffixed `-2`, `-3` when the name is
+taken. Every later commit of the run goes on the same branch, and one that
+finds `HEAD` elsewhere fails rather than committing there. Nothing is ever
+pushed.
+
+Its output is `{ committed, sha?, branch }`. A clean tree is a value,
+`{ committed: false, branch }`. An empty message fails `empty-message` before
+git is asked anything, and git refusing, a hook or a lock, fails `unavailable`
+with git's own words. `retry:` is refused: the node writing the message can
+take one. A commit inside a `copies: true` block is refused, since a commit in
+a copy would break the patch that brings the branch home.
+
 ### Branches that run together
 
 A `parallel` with several branches, or a `map` with `concurrency` above 1, runs
 branches at the same time. As soon as one of them can write (an agent with
 `write`, `edit`, `bash` or `subagent`), they need `copies: true`: a branch
 reading a tree another one is changing reads a moving target. The rule is read
-from the agents' files alone.
+from the agents' files alone. A `commit` writes too, and since it cannot stand
+in a copy, the way out is to commit after the block, or to run a `map` with
+`concurrency: 1`.
+
+With `copies: true`, each branch works in a copy of the tree as it stands,
+uncommitted changes included, and the copies are removed when the block ends,
+whatever ended it. Their patches then land in the run's tree one at a time, in
+branch order, whatever order the branches ended in. Each branch's entry in the
+block's output gains `landed`, whether everything it changed is in the tree,
+and `refused`, git's reason, on the one whose patch did not apply: that stops
+the landing, and the branches after it read `landed: false`. Nothing is
+checked between patches; the `check` written after the block judges the tree.
+A failed branch's patch lands like the others, and what landed stays when the
+block fails: nothing is undone. A run that is stopped lands nothing, and each
+branch's work stays committed on its copy's branch.
+
+A `memory:` scope named inside a `copies: true` block must open inside it,
+since a subagent works in one tree: `memory: flow` there is refused.
 
 ## Reads and addresses
 
 A node reads, by address, the nodes that already ended before it in its own
-sequence and in every enclosing one, and `input`. Nothing inside a sibling block
-is visible: what leaves a block is the block's own output.
+sequence and in every enclosing one, `input` and `diff`. Nothing inside a
+sibling block is visible: what leaves a block is the block's own output.
 A bare id is that node's output, whole. A deeper address reads a node as it
 ended:
 
@@ -254,9 +305,16 @@ ended:
 | `plan.ok` | whether the node ran |
 | `plan.output.first` | a field of a typed output |
 | `plan.error.kind` | why the node failed, one of a closed set of twelve |
+| `input` | what the run was given |
+| `diff` | what the node's tree changed since `HEAD`, untracked files included |
 
 An agent's text has no fields: it is read whole, never into. Every address is
 checked before the first spawn.
+
+`diff` is a text, computed when the node reading it starts, in its own tree:
+`git diff HEAD` plus untracked files, cut at 60 000 bytes. It is the one
+address whose value depends on when and where it is read. A node that reads it
+fails `unavailable` when git cannot give it.
 
 ## Schemas
 
@@ -291,9 +349,8 @@ reading as `false`; guard it the CEL way, `audit.ok && audit.output.approved`.
 ## Running a flow
 
 ```{note}
-Not exported yet, like the rest of the format. The runner walks every kind of
-node. A `parallel` or `map` with `copies: true` is refused with an error before
-anything is spawned, because copies of the repository come with the `git` port.
+Not exported yet, like the rest of the format; the `ask` and `flow` nodes
+come next.
 ```
 
 A run is launched in three steps, each refusing with faults rather than
@@ -302,7 +359,7 @@ starting:
 ```ts
 const flow = checkFlow("build", loadFlowCatalogue({ cwd }));
 if (!flow.ok) return flow.faults;
-const run = checkRun(flow.flow, { cwd, ports: { check: bashCheck() }, somebodyThere: true });
+const run = await checkRun(flow.flow, { cwd, ports: { check: bashCheck(), git: gitPort() }, somebodyThere: true });
 if (!run.ok) return run.faults;
 const result = await runFlow(run.run, "add a cache", { model });
 ```
@@ -310,14 +367,19 @@ const result = await runFlow(run.run, "add a cache", { model });
 `checkRun(checked, { cwd, ports, somebodyThere })` is the run stage: what the
 flow stage cannot know, since it depends on the project. `cwd` is the working
 tree, at the repository root. The flow is refused when it holds a `check` and
-the launch gave no `check` port, or when a check's script is not there. Each
-script is read here, and what runs is what was read: an agent that edits the
-file during the run changes nothing. What passes is a `CheckedRun`, holding the
-tree and the ports it was checked against.
+the launch gave no `check` port, or when a check's script is not there; and
+when it holds a `commit`, a `copies: true` block or a read of `diff`, and the
+launch gave no `git` port or `cwd` is not in a repository. Each script is read
+here, and what runs is what was read: an agent that edits the file during the
+run changes nothing. What passes is a `CheckedRun`, holding the tree and the
+ports it was checked against.
 
 `bashCheck()` is the `check` port: it runs a script's content with `bash -c`
 in a directory, `$0` being the script's path, and kills the script and every
-process it started when it ends or runs past its bound.
+process it started when it ends or runs past its bound. `gitPort()` is the
+`git` port, and the only way the runner reaches git: the tree's diff, the
+run's branch and its commits, the copies of a block and their landing. It has
+no push, no reset and no rebase.
 
 `runFlow(run, input, options)` takes the `CheckedRun` and the flow's input,
 which must match its `input:`. Its options are `spawn`, `signal`, `onEvent`,
@@ -427,10 +489,11 @@ over the visit, every attempt and nested visit included.
 ### A dry run
 
 `dryRunFlow(checked, input, answers, options)` is the same run with every agent
-turn and every check answered by a script, and nothing of the world touched: it
-takes what `checkFlow` returned, reads no check script and runs none. It
-returns what `runFlow` does plus `journal`, every `visit_end` in order, with
-zero tokens.
+turn, every check and every commit answered by a script, and nothing of the
+world touched: it takes what `checkFlow` returned, reads no check script, runs
+none, and never runs git. `diff` reads as an empty text, and a `copies: true`
+block makes no copy, each of its branches reading as landed. It returns what
+`runFlow` does plus `journal`, every `visit_end` in order, with zero tokens.
 
 ```ts
 // The `split` flow at the top of this page, its `first` node given `retry: 1`.
@@ -447,15 +510,18 @@ the enclosing path: each `map` item has its own list, and a loop's iterations
 share one. A list is always a list of answers, so a list-typed output is
 written inside one. An answer is an output, the `verdict` call of a
 `verdict:` node (`{ approved, remarks?, resolved?, raised? }`), a check's
-`{ passed, report }`, or a failure: `{ fail: "provider" | "timeout" | "schema" }`
-for an agent turn, `{ fail: "unavailable" | "timeout" }` for a check. The
+`{ passed, report }`, a commit's `{ committed, sha?, branch }`, or a failure:
+`{ fail: "provider" | "timeout" | "schema" }` for an agent turn,
+`{ fail: "unavailable" | "timeout" }` for a check, `{ fail: "unavailable" }`
+for a commit. A commit's `empty-message` is not scripted: an empty answer to
+the node that writes the message gives it. The
 script is checked before the start, and refused with every fault in it:
 
 | Code | What it means |
 | --- | --- |
-| `answer-unknown-node` | the key names no `agent` or `check` node, or its path leads to none; the message offers the address meant |
+| `answer-unknown-node` | the key names no `agent`, `check` or `commit` node, or its path leads to none; the message offers the address meant |
 | `answer-past-max` | a visit path's iteration or item is past its bound, or a list holds more answers than the node can be asked for |
-| `answer-off-schema` | the answer does not match the node's `output:`, is not a text for a node with none, or is not a check's `{ passed, report }` |
+| `answer-off-schema` | the answer does not match the node's `output:`, is not a text for a node with none, or is not a check's `{ passed, report }` or a commit's `{ committed, sha?, branch }` |
 | `answer-fail-kind` | `fail:` names a kind the node cannot fail with |
 
 A visit the script does not answer stops the dry run with
@@ -467,8 +533,8 @@ absorbs: a hole in the script is the test's mistake, not the flow's.
 A flow that does not pass is refused with every fault at once, in file order,
 each as `{ code, file, at, message }`. `at` is the node's id, or the flow's key,
 then the offending key: `first.agent-from`. `checkFlow` and `checkRun` both
-refuse this way; `check-script-missing` and `check-port-missing` are the run
-stage's.
+refuse this way; `check-script-missing`, `check-port-missing`,
+`git-port-missing` and `not-a-repository` are the run stage's.
 
 | Code | What it means | How to fix it |
 | --- | --- | --- |
@@ -497,10 +563,14 @@ stage's.
 | `memory-output-mismatch` | two nodes share a subagent through `memory:` and declare different `output:` schemas; the subagent's one `submit` tool takes one | declare the same schema, or give one node another scope |
 | `carry-mismatch` | a loop's `carry:` sides share no field | make `first` and `next` agree on the fields carried |
 | `verdict-with-output` | a `verdict:` node also declares `output:` | drop `output:`: the verdict is the output |
-| `copies-needed` | branches that run together write without copies | add `copies: true`, or run a `map` with `concurrency: 1` |
-| `retry-refused` | `retry:` on a node that is not retried, a `check` | raise `timeout:`, or make the check stable |
+| `copies-needed` | branches that run together write without copies | add `copies: true`, or run a `map` with `concurrency: 1`; a `commit` goes after the block |
+| `retry-refused` | `retry:` on a node that is not retried, a `check` or a `commit` | raise a check's `timeout:` or make it stable; retry the node writing a commit's message |
 | `check-script-missing` | a check's script is not in the working tree, or is not a file | add the script, or fix its path from the repository root |
 | `check-port-missing` | the flow holds a `check` and the launch gave no `check` port | pass one, `bashCheck()` |
+| `commit-in-copies` | a `commit` inside a `copies: true` block | commit after the block |
+| `memory-outside-copies` | a node inside a `copies: true` block names a `memory:` scope that opens outside it | name a scope inside the block, or none |
+| `git-port-missing` | the flow holds a `commit`, a `copies: true` block or a read of `diff`, and the launch gave no `git` port | pass one, `gitPort()` |
+| `not-a-repository` | the same, launched in a directory that is not in a git repository | launch it at the root of a repository |
 | `section-missing` | an `agent` node has no `## <id>` section | write its section |
 | `section-empty` | a section has no text | say what the turn is asked |
 | `section-duplicate` | two sections share a heading | merge them |

@@ -4,11 +4,13 @@
  *
  * A `check` names a script of the project rather than a command: the script
  * belongs to the project, so one flow runs on projects that check themselves
- * differently, and there is one form to read.
+ * differently, and there is one form to read. A `commit` names the address
+ * of its message, which an ordinary `agent` node wrote: the model writes the
+ * text, our code makes the commit.
  */
 
 import { posix } from "node:path";
-import type { CheckNode, NodeReading } from "./node.ts";
+import type { CheckNode, CommitNode, NodeReading } from "./node.ts";
 import { duration, text } from "./value.ts";
 
 /** A check's bound when its node sets none: a suite, not an agent turn. */
@@ -25,4 +27,10 @@ export function readCheck({ raw, id, at, faults, continueOnFail }: NodeReading):
 	const timeoutMs = raw.timeout === undefined ? CHECK_TIMEOUT_MS : duration(raw.timeout, `${at}.timeout`, faults);
 	if (script === undefined || timeoutMs === undefined) return undefined;
 	return { kind: "check", id, at, continueOnFail, script, timeoutMs };
+}
+
+/** A `commit`, or `undefined` when a fault refused it. */
+export function readCommit({ raw, id, at, faults, continueOnFail }: NodeReading): CommitNode | undefined {
+	const message = text(raw.commit, `${at}.commit`, faults);
+	return message === undefined ? undefined : { kind: "commit", id, at, continueOnFail, message };
 }

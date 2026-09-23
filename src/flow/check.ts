@@ -14,7 +14,8 @@ import { AgentNames } from "./agents.ts";
 import type { FlowCatalogue } from "./catalogue.ts";
 import { checkChoice, checkMap, checkParallel } from "./check-blocks.ts";
 import { checkLoop } from "./check-loop.ts";
-import { CHECK, VERDICT, type CheckedAgentNode, type CheckedFlow, type CheckedNode, type CheckedRead } from "./checked.ts";
+import { checkCommit } from "./check-world.ts";
+import { CHECK, COMMIT, VERDICT, type CheckedAgentNode, type CheckedFlow, type CheckedNode, type CheckedRead } from "./checked.ts";
 import { compileCondition, typeOfAddress, type Condition, type Readable } from "./condition/index.ts";
 import { FaultList, type Fault } from "./fault.ts";
 import { readFlow, type FlowFile } from "./file.ts";
@@ -141,6 +142,8 @@ export class Checker {
 				return checkLoop(this, node, scope);
 			case "check":
 				return { node, output: CHECK };
+			case "commit":
+				return { node: checkCommit(this, node, scope), output: COMMIT };
 		}
 	}
 
@@ -148,6 +151,9 @@ export class Checker {
 		const agent = "name" in node.agent ? this.agents.resolve(node.agent.name, `${node.at}.agent`, this.faults) : this.picked(node, node.agent.from, node.agent.among, scope);
 		if (node.memory !== undefined && node.memory !== "flow" && !scope.encloses(node.memory)) {
 			this.faults.add("unknown-scope", `${node.at}.memory`, `\`${node.memory}\` is not a node this one is in; \`memory:\` names one, or \`flow\` for the whole file`);
+		}
+		if (node.memory !== undefined && scope.outsideCopies(node.memory)) {
+			this.faults.add("memory-outside-copies", `${node.at}.memory`, `\`${node.memory}\` opens outside the \`copies: true\` block this node is in, so its subagent would work in another tree than this branch's copy: name a scope inside the block`);
 		}
 		if (node.verdict !== undefined && !scope.keepsLedger(node.verdict)) {
 			this.faults.add("unknown-scope", `${node.at}.verdict`, `\`${node.verdict}\` is not a node this one is in with a \`ledger:\`; \`verdict:\` names the one whose ledger it writes to`);
@@ -182,8 +188,13 @@ export class Checker {
 		return { from, among: agents };
 	}
 
+	/** Whether `name` is the id of a node of this file. */
+	isNode(name: string): boolean {
+		return this.ids.has(name);
+	}
+
 	/** A bare id reads a node's output whole; a deeper address reads that value only. */
-	private read(address: string, at: string, scope: Scope): CheckedRead | undefined {
+	read(address: string, at: string, scope: Scope): CheckedRead | undefined {
 		const whole = scope.output(address);
 		if (whole !== undefined) return { address, type: whole };
 		const type = this.typeOf(address, at, scope);

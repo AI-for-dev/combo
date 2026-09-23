@@ -8,6 +8,7 @@
  */
 
 import type { Agent } from "../../agent.ts";
+import type { GitResult } from "../../git/index.ts";
 import type { Result } from "../../result.ts";
 import type { Ledger } from "../../review/index.ts";
 import { emptyUsage, sumUsage, type Usage } from "../../usage.ts";
@@ -31,8 +32,10 @@ export type AgentRun = {
 	timeoutFor(node: CheckedAgentNode): number;
 	/** The deadline of one attempt. */
 	deadline(attempt: Attempt): AbortSignal;
-	/** A subagent of `agent` for `node`, spawned for the visit `path`, with the tools it answers with. */
-	open(agent: Agent, node: CheckedAgentNode, path: string): Promise<Held>;
+	/** A subagent of `agent` for `node`, spawned for the visit `path` in `tree`, with the tools it answers with. */
+	open(agent: Agent, node: CheckedAgentNode, path: string, tree: string | undefined): Promise<Held>;
+	/** What `tree` changed since `HEAD`, as `diff` reads it. */
+	diff(tree: string | undefined): Promise<GitResult<string>>;
 };
 
 /** How an agent visit ended, with what it cost and who ran it. */
@@ -41,12 +44,23 @@ export type AgentVisit = { readonly ended: Ended; readonly usage: Usage; readonl
 /** One visit's asking: its node and path, where it stands, and the ledger a `verdict:` node writes to. */
 type Asking = { readonly run: AgentRun; readonly node: CheckedAgentNode; readonly path: string; readonly here: Here; readonly ledger?: Ledger };
 
-/** Visits `node` at `path`. A node with `memory:` resumes its scope's subagent; any other gets a fresh one. */
-export async function visitAgent(run: AgentRun, node: CheckedAgentNode, path: string, here: Here): Promise<AgentVisit> {
-	const agent = pick(node, here);
+/**
+ * Visits `node` at `path`. A node with `memory:` resumes its scope's
+ * subagent; any other gets a fresh one. A read of `diff` is taken now, in the
+ * node's own tree: it is the one address whose value depends on when and
+ * where it is read.
+ */
+export async function visitAgent(run: AgentRun, node: CheckedAgentNode, path: string, at: Here): Promise<AgentVisit> {
+	const agent = pick(node, at);
 	if (typeof agent === "string") return { ended: failure("condition", agent), usage: emptyUsage() };
+	let here = at;
+	if (node.reads.some((read) => read.address === "diff")) {
+		const diff = await run.diff(here.tree);
+		if (!diff.ok) return { ended: failure("unavailable", `\`diff\`: ${diff.error}`), usage: emptyUsage() };
+		here = { ...here, values: here.values.inside().lend("diff", diff.value) };
+	}
 	const asking: Asking = { run, node, path, here, ledger: node.verdict === undefined ? undefined : here.frames.ledger(node.verdict) };
-	const open = () => run.open(agent, node, path);
+	const open = () => run.open(agent, node, path, here.tree);
 	if (node.memory !== undefined) return here.frames.use(node.memory, agent.name, open, (held) => attempts(asking, held));
 	let held = await open();
 	try {

@@ -33,13 +33,13 @@ import { readSchema } from "./schema.ts";
 import { readSections } from "./sections.ts";
 import type { ValueType } from "./type.ts";
 import { duration, text } from "./value.ts";
-import { readCheck } from "./world.ts";
+import { readCheck, readCommit } from "./world.ts";
 
 /** The keys of a flow's frontmatter, and whether each is required. */
 export const FLOW_KEYS = { name: true, description: true, input: true, model: false, timeout: false, nodes: true } as const;
 
 /** The reader of each kind of node. */
-const KINDS: Readonly<Record<NodeKind, KindReader>> = { agent: readAgent, choice: readChoice, parallel: readParallel, map: readMap, loop: readLoop, check: readCheck };
+const KINDS: Readonly<Record<NodeKind, KindReader>> = { agent: readAgent, choice: readChoice, parallel: readParallel, map: readMap, loop: readLoop, check: readCheck, commit: readCommit };
 
 /** A flow file, read: nothing in it is resolved against a catalogue yet. */
 export type FlowFile = {

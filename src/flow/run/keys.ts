@@ -1,5 +1,5 @@
 /**
- * Where a dry run's key lands: the `agent` or `check` node it names, and the
+ * Where a dry run's key lands: the `agent`, `check` or `commit` node it names, and the
  * most answers a list under it can be asked for.
  *
  * A node's address (`review/code`) is answered within its enclosing path, so
@@ -9,10 +9,10 @@
  * iteration and each item to the bound its block has.
  */
 
-import type { CheckedAgentNode, CheckedCheckNode, CheckedNode } from "../checked.ts";
+import type { CheckedAgentNode, CheckedCheckNode, CheckedCommitNode, CheckedNode } from "../checked.ts";
 
-/** A node a script answers: an agent turn, or a check's script run. */
-export type AnsweredNode = CheckedAgentNode | CheckedCheckNode;
+/** A node a script answers: an agent turn, a check's script run, or a commit. */
+export type AnsweredNode = CheckedAgentNode | CheckedCheckNode | CheckedCommitNode;
 
 /** The node a key names, and how many answers its list can be asked for. */
 export type Keyed = { readonly node: AnsweredNode; readonly most: number };
@@ -58,10 +58,10 @@ export function visitAt(nodes: readonly CheckedNode[], path: string): Keyed | Un
 }
 
 function isAnswered(node: CheckedNode): node is AnsweredNode {
-	return node.kind === "agent" || node.kind === "check";
+	return node.kind === "agent" || node.kind === "check" || node.kind === "commit";
 }
 
-/** How many times one visit of `node` is asked: a check is never retried. */
+/** How many times one visit of `node` is asked: only an agent turn is retried. */
 function attempts(node: AnsweredNode): number {
 	return node.kind === "agent" ? 1 + node.retry : 1;
 }

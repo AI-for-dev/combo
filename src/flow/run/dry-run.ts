@@ -1,13 +1,16 @@
 /**
- * `dryRunFlow`: `runFlow` itself, with every agent turn and every check
- * answered by a script.
+ * `dryRunFlow`: `runFlow` itself, with every agent turn, every check and
+ * every commit answered by a script.
  *
  * The same walk, the same `spawn`, the same events. Only the session under
  * each subagent and the `check` port are scripted, so a typed answer goes
  * through the real `submit` tool, a verdict through the real `verdict` tool
  * and its ledger, and a failure takes its real path, retries and `fail-fast`
  * included. Nothing of the world is touched: it takes a `CheckedFlow`, no
- * working directory is given, no script is read and no model is reached.
+ * working directory is given, no script is read, no model is reached and git
+ * is never run. `diff` reads as an empty text, since no agent wrote anything,
+ * and a `copies: true` block makes no copy: each of its branches reads as
+ * landed.
  */
 
 import type { EventListener, VisitEvent } from "../../events.ts";
@@ -15,9 +18,10 @@ import { spawn } from "../../subagent.ts";
 import type { Usage } from "../../usage.ts";
 import type { SpawnFn } from "../../workflows/options.ts";
 import type { ScriptOutcome } from "../../verify.ts";
-import type { CheckedCheckNode, CheckedFlow } from "../checked.ts";
+import type { CheckedCheckNode, CheckedCommitNode, CheckedFlow } from "../checked.ts";
 import type { Attempt } from "./agent.ts";
 import { Script, type AnswerFault, type Answers } from "./answers.ts";
+import type { CommitOutcome } from "./commit.ts";
 import { walkFlow, type FlowResult, type RunFlowOptions } from "./flow.ts";
 import { scriptedSession, type ScriptedSession } from "./scripted.ts";
 
@@ -72,14 +76,15 @@ export async function dryRunFlow(checked: CheckedFlow, input: unknown, answers: 
 		else sessions.get(subagent)?.stage(turn, controller);
 		return controller.signal;
 	};
-	const check = async (node: CheckedCheckNode, path: string): Promise<ScriptOutcome> => script.ran(path, node.at) ?? hole(path);
-	const hole = (path: string): ScriptOutcome => {
+	const ran = async <T extends ScriptOutcome | CommitOutcome>(node: CheckedCheckNode | CheckedCommitNode, path: string): Promise<T> => script.ran<T>(path, node.at) ?? hole<T>(path);
+	const hole = <T extends ScriptOutcome | CommitOutcome>(path: string): T => {
 		unscripted ??= path;
 		halt.abort();
-		return { ok: false, kind: "stopped", message: "unscripted" };
+		return { ok: false, kind: "stopped", message: "unscripted" } as T;
 	};
+	const world = { deadline, check: ran<ScriptOutcome>, commit: ran<CommitOutcome>, diff: async () => ({ ok: true as const, value: "" }) };
 
-	const result = await walkFlow(checked, input, { ...options, signal, onEvent, spawn: scripted }, { deadline, check });
+	const result = await walkFlow(checked, input, { ...options, signal, onEvent, spawn: scripted }, world);
 	if (unscripted !== undefined) return { ok: false, unscripted, journal, usage: result.usage };
 	return { ...result, journal };
 }

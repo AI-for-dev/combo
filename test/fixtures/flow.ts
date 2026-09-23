@@ -31,16 +31,24 @@ export function checked(nodes: string, sections: Record<string, string>, head = 
 	return result.flow;
 }
 
+/** The faults of the flow `f` whose nodes are `nodes` and whose body is `body`, as `code at`. */
+export function refused(nodes: string, body = ""): string[] {
+	const content = `---\nname: f\ndescription: d\ninput: string\nnodes:\n${nodes}\n---\n${body}`;
+	const result = checkFlow("f", { flows: [{ name: "f", filePath: "flows/f.md", content }], agents: AGENTS, brokenAgents: [], cwd: "." });
+	assert.ok(!result.ok, "expected the flow to be refused");
+	return result.faults.map(({ code, at }) => `${code} ${at}`);
+}
+
 /** `flow` through the run stage: in this directory, with no port and nobody there unless `stage` says otherwise. */
-export function launched(flow: CheckedFlow, stage: Partial<RunStage> = {}): CheckedRun {
-	const result = checkRun(flow, { cwd: process.cwd(), ports: {}, somebodyThere: false, ...stage });
+export async function launched(flow: CheckedFlow, stage: Partial<RunStage> = {}): Promise<CheckedRun> {
+	const result = await checkRun(flow, { cwd: process.cwd(), ports: {}, somebodyThere: false, ...stage });
 	assert.ok(result.ok, JSON.stringify(!result.ok && result.faults, null, 1));
 	return result.run;
 }
 
 /** `runFlow` on `flow` {@link launched} as it is: what a flow of agents and blocks needs. */
-export function runChecked(flow: CheckedFlow, input: unknown, options?: RunFlowOptions): Promise<FlowResult> {
-	return runFlow(launched(flow), input, options);
+export async function runChecked(flow: CheckedFlow, input: unknown, options?: RunFlowOptions): Promise<FlowResult> {
+	return runFlow(await launched(flow), input, options);
 }
 
 /** A fake turn that may also call `submit` with `submit`, or `verdict` with `verdict`, before it ends. */

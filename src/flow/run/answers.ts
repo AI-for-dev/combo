@@ -9,12 +9,13 @@
  * iterations share one. A list is always a list of answers, so a node whose
  * output is a list is answered inside one: `[["a", "b"]]`. An answer is an
  * output, the `verdict` call of a `verdict:` node, a check's `{ passed,
- * report }`, or `{ fail: <kind> }`.
+ * report }`, a commit's `{ committed, sha?, branch }`, or `{ fail: <kind> }`.
  */
 
 import { VERDICT_TOOL } from "../../review/index.ts";
 import type { ScriptOutcome } from "../../verify.ts";
-import { CHECK, type CheckedAgentNode, type CheckedFlow } from "../checked.ts";
+import { CHECK, COMMIT, type CheckedAgentNode, type CheckedFlow } from "../checked.ts";
+import type { CommitOutcome } from "./commit.ts";
 import { nearest } from "../fault.ts";
 import { mismatch, type ValueType } from "../type.ts";
 import { answeredNodes, visitAt, type AnsweredNode, type Keyed, type Unkeyed } from "./keys.ts";
@@ -31,7 +32,10 @@ export type AnswerFault = { readonly code: (typeof ANSWER_CODES)[number]; readon
 export type Answers = Readonly<Record<string, unknown>>;
 
 /** How a scripted node can fail: what it can end with on its own, short of a person or a cut. */
-const FAILS = { agent: ["provider", "timeout", "schema"], check: ["unavailable", "timeout"] } as const;
+const FAILS = { agent: ["provider", "timeout", "schema"], check: ["unavailable", "timeout"], commit: ["unavailable"] } as const;
+
+/** What each kind of node a script answers is asked to say, by name in a fault. */
+const ANSWERED = { agent: "an agent turn", check: "a check", commit: "a commit" } as const;
 
 const TEXT: ValueType = { kind: "text" };
 const STRING: ValueType = { kind: "string" };
@@ -103,13 +107,16 @@ export class Script {
 		return answer && turn(answer.value, this.nodes.get(at) as CheckedAgentNode);
 	}
 
-	/** How the script of the check at `at` ends at visit `path`, or `undefined` when nothing scripts it. */
-	ran(path: string, at: string): ScriptOutcome | undefined {
+	/**
+	 * How the check or the commit at `at` ends at visit `path`, or `undefined`
+	 * when nothing scripts it: the outcome its port would give.
+	 */
+	ran<T extends ScriptOutcome | CommitOutcome>(path: string, at: string): T | undefined {
 		const answer = this.take(path, at);
 		if (answer === undefined) return undefined;
-		if (!isFail(answer.value)) return { ok: true, ...(answer.value as { passed: boolean; report: string }) };
-		const kind = answer.value.fail as (typeof FAILS.check)[number];
-		return { ok: false, kind, message: `scripted ${kind} failure` };
+		if (!isFail(answer.value)) return { ok: true, ...(answer.value as object) } as T;
+		const kind = answer.value.fail as string;
+		return { ok: false, kind, message: `scripted ${kind} failure` } as T;
 	}
 
 	/** The answer the visit `path` of the node at `at` takes: its path's, else its address's, one per attempt from a list. */
@@ -131,7 +138,7 @@ function unkeyed(key: string, { code, why }: Unkeyed, nodes: ReadonlyMap<string,
 	// An id alone is the likeliest slip: it is how the node is written.
 	const near = [...nodes.values()].find(({ node }) => node.id === key)?.node.at ?? nearest(key.replace(/#\d+|\[\d+\]/g, ""), nodes.keys());
 	const said = why ?? (near === undefined ? undefined : `did you mean \`${near}\`?`);
-	return `\`${key}\` names no agent or check node${said === undefined ? "" : `: ${said}`}`;
+	return `\`${key}\` names no agent, check or commit node${said === undefined ? "" : `: ${said}`}`;
 }
 
 function isFail(answer: unknown): answer is { fail: unknown } {
@@ -143,9 +150,9 @@ function checkAnswer(answer: unknown, node: AnsweredNode, at: string): AnswerFau
 	if (isFail(answer)) {
 		const fails: readonly unknown[] = FAILS[node.kind];
 		if (fails.includes(answer.fail)) return undefined;
-		return { code: "answer-fail-kind", at, message: `${node.kind === "agent" ? "an agent turn" : "a check"} fails with ${fails.join(", ")}, not ${JSON.stringify(answer.fail)}` };
+		return { code: "answer-fail-kind", at, message: `${ANSWERED[node.kind]} fails with ${fails.join(", ")}, not ${JSON.stringify(answer.fail)}` };
 	}
-	const problem = mismatch(answer, node.kind === "check" ? CHECK : node.verdict === undefined ? (node.output ?? TEXT) : VERDICT_CALL);
+	const problem = mismatch(answer, node.kind === "check" ? CHECK : node.kind === "commit" ? COMMIT : node.verdict === undefined ? (node.output ?? TEXT) : VERDICT_CALL);
 	return problem === undefined ? undefined : { code: "answer-off-schema", at, message: problem };
 }
 

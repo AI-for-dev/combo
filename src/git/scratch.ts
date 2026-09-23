@@ -43,10 +43,11 @@ export type Scratch = {
  *
  * The base is resolved to a commit rather than kept as a branch name, so the
  * patch is against what the work actually started from even if the branch has
- * moved since.
+ * moved since. `from` is that commit when the caller has one, a snapshot of
+ * the tree as it stands; otherwise it is `HEAD`.
  */
-export async function scratchWorktree(repo: string, label: string): Promise<GitResult<Scratch>> {
-	const head = await headSha(repo);
+export async function scratchWorktree(repo: string, label: string, from?: string): Promise<GitResult<Scratch>> {
+	const head = from === undefined ? await headSha(repo) : { ok: true as const, value: from };
 	if (!head.ok) return head;
 	const base = head.value;
 

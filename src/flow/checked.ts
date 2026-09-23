@@ -11,7 +11,7 @@
 
 import type { Agent } from "../agent.ts";
 import type { Condition } from "./condition/index.ts";
-import type { ValueType } from "./type.ts";
+import type { Field, ValueType } from "./type.ts";
 
 /** Why a node failed. A closed set, so a condition reading `x.error.kind` is checked like any enum. */
 export const ERROR_KINDS = [
@@ -108,8 +108,14 @@ export type CheckedCheckNode = Common & {
 	readonly timeoutMs: number;
 };
 
+/** A `commit`, its message's address typed as a text. */
+export type CheckedCommitNode = Common & {
+	readonly kind: "commit";
+	readonly message: string;
+};
+
 /** A node of any kind, resolved. */
-export type CheckedNode = CheckedAgentNode | CheckedChoiceNode | CheckedParallelNode | CheckedMapNode | CheckedLoopNode | CheckedCheckNode;
+export type CheckedNode = CheckedAgentNode | CheckedChoiceNode | CheckedParallelNode | CheckedMapNode | CheckedLoopNode | CheckedCheckNode | CheckedCommitNode;
 
 declare const checked: unique symbol;
 
@@ -140,6 +146,25 @@ export const VERDICT: ValueType = {
 export const CHECK: ValueType = {
 	kind: "object",
 	fields: { passed: { type: { kind: "boolean" }, optional: false }, report: { type: STRING, optional: false } },
+};
+
+/**
+ * What a `commit` outputs: whether it made one, its short sha when it did,
+ * and the run's branch either way. A clean tree is a value, not a failure.
+ */
+export const COMMIT: ValueType = {
+	kind: "object",
+	fields: { committed: { type: { kind: "boolean" }, optional: false }, sha: { type: STRING, optional: true }, branch: { type: STRING, optional: false } },
+};
+
+/**
+ * What a branch of a `copies: true` block adds to its entry in the block's
+ * output: whether all it changed reached the tree, and when its patch is the
+ * one that stopped the landing, why.
+ */
+export const LANDED: Readonly<Record<string, Field>> = {
+	landed: { type: { kind: "boolean" }, optional: false },
+	refused: { type: STRING, optional: true },
 };
 
 /** The open obligations of a ledger, as `<scope>.ledger` reads them. */

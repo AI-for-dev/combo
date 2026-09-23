@@ -23,6 +23,7 @@ export const KIND_KEYS = {
 	"map-from": "map",
 	loop: "loop",
 	check: "check",
+	commit: "commit",
 } as const;
 
 /** Every key a node of each kind may carry. Anything else is refused. */
@@ -33,6 +34,7 @@ export const NODE_KEYS = {
 	map: ["id", "map", "map-from", "max", "concurrency", "copies", "fail-fast", "ledger", "do", "on-fail"],
 	loop: ["id", "loop", "max", "give-up", "carry", "ledger", "do", "on-fail"],
 	check: ["id", "check", "timeout", "on-fail"],
+	commit: ["id", "commit", "on-fail"],
 } as const;
 
 /**
@@ -42,6 +44,7 @@ export const NODE_KEYS = {
  */
 export const RETRY_REFUSED: Partial<Record<NodeKind, string>> = {
 	check: "a check is not retried: raise `timeout:`, or make the check stable",
+	commit: "a commit is not retried: what git refused is a hook or a lock to fix, and the node writing the message can take `retry:`",
 };
 
 /** A kind of node. */
@@ -124,8 +127,15 @@ export type CheckNode = Common & {
 	readonly timeoutMs: number;
 };
 
+/** Everything in the working tree committed, on the run's own branch. */
+export type CommitNode = Common & {
+	readonly kind: "commit";
+	/** The address of the message, an earlier node's output. */
+	readonly message: string;
+};
+
 /** A node of any kind. */
-export type FlowNode = AgentNode | ChoiceNode | ParallelNode | MapNode | LoopNode | CheckNode;
+export type FlowNode = AgentNode | ChoiceNode | ParallelNode | MapNode | LoopNode | CheckNode | CommitNode;
 
 /** What reading a whole file shares, from one node to the next and into nested ones. */
 export type ReadContext = {
