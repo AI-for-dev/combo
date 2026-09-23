@@ -87,12 +87,21 @@ export type Agent = {
 /**
  * Parses an agent definition.
  *
- * Returns `undefined` when `name` or `description` is missing: this is pi's
- * behaviour, an incomplete file is ignored **silently**. Kept separate from
- * {@link loadAgents} so it stays testable without touching the disk.
+ * Returns `undefined` when the frontmatter is not valid YAML, or when `name` or
+ * `description` is missing: this is pi's behaviour, a file that is not an agent
+ * is ignored **silently**. Kept separate from {@link loadAgents} so it stays
+ * testable without touching the disk.
  */
 export function parseAgent(content: string, filePath: string, source: AgentSource): Agent | undefined {
-	const { frontmatter, body } = parseFrontmatter<Record<string, unknown>>(content);
+	let parsed: { frontmatter: Record<string, unknown>; body: string };
+	try {
+		parsed = parseFrontmatter<Record<string, unknown>>(content);
+	} catch {
+		// Agents are discovered, not asked for: one bad file among the user's
+		// must not take every other agent down with it.
+		return undefined;
+	}
+	const { frontmatter, body } = parsed;
 
 	const name = asString(frontmatter.name);
 	const description = asString(frontmatter.description);
