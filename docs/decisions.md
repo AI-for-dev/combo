@@ -1874,6 +1874,54 @@ returned, so a broken file is never drawn: its faults are what is shown.
 - **A plain `mermaid` fence.** `myst_fence_as_directive` makes MyST read it as
   the directive, so the same file is drawn by GitHub and by the site.
 
+### The live view folds the plan by the state of each visit
+
+`livePlan(checked, journal, events)` is one pure fold beside `picture.ts`,
+which is unchanged, as is `tree.ts`. The picture is still what a TypeScript
+workflow with no plan draws, and what `usage.json` and the tool's result
+read.
+
+- **The journal is the earlier lives and the events are this one.** A
+  journal entry is a `visit_end` written down, so one fold reads both. A
+  visit's last end is the one drawn, whichever life wrote it, and a
+  `copy_lost` forgets what lay under its branch, as a resume does. Fed the
+  full journal and this life's events together, a visit would count twice.
+- **A life is told apart by its `run_end`.** The journal writes no mark
+  when a life starts. A life killed before its end is counted as `partial`
+  when the next one comes in as events. Read from the journal alone, the
+  two run together as one. The measurement of lives will need a start
+  mark, and the view will read it then.
+- **Folding follows state, and so does the glyph.** Running is expanded,
+  ended is one line, not visited is the plan line, so the first frame is
+  the plan. A visit begun and not ended while nothing runs, which is what a
+  kill leaves, is expanded under `○` rather than `●`. A branch, an item or
+  an iteration reads `working` while its block runs, which keeps the moment
+  between two of its visits from flickering to `○`.
+- **A `choice`'s cases are named, not counted.** `○ case 1, default` and
+  `○ not taken: default` use the plan's own case names. A count would
+  disagree with the plan's `choice of 1 case`, which leaves out the
+  default.
+- **The counts are over the frame, the cost over every life.** A visit a
+  resume ran again counts once, as it last ended, so `failed` matches the
+  `✗` a reader can see. The cost adds up every life's, since each one was
+  paid. A life that wrote its `run_end` takes the total from there. A killed
+  one adds up its outermost ended visits, whose time overstates branches
+  that ran together: no clock saw that life end.
+- **Only a loop is named `not converged`.** Only a loop ends
+  `converged: false` or fails `unconverged`, since a failure that travels up
+  becomes `child`. The summary finds them without looking up the node.
+- **The glyphs are the TUI's.** `statusIcon` decides `●`, `✓` and `✗` for a
+  subagent's row and for a visit's line alike, and the plan's `○` is shared
+  with `showPlan`. `–` is the view's own. An ended line names the agent its
+  visit ran, and a running one names its subagents, so the journal alone
+  and the stream alone draw the same last frame.
+- **herdr is left as it is.** A split per subagent named by agent and scope,
+  with none for `check`, `ask` or `commit`, belongs with the switch to
+  flows, which wires the view into the extension. Until then nothing reads
+  the view, and herdr opens its splits as for any run.
+- **The width is the caller's.** `showLive` and `showSummary` take it with
+  no default, like `truncate`, and cut a line while keeping its indent.
+
 ## A chain walked by hand
 
 `/run explore …` put its answer in the conversation, and the session picked it

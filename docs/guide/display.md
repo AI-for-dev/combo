@@ -402,6 +402,13 @@ therefore tested by calling the function that makes it, never by scraping a
 terminal, and the same picture would feed a web view without touching a
 component.
 
+A flow run has a second fold beside the picture: `livePlan` in `src/flow/`
+reads the visit events and the journal into the flow's plan, and ignores
+the subagent events except `spawn`, whose `visit` ties a subagent to the
+plan line it works for. The picture skips the visit events, so each fold
+reads its own half of one stream and neither is changed for the other.
+[The live view](flows.md#the-live-view) says how the plan fills.
+
 ## Reference
 
 - [`events`](../reference/api/events.md) - `SubagentEvent`, `EventBus`.

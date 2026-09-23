@@ -11,7 +11,7 @@
  * `readSnapshot` and `readJournal` read back what a run left in its run
  * directory, `resumePoint` says where it picks up, and `resumeFlow` resumes it.
  * `planOf` and `mermaidOf` render a checked flow, whose `bounds` say its
- * worst case.
+ * worst case, and `livePlan` fills its plan as a run goes.
  */
 
 export { showBound, type Bound, type Bounds } from "./bounds.ts";
@@ -50,7 +50,20 @@ export {
 	type Readable,
 } from "./condition/index.ts";
 export { FAULT_CODES, type Fault, type FaultCode } from "./fault.ts";
-export { mermaidOf, planOf, showPlan, type Plan, type PlanLine } from "./render/index.ts";
+export {
+	livePlan,
+	mermaidOf,
+	planOf,
+	showLive,
+	showPlan,
+	showSummary,
+	type LiveLine,
+	type LivePlan,
+	type LiveState,
+	type LiveSummary,
+	type Plan,
+	type PlanLine,
+} from "./render/index.ts";
 export {
 	ANSWER_CODES,
 	dryRunFlow,

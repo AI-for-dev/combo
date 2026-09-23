@@ -847,6 +847,74 @@ flowchart TD
 [`docs/reference/flows/`](../reference/flows/index.md), and `npm test` fails
 when a page there no longer matches its flow.
 
+### The live view
+
+`livePlan(checked, journal, events)` is the plan of a run, filled as its
+visits go. `journal` is what the run's earlier lives wrote and `events` is
+what this life reports on the stream. A finished run's journal alone draws
+its last frame, a live run's events alone draw it as it goes, and a resume
+passes both. A dry run reports the same events and hands back the same
+journal, so its result is drawn the same way.
+
+Each line is folded by the state of its visit:
+
+- A visit running now is expanded. A loop shows every iteration it has run,
+  and the current one is open. A `map` shows every item and a `parallel`
+  every branch, since they run together, each folded to one line once it
+  ended. A `parallel` line reads `1/2` until its join, and a `map` line
+  counts its items the same way. A running call expands its callee's plan
+  under it.
+- A visit that ended is one line: why it failed, or the agent it ran, the
+  case a `choice` took, a loop's iterations and whether it converged, the
+  items or branches a block joined. Its time and tokens follow.
+- A node not visited yet is its plan line, marked `○`. A `choice` folds its
+  cases to one line until it decides (`○ case 1, default`), then shows the
+  case it took and one line for the others (`○ not taken: default`).
+- A node its sequence never reached, because a failure or a stop ended it,
+  keeps its line, marked `–` and nothing more.
+- An `ask` waiting for its answer is `blocked`, and a line an `agent` visit
+  is running on names its subagents, from the `visit` their `spawn` carries.
+
+`showLive(live, width)` writes it as text, the summary line first, each line
+cut to `width`. `showSummary(live, width)` is the summary line alone. The
+glyphs are the TUI's: `●` running, `✓` done, `✗` failed. The run of the loop
+of two around a `map`, a `parallel`, a `choice` and a verdict in the tests,
+as its second iteration starts its second item:
+
+```text
+● f · 10 visits · 0s · ↑0 ↓0
+● deliver · #2 of 2
+  ✓ deliver#1 · 0s · ↑0 ↓0
+  ● deliver#2
+    ● deliver#2/work · 1/2
+      ✓ deliver#2/work[1] · 0s · ↑0 ↓0
+      ● deliver#2/work[2]
+        ● deliver#2/work[2]/code
+    ○ deliver#2/both · parallel · ≤ 2 turns · ≤ 1h + a person's answer
+      ○ deliver#2/both/left
+        ○ deliver#2/both/left/look · agent scout (agents/scout.md) · timeout 30m by default · ≤ 2 turns · ≤ 1h
+      ○ deliver#2/both/right
+        ○ deliver#2/both/right/sure · ask "Go on?" · confirm · a person's answer
+    ○ deliver#2/gate · choice of 1 case · ≤ 2 turns · ≤ 1h
+      ○ case 1, default
+    ○ deliver#2/audit · agent reviewer (agents/reviewer.md) · verdict to deliver · timeout 30m by default · ≤ 2 turns · ≤ 1h
+○ after · agent synthesiser (agents/synthesiser.md) · timeout 30m by default · ≤ 1 turn · ≤ 30m
+```
+
+The summary counts every visit that ended, as it last ended, and every one
+that failed, those `on-fail: continue` absorbed included. It names each loop
+that hit its cap or gave up (`fix not converged`) and adds up what every
+life cost. Past the first life it says how many there were, how many were
+killed before writing their end (`2 lives (1 partial)`), and the visit the
+last one picked up from (`resumed from fix#2/work`). A visit from an earlier
+life is drawn like any ended visit. The journal marks a life's end only, so
+a life killed before its end is told apart from the next one when that next
+one comes in as `events`. A killed life's cost is what its ended visits
+cost, and its time adds up branches that ran together.
+
+Nothing wires the view to a command or to the TUI yet, and herdr opens its
+splits per subagent as it does for any run.
+
 ## Faults
 
 A flow that does not pass is refused with every fault at once, in file order,
