@@ -1,26 +1,31 @@
 # Deliver a change
 
-The combinators compose into one flow, driven from pi by `/build`. What runs
-between the two stops is a [pipeline](pipelines.md) - a Markdown file you can
-replace with your own, without touching any code:
+The combinators compose into one flow, driven from pi by `/build`. What runs is
+a [pipeline](pipelines.md) - a Markdown file you can replace with your own,
+without touching any code:
 
 ```
-/build add a cache in front of the agent loader
+/build --check "npm test" add a cache in front of the agent loader
 
-  interview   one question at a time, until you submit   -> a brief
+  locate      a scout maps the code the request touches
   plan        who does what, validated before anything spawns
   pair        a worker and a reviewer per subtask, until accepted
   check       your own command runs; its verdict is final
   audit       one agent reads the whole, names what still has to change
-  commit      an agent writes the message, this code makes the commit
 ```
 
-It stops exactly **twice**: the brief, before any work starts, and the commit,
-before anything reaches history. Refusing at either stop leaves everything where
-it is - the brief in the editor, the work in the working tree. Nothing is undone
-on your behalf.
+**It asks nothing.** The request is the brief, the check comes from `--check` or
+from the pipeline, and a run left alone runs to its end. It ends with the work
+in the working tree, **uncommitted**, and one line saying what it amounted to.
+You decide what reaches history after reading the diff: nothing is committed,
+pushed or undone for you.
+
+A brief worth building from is still worth writing: `/interview` turns a vague
+request into one, and what it hands back is the text to give `/build`.
 
 ## The interview
+
+`/interview` is its own command, and `/build` does not open with it.
 
 ```typescript
 const { brief, answers } = await interview({ agent: interviewer, input: request, ask });
@@ -48,9 +53,21 @@ therefore asks for a label under 30 characters and a description under 60. It
 belongs there and not in `agents/interviewer.md`, because the width is the
 card's and the rule has to reach an interviewer you wrote yourself.
 
+## The language of the interview
+
+The header, the questions, the options and the specification come back in the
+language of the request. `/interview ajoute un cache` is answered in French,
+header included: it is drawn above the question on the same card, and left
+unnamed in the instruction it came back English over a French question.
+
+Handed to `/build`, the specification travels to the planner, the coder, the reviewer and the
+auditor, whose prompts are English. That is deliberate: the person correcting the
+spec before anything is built on it is the one who has to read it exactly, and a
+model takes a request in any language.
+
 ## The delivery
 
-From a script, without the interview:
+From a script:
 
 ```typescript
 import { commandVerifier, deliver } from "@ai-for-dev/combo";
@@ -70,18 +87,6 @@ built.obligations;   // what it raised, and what became of each
 Defaults worth knowing: `concurrency` is **2**, not 4, because these workers
 write to the same working tree; `maxRounds` inside a pair is 3; audit cycles
 default to 2; `maxTasks` defaults to 8.
-
-## The language of the interview
-
-The header, the questions, the options and the specification come back in the
-language of the request. `/interview ajoute un cache` is answered in French,
-header included: it is drawn above the question on the same card, and left
-unnamed in the instruction it came back English over a French question.
-
-The specification then travels to the planner, the coder, the reviewer and the
-auditor, whose prompts are English. That is deliberate: the person correcting the
-spec before anything is built on it is the one who has to read it exactly, and a
-model takes a request in any language.
 
 ## Delivering in copies
 
@@ -170,8 +175,14 @@ check into a success.
 commandVerifier({ cwd, command: "npm", args: ["test"] });
 ```
 
+From pi, `--check "npm test"` names it for one run and a pipeline's `verify:`
+for every run of that file; the flag wins when both are there. With neither, no
+check runs and the audit is the only bar: nobody is asked for one, because a
+question in the middle of a run is a run waiting for whoever left it going.
+
 The command runs through `execFile` with **no shell**: arguments are a list, so
-`"npm test && rm -rf /"` is an argument, not two commands. Its output is
+`"npm test && rm -rf /"` is an argument, not two commands. `--check` is split on
+whitespace and on nothing else, so the same holds for what you type. Its output is
 evidence the agents read and cannot argue with. The **tail** is kept rather than
 the head, because a test runner says what failed at the end.
 
@@ -186,17 +197,16 @@ to change, and a worker sent after a failure that is not there can settle it by
 reading. A *failing* check is not repeated, because it is what the fix is for
 and the suite says so the moment it runs.
 
-## The commit
+## Why nothing is committed
 
-The committer agent has **no `bash`**. It reads the brief and the diff, and it
-writes a message. The branch and the commit are made by `src/git/git.ts`, which
-has no `push`, no `reset`, no `rebase`, no `--force`, and no shell. The commit
-message is piped to `git commit -F -`, so a message containing `rm -rf /` is
-committed rather than executed.
+A commit is a decision about the work, and whoever takes it has to have read
+it. A stop that asked for that decision, or one that asked to confirm the brief
+first, would mean a build that cannot run with nobody there. So the work stays
+where the pairs left it, and `git diff` shows exactly what the run did.
 
-This was the obvious design to get wrong: give the agent git and tell it what not
-to do. A prompt is not a permission boundary. Adding a subcommand is a decision
-someone takes in a diff, not an argument a model produces at runtime.
+This is also why `/build` still refuses a directory that is not a git
+repository: nobody watches the run write, and git is how its work gets read
+and, if need be, undone.
 
 ## Carrying on after an interruption
 
@@ -205,8 +215,11 @@ connection or a closed terminal costs nothing that was already paid for.
 
 ```
 /build resume
-> Carry on? 2/3 subtasks already approved
+build: carrying on runs/<timestamp>, 2/3 subtasks already approved
 ```
+
+It says what it picked up rather than asking: `/build resume` is already the
+answer.
 
 What survives, and why:
 
@@ -244,14 +257,15 @@ A `build.md` that does not parse is **refused**, never silently replaced by the
 default: a file sitting right there and quietly not being used is worse than an
 error. `/pipelines` lists what is loaded and what does not parse.
 
-For a pipeline that only reads, use `/run` instead: no interview, no commit stop.
-See [Pipelines](pipelines.md).
+For a pipeline that only reads, use `/run` instead: its answer lands in the
+conversation. See [Pipelines](pipelines.md).
 
 ## Why these are commands, not tools
 
 A question card owns the terminal until it is answered, and nobody can answer a
-question asked inside a model's turn. `/interview` and `/build` are therefore
-registered as commands.
+question asked inside a model's turn, so `/interview` is a command. `/build`
+asks nothing, and is one because a build is a run you start, stop with `esc`
+and carry on with `/build resume`, not a call a model makes on your behalf.
 
 ## Reference
 

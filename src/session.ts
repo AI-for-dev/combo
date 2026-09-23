@@ -374,9 +374,9 @@ function resolveModel(agent: Agent, registry: Record<string, unknown>, pattern =
 /**
  * Checks that a model pattern resolves in this pi, without opening a session.
  *
- * For whoever takes a `--model` argument: `/build` interviews the user for
- * minutes before the first spawn, and a typo must cost a second, not a
- * conversation. It touches the real pi module, like {@link buildRegistry} -
+ * For whoever takes a `--model` argument: `/interview` asks the user for
+ * minutes before the first spawn and `/build` runs unwatched, and a typo must
+ * cost a second, not a conversation or a run found stopped. It touches the real pi module, like {@link buildRegistry} -
  * a fake cannot stand in for it, only a real pi run proves it end to end.
  */
 export async function checkModel(pattern: string): Promise<void> {

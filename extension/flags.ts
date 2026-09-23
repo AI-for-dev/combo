@@ -4,20 +4,20 @@
  */
 
 /**
- * `/build [--pipeline <name>] [--model <pattern>] <request>`.
+ * `/build [--pipeline <name>] [--model <pattern>] [--worktree] [--check "<command>"] <request>`.
  *
  * Flags rather than positional words, because a request is free text: any
  * convention that reads the first word as a pipeline name eventually swallows
- * someone's "build fix the parser". Both flags, in either order.
+ * someone's "build fix the parser". Every flag, in any order.
  */
 export function parseBuildArgs(args: string): {
 	pipeline?: string;
 	model?: string;
 	worktree?: boolean;
-	questions?: number;
+	check?: string[];
 	request: string;
 } {
-	const { flags, rest } = parseLeadingFlags(args, ["pipeline", "model", "questions"], ["worktree"]);
+	const { flags, rest } = parseLeadingFlags(args, ["pipeline", "model", "check"], ["worktree"]);
 	const parsed: ReturnType<typeof parseBuildArgs> = { request: rest };
 	if (flags.pipeline) parsed.pipeline = flags.pipeline;
 	if (flags.model) parsed.model = flags.model;
@@ -25,6 +25,19 @@ export function parseBuildArgs(args: string): {
 	// silently wins, and the default is the whole point of leaving it unsaid.
 	const worktree = switchValue(flags, "worktree");
 	if (worktree !== undefined) parsed.worktree = worktree;
+
+	// Split on whitespace and nothing else: the command runs with no shell, so
+	// `&&` or a `|` in it is an argument, never a second command.
+	const check = flags.check?.split(/\s+/).filter(Boolean);
+	if (check?.length) parsed.check = check;
+	return parsed;
+}
+
+/** `/interview [--model <pattern>] [--questions <n>] <request>`. */
+export function parseInterviewArgs(args: string): { model?: string; questions?: number; request: string } {
+	const { flags, rest } = parseLeadingFlags(args, ["model", "questions"]);
+	const parsed: ReturnType<typeof parseInterviewArgs> = { request: rest };
+	if (flags.model) parsed.model = flags.model;
 
 	// A count that is not one is dropped rather than guessed at: `--questions x`
 	// is a typo, and turning it into 0 would silently skip the interview.
@@ -50,8 +63,14 @@ const GAP = String.raw`(?:\s|\\\r?\n)*`;
 /** A flag name, and the `=value` written against it. */
 const HEAD = new RegExp(String.raw`^${GAP}--([a-z]+)(?:=(\S+))?`, "i");
 
-/** A flag that takes a value, up to and including the gap after it. */
-const VALUED = new RegExp(String.raw`^${GAP}--[a-z]+(?:=|\s+)(\S+)${GAP}`, "i");
+/**
+ * A flag that takes a value, up to and including the gap after it.
+ *
+ * The value is one word, or a double-quoted run of them: `--check "npm test"`
+ * names a command and its arguments, and without the quotes `test` would start
+ * the request.
+ */
+const VALUED = new RegExp(String.raw`^${GAP}--[a-z]+(?:=|\s+)(?:"([^"]*)"|(\S+))${GAP}`, "i");
 
 /**
  * Reads leading flags off a command line, in any order.
@@ -90,8 +109,9 @@ export function parseLeadingFlags(
 		if (!names.includes(name)) break;
 
 		const valued = VALUED.exec(rest);
-		if (!valued?.[1]) break;
-		flags[name] = valued[1];
+		const value = valued?.[1] ?? valued?.[2];
+		if (!valued || !value) break;
+		flags[name] = value;
 		rest = rest.slice(valued[0].length);
 	}
 

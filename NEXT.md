@@ -20,16 +20,16 @@ Several subagents can also work **one job side by side**: an append-only board
 that stamps who posted, claims granted rather than announced, and `swarm` above
 the two. Section 10 has what running it said.
 
-The pi extension is the `subagent` tool plus `/interview`, `/build` (with
-`resume` and `--pipeline`), `/run`, `/step`, `/chain`, `/quote`, `/agents`,
+The pi extension is the `subagent` tool plus `/interview`, `/build` (unattended,
+with `resume`, `--pipeline` and `--check`), `/run`, `/step`, `/chain`, `/quote`, `/agents`,
 `/pipelines`, `/herdr` and `/stop`. A run can be **called off while it runs**:
 `esc` stops every subagent of it, `ctrl+↑↓` walk the list above the prompt and
 `ctrl+del` stops the selected one. What comes back is in **the language the work
 was written in**, whatever language the definitions are.
 
 All four founding requirements of `AGENTS.md` are met, and the end-to-end flow
-(question → interview → plan → worker/reviewer pairs → check → audit → commit)
-runs. What follows is judgement and polish.
+(request → plan → worker/reviewer pairs → check → audit → an uncommitted working
+tree) runs with nobody asked anything. What follows is judgement and polish.
 
 ## 1. Judge the interactive rendering - looked at, and acted on
 
@@ -84,7 +84,7 @@ no verb. Measured, one call in four on `ilaas/gpt-oss-120b`. The trap is in
 pi -e extension
 /interview add a cache in front of the agent loader
 /herdr on                                  # a split per subagent, to watch it work
-/build add a slugify helper with tests      # in a throwaway repository
+/build --check "npm test" add a slugify helper with tests   # in a throwaway repository
 /build --pipeline explore how usage is measured
 /build resume                               # after interrupting one
 /step explore how usage is measured         # then /step planner, /chain, /quote

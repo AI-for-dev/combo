@@ -109,7 +109,7 @@ pi install ./extension   # permanently, via settings
 Then, in the TUI:
 
 ```
-> /build add a slugify helper with tests
+> /build --check "npm test" add a slugify helper with tests
 > use subagent with scope "project" and agent "scout" to find the auth code
 ```
 

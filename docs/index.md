@@ -99,7 +99,7 @@ A workflow written in Markdown, next to your agents.
 :link: guide/build
 :link-type: doc
 
-Interview, plan, pair, check, audit, commit.
+Plan, pair, check, audit, with nobody asked anything.
 :::
 
 :::{grid-item-card} {octicon}`arrow-right` Walk a chain by hand

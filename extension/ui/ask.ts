@@ -82,7 +82,7 @@ function showCard(ui: AskUi, question: Question): Promise<string | undefined> {
 		list.onCancel = () => done(SUBMIT);
 		container.addChild(list);
 
-		container.addChild(new Text(theme.fg("dim", "↑↓ choose • enter answer • esc build with what you have"), 1, 0));
+		container.addChild(new Text(theme.fg("dim", "↑↓ choose • enter answer • esc write the brief with what you have"), 1, 0));
 		container.addChild(new DynamicBorder((line: string) => theme.fg("accent", line)));
 
 		return {
@@ -105,7 +105,7 @@ export function items(question: Question): SelectItem[] {
 			description: choice.description,
 		})),
 		{ value: OTHER, label: "Other…", description: "type your own answer" },
-		{ value: SUBMIT, label: "That's enough - build it", description: "stop asking and write the brief" },
+		{ value: SUBMIT, label: "That's enough", description: "stop asking and write the brief" },
 	];
 }
 

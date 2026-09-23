@@ -86,9 +86,8 @@ steps:
 Per turn, not per run: a fan-out of three gets three deadlines, a loop gets one
 per step per iteration. When it fires, the turn is cut short through pi's own
 abort, the subagent comes back as a failed `Result`, and what it spent is on
-the bill. `/build` and `/interview` set one themselves, five minutes a turn,
-because a command is where somebody is waiting and cannot tell a slow turn
-from a stuck one.
+the bill. `/interview` sets one itself, five minutes a turn, because somebody
+is waiting on the next question and cannot tell a slow turn from a stuck one.
 
 `loop` has a cap of its own, five iterations, and that one does have a default
 because an iteration is a discrete, expensive unit with a meaningful small

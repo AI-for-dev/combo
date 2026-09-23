@@ -180,8 +180,7 @@ answer in (the one the work is written in).
 
 Everything an agent can do is therefore readable in its own file: the tools it
 holds, the model it will run on if it names one, how long it lives. The next
-page relies on that when it teaches this agent a rule, and [/build](08-build.md)
-relies on it when it hands a committer no `bash` at all.
+page relies on that when it teaches this agent a rule.
 
 Not everything an agent should know fits in a system prompt. A checklist of
 assertion smells is a page, and it is the same page for every agent that reads

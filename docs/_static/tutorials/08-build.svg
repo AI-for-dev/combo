@@ -1,14 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" width="640" height="220" role="img" aria-label="Two brackets, then a box with a check mark, then a dot on a branch line">
-  <title>Two brackets, then a box with a check mark, then a dot on a branch line</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" width="640" height="220" role="img" aria-label="Two brackets, then a box with a check mark, then one line in a terminal">
+  <title>Two brackets, then a box with a check mark, then one line in a terminal</title>
   <path fill="#2F958A" d="M36 60 H60 V71 H42.05 V149 H60 V160 H36 Z" />
   <path fill="#2F958A" d="M144 60 H120 V71 H137.95 V149 H120 V160 H144 Z" />
   <path d="M150 110 L200 110" fill="none" stroke="#2F958A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
   <path d="M192.1 114.3 L200 110 L192.1 105.7" fill="none" stroke="#2F958A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
   <path d="M210 70 H310 V150 H210 Z" fill="none" stroke="#7E8894" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.8" />
   <path d="M238 107.6 l8.4 8.4 l16.8 -19.2" fill="none" stroke="#2F958A" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
-  <path d="M320 110 L380 110" fill="none" stroke="#2F958A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-  <path d="M372.1 114.3 L380 110 L372.1 105.7" fill="none" stroke="#2F958A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-  <path d="M400 110 H600" fill="none" stroke="#7E8894" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.6" />
-  <circle cx="470" cy="110" r="10" fill="#7E8894" fill-opacity=".6" />
-  <circle cx="540" cy="110" r="12" fill="#2F958A" />
+  <path d="M320 110 L346 110" fill="none" stroke="#2F958A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M338.1 114.3 L346 110 L338.1 105.7" fill="none" stroke="#2F958A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M360 44 H600 V176 H360 Z" fill="none" stroke="#7E8894" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.8" />
+  <path d="M360 60 H600" fill="none" stroke="#7E8894" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.48" />
+  <circle cx="370" cy="52" r="2.4" fill="#7E8894" fill-opacity="0.5599999999999999" />
+  <circle cx="380" cy="52" r="2.4" fill="#7E8894" fill-opacity="0.5599999999999999" />
+  <circle cx="390" cy="52" r="2.4" fill="#7E8894" fill-opacity="0.5599999999999999" />
+  <path d="M378 80 l6 6 l-6 6" fill="none" stroke="#7E8894" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.8" />
+  <rect x="394" y="84" width="150" height="6" fill="#2F958A" />
+  <path d="M378 110 l6 6 l-6 6" fill="none" stroke="#7E8894" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.35" />
 </svg>

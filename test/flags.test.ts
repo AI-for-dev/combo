@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { parseBuildArgs } from "../extension/flags.ts";
+import { parseBuildArgs, parseInterviewArgs } from "../extension/flags.ts";
 
 describe("parseBuildArgs", () => {
 	test("a bare request stays a request", () => {
@@ -89,11 +89,50 @@ describe("parseBuildArgs, with a switch", () => {
 	});
 });
 
-describe("parseBuildArgs, for the interview", () => {
+describe("parseBuildArgs, with a check", () => {
+	test("--check takes a quoted command and its arguments", () => {
+		assert.deepEqual(parseBuildArgs('--check "npm test" add a cache'), { check: ["npm", "test"], request: "add a cache" });
+		assert.deepEqual(parseBuildArgs('--check="npm run lint" x'), { check: ["npm", "run", "lint"], request: "x" });
+	});
+
+	test("unquoted, the value is one word and the rest is the request", () => {
+		assert.deepEqual(parseBuildArgs("--check make add a cache"), { check: ["make"], request: "add a cache" });
+	});
+
+	test("it sits among the other flags, in any order", () => {
+		assert.deepEqual(parseBuildArgs('--worktree --check "cargo test --all" --model local/one x'), {
+			worktree: true,
+			check: ["cargo", "test", "--all"],
+			model: "local/one",
+			request: "x",
+		});
+	});
+
+	test("an empty check names nothing", () => {
+		assert.deepEqual(parseBuildArgs('--check "  " x'), { request: "x" });
+	});
+
+	test("a quote in the request stays the user's", () => {
+		assert.deepEqual(parseBuildArgs('--model local/one fix the "npm test" script'), {
+			model: "local/one",
+			request: 'fix the "npm test" script',
+		});
+	});
+});
+
+describe("parseInterviewArgs", () => {
 	test("--questions takes a count, and a count that is not one is dropped", () => {
-		assert.equal(parseBuildArgs("--questions 2 add a cache").questions, 2);
-		assert.equal(parseBuildArgs("--questions x add a cache").questions, undefined, "a typo must not become 0");
-		assert.equal(parseBuildArgs("--questions 0 add a cache").questions, undefined, "nor skip the interview");
-		assert.equal(parseBuildArgs("add a cache").questions, undefined);
+		assert.equal(parseInterviewArgs("--questions 2 add a cache").questions, 2);
+		assert.equal(parseInterviewArgs("--questions x add a cache").questions, undefined, "a typo must not become 0");
+		assert.equal(parseInterviewArgs("--questions 0 add a cache").questions, undefined, "nor skip the interview");
+		assert.equal(parseInterviewArgs("add a cache").questions, undefined);
+	});
+
+	test("--model reaches the interviewer", () => {
+		assert.deepEqual(parseInterviewArgs("--model local/one --questions 3 add a cache"), {
+			model: "local/one",
+			questions: 3,
+			request: "add a cache",
+		});
 	});
 });

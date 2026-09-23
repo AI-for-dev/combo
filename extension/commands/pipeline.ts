@@ -1,12 +1,11 @@
 /**
  * `/pipelines` and `/run`: seeing what there is, and running it.
  *
- * `/build` delivers a change, and it is built around that: an interview to
- * settle what "done" means, and a commit at the end. A pipeline that only
- * *reads* - three scouts and a synthesis - goes through neither, and putting it
- * through `/build` means being interviewed about a request that wants no
- * decision and then being told there is nothing to commit. So `/run` exists:
- * the pipeline, its answer, and nothing around it.
+ * `/build` delivers a change, and it is built around that: a git repository
+ * to write in, a state saved after every unit of work, and `/build resume`. A
+ * pipeline that only *reads* - three scouts and a synthesis - needs none of
+ * it, and what it wants is its answer where the conversation can pick it up.
+ * So `/run` exists: the pipeline, its answer, and nothing around it.
  *
  * `/pipelines` exists because of a real failure, not a hunch: a pipeline of one
  * repository was invisible from another, the error said where pipelines live but
@@ -15,7 +14,7 @@
  */
 
 import { checkPipelineAgents, plural, type PipelineCatalogue, type PipelineRunResult } from "../../src/index.ts";
-import { checked, choosePipeline, loadCatalogue, loadRoster, pipelineVerifier, refuse, watched } from "../command.ts";
+import { checked, choosePipeline, loadCatalogue, loadRoster, checkVerifier, refuse, watched } from "../command.ts";
 import { sessionDoors, type CommandCtx, type PiApi } from "../pi.ts";
 import { resolved, type CommandDeps, type PipelineDeps, type SendMessage } from "../deps.ts";
 import { parseLeadingFlags, switchValue } from "../flags.ts";
@@ -45,7 +44,7 @@ export default function registerPipelineCommands(pi: PiApi) {
 	});
 
 	pi.registerCommand("run", {
-		description: "Run a pipeline by name, with no interview and no commit (`--model <pattern>`, `--worktree`)",
+		description: "Run a pipeline by name and put its answer in the conversation (`--model <pattern>`, `--worktree`)",
 		handler: async (args, ctx: CommandCtx) => {
 			await runNamed(args, ctx, doors);
 		},
@@ -140,7 +139,7 @@ export async function runNamed(args: string, ctx: CommandCtx, injected: Pipeline
 				input,
 				cwd: ctx.cwd,
 				exportDir,
-				verify: deps.verify ?? pipelineVerifier(pipeline, ctx.cwd),
+				verify: deps.verify ?? checkVerifier(pipeline.verify, ctx.cwd),
 				model,
 				worktree,
 				signal: live.signal,

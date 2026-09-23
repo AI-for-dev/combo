@@ -10,11 +10,7 @@
 
 import {
 	checkModel,
-	commitAll,
-	createBranch,
 	createRunDir,
-	diff,
-	diffStat,
 	findResumableBuild,
 	interview,
 	isRepository,
@@ -23,9 +19,7 @@ import {
 	run,
 	runPipeline,
 	saveBuildState,
-	status,
 	swarm,
-	untracked,
 	type Verify,
 } from "../src/index.ts";
 import type { AppendEntry } from "./relay.ts";
@@ -38,7 +32,7 @@ export type CommandDeps = {
 	interview?: typeof interview;
 	/** Runs the pipeline. The command's one seam onto the whole of the work. */
 	runPipeline?: typeof runPipeline;
-	/** Runs one throwaway agent: `/build` uses it for the commit message. */
+	/** Runs one throwaway agent: `/step` uses it for a stage that names one. */
 	run?: typeof run;
 	/** Puts several copies of one agent on one job: `/swarm`'s whole of the work. */
 	swarm?: typeof swarm;
@@ -92,19 +86,13 @@ export type PipelineDeps = CommandDeps & { sendMessage: SendMessage };
 /** {@link PipelineDeps}, plus the door into the transcript that `/step` and `/swarm` use. Required, for the same reason. */
 export type StepDeps = PipelineDeps & { appendEntry: AppendEntry };
 
-/** The git a command performs its acts through. */
+/** The git a command asks about the working tree. */
 export type Git = {
 	isRepository: typeof isRepository;
-	status: typeof status;
-	diff: typeof diff;
-	diffStat: typeof diffStat;
-	untracked: typeof untracked;
-	createBranch: typeof createBranch;
-	commitAll: typeof commitAll;
 };
 
 /** The real git, and the default of every `deps.git`. */
-export const REAL_GIT: Git = { isRepository, status, diff, diffStat, untracked, createBranch, commitAll };
+export const REAL_GIT: Git = { isRepository };
 
 /**
  * {@link CommandDeps} with every gap filled: what a command actually runs with.
