@@ -576,7 +576,7 @@ flows. Then one breaking PR switches `/build` and `/pipelines` to `/run` and
 `/flows`. [Flows: a closed language](docs/decisions.md#flows-a-closed-language)
 says why the old "no YAML DSL" line moved.
 
-Done so far: conditions (`src/flow/condition/`).
+Done so far: conditions (`src/flow/condition/`) and schemas (`src/flow/schema.ts`).
 
 ## How to verify anything here
 

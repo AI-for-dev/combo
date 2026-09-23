@@ -1275,6 +1275,30 @@ linear pipeline, and exported once it replaces it.
   `ask - next.output`, so a node id a condition reads is letters, digits and
   `_`, and the dash is refused where it is written, with the name to use.
 
+### A schema is written short, or as a JSON Schema subset
+
+`src/flow/schema.ts` reads what a node declares after `output:` (and a flow
+after `input:`) into the one type model conditions are checked against.
+
+- **The short notation is YAML read as a type.** `{ subtasks: [{ text: string }] }`
+  is already a mapping holding a list holding a mapping once YAML has parsed
+  it, so the notation needs no parser of its own: a string is a type name or an
+  enum (`scout | reviewer`), a one-element list is a list, a mapping is an
+  object whose `?`-suffixed keys are optional. `Question` is the one named type,
+  the shape an `ask` card draws.
+- **The long notation is for descriptions.** `{ json-schema: ... }` takes
+  `type`, `properties`, `required`, `items`, `enum` and `description`, and
+  refuses every other keyword by name. A model filling a value reads the
+  descriptions; nothing else the short form lacks has been needed. Both land in
+  the same model, so whatever reads a type never asks which notation wrote it.
+- **Nothing reads as "any".** An unknown type name, an empty object, a list of
+  two schemas and a keyword outside the six are refused with the path inside
+  the schema, all at once. A value whose shape a flow cannot name is text, and
+  only an agent reads text.
+- **A field name is a CEL identifier.** An address splits on dots and CEL reads
+  a dash as subtraction, so `next-step` would be a field no condition could
+  read. It is refused where the schema declares it.
+
 ## A chain walked by hand
 
 `/run explore …` put its answer in the conversation, and the session picked it

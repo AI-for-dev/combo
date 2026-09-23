@@ -17,4 +17,5 @@ export {
 	type Evaluated,
 	type Readable,
 } from "./condition/index.ts";
+export { QUESTION, readSchema, type ReadSchema, type SchemaProblem } from "./schema.ts";
 export { showType, type Field, type ValueType } from "./type.ts";

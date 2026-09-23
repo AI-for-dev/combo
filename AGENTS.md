@@ -132,8 +132,9 @@ src/                the library
   board/            the swarm's board (board, claims, tool, agreement,
                     announced); index.ts is its door
   flow/             the flow format, built beside pipeline/ until it replaces
-                    it: type (what a value is), condition/ (a CEL subset:
-                    tokens, parse, compile, evaluate); index.ts is its door
+                    it: type (what a value is), schema (how a file writes
+                    one), condition/ (a CEL subset: tokens, parse, compile,
+                    evaluate); index.ts is its door
   pipeline/         pipeline (the file), load (where it is), run (our code
                     walks the steps); index.ts is its door
   review/           review (the record), verdict (a decision as a tool call),

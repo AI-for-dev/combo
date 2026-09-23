@@ -10,15 +10,21 @@
  * text, and text is read by an agent, never by a structural node.
  */
 
-/** A value's type. Plain data, so a checked flow can be written down as it is. */
-export type ValueType =
+/**
+ * A value's type. Plain data, so a checked flow can be written down as it is.
+ *
+ * `description` is what the author wrote for the model that fills the value;
+ * it changes nothing about what matches.
+ */
+export type ValueType = { readonly description?: string } & (
 	| { readonly kind: "string" }
 	| { readonly kind: "number" }
 	| { readonly kind: "boolean" }
 	/** A closed set of strings. Compared strictly: a literal outside it is refused. */
 	| { readonly kind: "enum"; readonly values: readonly string[] }
 	| { readonly kind: "list"; readonly of: ValueType }
-	| { readonly kind: "object"; readonly fields: Readonly<Record<string, Field>> };
+	| { readonly kind: "object"; readonly fields: Readonly<Record<string, Field>> }
+);
 
 /** One field of an object. An optional one may be absent, and reading it then is an error. */
 export type Field = { readonly type: ValueType; readonly optional: boolean };
