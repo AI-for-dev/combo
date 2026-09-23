@@ -41,44 +41,60 @@ was told to think: two to four tasks, three in flight.
 ## Run it, and keep the record
 
 ```
-> use subagent with agent "explorer" and export true to compare the four reporters
+> use subagent with agent "explorer", model "<provider/model>" and export true to compare the reporters in src/reporters
 ```
 
 The dots draw the tree as it grows:
 
 ```
-● explorer#1  subagent agent=scout tasks=["Analyze `src/reporters/cons…
-  ● scout#1  thinking…
-  ● scout#2  thinking…
-  ● scout#3  read src/reporters/record.ts
+● explorer#1  subagent agent=scout tasks=["Analyze src/reporters/conso…
+  provider/model · ↑0 ↓0 · 41.6s
+  ✓ scout#1  provider/model · ↑5.8k ↓986 · 9.8s
+  ● scout#2  read src/reporters/herdr-probe.ts
+    provider/model · ↑0 ↓0 · 30.1s
+  ✓ scout#3  provider/model · ↑6.3k ↓1k · 25.2s
+esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
 ```
 
-The explorer listed the directory, wrote four tasks, and handed them over.
-The children sit under the one that asked for them, indented, and the tool row
-keeps that shape when it is over:
+The explorer listed the directory, read its `index.ts`, wrote three tasks and
+handed them over. The children sit under the one that asked for them,
+indented, and the tool row keeps that shape when it is over:
 
 ```
-subagent single explorer
-  Compare the reporters available in `src/reporters/`. I believe there …
-✓ explorer#1 Compare the reporters available in `src/reporters…
-    ls src/reporters/
-    subagent agent=scout tasks=["Analyze `src/reporters/cons…
-  ✓ scout#1 Analyze `src/reporters/console.ts` and `src/repor…
+subagent single explorer [provider/model] [export]
+  compare the reporters in src/reporters
+✓ explorer#1 compare the reporters in src/reporters
+    ls src/reporters
+    read src/reporters/index.ts
+    subagent agent=scout tasks=["Analyze src/reporters/conso…
+  ✓ scout#1 Analyze src/reporters/console.ts, src/reporters/s…
       read src/reporters/console.ts
       read src/reporters/silent.ts
-  ✓ scout#2 Analyze `src/reporters/tui.ts`. Describe its purp…
       read src/reporters/tui.ts
-  ✓ scout#3 Analyze `src/reporters/record.ts`. Describe its p…
-      read src/reporters/record.ts
-  ✓ scout#4 Analyze `src/reporters/herdr.ts` and `src/reporte…
+  ✓ scout#2 Analyze src/reporters/herdr.ts, src/reporters/her…
       read src/reporters/herdr.ts
       read src/reporters/herdr-client.ts
+      read src/reporters/herdr-probe.ts
+  ✓ scout#3 Analyze src/reporters/picture.ts, src/reporters/r…
+      … 1 earlier call
+      read src/reporters/record.ts
+      read src/reporters/traffic.ts
+      read src/reporters/tree.ts
+
+4 turns 117.6s ↑30k ↓5.7k $0.0000  ×2.24
+exported to /…/combo/runs/2026-09-23_22-38-59
 ```
 
-Read the four tasks. Each scout sees only the line the explorer wrote it, and
-each line names the file to start from. That is the explorer's prompt doing
+Read the three tasks. Each scout sees only the line the explorer wrote it, and
+each line names the files to start from. That is the explorer's prompt doing
 its job, and the first thing to check when a delegating agent comes back with
 nonsense is whether the children were asked badly.
+
+A failed child is a value the parent reads, not the end of its turn. An
+earlier run of the same line lost one of its four scouts to the provider,
+`Stream ended without finish_reason`. The explorer read the failure in the
+tool's answer and called `subagent` a second time, with that one task, and a
+fifth scout read the three herdr files the fourth never reached.
 
 ## The bill is a tree
 
@@ -87,45 +103,43 @@ nonsense is whether the children were asked badly.
 
 | subagent | parent | wall | input | output | calls |
 | --- | --- | --- | --- | --- | --- |
-| explorer#1 | | 48.2s | 6.9k | 1.9k | 2 |
-| scout#1 | explorer#1 | 16.5s | 2.8k | 969 | 1 |
-| scout#2 | explorer#1 | 12.6s | 5.6k | 1.4k | 2 |
-| scout#3 | explorer#1 | 5.9s | 2.8k | 636 | 2 |
-| scout#4 | explorer#1 | 12.4s | 6.8k | 1.1k | 1 |
-| **run** | | **48.3s** | **25.0k** | **6.0k** | parallelism 1.98 |
+| explorer#1 | | 52.4s | 9.5k | 2.2k | 3 |
+| scout#1 | explorer#1 | 9.8s | 5.8k | 986 | 3 |
+| scout#2 | explorer#1 | 30.2s | 8.1k | 1.5k | 3 |
+| scout#3 | explorer#1 | 25.2s | 6.3k | 1.0k | 4 |
+| **run** | | **52.4s** | **29.6k** | **5.7k** | parallelism 2.24 |
 
 Two rules are visible in it. **The total is the tree, never the root.** The
-explorer's own turn cost 6.9k input tokens; the run cost 25k, and a report
+explorer's own turn cost 9.5k input tokens; the run cost 29.6k, and a report
 that summed the roots would call this a cheap agent when it is a cheap agent
 and an expensive run. **The link is an id, never a name.** Two explorers
 running at once share a name; `parentId` is the id `spawn` minted for whoever
 asked, and a child whose parent is not in the list reads as a root rather
 than vanishing from the sum.
 
-Compare it to [three scouts on one question](02-three-scouts.md): 25k input
-here against 124k there, for the same model. The explorer wrote narrower
-tasks than the flow's three fixed ones, and each scout read one or two
-files instead of hunting. Whether that holds on your question is what the
-export is for.
-
 ## How deep it goes
 
 Two levels by default: your session, a child, a grandchild. Pass `maxDepth`
 on the call to change it. At the bound, the tool is **still handed over and
-refuses when called**, saying how deep it is and how deep it may go:
+refuses when called**, saying how deep it is and how deep it may go. With
+`maxDepth 1` on the same line, the explorer's own call came back:
 
 ```
-You are 2 level(s) deep and 2 is the limit. Do this part of the work yourself.
+You are 1 level(s) deep and 1 is the limit. Do this part of the work yourself.
 ```
 
-Withholding it instead would leave a model calling a tool that is not there,
-getting "unknown tool", and trying again. That is the runaway turn
-[the meter](10-the-meter.md) exists to catch, and a refusal in words is what a
-model can act on.
+It did: it read eight of the files itself, one turn of 51.7 seconds and 60k
+input tokens, twice the input of the tree above, because every file it read
+was sent again with each call after it. Withholding the tool instead would leave a
+model calling a tool that is not there, getting "unknown tool", and trying
+again. That is the runaway turn [the meter](10-the-meter.md) exists to catch,
+and a refusal in words is what a model can act on.
 
 The children run on the terms of the call: its model, its deadline, its export
 directory, its signal. `esc` stops the whole tree, `ctrl+↑↓` walks it children
 included, and a delegated child is disposable whatever the parent's lifetime.
+An agent a flow runs is handed the tool the same way when its `tools:` names
+it, and its children's transcripts go in `<parent>.children/` beside its own.
 
 ## Where the line is
 

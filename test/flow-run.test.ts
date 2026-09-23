@@ -233,14 +233,18 @@ describe("a stop", () => {
 		const fake = flowSpawn([[{ delayMs: 5000 }, { text: "retried" }], [{ text: "after" }]]);
 		const switcher = stopSwitch({ spawn: fake.spawn });
 		const events: SubagentEvent[] = [];
+		let stopped = "";
 		const onEvent = (event: SubagentEvent) => {
 			events.push(event);
-			if (event.type === "status" && event.status === "working" && event.id.startsWith("scout")) setTimeout(() => switcher.one(event.id), 20);
+			if (event.type === "status" && event.status === "working" && event.id.startsWith("scout")) {
+				stopped = event.id;
+				setTimeout(() => switcher.one(event.id), 20);
+			}
 		};
 		const result = await runChecked(checked(TWO, { look: "Look.", after: "After." }), "x", { spawn: switcher.spawn, signal: switcher.signal, onEvent });
 		assert.deepEqual(result.ok && result.output, "after");
 		const look = events.find((event) => event.type === "visit_end" && event.path === "look");
-		assert.deepEqual(look?.type === "visit_end" && look.error, { kind: "stopped", message: "stopped" });
+		assert.deepEqual(look?.type === "visit_end" && look.error, { kind: "stopped", message: `${stopped} was stopped` });
 		assert.equal(fake.created[0]?.prompts.length, 1, "a stopped visit is not retried");
 	});
 });

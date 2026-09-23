@@ -109,17 +109,17 @@ async function ask({ run, node, path, here, ledger }: Asking, held: Held, task: 
 	// subagent's call during another node's turn must not stand in for a later one.
 	const submitted = held.submit?.take();
 	const decided = await held.verdict?.take(result, ledger);
-	if (!result.ok) return { ended: failed(run, here.cut, result, deadline, ms), usage: result.usage };
+	if (!result.ok) return { ended: failed(run, here.cut, held.subagent.id, result, deadline, ms), usage: result.usage };
 	if (node.verdict === undefined && node.output === undefined) return { ended: { ok: true, output: result.output }, usage: result.usage };
 	const answer = node.verdict === undefined ? submitted : decided;
 	if (answer?.ok) return { ended: { ok: true, output: answer.value }, usage: result.usage };
 	return { ended: failure("schema", answer?.message ?? "the turn ended with no `submit` call"), usage: result.usage };
 }
 
-function failed(run: AgentRun, cut: AbortSignal, result: Result, deadline: AbortSignal, ms: number): Ended {
+function failed(run: AgentRun, cut: AbortSignal, id: string, result: Result, deadline: AbortSignal, ms: number): Ended {
 	const cutShort = interruption(run.signal, cut);
 	if (cutShort !== undefined) return { ok: false, error: cutShort };
-	if (result.error === "stopped") return failure("stopped", "stopped");
+	if (result.error === "stopped") return failure("stopped", `${id} was stopped`);
 	if (deadline.aborted) return failure("timeout", `no answer within ${ms} ms`);
 	return failure("provider", result.error ?? "the turn failed");
 }

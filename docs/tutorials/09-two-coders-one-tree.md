@@ -2,18 +2,10 @@
 
 ![Two coders, one tree](../_static/tutorials/09-two-coders-one-tree.svg)
 
-```{note}
-This page was captured before flows replaced the linear pipeline. `/build` is
-`/run build` now, its flags are keys of the [`build` flow](../reference/flows/build.md),
-and a file left in `pipelines/` is refused; see [Deliver a change](../guide/build.md)
-and [From pipelines to flows](../guide/from-pipelines.md). The frames and the
-files below predate that change.
-```
-
 Two coders writing into one working tree can each be right and together be
 wrong: one renames a function the other is calling, the check runs on a tree
-neither of them wrote, and the failure belongs to nobody. That was the reason
-`deliver` runs two pairs at a time, and it turned out to be the smaller of two
+neither of them wrote, and the failure belongs to nobody. That was the first
+reason to keep writers apart, and it turned out to be the smaller of two
 problems.
 
 A probe measured the larger one. Four subagents were given one directory and
@@ -22,125 +14,165 @@ three's files inside a single turn, without being asked to look. The same four
 in four directories crossed nothing. A shared directory is not a hazard the
 workers might hit. It is a channel, and they use it.
 
-So a delivery of several subtasks gives each one a copy of the repository, and
-you have to say so to get anything else.
+So a flow that runs writers at once gives each one a copy of the repository,
+and it has to say so.
 
-## What you get without asking
+## Where the flow says it
 
-```
-/build add a slugify helper with tests
-```
+The shipped `build` runs its subtasks in a `map`, two at a time:
 
-Everything up to the plan is unchanged. Then, if the plan has more than one
-subtask, each pair gets a copy of the repository, made with `git worktree`
-from the **commit** `cwd` is on, on a branch named after its subtask with a
-short suffix, `combo/add-a-slugify-helper-a1b2c3`.
-
-The coder writes there. The reviewer reads there, the same copy, because a
-reviewer with a copy of its own would be reading code the worker never
-touched. When the pair is approved, the work is committed on that branch and
-the copy is released. What comes back to the delivery is a **patch**: the
-branch's diff against where it started.
-
-Two things follow. Changes you had not committed when you started are not in
-any copy, so commit before pointing a build at a tree you are in the middle
-of. And a pair that wrote nothing gets no branch and no patch: a name for no
-work would pile up, one per run.
-
-A plan of one subtask keeps writing where it was told. It has nobody to leak
-to, and `/build` on your own repository for one small change is the case that
-isolating would ruin.
-
-## Saying it explicitly
-
-```
-/build --worktree=false add a slugify helper with tests
-/build --worktree add a slugify helper with tests
+```yaml
+      - id: work
+        map-from: deliver.carry
+        max: 6
+        concurrency: 2
+        copies: true
+        do:
+          - id: pair
+            ...
 ```
 
-The first shares one tree whatever the plan says. The second forces a copy
-even for a delivery of one. Both are obeyed as written; what the default
-decides is only what *nothing* means, and it decides it after planning, the
-first moment the number of writers is known. The flag takes no value unless
-you give it one, unlike `--model`: a flag that swallowed the word after it
-would eat the first word of the request.
+`copies: true` gives each item of the `map` one copy, and every node inside
+the item works in it: the coder writes there and the reviewer reads there,
+because a reviewer with a copy of its own would be reading code the coder never
+touched.
 
-A delivery that chose the copies itself checks **first** that they can come
-back, and stops with the reason if they cannot: a tree with changes already in
-it cannot take a landing, and finding that out after two subtasks have run is
-paying for them twice. Asked for explicitly, nothing is second-guessed.
+Take the line out, in a `.pi/flows/build.md` that replaces the shipped one,
+and the flow no longer checks:
+
+```
+Error: run: `build` is refused
+  .pi/flows/build.md deliver/work.copies: `concurrency: 2` runs items at once, and `deliver/work/pair/code` writes
+    (`coder` has edit, write): give each branch its own copy with `copies: true`, or `concurrency: 1`
+```
+
+The rule is read from the agents' files alone: branches that run together
+need copies as soon as one of them has `write`, `edit`, `bash` or `subagent`.
+Nothing was spawned to find that out, and `/flows` lists the same fault.
+
+## Two subtasks
+
+```
+/run build add a slugify helper in slug.js and a titleCase helper in title.js, each with its own test file --model <provider/model>
+```
+
+The planner made two subtasks of that, and both pairs started at once:
+
+```
+● build · 2 visits · 2m54s · ↑403k ↓7.2k
+… 2 lines above
+● deliver · #1 of 2
+  ● deliver#1
+    ● deliver#1/work · 0/2 so far
+      ● deliver#1/work[1]
+        ● deliver#1/work[1]/pair · #1 of 3
+          ● deliver#1/work[1]/pair#1
+            ● deliver#1/work[1]/pair#1/code
+              ● coder#1  read package.json  provider/model · ↑0 ↓0 · 43.9s
+            ○ deliver#1/work[1]/pair#1/review · agent reviewer (.pi/agents/reviewer.md) · reads item.text, code, diff…
+      ● deliver#1/work[2]
+        ● deliver#1/work[2]/pair · #1 of 3
+          ● deliver#1/work[2]/pair#1
+            ● deliver#1/work[2]/pair#1/code
+              ● coder#2  read package.json  provider/model · ↑0 ↓0 · 43.9s
+… 4 lines below
+esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
+```
+
+The plan takes sixteen rows at most, and the cuts say how many lines they
+hold. Each coder is in its own copy, made under the system's temporary
+directory, outside the repository, so a copy never shows up in the patch taken
+against it. Each copy starts from a commit of the tree as it stood, uncommitted
+changes included, and has a branch named after its item:
+
+```
+$ git log --oneline combo/deliver-1-work-2-nkMJmr
+79f89af combo: deliver#1/work[2]
+4b9085f combo: the tree a copy starts from
+7d8d758 init
+```
 
 ## Putting them back
 
-The patches are applied to your tree one at a time, with your check run
-between them.
+When the `map` ends, the work is committed on each copy's branch, the copies
+are removed, and each branch's patch lands in your tree, one at a time, in
+item order, whatever order the pairs finished in. A patch is checked before it
+is applied, so one that does not fit touches nothing and stops the ones after
+it. Each item's entry in the block's output says `landed: true`, or `landed:
+false` with git's reason on the one that stopped the landing.
+
+Nothing is checked between patches. The check written after the block,
+`deliver#1/tests`, judges the tree as a whole, and what the audit raises goes
+to the next round like any other remark. Here both landed, the tests passed
+and the audit approved:
 
 ```
-built.landings   // one entry per batch: what went in, and what stopped it
+✓ build · 13 visits · 7m3s · ↑501k ↓23k
+✓ locate · scout · 2m42s · ↑399k ↓6k
+✓ plan · planner · 13s · ↑4.4k ↓1.2k
+✓ deliver · 1 iteration · 4m6s · ↑95k ↓15k
+✓ report · synthesiser · 4s · ↑3.1k ↓497
 ```
 
-One at a time, because a red tree after three patches says only that one of
-them broke it. A patch is checked before it is applied, so one that does not
-fit touches nothing. When the check fails after a patch, the landing stops
-**there**, names the patch, and applies nothing further.
+```
+$ git status --short
+?? slug.js
+?? slug.test.js
+?? title.js
+?? title.test.js
+```
 
-**Nothing is rolled back.** What landed stays landed, and the patch that
-stopped it stays on its branch. Undoing would discard work, and every patch is
-also a commit somewhere. The tree has to be clean to begin with, or "which
-patch broke this" stops having an answer. A run's own exports under `runs/`
-do not count: the directory gets a `.gitignore` the first time anything is
-written there, because otherwise the export would make the tree it lands in
-unclean.
-
-A delivery lands more than once: once for the planned subtasks, then once per
-round of audit fixes. Only the first meets a tree it did not write; the later
-ones say so, or the option would stop working the moment an audit asked for
-anything.
-
-## What approved means now
-
-Three conditions instead of two. The auditor signed off; nothing it raised is
-still open; and **the work reached the tree**. A pair whose patch was refused
-by the landing is not delivered, whatever the auditor thought of its report,
-and the run says which one.
+**Nothing is rolled back.** What landed stays landed when a later patch is
+refused or the check fails, and a failed pair's patch lands like the others:
+undoing would discard work, and every patch is also a commit on its branch. A
+run that is stopped lands nothing, and each pair's work stays on its branch.
+Those branches are yours: nothing deletes one that holds work, so they add up,
+one per subtask per run, until you read them and delete them.
 
 ## What a copy does not close
 
 A copy bounds writes. `..`, `/tmp` and everything else the `read` tool reaches
-are outside any worktree, and a subagent that goes looking still finds them.
-What the copies close is the channel that opens by accident: four coders each
-in their own directory have nothing of each other's to read unless they leave
-it.
+are outside any copy, and a subagent that goes looking still finds them.
+
+That run shows it. Its scout, mapping the repository in the main tree before
+any copy existed, made 59 tool calls and spent 399k of the run's 501k input
+tokens. Seventeen of those calls were not on the code: it listed `runs/`, then
+read the journals and a snapshot the two builds of the
+[previous page](08-build.md) had left there, and every one of them was sent
+again with each call after it. An earlier run's record is in the tree, and to
+a model looking for where `slugify` lives, a journal that mentions it is a
+place. The copies closed the channel between the two coders; this one was open
+to everyone.
 
 ## The one thing it will not do
 
-A copy that still holds changes is never removed to make room. If a commit is
-refused by a hook, or git will not release the copy, the pair comes back
-`ok: false` with the path in its `error`, and the copy stays on disk for you
-to go and look at. Everything else in this library fails into a `Result` and a
-retry; losing what a child wrote is the one failure a rerun cannot undo, so it
-is the one place that stops rather than carries on.
+A copy that still holds changes is never removed to make room. When its work
+cannot be committed or its patch cannot be taken, the copy stays on disk with
+everything in it, and the item's entry says `landed: false` with git's reason,
+which stops the landing there. Everything else here fails into a `Result` and
+a retry; losing what a child wrote is the one failure a rerun cannot undo, so
+it is the one place that stops rather than carries on.
+
+A resume takes the copies back: a pair whose copy is still there carries on in
+it, as the resumed review of the previous page did, and one whose copy is gone
+starts its subtask over in a fresh one.
 
 ## Now raise the number
 
-`concurrency` in your `build.md` still defaults to 2. With copies the reason
-changed: the limit is no longer what one working tree can take but what a run
-costs, and that is a fact about the bill, which is the file's to say.
+`concurrency: 2` is the shipped file's, and a copy of it in `.pi/flows/build.md`
+changes it. With copies the limit is no longer what one working tree can take
+but what a run costs, and that is a fact about the bill, which is the file's to
+say:
 
 ```yaml
-  - id: work
-    deliver: planner
-    workers: [coder]
-    reviewer: reviewer
-    auditor: auditor
-    concurrency: 4
+      - id: work
+        map-from: deliver.carry
+        max: 6
+        concurrency: 4
+        copies: true
 ```
 
-It does not combine with `resume` yet. A resumed delivery starts on a tree
-holding what a previous process landed, which is not a tree it filled itself,
-and it has no record of what that was. The landing refuses it and says so.
-
-Four coders now, and a bill with four times the turns in it. The next page is
+Four coders, and a bill with four times the turns in it. The next page is
 about that bill: what it counts, what it refuses to guess, and how to end a
 turn that has stopped earning its cost.
 
