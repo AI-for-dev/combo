@@ -14,7 +14,7 @@ import { describe, test } from "node:test";
 import { gitPort } from "../src/git/index.ts";
 import { checkFlow, readJournal, resumeFlow, runFlow, type CheckedFlow, type FlowPorts, type JournalEntry, type Resumed } from "../src/flow/index.ts";
 import { JOURNAL_FILE } from "../src/flow/run/journal.ts";
-import { LOCK_FILE } from "../src/flow/run/lock.ts";
+import { heldBy, LOCK_FILE, takeLock, type Lock } from "../src/flow/run/lock.ts";
 import { bashCheck, type CheckScript } from "../src/verify.ts";
 import { catalogueOf, checked, flowSpawn, flowText, launched } from "./fixtures/flow.ts";
 import { git, plainDirectory, repository } from "./fixtures/repo.ts";
@@ -127,5 +127,38 @@ describe("a resume", () => {
 		assert.deepEqual(facts.slice(4), ["copy_landed both/a", "copy_landed both/b", "visit_end both", "run_end"]);
 		assert.deepEqual([fs.readFileSync(path.join(cwd, "a.txt"), "utf-8"), fs.readFileSync(path.join(cwd, "b.txt"), "utf-8")], ["a\n", "b\n"]);
 		assert.equal(git(cwd, "worktree", "list", "--porcelain").split("\n").filter((line) => line.startsWith("worktree ")).length, 1);
+	});
+});
+
+describe("a stale lock", () => {
+	/** Two takers of one stale lock, the second run whole just after the first's `at`-th read of it: `[first, second]`, and what the directory holds once the winner released. */
+	function race(at: number): [Lock | string, Lock | string, string[]] {
+		const runDir = fs.realpathSync(plainDirectory());
+		lock(runDir, DEAD);
+		let reads = 0;
+		let second: Lock | string = "never ran";
+		const first = takeLock(runDir, (file) => {
+			const held = heldBy(file);
+			if (++reads === at) second = takeLock(runDir);
+			return held;
+		});
+		assert.deepEqual(heldBy(path.join(runDir, LOCK_FILE)), { pid: process.pid, host: hostname() });
+		for (const taker of [first, second]) if (typeof taker !== "string") taker.release();
+		return [first, second, fs.readdirSync(runDir)];
+	}
+	const running = `the run is already running, in process ${process.pid}`;
+
+	test("goes to one taker when the other took it over between the first's read and its takeover", () => {
+		const [first, second, left] = race(1);
+		assert.equal(first, running);
+		assert.equal(typeof second, "object");
+		assert.deepEqual(left, []);
+	});
+
+	test("goes to one taker when the other comes in while the first is taking it over", () => {
+		const [first, second, left] = race(2);
+		assert.equal(typeof first, "object");
+		assert.equal(second, running);
+		assert.deepEqual(left, []);
 	});
 });
