@@ -2,11 +2,6 @@
 
 ![Keep the session out of it](../_static/tutorials/03-keep-the-session-out.svg)
 
-```{note}
-This page was captured before `/step` took flows: a stage names a flow or an
-agent now. The frames below predate that change.
-```
-
 Here is a failure that is hard to see because it looks like competence. You
 ask the session to have a scout find something, then a planner to plan from
 it, then a coder to build the plan. Each report lands in the conversation, the
@@ -15,9 +10,10 @@ instructions: it is an orchestrator with a view of its own, and it phrases the
 coder's task against a conclusion it drew from the scout's report two steps
 ago. Nothing is wrong, exactly. You are no longer the one deciding.
 
-`/step` runs one agent at a time and tells the session **nothing**. Every
-result is drawn in the transcript for you to read, carried to the next step by
-the extension, and kept out of the model's context until you put it there.
+`/step` runs one stage at a time, an agent or a whole flow, and tells the
+session **nothing**. Every result is drawn in the transcript for you to read,
+carried to the next step by the extension, and kept out of the model's context
+until you put it there.
 
 ## Walk it
 
@@ -29,15 +25,12 @@ One dot, then the report appears in the transcript:
 
 ```
 ◇ scout agent  1 turn  outside this conversation - /quote puts it in
-  The wall time of a subagent is measured in src/subagent.ts by tracking the elapsed
-  time since the subagent was spawned.
+  The wall time of a subagent is measured by calculating the difference between the current time and the time it was
+  spawned (performance.now() - spawnedAt).
 
-  - src/subagent.ts:183: Captures the start time using performance.now() when the
-    subagent is spawned.
-  - src/subagent.ts:223-226: The usage getter calculates the current wall time as
-    performance.now() - spawnedAt.
-  - src/subagent.ts:312: The final wall time is captured using the same calculation when
-    the subagent is closed.
+  - src/subagent.ts:176: captures the start time using performance.now().
+  - src/subagent.ts:283: calculates the current wall time in the usage getter.
+  - src/subagent.ts:387: calculates the final wall time when the subagent is closed.
 
 scout: 1 turn - /step <next> carries it on, /quote puts it in this conversation
 ```
@@ -53,7 +46,7 @@ left and full width is exactly how an answer the session gave is drawn.
 
 ```
 1. scout  agent where is the wall time of a subagent me…  1 turn
-1 step, 1 turn - exported to /…/runs/2026-09-21_06-15-15
+1 step, 1 turn - exported to /…/combo/runs/2026-09-23_22-06-31
 ```
 
 Now the second step, with no instruction beyond a question. It receives the
@@ -77,33 +70,46 @@ reviewer: 1 turn - /step <next> carries it on, /quote puts it in this conversati
 ```
 1. scout     agent where is the wall time of a subagent me…  1 turn
 2. reviewer  agent ←scout is the measurement trustworthy  1 turn
-2 steps, 2 turns - exported to /…/runs/2026-09-21_06-15-15
+2 steps, 2 turns - exported to /…/combo/runs/2026-09-23_22-06-31
 ```
 
 The arrow says what the reviewer was handed. Both steps were exported into one
-folder, a subfolder each, with their transcripts and their own `usage.json`.
+folder, `1-scout/` and `2-reviewer/`, each with its transcript and its own
+`usage.json`.
 
 ## Read what happened before anything acts on it
 
-Look at that `LGTM`. The reviewer was asked whether a measurement is
-trustworthy, and answered with the one word its definition allows for
-approval. It read a report rather than code, and a reviewer is written to
-review code: handed a paragraph, it said the only thing it knows how to say.
+Look at that `LGTM`. The reviewer opened `src/subagent.ts`, thought it
+through, and answered with the one word its definition allows for approval.
+Its reasons are in its transcript and nowhere in the step. Look at the
+scout's report too: `283` and `387` are right, `176` is not (the line is
+`217`), and the reviewer approved a report with a wrong citation in it,
+because it was asked about the measurement and not about the report.
 
 Nothing acted on that. Had this been `/run` on a flow, the next node would
 have been handed `LGTM` as its input and carried on. Here it is a line in the
 transcript, and you are the join between the steps: you read it, you decide
-the reviewer was asked the wrong thing, and you type a better step or none.
-That join is what walking by hand buys, at the cost of typing each step.
+whether the reviewer was asked the right thing, and you type a better step or
+none. That join is what walking by hand buys, at the cost of typing each step.
 
-Prove to yourself that the session knows none of it:
+Now ask the session:
 
 ```
 > what did the reviewer say?
 ```
 
-It answers from a conversation in which no reviewer ran. The two steps are not
-in its context, which is what you asked for.
+No reviewer ran in its conversation, and its thinking said so: "the
+reviewer" might refer to a subagent, a person, or some output from a run.
+Then it went looking.
+It listed `runs/` with `bash`, found `2-reviewer/reviewer-1.jsonl`, grepped
+the assistant messages out of it, and summarised the reviewer's reasoning,
+ending "The reviewer concluded the analysis with **`LGTM`**."
+
+The two steps were not in its context, which is what you asked for. They were
+on disk, in the working directory of a session that holds `bash`. `/step`
+keeps a result out of the conversation; it does not hide the run directory
+from a model that can list files. When the point is that the session must not
+lean on a step, do not ask it about one.
 
 ## Let it in, one step at a time
 
@@ -125,6 +131,52 @@ scout, and it arrives **attributed**: pi hands the text to the model in a user
 slot, and an unattributed report sitting in a user slot reads as an
 instruction. The two lines of framing are what turn it back into a result of
 something that ran.
+
+## A stage can be a flow
+
+`/chain reset`, then name a flow where you named an agent:
+
+```
+/step explore where is the wall time of a subagent measured
+/step reviewer is the answer consistent with the code
+/chain
+```
+
+The flow's plan is drawn above the prompt while it runs, as `/run` draws it,
+and its answer lands where a step's does, outside the conversation:
+
+```
+◇ explore flow  4 turns  outside this conversation - /quote puts it in
+  The wall time of a subagent is measured in src/subagent.ts by recording the start time at spawn and calculating the
+  difference using performance.now() during usage queries or upon closure.
+
+  There is a disagreement between the reports regarding the exact line numbers in src/subagent.ts:
+  - Report 1 cites lines 254 (spawn), 308-311 (usage getter), and 448-449 (closure).
+  - Report 3 cites lines 168 (spawn), 214-217 (usage getter), and 311 (closure).
+  …
+
+◇ reviewer agent ←explore  1 turn  outside this conversation - /quote puts it in
+  The "Output of step explore" is consistent with the code.
+
+  1. src/subagent.ts: Wall time is indeed measured by recording spawnedAt = performance.now() during spawn (line 254)
+     and calculating the difference in the usage getter (lines 308-311) and the close method (line 448). These line
+     numbers match Report 1.
+  …
+
+1. explore   flow where is the wall time of a subagent me…  4 turns
+2. reviewer  agent ←explore is the answer consistent with the code  1 turn
+2 steps, 5 turns - exported to /…/combo/runs/2026-09-23_22-12-17
+```
+
+The chain says which stage was a flow. The flow's run directory is the step's
+folder, `1-explore/`, so a stage that stops can be carried on with `/run
+resume` like any run.
+
+And read the reviewer once more. It opened `src/subagent.ts` and confirmed
+Report 1's numbers against it; the line is `217`, not `254`. It was not
+guessing from the report, it had the file in front of it. That is the thing a
+step drawn outside the conversation is for: the claim waits on your screen
+until you have checked it.
 
 ## A different model per step
 
@@ -149,15 +201,15 @@ Two more flags, and then the command is learnt:
   `--from none` starts from nothing.
 - `/step --agent scout …` when a flow and an agent share a name. A `<name>`
   is resolved against the flows first, because a stage of a chain is often
-  a whole flow: `/step explore …` runs three scouts and a synthesis as one
-  step.
+  a whole flow, as `explore` was above.
 
 `/chain reset` drops the chain. The next `/step` starts a new one, in a new
 folder.
 
 ## What a step is handed, byte for byte
 
-Every step after the first receives two sections:
+Every step after the first receives two sections. This is the reviewer's
+turn, from its transcript:
 
 ```markdown
 ## Request
@@ -166,7 +218,8 @@ is the measurement trustworthy
 
 ## Output of step `scout`
 
-The wall time of a subagent is measured in src/subagent.ts …
+The wall time of a subagent is measured by calculating the difference between the current time and the time it was spawned (`performance.now() - spawnedAt`).
+…
 ```
 
 Your instruction is the request, and what came before is labelled with the

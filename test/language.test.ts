@@ -37,6 +37,9 @@ describe("answerInTheirLanguage", () => {
 		// French" made an English question come back in French. An example in a
 		// standing instruction is read as the target, so there is none.
 		assert.ok(!/\bFrench\b|\bEnglish-speaking\b/.test(ANSWER_IN_THEIR_LANGUAGE));
+		// Not even the prompt's own: "always written in English" was read as
+		// "do not answer in English".
+		assert.ok(!/\bEnglish\b/.test(ANSWER_IN_THEIR_LANGUAGE));
 		assert.match(ANSWER_IN_THEIR_LANGUAGE, /neither does any example in them/);
 	});
 
@@ -67,5 +70,10 @@ describe("inTheLanguageOfTheWork", () => {
 		// the standing rule, which is in front of the model the whole time.
 		assert.equal(IN_THE_LANGUAGE_OF_THE_WORK.split(". ").length, 1);
 		assert.ok(!/\bFrench\b|\bEnglish\b/.test(IN_THE_LANGUAGE_OF_THE_WORK));
+	});
+
+	test("it points at the work, and names no language to avoid", () => {
+		// "not in the language of these instructions" read as "not English".
+		assert.ok(!/\bnot\b/.test(IN_THE_LANGUAGE_OF_THE_WORK));
 	});
 });

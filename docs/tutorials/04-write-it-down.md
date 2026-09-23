@@ -2,14 +2,6 @@
 
 ![Write the chain down](../_static/tutorials/04-write-it-down.svg)
 
-```{note}
-This page shows the linear pipeline, which flows replaced: a file in
-`.pi/pipelines/` is refused now with `pipeline-format-removed`, and `/pipelines`
-is `/flows`. [Flows](../guide/flows.md) is the format that replaced it, and
-[From pipelines to flows](../guide/from-pipelines.md) rewrites a pipeline as a
-flow. The files and frames below predate that change.
-```
-
 By the third time you have typed the same two steps, the workflow exists. It
 lives in your shell history, where nobody can review it, nobody else can run
 it, and a change to it is not a diff. Most agent tooling answers that with a
@@ -17,67 +9,117 @@ YAML file and a templating language. Within a year it has `if:` and
 `${{ steps.x.outputs.y }}`, and it is a programming language with none of the
 tools of one.
 
-A combo pipeline is a Markdown file next to your agents, and it refuses to
-become that. Steps are linear, with no condition and no reference back. The
-moment a run needs a branch, it is TypeScript, and the file has done its job by
-making that boundary visible.
+A combo flow is a Markdown file next to your agents, and it refuses to become
+that. It is built from a closed set of nodes, it runs no code of its own, it
+has no templating, and it is checked whole before anything is spawned. The
+moment a run needs something the nodes cannot say, it is TypeScript, and the
+file has done its job by making that boundary visible.
 
 ## The problem worth a file
 
 Documentation drifts from code. Every repository has a page that says a
 default is 4 when the code says 2. The reading is always the same: one agent
 reads the code, one reads the docs, one compares. Put it in
-`.pi/pipelines/docs-drift.md`:
+`.pi/flows/docs-drift.md`:
 
 ```markdown
 ---
 name: docs-drift
 description: One scout reads the code and one reads the guide on a topic, then one agent lists where they disagree
-steps:
+input: string
+
+nodes:
   - id: read
-    fanOut: scout
-    tasks:
-      - Read the code under src/ only. Report what it does about the topic, one claim per line, with file and line.
-      - Read docs/guide/ only. Report every claim the guide makes about the topic, quoted, with the page it comes from.
-    concurrency: 2
+    parallel:
+      code:
+        - id: in_code
+          agent: scout
+          reads: [input]
+      guide:
+        - id: in_guide
+          agent: scout
+          reads: [input]
+
   - id: compare
-    reduce: synthesiser
+    agent: synthesiser
+    reads: [input, read]
 ---
 
-## read
+## in_code
+Read the code under src/ only, and report what it does about the topic under
+`input`: one claim per line, with file and line. Say plainly when you find
+nothing there.
 
-Read only, and stay in the directory your task names. Say plainly when you find
-nothing about the topic there.
+## in_guide
+Read docs/guide/ only, and report every claim the guide makes about the topic
+under `input`, quoted, with the page it comes from. Say plainly when you find
+nothing there.
 
 ## compare
-
-List every place where the documentation and the code disagree: one line each,
-quoting the claim and naming the file that contradicts it. Where they agree, say
-nothing. If they agree everywhere, say so in one line.
+List every place where the guide and the code disagree about the topic under
+`input`. The two reports are under `read`: `code` says what the code does,
+`guide` what the guide claims. One line each, quoting the claim and naming the
+file that contradicts it. Where they agree, say nothing. If they agree
+everywhere, say so in one line.
 ```
 
-Frontmatter carries the structure: which combinators, which agents, which caps,
-because that nests and YAML nests for free. The body carries the prose, one
-`## <id>` section per step, because a ten-line instruction inside a YAML block
-scalar is miserable to write and Markdown is what prose is for.
+Frontmatter carries the structure: which nodes, which agents, what each one
+reads, because that nests and YAML nests for free. The body carries the prose,
+one `## <id>` section per agent turn, because a ten-line instruction inside a
+YAML block scalar is miserable to write and Markdown is what prose is for.
+
+`input: string` says what the flow is started on: the text after its name.
+`parallel` runs its two branches at once. `reads:` is the whole data model: a
+turn is handed what it lists, each under its own heading, and nothing else.
+`compare` cannot read `in_code` directly, because a node inside a block is
+not visible outside it; it reads `read`, the block's output, which holds each
+branch as it ended.
 
 ## See it loaded
 
 ```
-/pipelines
+/flows
 ```
 
 ```
-build       chain → deliver - Locate the code, split the work, implement it in pairs, audit the whole
-explore     fanOut → reduce - Three scouts read the code in parallel, then one agent answers from what they found
-split       orchestrate → reduce - A planner splits a read-only question between a scout and a reviewer, then one agent answers
-docs-drift  fanOut → reduce - One scout reads the code and one reads the guide on a topic, then one agent lists where they disagree
+6 flows
+build           project  ≤ 113 turns · ≤ 29h50m                      Locate the code, split the work, implement it in
+                                                                     pairs, check and audit the whole
+build-attended  project  ≤ 121 turns · ≤ 33h50m + a person's answer  Interview the user, confirm, build, then commit
+                                                                     on the run's branch
+docs-drift      project  ≤ 3 turns · ≤ 1h                            One scout reads the code and one reads the guide
+                                                                     on a topic, then one agent lists where they
+                                                                     disagree
+explore         project  ≤ 4 turns · ≤ 1h                            Three scouts read the code in parallel, then one
+                                                                     agent answers from what they found
+interview       project  ≤ 7 turns · ≤ 3h30m + a person's answer     Ask the user one question at a time, then write a
+                                                                     specification
+split           project  ≤ 6 turns · ≤ 2h                            A planner splits a read-only question between a
+                                                                     scout and a reviewer, then one agent answers
 ```
 
-Yours sits beside the shipped ones. A file in `.pi/pipelines/` is visible from
-this repository only; one in `~/.pi/agent/pipelines/` follows you everywhere.
-The same name in both, and the repository's wins, so replacing a shipped
-pipeline is writing a file called `build.md`, not deleting anything.
+Yours sits beside the shipped ones, with its worst case: three turns, an hour
+at most, because each turn is bounded by a 30-minute default and the two
+scouts run at once. Nothing is estimated there; every loop and every `map` in
+a flow carries a `max:`, so the most a flow can cost is known before it runs.
+`/flows docs-drift` prints the plan that bound comes from:
+
+```
+docs-drift · .pi/flows/docs-drift.md · input string · ≤ 3 turns · ≤ 1h
+○ read · parallel · ≤ 2 turns · ≤ 30m
+  ○ read/code
+    ○ read/code/in_code · agent scout (.pi/agents/scout.md) · reads input · timeout 30m by default · ≤ 1 turn · ≤ 30m
+  ○ read/guide
+    ○ read/guide/in_guide · agent scout (.pi/agents/scout.md) · reads input · timeout 30m by default ·
+      ≤ 1 turn · ≤ 30m
+○ compare · agent synthesiser (.pi/agents/synthesiser.md) · reads input, read · timeout 30m by default ·
+  ≤ 1 turn · ≤ 30m
+```
+
+A file in `.pi/flows/` is visible from this repository only; one in
+`~/.pi/agent/flows/` follows you everywhere. The same name in both, and the
+repository's wins, so replacing a shipped flow is writing a file called
+`build.md`, not deleting anything.
 
 ## Run it
 
@@ -86,59 +128,62 @@ pipeline is writing a file called `build.md`, not deleting anything.
 ```
 
 Two scouts, then the synthesiser, then the comparison lands in the
-conversation, prefixed with the pipeline that produced it exactly as
+conversation, prefixed with the flow that produced it exactly as
 [`explore`](02-three-scouts.md) was:
 
 ```
-Result of the docs-drift pipeline, asked to: the default lifetime of a subagent, and who decides it.
+Result of the docs-drift flow, asked to: the default lifetime of a subagent, and who decides it.
 
 They agree everywhere.
 
-docs-drift: 2 steps, 3 turns - exported to /…/combo/runs/2026-09-19_10-37-18
+ok · runs/2026-09-23_22-18-00
+
+✓ docs-drift · 4 visits · 33s · ↑38k ↓1.6k
+✓ read · 2 branches · 27s · ↑37k ↓1.4k
+✓ compare · synthesiser · 6s · ↑1.5k ↓252
 ```
 
-One line, sixteen seconds, 24k input tokens for the whole run. An anticlimax is
-the correct result of a drift check on a page that is right, and a pipeline
-that only ever finds something is one you should distrust.
+One line, thirty-three seconds, 38k input tokens for the whole run. An
+anticlimax is the correct result of a drift check on a page that is right, and
+a flow that only ever finds something is one you should distrust.
 
-What the second step received is worth reading once, because it is the whole
-data model. It is in the exported `usage.json`, under the synthesiser's `task`:
+What the last turn received is worth reading once, because it is the whole
+data model. It is the first message of `compare/synthesiser.jsonl` in the run
+directory:
 
-```markdown
-List every place where the documentation and the code disagree: one line each,
-quoting the claim and naming the file that contradicts it. Where they agree, say
-nothing. If they agree everywhere, say so in one line.
+````markdown
+List every place where the guide and the code disagree about the topic under
+`input`. The two reports are under `read`: `code` says what the code does,
+`guide` what the guide claims. One line each, quoting the claim and naming the
+file that contradicts it. Where they agree, say nothing. If they agree
+everywhere, say so in one line.
 
-## Request
+## input
 
 the default lifetime of a subagent, and who decides it
 
-## 1. scout
-The default lifetime of a subagent is `"task"`.
+## read
 
-The decision is made in `src/subagent.ts:148` using the following precedence:
-1. The `lifetime` override passed in `SpawnOptions` to the `spawn` function.
-2. The `lifetime` defined in the agent's frontmatter (`Agent.lifetime` in `src/agent.ts:48`).
-3. The default value `"task"`.
-
-## 2. scout
-In `docs/guide/lifetime.md`:
-
-- **Default lifetime**: `"task"`
-  > `| "task" *(default)* | is born and dies with each task | …`
-- **Who decides it**: It is decided by the explicit argument, then the agent's
-  frontmatter, and finally defaults to `"task"`.
-  > `Resolution order, always: the explicit argument, then the agent's frontmatter, then "task".`
+```json
+{
+  "code": {
+    "ok": true,
+    "output": "- `src/agent.ts:19-23`: The possible lifetimes are `\"task\"` (born and dies with each task), …\n- `src/subagent.ts:63`: The default lifetime is `\"task\"`.\n- `src/subagent.ts:166`: The lifetime is decided by the `lifetime` option passed to `spawn()`, falling back to the `lifetime` declared in the agent's frontmatter, and finally falling back to the `\"task\"` default."
+  },
+  "guide": {
+    "ok": true,
+    "output": "In `docs/guide/lifetime.md`:\n\n- \" `\"task\"` *(default)* \" (line 8)\n- \"Resolution order, always: the explicit argument, then the agent's frontmatter, then `\"task\"`. Persistence is asked for. It is never obtained by accident.\" (lines 14-15)"
+  }
+}
 ```
+````
 
-Its own prose first, then the request, then the branches of the step before,
-each labelled with the agent that wrote it. Nothing else.
-
-The request travels to every step, not just the first. It once reached the
-first step and stopped there, and a synthesiser answered "there is no question
-asked in the prompt", because there was not. A `reduce` receives the previous
-step's branches once, as a list, and is not also handed them as text, or every
-report would arrive twice. Neither of those is anything you write down.
+Its own section first, then each address it reads, under the address as its
+heading. Each branch comes with whether it ran. As written, a scout that fails
+ends the run; give both `on-fail: continue`, as `explore` does, and a failed
+one reaches the synthesiser as `"ok": false` in its slot instead.
+The prose names the headings it will find, `input` and `read`: a turn holding
+two reads has two sections, and "the reports below" would point at neither.
 
 ## What a typo costs
 
@@ -146,7 +191,7 @@ Change one letter and run it again:
 
 ```yaml
   - id: compare
-    reduce: synthesizer
+    agent: synthesizer
 ```
 
 ```
@@ -154,53 +199,59 @@ Change one letter and run it again:
 ```
 
 ```
-Error: Unknown agent "synthesizer". Loaded agents: auditor, coder, committer,
-explorer, interviewer, planner, reviewer, router, scout, synthesiser
+Error: run: `docs-drift` is refused
+  .pi/flows/docs-drift.md compare.agent: `synthesizer` is unknown; did you mean `synthesiser`?
 ```
 
-It stopped before spawning anything. The file was parsed, every step's shape
-was checked, every `## <id>` section was matched to a step and every agent
-name was resolved against the roster, all before a single session opened. A
-typo in step two costs a second, not a fan-out of real work followed by a
-failure.
+It stopped before spawning anything. The file was parsed, every node's shape
+was checked, every section was matched to an agent node, every address and
+every agent name was resolved, all before a single session opened. A typo in
+the last node costs a second, not two scouts' worth of real work followed by a
+failure. The fault names the file, the node and the key, `compare.agent`.
 
-Now break the file itself: delete the `## compare` section and run
-`/pipelines`:
+Now put the name back, delete the `## compare` section, and run `/flows`:
 
 ```
-docs-drift  BROKEN: /…/.pi/pipelines/docs-drift.md: step "compare" has no
-"## compare" section in the body. (/…/.pi/pipelines/docs-drift.md)
+Warning: 5 flows, 1 file refused
+…
+docs-drift      project  broken
+  .pi/flows/docs-drift.md compare: `compare` is an agent node and has no `## compare` section
+…
 ```
 
-A malformed pipeline is **never** silently skipped. An agent file missing its
+A refused flow is **never** silently skipped. An agent file missing its
 `name` is dropped without a word, following pi, because agents are discovered;
-a pipeline is asked for by name, and answering "unknown pipeline" about a file
-sitting right there would be a lie. The most likely reason anyone runs
-`/pipelines` is that something did not load, so the broken ones are what the
-listing is for.
+a flow is asked for by name, and answering "unknown flow" about a file sitting
+right there would be a lie. The most likely reason anyone runs `/flows` is
+that something did not load, so the refused ones are what the listing is for.
+`/flows` checks and spawns nothing, so it needs no model.
 
 ## What the file cannot say
 
-There is no `if`, no `when`, no way to name step one's output from step three.
-Each step is handed three things, in named sections: its instruction, the
-request, and the previous step's output. Nothing else flows.
+A flow can branch, repeat and fork: a `choice` takes the first case whose
+condition holds, a `loop` runs until its condition holds, a `map` runs its
+body once per item. What it cannot do is let a model or a string decide the
+shape of the run:
 
-- A `loop` step whose `until` never converges **fails the pipeline** rather
-  than handing unconverged work to the next step.
-- A `reduce` **folds the step before it**, and a `reduce` with nothing to fold
-  fails without spawning.
-- `verify: [npm, test]` at the top level names the project's check as a list,
-  never a command line, because splitting `"npm test"` on whitespace is
-  writing a small shell.
-- `model: some/model` at the top level puts every subagent of the file on one
-  model, and a `--model` on the command beats it.
+- A model produces values, never the next node. A condition is a small subset
+  of CEL that reads **typed** outputs, `audit.output.approved`, and is
+  type-checked before the first spawn. An agent's text is read whole and never
+  into, so no condition can hang on the wording of a paragraph.
+- There is no templating. A node lists its `reads:`, and the runner hands it
+  those values under their names. Nothing is interpolated into a prompt.
+- A flow runs no code. A `check` names a script of the project, and its exit
+  code is the verdict.
+- Every loop and every `map` has a `max:`. Forever is not reachable by
+  forgetting an argument, and `/flows` prints what the worst case costs.
+- `model:` at the top level puts every agent turn of the file on one model,
+  and a `--model` on the command beats it.
 
-When you need more than that, the same two steps in TypeScript are eight lines
-and every combinator the file can name is a function you can call. That is
-where [Workflows](../guide/workflows.md) picks up. The rest of this file's
-vocabulary is in [From pipelines to flows](../guide/from-pipelines.md).
+When you need more than that, the same two reads and a comparison in
+TypeScript are a few lines, and every combinator is a function you can call.
+That is where [Workflows](../guide/workflows.md) picks up. The whole format,
+every node and every fault, is [Flows](../guide/flows.md).
 
-The pipeline used our agents. The next page writes one of yours, and the first
+The flow used our agents. The next page writes one of yours, and the first
 thing it decides is what the agent may not do.
 
 **Next:** [An agent that cannot do harm](05-an-agent-that-cannot-write.md).

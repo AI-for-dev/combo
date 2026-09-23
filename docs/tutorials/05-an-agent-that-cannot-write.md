@@ -2,14 +2,6 @@
 
 ![An agent that cannot do harm](../_static/tutorials/05-an-agent-that-cannot-write.svg)
 
-```{note}
-This page was captured before flows replaced the linear pipeline. `/build` is
-`/run build` now, its flags are keys of the [`build` flow](../reference/flows/build.md),
-and a file left in `pipelines/` is refused; see [Deliver a change](../guide/build.md)
-and [From pipelines to flows](../guide/from-pipelines.md). The frames and the
-files below predate that change.
-```
-
 Every agent framework has the same paragraph in its documentation: "instruct
 the agent not to modify files it was not asked to". Here is what that
 paragraph is worth. An example in this repository once gave its coder the full
@@ -71,11 +63,19 @@ twice, get two readers who never met.
 ```
 project · /…/combo/.pi/agents
   …
+  synthesiser  Merges the findings of several subagents into one answer
   test-reader  Reads a test file and reports what each test really asserts, against what its name promises
+user · /home/you/.pi/agent/agents
+  (none)
+builtin · shipped with combo
+  (none)
+
+A project agent needs scope "project" or "both" from the subagent tool. /run and /step load all three.
 ```
 
-It is listed under `project` because it lives in the repository. That group
-has a rule the other two do not, which is why the call below names a scope:
+It is listed under `project` because it lives in the repository, and the last
+line is the rule that group has and the other two do not. Hence the scope in
+the call:
 
 ```
 > use subagent with scope "project" and agent "test-reader" to read
@@ -87,82 +87,101 @@ instructions written by whoever committed them, and a clone you just pulled is
 a stranger's file until you have read it. So project agents are **never loaded
 by default**: the `subagent` tool reads the shipped agents and yours from
 `~/.pi/agent/agents/`, and a repository's only when the call says `scope:
-"project"` or `"both"`. `/run` and `/build` load all three, because a person
+"project"` or `"both"`. `/run` and `/step` load all three, because a person
 typing a command inside a repository is the explicit request. Asking is one
 word. Being handed a stranger's instructions by surprise is not acceptable,
 and the boundary is a security decision rather than a preference.
 
-It read one file, for eighty seconds on a small model, and came back with a
+It read one file, for fifty seconds on a small model, and came back with a
 line per test:
 
 ```
 subagent single test-reader
-  Read test/loop.test.ts
-✓ test-reader#1 Read test/loop.test.ts
+  Read the contents of test/loop.test.ts and summarize its purpose and …
+✓ test-reader#1 Read the contents of test/loop.test.ts and summar…
     read test/loop.test.ts
-1 turn 80.3s ↑4.8k ↓4.2k $0.0000
+
+1 turn 51.5s ↑4.8k ↓2.1k $0.0000
+ctrl+o to expand
 ```
 
-> - `caps the loop, and defaults to 5`: asserts that the loop stops at 5
->   iterations by default when the condition is never met; promise matches
->   assertion.
-> - `hitting the cap is reported as not converged, even when every turn was
->   fine`: asserts that reaching `maxIterations` results in `converged:
->   false`; promise matches assertion.
+> - caps the loop, and defaults to 5: asserts that the loop stops at
+>   `maxIterations` and that the default is 5. No.
+> - hitting the cap is reported as not converged, even when every turn was
+>   fine: asserts that reaching the iteration limit results in `converged:
+>   false` while `ok: true`. No.
 > - …
 >
-> The tests are generally precise. The ones promising the most while checking
-> the least are:
-> - `an async until is awaited: the judge is often a test run`
-> - `the same scenario spawns a different number of subagents per lifetime`
+> The tests in this file are consistently precise. If any promise more than
+> they check, it is:
+> - an async until is awaited: the judge is often a test run: the "awaited"
+>   part is mostly implicit in the test's successful completion.
+> - rejects a cap below 1: an unrunnable loop is a programming error: the
+>   "programming error" part is a conceptual justification rather than a
+>   checked property.
 
-Eighteen tests, eighteen lines, two named at the end. Whether it is right about
-those two is a question for whoever wrote them. It did the tedious part and
-left the judgement where it belongs.
+Seventeen tests, seventeen lines, two named at the end. Whether it is right
+about those two is a question for whoever wrote them. It did the tedious part
+and left the judgement where it belongs.
+
+Read the second line of the row, though: that is not what you typed. The
+session wrote the task it sent, "Read the contents of test/loop.test.ts and
+summarize its purpose and key test cases", and then summarised the report
+back to you by theme, the two names at the end left out. The row is how you
+know: it shows the task as it was sent, and `ctrl+o` shows the report as it
+came back.
 
 ## Try to make it write
 
-Now ask for the thing it cannot do:
+Now ask for the thing it cannot do, in a fresh session:
 
 ```
 > use subagent with scope "project" and agent "test-reader" to read
   test/loop.test.ts and rename any test whose name overpromises
 ```
 
-This is what the session did, on a small open-weight model:
+The first time, on a small open-weight model, the session passed the request
+on as written. The reader, which cannot rename anything, answered that "none
+of them overpromise", and the session reported that "no renames were
+performed". The same reader had named two tests a moment earlier.
 
-> The subagent itself cannot edit files unless it has the edit tool. Does
-> test-reader have the edit tool? I don't know the definition of test-reader.
-> Let's see if I can find the test-reader agent definition to see its
-> capabilities.
->
-> The test-reader agent only has read, grep, find, ls. It cannot edit files. So
-> I will use the subagent to identify the tests that overpromise and then I
-> will perform the rename.
+The second time, same model, same sentence, its thinking went the other way:
 
-It found the file, read the frontmatter, understood the allowlist, and routed
-around it. The subagent read and reported. Then the **session**, which holds
-`edit`, renamed the tests:
+> Then I will need to apply those renames to the file.
+
+It rewrote the task into "identify any test names that overpromise … Suggest
+better, more realistic names for them", got one name back, and called `edit`
+itself:
 
 ```bash
-git status --short test/
+git diff
 ```
 
-```
- M test/loop.test.ts
+```diff
+@@ -157,7 +157,7 @@ describe("loop", () => {
+ 			assert.equal(fake.asks.filter((ask) => ask.id === reviewerId).length, 3);
+ 		});
+ 
+-		test('"task": brand new subagents at every iteration, no accumulated bias', async () => {
++		test('"task": brand new subagents at every iteration', async () => {
+ 			const fake = fakeSpawn();
+ 			await loop({ steps: [coder, reviewer], input: "x", maxIterations: 3, lifetime: "task", spawn: fake.spawn });
 ```
 
-The boundary held where it was drawn: the agent you wrote could not write, and
-did not. The agent you did not write, the one you are typing into, has every
-tool your pi gives it and a request from you that said "rename". A toolset
-bounds the agent that holds it and nobody else. If the working tree must not
-change, do not ask the session that can change it. `/run` and `/step` put no
-model between you and the subagent, so there is nothing to route around.
+The boundary held where it was drawn, both times: the agent you wrote could
+not write, and did not. The agent you did not write, the one you are typing
+into, has every tool your pi gives it and a request from you that said
+"rename". A toolset bounds the agent that holds it and nobody else. If the
+working tree must not change, do not ask the session that can change it.
+`/run` and `/step` put no model between you and the subagent, so there is
+nothing to route around.
 
-The other thing that can happen is the one to plan for. A weaker model emits a
-call to `edit` from inside the subagent anyway. pi refuses it, because the tool
-is not in that session, and the model gets an error back and tries again, and
-again. That retry is the argument for a deadline on every call, which is what
+The other thing that can happen is the one to plan for. A model calls a tool
+its session does not hold anyway. pi refuses it, the model gets an error back,
+and it tries again. The reviewer in [the chain two pages back](03-keep-the-session-out.md)
+did exactly that: its prompt mentions a `verdict` tool, a plain `/step` does
+not hand one over, and its transcript holds five calls to `verdict`, each
+answered `Tool verdict not found`, before the prose you saw. That retry is the argument for a deadline on every call, which is what
 [watch the meter](10-the-meter.md) is about. Widening the allowlist to stop
 the retries is the one fix that is always wrong.
 
