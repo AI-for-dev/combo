@@ -164,6 +164,15 @@ describe("the live view", () => {
 		assert.equal(showSummary(livePlan(BLOCKS, journal, []), 400), last[0]);
 	});
 
+	test("gives a check, a commit and an ask their time and no token counts, since no model runs in them", async () => {
+		const flow = checked(
+			"  - id: sure\n    ask: \"Go on?\"\n    confirm: true\n  - id: tests\n    check: scripts/ok.sh\n  - id: after\n    agent: synthesiser\n  - id: save\n    commit: after",
+			{ after: "After." },
+		);
+		const { events } = await recorded(flow, { sure: { yes: true }, tests: { passed: true, report: "" }, save: { committed: true, sha: "abc", branch: "combo/x" }, after: "done" });
+		assert.deepEqual(frame(flow, [], events).slice(1), ["✓ sure · 0s", "✓ tests · 0s", "✓ after · synthesiser · 0s · ↑0 ↓0", "✓ save · 0s"]);
+	});
+
 	test("counts every failed visit, absorbed ones included, names a loop that did not converge, and marks what was never reached", async () => {
 		const flow = checked(
 			"  - id: look\n    agent: scout\n    on-fail: continue\n  - id: fix\n    loop: audit.output.approved\n    max: 1\n    on-fail: continue\n    do:\n      - id: audit\n        agent: reviewer\n        output: { approved: boolean }\n  - id: plan\n    agent: planner\n  - id: after\n    agent: synthesiser",

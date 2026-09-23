@@ -19,6 +19,9 @@ import { NOT_VISITED } from "./text.ts";
 /** What a node never reached is marked with. */
 const UNREACHED = "–";
 
+/** The kinds no model runs in: their line says how long they took, since `↑0 ↓0` there would read as a count. */
+const TOKENLESS: ReadonlySet<LiveLine["kind"]> = new Set(["check", "commit", "ask"]);
+
 /** One line of the live view as text, before any cut. */
 export type LiveRow = {
 	/** How many lines hold it. */
@@ -78,7 +81,7 @@ function rowsOf(line: LiveLine, depth: number): LiveRow[] {
 		line.label,
 		...line.facts,
 		...(line.bound === undefined ? [] : [showBound(line.bound)]),
-		...(line.usage === undefined ? [] : [cost(line.usage)]),
+		...(line.usage === undefined ? [] : [TOKENLESS.has(line.kind) ? showDuration(line.usage.wallMs) : cost(line.usage)]),
 	].filter((part) => part !== "");
 	return [{ depth, state: line.state, glyph: glyph(line.state), text: parts.join(" · "), subagents }, ...line.lines.flatMap((one) => rowsOf(one, depth + 1))];
 }
