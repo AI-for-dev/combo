@@ -10,6 +10,7 @@
  */
 
 import type { Agent } from "../agent.ts";
+import type { Condition } from "./condition/index.ts";
 import type { ValueType } from "./type.ts";
 
 /** Why a node failed. A closed set, so a condition reading `x.error.kind` is checked like any enum. */
@@ -31,11 +32,17 @@ export const ERROR_KINDS = [
 /** One read handed to a turn: the address as written, and the type it names. */
 export type CheckedRead = { readonly address: string; readonly type: ValueType };
 
-/** An `agent` node, resolved. */
-export type CheckedAgentNode = {
-	readonly kind: "agent";
+/** What every checked node has. */
+type Common = {
 	readonly id: string;
+	/** The node's address through its enclosing nodes, without iterations. */
 	readonly at: string;
+	readonly continueOnFail: boolean;
+};
+
+/** An `agent` node, resolved. */
+export type CheckedAgentNode = Common & {
+	readonly kind: "agent";
 	/** The agent, or the address a value picks it from and the closed set it picks in, by name. */
 	readonly agent: Agent | { readonly from: string; readonly among: ReadonlyMap<string, Agent> };
 	/** Its `## <id>` section, trimmed. */
@@ -45,11 +52,36 @@ export type CheckedAgentNode = {
 	readonly output?: ValueType;
 	readonly retry: number;
 	readonly timeoutMs?: number;
-	readonly continueOnFail: boolean;
+};
+
+/** A `choice`, its conditions compiled. */
+export type CheckedChoiceNode = Common & {
+	readonly kind: "choice";
+	readonly cases: readonly { readonly when: Condition; readonly nodes: readonly CheckedNode[] }[];
+	readonly otherwise: readonly CheckedNode[];
+};
+
+/** A `parallel`, its branches in the order written. */
+export type CheckedParallelNode = Common & {
+	readonly kind: "parallel";
+	readonly branches: readonly { readonly name: string; readonly nodes: readonly CheckedNode[] }[];
+	readonly copies: boolean;
+	readonly failFast: boolean;
+};
+
+/** A `map`, over a literal list or the list an address names. */
+export type CheckedMapNode = Common & {
+	readonly kind: "map";
+	readonly over: { readonly items: readonly string[] } | { readonly from: string };
+	readonly max?: number;
+	readonly concurrency: number;
+	readonly copies: boolean;
+	readonly failFast: boolean;
+	readonly nodes: readonly CheckedNode[];
 };
 
 /** A node of any kind, resolved. */
-export type CheckedNode = CheckedAgentNode;
+export type CheckedNode = CheckedAgentNode | CheckedChoiceNode | CheckedParallelNode | CheckedMapNode;
 
 declare const checked: unique symbol;
 
@@ -64,6 +96,11 @@ export type CheckedFlow = {
 	readonly nodes: readonly CheckedNode[];
 	readonly [checked]: true;
 };
+
+/** The value of each `choice` case, and of its default, as `case` names them: `"1"` for the first. */
+export function caseNames(count: number): string[] {
+	return [...Array.from({ length: count }, (_, i) => String(i + 1)), "default"];
+}
 
 /**
  * A node as an address and a condition see it once it ended: whether it ran,

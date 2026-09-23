@@ -9,7 +9,16 @@
  */
 
 export { checkFlow, type CheckFlow, type FlowCatalogue } from "./check.ts";
-export { ERROR_KINDS, type CheckedAgentNode, type CheckedFlow, type CheckedNode, type CheckedRead } from "./checked.ts";
+export {
+	ERROR_KINDS,
+	type CheckedAgentNode,
+	type CheckedChoiceNode,
+	type CheckedFlow,
+	type CheckedMapNode,
+	type CheckedNode,
+	type CheckedParallelNode,
+	type CheckedRead,
+} from "./checked.ts";
 export {
 	CONDITION_CODES,
 	compileCondition,

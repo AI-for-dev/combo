@@ -140,7 +140,7 @@ describe("checkFlow, nodes", () => {
 		assert.deepEqual(node("  - id: plan\n    agent: planner\n    reeds: [input]\n    max: 3"), ["unknown-key plan.reeds", "unknown-key plan.max"]);
 		const said = messages(`${HEAD}\nnodes:\n  - id: plan\n    agent: planner\n    reeds: [input]\n    max: 3`, "## plan\nPlan.");
 		assert.match(said[0] ?? "", /did you mean `reads`\?/);
-		assert.match(said[1] ?? "", /the keys of an agent node are id, agent, agent-from/);
+		assert.match(said[1] ?? "", /the keys of agent nodes are id, agent, agent-from/);
 	});
 
 	test("every key has one type", () => {

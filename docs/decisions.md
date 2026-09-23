@@ -1337,6 +1337,36 @@ resolves its names against a catalogue; `checkFlow` is the one door, and a
 - **A `##` inside a fenced code block is prose.** A section may show the
   Markdown it asks for, and the linear format's reader would have cut it there.
 
+### A block hands on what its branches ended with
+
+`src/flow/blocks.ts` reads `choice`, `parallel` and `map`, and
+`src/flow/check-blocks.ts` checks them in lexical scope (`src/flow/scope.ts`).
+
+- **A block's nested nodes are readable inside it and gone after it.** What
+  leaves a block is its own output, so a node never reads into a sibling block
+  and nothing can be addressed that only a run could resolve. Inside a `map`,
+  `item` is the current item, and a nested `map`'s `item` hides the outer one.
+- **A `choice` names the case that ran by its position.** `case` is `"1"`,
+  `"2"`... or `"default"`, an enum a condition can compare strictly. Cases have
+  no names of their own: adding one would be a second id for the same thing.
+  `output` is typed only when every case that runs a node ends on the same
+  type, since which one ran is only known at run time, and it is optional when
+  a case runs nothing.
+- **A `parallel` has at least two branches, and a case runs a node.** A
+  `parallel` of one is a sequence, and a case with nothing to run is what
+  `default: []` is for.
+- **A literal `map:` list is strings.** That is what the shipped flows need;
+  anything typed comes from an address, where a schema declares it.
+- **The copies rule reads the agents' files.** Branches that run together (a
+  `parallel`, or a `map` with `concurrency` above 1) need `copies: true` as soon
+  as one of them holds an agent with `write`, `edit`, `bash` or `subagent`. It
+  can refuse a flow whose agent would never actually write, and that is the
+  side to err on: the other side is two branches editing one tree.
+- **A refused node refuses itself, not the block around it.** The block is
+  still checked, but its output cannot be typed with a node missing, so nothing
+  that reads the block is reported again, and neither are the nodes read under
+  the refused one.
+
 ## A chain walked by hand
 
 `/run explore …` put its answer in the conversation, and the session picked it

@@ -51,3 +51,25 @@ export function showType(type: ValueType): string {
 			return type.kind;
 	}
 }
+
+/** Whether two types match the same values. A description changes nothing about what matches. */
+export function sameType(a: ValueType, b: ValueType): boolean {
+	if (a.kind !== b.kind) return false;
+	switch (a.kind) {
+		case "enum":
+			return b.kind === "enum" && a.values.length === b.values.length && a.values.every((value) => b.values.includes(value));
+		case "list":
+			return b.kind === "list" && sameType(a.of, b.of);
+		case "object": {
+			if (b.kind !== "object") return false;
+			const names = Object.keys(a.fields);
+			if (names.length !== Object.keys(b.fields).length) return false;
+			return names.every((name) => {
+				const [x, y] = [a.fields[name], b.fields[name]];
+				return x !== undefined && y !== undefined && x.optional === y.optional && sameType(x.type, y.type);
+			});
+		}
+		default:
+			return true;
+	}
+}

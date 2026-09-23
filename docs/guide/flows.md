@@ -82,14 +82,91 @@ One turn of an agent from the catalogue.
 | `agent-from` + `among` | an address naming an enum, and the agents it may pick, which are exactly its values |
 | `reads` | the addresses handed to the turn, in order |
 | `output` | a [schema](#schemas): the output is typed, instead of the agent's text |
-| `memory` | `flow`: every node naming this agent and scope resumes the same subagent |
+| `memory` | an enclosing node's id, or `flow`: every node naming this agent and scope resumes the same subagent |
 | `retry` | how many more attempts after a failed one, default 0 |
 | `timeout` | the bound of one attempt, `90s`, `10m`, `1h` |
 | `on-fail` | `continue`: a failure stops at this node instead of ending the flow |
 
+### `choice`
+
+Ordered cases; the first whose condition holds runs, and `default:` runs when
+none does. `default:` is always written, `[]` when nothing should run.
+
+```yaml
+- id: gate
+  choice:
+    - when: review.output.status == "approved"
+      do: [ ... ]
+  default: []
+```
+
+Its output is `{ case, output? }`: `case` is `"1"` for the first case, and so
+on, or `"default"`; `output` is the output of the last node of the case that
+ran. It is typed only when every case that runs a node ends on the same type,
+and optional when some case runs none.
+
+### `parallel`
+
+Named branches, at least two, all started at once and joined when all end.
+
+```yaml
+- id: both
+  parallel:
+    tests: [ ... ]
+    docs: [ ... ]
+```
+
+Its output is an object keyed by branch, each as its last node ended:
+`both.output.tests.ok`, `both.output.docs.output`. A failed branch stays in it.
+
+| Key | Meaning |
+| --- | --- |
+| `copies` | `true`: each branch works in its own copy of the repository |
+| `fail-fast` | `true`: the first failed branch cuts the others |
+
+### `map`
+
+Its body, `do:`, once per item: `map:` takes a list of strings written in the
+file, `map-from:` an address naming a list, with a required `max:`, the
+longest list it takes. Inside the body, `item` is the current item; a nested
+`map`'s `item` hides the outer one.
+
+```yaml
+- id: work
+  map-from: plan.output.tasks
+  max: 6
+  concurrency: 2
+  copies: true
+  do:
+    - id: act
+      agent-from: item.worker
+      among: [scout, reviewer]
+      reads: [item.task]
+```
+
+Its output is a list in item order, each `{ item, ok, output?, error? }` as the
+body's last node ended.
+
+| Key | Meaning |
+| --- | --- |
+| `max` | with `map-from:`, the longest list taken; a longer one fails the `map` |
+| `concurrency` | how many items run at once, default 1 |
+| `copies` | `true`: each item works in its own copy of the repository |
+| `fail-fast` | `true`: the first failed item cuts the others |
+
+### Branches that run together
+
+A `parallel` with several branches, or a `map` with `concurrency` above 1, runs
+branches at the same time. As soon as one of them can write (an agent with
+`write`, `edit`, `bash` or `subagent`), they need `copies: true`: a branch
+reading a tree another one is changing reads a moving target. The rule is read
+from the agents' files alone.
+
 ## Reads and addresses
 
-A node reads, by address, the nodes that already ended before it, and `input`.
+A node reads, by address, the nodes that already ended before it in its own
+sequence and in every enclosing one, and `input`. Nothing inside a sibling block
+is visible: what leaves a block is the block's own output.
 A bare id is that node's output, whole. A deeper address reads a node as it
 ended:
 
@@ -159,10 +236,12 @@ then the offending key: `first.agent-from`.
 | `among-without-from` | `among:` beside `agent:` | use `agent-from:`, or drop `among:` |
 | `among-mismatch` | `among:` does not name exactly the enum's values | make the two lists agree |
 | `unknown-scope` | `memory:` names no enclosing node | name one, or `flow` |
+| `copies-needed` | branches that run together write without copies | add `copies: true`, or run a `map` with `concurrency: 1` |
 | `section-missing` | an `agent` node has no `## <id>` section | write its section |
 | `section-empty` | a section has no text | say what the turn is asked |
 | `section-duplicate` | two sections share a heading | merge them |
 | `section-unknown` | a section matches no node | rename it to the id offered, or remove it |
+| `section-not-agent` | a section names a node that is not an `agent` node | remove it: only an agent turn reads prose |
 | `body-preamble` | text before the first section | move it to `description:` or a YAML comment |
 | `schema-invalid` | a schema is outside both notations | write it as the message says |
 | `condition-syntax` | a condition is not in the language | rewrite the part quoted |
