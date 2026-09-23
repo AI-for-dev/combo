@@ -14,7 +14,7 @@ import path from "node:path";
 import { branchName, commitAll, deleteBranch, headSha } from "./git.ts";
 import type { GitResult } from "./run.ts";
 import { truncate } from "../text.ts";
-import { createWorktree, removeWorktree, worktreePatch } from "./worktree.ts";
+import { createWorktree, listWorktrees, removeWorktree, worktreePatch } from "./worktree.ts";
 
 /** A copy made for one piece of work, and the way to get the work back out. */
 export type Scratch = {
@@ -22,6 +22,8 @@ export type Scratch = {
 	readonly path: string;
 	/** The branch it holds. Named after the work, so `git branch` reads. */
 	readonly branch: string;
+	/** The commit it started from, which its patch is taken against. */
+	readonly base: string;
 	/**
 	 * Takes the patch, then removes the copy and the directory holding it.
 	 *
@@ -62,40 +64,58 @@ export async function scratchWorktree(repo: string, label: string, from?: string
 		fs.rmSync(holder, { recursive: true, force: true });
 		return made;
 	}
+	return { ok: true, value: scratchAt(repo, label, { path: at, branch, base }) };
+}
 
+/**
+ * A copy {@link scratchWorktree} made and a previous process left behind,
+ * taken back: it must still be a copy of `repo` at `copy.path`, on
+ * `copy.branch`. Its patch is taken against the base it started from, so
+ * what that process wrote in it comes home with the rest.
+ */
+export async function reopenScratch(repo: string, label: string, copy: Omit<Scratch, "release">): Promise<GitResult<Scratch>> {
+	const gone = { ok: false as const, error: `\`${copy.path}\` is no longer a copy on \`${copy.branch}\`` };
+	if (!fs.existsSync(copy.path)) return gone;
+	const listed = await listWorktrees(repo);
+	if (!listed.ok) return listed;
+	const at = fs.realpathSync(copy.path);
+	const there = listed.value.some((one) => one.branch === copy.branch && fs.existsSync(one.path) && fs.realpathSync(one.path) === at);
+	return there ? { ok: true, value: scratchAt(repo, label, copy) } : gone;
+}
+
+/** The copy at `copy.path`, whose directory is the only thing in the one holding it. */
+function scratchAt(repo: string, label: string, copy: Omit<Scratch, "release">): Scratch {
+	const { path: at, branch, base } = copy;
+	const holder = path.dirname(at);
 	// The patch once taken: what makes a second `release()` answer as the first.
 	let taken: string | undefined;
 	return {
-		ok: true,
-		value: {
-			path: at,
-			branch,
-			async release() {
-				if (taken !== undefined) return { ok: true, value: taken };
+		...copy,
+		async release() {
+			if (taken !== undefined) return { ok: true, value: taken };
 
-				const patch = await worktreePatch(at, base);
-				if (!patch.ok) return patch;
+			const patch = await worktreePatch(at, base);
+			if (!patch.ok) return patch;
 
-				// Committed on the branch before the copy goes, so the work is
-				// recoverable from the repository and not only from the string this
-				// returns. A caller that drops the patch has still lost nothing.
-				if (patch.value) {
-					const committed = await commitAll(at, subject(label));
-					if (!committed.ok) return committed;
-				}
+			// Committed on the branch before the copy goes, so the work is
+			// recoverable from the repository and not only from the string this
+			// returns. A caller that drops the patch has still lost nothing.
+			if (patch.value) {
+				const committed = await commitAll(at, subject(label));
+				if (!committed.ok) return committed;
+			}
 
-				const gone = await removeWorktree(repo, at, { patched: true });
-				if (!gone.ok) return gone;
+			const gone = await removeWorktree(repo, at, { patched: true });
+			if (!gone.ok) return gone;
 
-				// A branch nobody wrote on names nothing, and one per piece of work
-				// would pile up in the caller's repository. `-d` refuses to take any
-				// that turned out to hold something.
-				if (!patch.value) await deleteBranch(repo, branch);
+			// A branch nobody wrote on names nothing, and one per piece of work
+			// would pile up in the caller's repository. `-d` refuses to take any
+			// that turned out to hold something.
+			if (!patch.value) await deleteBranch(repo, branch);
 
-				taken = patch.value;
-				fs.rmSync(holder, { recursive: true, force: true });
-				return patch;
-			},
+			taken = patch.value;
+			fs.rmSync(holder, { recursive: true, force: true });
+			return patch;
 		},
 	};
 }

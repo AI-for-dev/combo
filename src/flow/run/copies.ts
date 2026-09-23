@@ -14,9 +14,10 @@
 
 import type { GitPort, GitResult, Scratch } from "../../git/index.ts";
 import type { Walked } from "./ended.ts";
+import type { Walker } from "./walk.ts";
 
 /** What a block asks of the `git` port. */
-export type Copies = Pick<GitPort, "copy" | "land">;
+export type Copies = Pick<GitPort, "copy" | "reopen" | "land">;
 
 /** What a branch's entry in its block's output says of its patch once the landing is over. */
 export type Landing = {
@@ -27,15 +28,40 @@ export type Landing = {
 };
 
 /**
- * Walks a branch in a copy of `tree`, telling `opened` the copy once it is
- * made and handing `keep` the patch it left once the copy is gone. A copy
- * that cannot be made fails the branch `unavailable` at its own path, and it
- * runs nothing.
+ * The copy the branch `prefix` runs in, made from `tree`, and whether it is
+ * one an earlier process opened. A resume takes back the copy the journal
+ * left open while it is still there. A copy gone or moved, or one whose
+ * patch never landed, holds work the tree does not: the branch is forgotten,
+ * written down as `copy_lost`, and starts over in a fresh copy. A copy that
+ * landed put its work in the tree, so what the branch did survives, and what
+ * is left runs in a fresh copy. With no `copies`, a dry run's, nothing is made.
  */
-export async function inCopy(copies: Copies, tree: string, prefix: string, walk: (tree: string) => Promise<Walked>, opened: (copy: Scratch) => void, keep: (patch: GitResult<string>) => void): Promise<Walked> {
-	const made = await copies.copy(tree, prefix);
+export async function branchCopy(copies: Copies | undefined, tree: string | undefined, prefix: string, walker: Pick<Walker, "journal" | "replay">): Promise<{ readonly made?: GitResult<Scratch>; readonly again: boolean }> {
+	const { journal, replay } = walker;
+	const lose = (why: string) => {
+		journal.append({ type: "copy_lost", path: prefix, why });
+		replay?.forget(prefix);
+	};
+	const was = replay?.copy(prefix);
+	if (was !== undefined && "landed" in was && !was.landed) lose("its patch never landed");
+	const open = was !== undefined && "open" in was ? was.open : undefined;
+	if (copies === undefined) return { again: open !== undefined };
+	const { dir, branch, base } = open ?? {};
+	if (dir !== undefined && branch !== undefined && base !== undefined) {
+		const back = await copies.reopen(tree as string, prefix, { path: dir, branch, base });
+		if (back.ok) return { made: back, again: true };
+		lose(`its copy is gone: ${back.error}`);
+	}
+	return { made: await copies.copy(tree as string, prefix), again: false };
+}
+
+/**
+ * Walks a branch in `made`, a copy of the tree, handing `keep` the patch it
+ * left once the copy is gone. A copy that could not be made fails the branch
+ * `unavailable` at its own path, and it runs nothing.
+ */
+export async function inCopy(made: GitResult<Scratch>, prefix: string, walk: (tree: string) => Promise<Walked>, keep: (patch: GitResult<string>) => void): Promise<Walked> {
 	if (!made.ok) return { usage: [], failed: { path: prefix, error: { kind: "unavailable", message: `no copy of the tree could be made: ${made.error}` } } };
-	opened(made.value);
 	try {
 		return await walk(made.value.path);
 	} finally {

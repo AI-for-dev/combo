@@ -22,6 +22,8 @@ export type Scratch = {
 	readonly path: string;
 	/** The branch it holds. Named after the work, so `git branch` reads. */
 	readonly branch: string;
+	/** The commit it started from, which its patch is taken against. */
+	readonly base: string;
 	/**
 	 * Takes the patch, then removes the copy and the directory holding it.
 	 *

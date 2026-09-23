@@ -9,7 +9,7 @@
  * `checkFlow` is how a flow is read, `checkRun` holds it to the project it is
  * launched in, and `runFlow` and `dryRunFlow` are how a checked one runs.
  * `readSnapshot` and `readJournal` read back what a run left in its run
- * directory.
+ * directory, `resumePoint` says where it picks up, and `resumeFlow` resumes it.
  */
 
 export { loadFlowCatalogue, type FlowCatalogue } from "./catalogue.ts";
@@ -52,6 +52,8 @@ export {
 	dryRunFlow,
 	readJournal,
 	readSnapshot,
+	resumeFlow,
+	resumePoint,
 	runFlow,
 	type AnswerFault,
 	type Answers,
@@ -59,6 +61,9 @@ export {
 	type DryRunOptions,
 	type FlowResult,
 	type JournalEntry,
+	type Resumed,
+	type ResumeFlowOptions,
+	type ResumePoint,
 	type RunFlowOptions,
 	type Settings,
 	type Snapshot,

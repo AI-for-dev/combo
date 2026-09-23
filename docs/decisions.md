@@ -848,6 +848,10 @@ changes the delivery had put there itself one step earlier.
 It still does not combine with `resume`. A resumed delivery finds a tree holding
 what a previous process landed, which it has no record of, so it cannot tell
 that work from somebody else's. That refusal is right rather than missing.
+**Reversed for flows:** a flow's journal names every copy it opens and every
+patch it lands, so a resume tells its own work from somebody else's, and takes
+back the copies it left open. See
+[A resume goes as deep as the journal](#a-resume-goes-as-deep-as-the-journal-and-replays-only-what-did-not-end).
 
 ### How the work reaches the tree is one policy, asked once
 
@@ -1713,8 +1717,8 @@ extension is wired to it yet.
 
 ### A run keeps what its check read, and writes each fact once
 
-A run given a run directory keeps a snapshot there and appends a journal.
-Resuming from them comes next; nothing of the extension uses them yet.
+A run given a run directory keeps a snapshot there and appends a journal,
+which a resume reads back (below); nothing of the extension uses them yet.
 
 - **The journal is a port, written by the runner.** A real run appends to
   `journal.jsonl` in its run directory, a run given none writes nowhere, and
@@ -1756,8 +1760,63 @@ Resuming from them comes next; nothing of the extension uses them yet.
   disk.
 - **A run directory holds one run.** `runFlow` refuses a directory that
   already holds a snapshot, and checks the input before writing anything, so
-  a refused input leaves no directory behind. The settings kept are the ones
-  a resume must not change: `cwd`, `somebodyThere`, `model`, `timeoutMs`.
+  a refused input leaves no directory behind. The settings kept are what the
+  run started with: `cwd`, `somebodyThere`, `model`, `timeoutMs`.
+
+### A resume goes as deep as the journal, and replays only what did not end
+
+`resumeFlow(runDir, ...)` carries a run on from its snapshot and journal, and
+`resumePoint(checked, journal)` is the reading both it and a dry run's `from:`
+take, so a resume is tested offline through the same door.
+
+- **A visit that ended with a value survives; nothing else does.** `ok`, or
+  failed under `on-fail: continue`: the flow read either as a value and went
+  on. A visit stopped or cut by `fail-fast` had no end of its own, and one a
+  failure travelled up through ended by the run's failure, so both run again.
+  That one rule is the failure chain, and its fresh `retry:` budget.
+- **Structural visits are walked again, their children skipped.** The walk
+  itself decides, visit by visit: a surviving visit hands back what it ended
+  with and is neither told nor written again. A loop, a `map`, a `choice` or
+  a call that did not end is entered again, and what it reads comes back from
+  the survivors, so a condition decides the same. A `carry` and a `map`'s
+  list are taken from the journal rather than read again, and not written
+  twice. `resumePoint`'s `from` is only a sentence for whoever asked.
+- **A failure the flow decided is refused.** A cap, `give-up`, a condition that
+  could not be read, a list past `max:` and a commit with no message are
+  decided from values that survive, so replaying them decides the same. A
+  provider, a timeout, a schema, nobody answering and a person's stop are
+  worth another attempt.
+- **An obligation is written with the visit that decided it.** A verdict
+  visit cut after its decision but before its end runs again, and its
+  obligations would be raised twice. `obligation_raised` and
+  `obligation_closed` name their `visit`, and a ledger is restored from the
+  entries whose visit survives.
+- **A copy is kept with its base, and taken back only while its work is not
+  in the tree.** `copy_opened` records the commit the copy started from, so a
+  resume can take its patch against the same one. An open copy still there
+  carries on; a copy gone or moved, or one whose patch never landed, is
+  forgotten with `copy_lost`, written in the journal so a later resume
+  forgets the same; a copy that landed put its work in the tree, so its
+  branch's visits survive and what is left runs in a fresh copy. A stop
+  releases every copy and lands none, so after Ctrl+C a `copies: true` block
+  starts its branches over: their work is on their git branches, not lost.
+- **Only `model` and `input` are refused by name.** They are what a new run is
+  for. `timeoutMs` replaces the run level. `ports` and `somebodyThere` are
+  where the resume runs, like the tree at a start, and the run stage holds the
+  snapshot to them: somebody at the keyboard may resume a run started
+  unattended.
+- **The disk is compared for flow files only.** A flow file differing from the
+  snapshot is named in `changed`. An agent is kept parsed and a script by its
+  content, and the run uses those; the one line is about the file a person
+  edits and would expect to see run.
+- **The result's `usage` is what this resume spent.** A visit that survives
+  costs nothing now, and adding what the journal says it cost would count a
+  cut visit's partial cost nowhere and the rest twice across resumes. The
+  journal holds every visit's own, for whoever sums them.
+- **The lock is a file made with `wx`.** It holds the pid and the host. A
+  process of this host is asked with signal 0, and one we may not signal is
+  alive; a stale lock is removed and made again with `wx`. `runFlow` takes it
+  too, after the snapshot, which is what refuses a directory holding a run.
 
 ## A chain walked by hand
 
@@ -2764,7 +2823,11 @@ therefore takes `onProgress` and `resume`, and
 
 - **Only what was approved survives.** A subtask still being argued over left the
   tree in a state nobody signed off on, so it runs again. Approval is the only
-  claim from a previous life worth trusting.
+  claim from a previous life worth trusting. **Reversed for flows:** every
+  visit that ended survives, and a resume starts at the first that did not.
+  The next review visit judges the tree anyway, so the sign-off still happens;
+  see
+  [A resume goes as deep as the journal](#a-resume-goes-as-deep-as-the-journal-and-replays-only-what-did-not-end).
 - **The plan is reused, never re-made.** Re-planning would re-split work that is
   already half done on disk, and the plan was paid for.
 - **Nothing of the conversation is saved.** Agents are stored by name and

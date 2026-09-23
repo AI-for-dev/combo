@@ -516,8 +516,8 @@ segment too, its callee's visits named under it: `spec/interview#3/ask_next`.
 
 ### The run directory
 
-Given `runDir`, a run keeps two things there. Given none, nothing touches the
-disk.
+Given `runDir`, a run keeps two things there, and holds its lock while it
+runs. Given none, nothing touches the disk, and the run cannot be resumed.
 
 - **The snapshot**, written before the first node runs: `snapshot.json` holds
   the flow file and every file it calls, each agent it names as it was read,
@@ -540,12 +540,73 @@ disk.
 | `visit_end` | a visit ended | the `visit_end` event itself, written before it is told |
 | `carry` | a loop computed the `carry` of an iteration | `path` of that iteration (`fix#2`), `value` |
 | `map_items` | a `map` starts | `path`, the `items` it runs over |
-| `obligation_raised` | a verdict raised an obligation | `ledger`, the visit whose scope keeps it (a loop, or a `map` item), and the `obligation` |
-| `obligation_closed` | a verdict closed one | `ledger`, `id`, `closure` |
-| `copy_opened` | a branch of a `copies: true` block got its copy | `path` of the branch, the copy's `dir` and git `branch` |
+| `obligation_raised` | a verdict raised an obligation | `ledger`, the visit whose scope keeps it (a loop, or a `map` item), `visit`, the verdict visit that raised it, and the `obligation` |
+| `obligation_closed` | a verdict closed one | `ledger`, `visit`, `id`, `closure` |
+| `copy_opened` | a branch of a `copies: true` block got its copy | `path` of the branch, the copy's `dir`, git `branch` and `base`, the commit it started from |
 | `copy_landed` | the block landed its patches | `path`, `landed`, `refused?` |
+| `copy_lost` | a resume found a branch's copy gone, or its patch never landed | `path`, `why`: every fact under the branch written before it is forgotten |
 | `branch_opened` | the first commit opened the run's branch | `branch` |
 | `run_end` | the run ended | what `runFlow` returned |
+
+The lock, `lock.json`, holds the pid and host of the process running the run.
+It is made exclusively at the start and at each resume, and removed in a
+`finally`.
+
+### Resuming a run
+
+```ts
+const resumed = await resumeFlow("runs/2026-09-23T10-00-00", { ports, somebodyThere: true });
+```
+
+`resumeFlow(runDir, { ports, somebodyThere, timeoutMs?, spawn?, signal?,
+onEvent? })` carries a run on from its run directory, as deep as its journal
+goes:
+
+- **It runs the snapshot.** The flow is checked again from `snapshot.json`,
+  never from the files on disk, and the run stage takes the check scripts the
+  run started with. When a flow file differs on disk, the result says so in
+  `changed`, one line: "`flows/build.md` changed since the run started;
+  resuming the version it started with". The new version is a new run.
+- **Its settings are frozen.** The input and the model are the ones the run
+  started with, and giving `model` or `input` refuses the resume. Only
+  `timeoutMs` may be given again. `ports` and `somebodyThere` say where the
+  resume runs, and the run stage holds the flow to them as it did at the start.
+- **Every visit that ended survives.** It is not visited again: an answered
+  `ask` is never asked twice. The first visit that did not end runs, inside
+  an open loop or `map` if that is where the run stopped, with the loop's
+  `carry` and `previous`, the ledgers and each `map`'s frozen list restored.
+  Memory scopes open with fresh subagents, since no conversation is kept: each
+  reads its `reads:`, its ledger and the tree. An `agent` visit cut mid-turn
+  runs again whole, and what it half wrote stays on the tree.
+- **A failed run replays its failure chain.** The visit it failed at and each
+  node the failure travelled up through run again, with a fresh `retry:`
+  budget, and so does a visit stopped or cut by `fail-fast`. A visit that
+  failed under `on-fail: continue` stays: the flow read it as a value. When
+  the flow itself decided the failure (a loop's cap or `give-up`, a condition
+  that could not be read, a list past `max:`, a commit with no message),
+  replaying it would decide the same, and the resume is refused.
+- **It holds the run's branch.** When the run opened one, `HEAD` must be on
+  it: a resume refuses with the `git switch` to type, and refuses a branch
+  that is gone. It never switches on its own. Commits made by hand are
+  accepted.
+- **It takes its copies back.** A branch of a `copies: true` block whose copy
+  the journal left open carries on in it while it is still there. A copy gone
+  or moved, or one whose patch never landed, holds work the tree does not:
+  the branch starts over in a fresh copy, its facts forgotten, and the
+  journal says so with `copy_lost`.
+- **It holds the lock.** A lock held by a live process on this host refuses
+  with its pid; one whose process is gone is taken over; one from another host
+  refuses with its path, to be removed by hand.
+
+The result is what `runFlow` returns, plus `from`, the visit it picked up at,
+and `changed`; or `{ ok: false, refused }` with why, or `{ ok: false, faults }`
+when the snapshot no longer passes a check. A directory holding no snapshot
+throws: it holds no run. The same journal goes on, so its last `run_end` is how
+the run ended, and the result's `usage` is what this resume spent.
+
+`resumePoint(checked, journal)` is the reading underneath, shared with the dry
+run: `{ ok: true, from }`, or `{ ok: false, refused }`. A journal naming a visit
+the flow does not have was written by another flow, and is refused.
 
 ### What a turn is
 
@@ -699,6 +760,18 @@ refused with every fault in it:
 A visit the script does not answer stops the dry run with
 `{ ok: false, unscripted: "<visit path>" }`, which no `on-fail: continue`
 absorbs: a hole in the script is the test's mistake, not the flow's.
+
+Given `from`, a journal, the dry run resumes it through `resumePoint`, as
+`resumeFlow` resumes a run directory: the journal handed back starts with its
+entries, and a journal a resume would refuse gives `{ ok: false, refused }`.
+A visit that survives is not asked again, so a script that leaves its answer
+out shows it was not:
+
+```ts
+// `plan` and `first` ended; the run was killed during `answer`.
+const killed = run.journal.slice(0, 2);
+const resumed = await dryRunFlow(split, "add a cache", { answer: "Put the cache in front of src/store.ts." }, { from: killed });
+```
 
 ## Faults
 

@@ -9,23 +9,23 @@
  * Under `fail-fast`, the first branch to fail cuts those in flight and skips
  * those not started, which end `cancelled`. With `copies: true`, each branch
  * runs in a copy of the tree, and `copies.ts` lands their patches: each copy
- * opened, and what landing it gave, is written down too.
+ * opened, and what landing it gave, is written down too, and a resume takes
+ * back the copies the journal left open.
  */
 
-import type { GitResult, Scratch } from "../../git/index.ts";
-import type { Ledger } from "../../review/index.ts";
+import type { GitResult } from "../../git/index.ts";
 import { emptyUsage, sumUsage } from "../../usage.ts";
 import { mapConcurrent } from "../../workflows/concurrent.ts";
 import type { CheckedMapNode, CheckedNode, CheckedParallelNode } from "../checked.ts";
-import { inCopy, landAll } from "./copies.ts";
+import { branchCopy, inCopy, landAll } from "./copies.ts";
 import { failure, travelled, under, type Ended, type Visited, type Walked } from "./ended.ts";
 import { withLedger } from "./frames.ts";
-import { journaledLedger } from "./journal.ts";
+import { journaledLedger, type KeptLedger } from "./journal.ts";
 import type { Values } from "./values.ts";
 import type { Here, Walker } from "./walk.ts";
 
 /** One branch of a block: where its visits are, what it runs and reads, and its ledger. */
-type Branch = { readonly prefix: string; readonly nodes: readonly CheckedNode[]; readonly values: Values; readonly ledger?: Ledger };
+type Branch = { readonly prefix: string; readonly nodes: readonly CheckedNode[]; readonly values: Values; readonly ledger?: KeptLedger };
 
 /** Every branch at once, its output an object of each as it ended, by branch name. */
 export async function visitParallel(walker: Walker, node: CheckedParallelNode, path: string, here: Here): Promise<Visited> {
@@ -36,28 +36,35 @@ export async function visitParallel(walker: Walker, node: CheckedParallelNode, p
 /**
  * Its body once per item, `concurrency` at a time, its output a list in item
  * order. A list longer than `max:` fails the map before any item runs; it is
- * never cut short.
+ * never cut short. A resumed map runs over the list it froze.
  */
 export async function visitMap(walker: Walker, node: CheckedMapNode, path: string, here: Here): Promise<Visited> {
+	const frozen = walker.replay?.items(path);
+	const listed = frozen ?? listOf(node, path, here, walker);
+	if (!Array.isArray(listed)) return { ended: listed as Ended, usage: emptyUsage() };
+	const items: readonly unknown[] = listed;
+	const branches = items.map((item, i) => {
+		const prefix = `${path}[${i + 1}]`;
+		const ledger = node.ledger ? journaledLedger(walker.journal, prefix, walker.replay?.obligations(prefix)) : undefined;
+		const values = here.values.inside().lend("item", item);
+		if (ledger !== undefined) values.lend(node.id, withLedger({}, ledger.ledger));
+		return { prefix, nodes: node.nodes, values, ledger };
+	});
+	return join(walker, node, branches, node.concurrency, here, (ends) => items.map((item, i) => ({ item, ...ends[i] })));
+}
+
+/** The list `node` runs over, frozen and written down; or why it cannot run. */
+function listOf(node: CheckedMapNode, path: string, here: Here, walker: Walker): readonly unknown[] | Ended {
 	let items: readonly unknown[];
 	if ("items" in node.over) items = node.over.items;
 	else {
 		const read = here.values.need(node.over.from);
-		if (!read.ok) return { ended: failure("condition", `\`map-from: ${node.over.from}\`: ${read.message}`), usage: emptyUsage() };
+		if (!read.ok) return failure("condition", `\`map-from: ${node.over.from}\`: ${read.message}`);
 		items = [...(read.value as unknown[])];
-		if (node.max !== undefined && items.length > node.max) {
-			return { ended: failure("too-many", `\`${node.over.from}\` holds ${items.length} items, and \`max:\` is ${node.max}`), usage: emptyUsage() };
-		}
+		if (node.max !== undefined && items.length > node.max) return failure("too-many", `\`${node.over.from}\` holds ${items.length} items, and \`max:\` is ${node.max}`);
 	}
 	walker.journal.append({ type: "map_items", path, items });
-	const branches = items.map((item, i) => {
-		const prefix = `${path}[${i + 1}]`;
-		const ledger = node.ledger ? journaledLedger(walker.journal, prefix) : undefined;
-		const values = here.values.inside().lend("item", item);
-		if (ledger !== undefined) values.lend(node.id, withLedger({}, ledger));
-		return { prefix, nodes: node.nodes, values, ledger };
-	});
-	return join(walker, node, branches, node.concurrency, here, (ends) => items.map((item, i) => ({ item, ...ends[i] })));
+	return items;
 }
 
 /**
@@ -72,10 +79,7 @@ async function join(walker: Walker, node: CheckedParallelNode | CheckedMapNode, 
 	const copies = node.copies && here.tree !== undefined ? walker.copies : undefined;
 	const patches: GitResult<string>[] = [];
 	const opened: boolean[] = [];
-	const open = (index: number, copy?: Scratch) => {
-		opened[index] = true;
-		walker.journal.append({ type: "copy_opened", path: (branches[index] as Branch).prefix, ...(copy && { dir: copy.path, branch: copy.branch }) });
-	};
+
 	const walked = await mapConcurrent(branches, concurrency, async (branch, index): Promise<Walked> => {
 		const walk = async (tree: string | undefined) => {
 			const frames = here.frames.inside(node.id, branch.ledger);
@@ -88,10 +92,15 @@ async function join(walker: Walker, node: CheckedParallelNode | CheckedMapNode, 
 		// A branch cut before it starts runs nothing, and needs no copy.
 		let one: Walked;
 		if (!node.copies || cut.aborted) one = await walk(here.tree);
-		else if (copies === undefined) {
-			open(index);
-			one = await walk(here.tree);
-		} else one = await inCopy(copies, here.tree as string, branch.prefix, walk, (copy) => open(index, copy), (patch) => (patches[index] = patch));
+		else {
+			const { made, again } = await branchCopy(copies, here.tree, branch.prefix, walker);
+			if (made === undefined || made.ok) {
+				opened[index] = true;
+				const copy = made?.ok ? made.value : undefined;
+				if (!again) walker.journal.append({ type: "copy_opened", path: branch.prefix, ...(copy && { dir: copy.path, branch: copy.branch, base: copy.base }) });
+			}
+			one = made === undefined ? await walk(here.tree) : await inCopy(made, branch.prefix, walk, (patch) => (patches[index] = patch));
+		}
 		if (one.failed !== undefined && !cutter.signal.aborted) cutter.abort(`cut by \`fail-fast\`: ${one.failed.path} failed`);
 		return one;
 	});

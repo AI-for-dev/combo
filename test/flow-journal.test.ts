@@ -29,10 +29,11 @@ describe("the journal", () => {
 		{ type: "visit_end", path: "fix#1/code", ok: true, output: "done", agent: "scout", model: "p/m", wallMs: 3, usage: emptyUsage() },
 		{ type: "carry", path: "fix#2", value: ["b"] },
 		{ type: "map_items", path: "fix#1/work", items: ["a", "b"] },
-		{ type: "obligation_raised", ledger: "fix", obligation: { id: "o1", openedBy: "reviewer", text: "more", openedAt: 1 } },
-		{ type: "obligation_closed", ledger: "fix", id: "o1", closure: { how: "addressed", at: 2 } },
-		{ type: "copy_opened", path: "both/a", dir: "/tmp/copy", branch: "combo/copy-a" },
+		{ type: "obligation_raised", ledger: "fix", visit: "fix#1/audit", obligation: { id: "o1", openedBy: "reviewer", text: "more", openedAt: 1 } },
+		{ type: "obligation_closed", ledger: "fix", visit: "fix#2/audit", id: "o1", closure: { how: "addressed", at: 2 } },
+		{ type: "copy_opened", path: "both/a", dir: "/tmp/copy", branch: "combo/copy-a", base: "abc123" },
 		{ type: "copy_landed", path: "both/a", landed: false, refused: "conflict" },
+		{ type: "copy_lost", path: "both/a", why: "its patch never landed" },
 		{ type: "branch_opened", branch: "combo/x" },
 		{ type: "run_end", ok: false, error: { kind: "child", message: "fix#1/code: provider: down" }, path: "fix#1/code", usage: emptyUsage() },
 	];
@@ -139,7 +140,7 @@ describe("a run given a run directory", () => {
 			events.filter((event) => event.type === "visit_end"),
 		);
 		const opened = journal.filter((entry) => entry.type === "copy_opened");
-		assert.deepEqual(opened.map((entry) => [entry.path, typeof entry.dir, typeof entry.branch]).sort(), [["both/a", "string", "string"], ["both/b", "string", "string"]]);
+		assert.deepEqual(opened.map((entry) => [entry.path, typeof entry.dir, typeof entry.branch, typeof entry.base]).sort(), [["both/a", "string", "string", "string"], ["both/b", "string", "string", "string"]]);
 		assert.deepEqual(journal.filter((entry) => entry.type === "copy_landed"), [{ type: "copy_landed", path: "both/a", landed: true }, { type: "copy_landed", path: "both/b", landed: true }]);
 		assert.deepEqual(facts(journal).slice(-4), ["visit_end both", "branch_opened", "visit_end c", "run_end"]);
 		assert.deepEqual(journal.find((entry) => entry.type === "branch_opened"), { type: "branch_opened", branch: "combo/x" });

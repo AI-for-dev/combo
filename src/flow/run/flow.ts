@@ -20,7 +20,9 @@ import { mismatch } from "../type.ts";
 import { personAsks } from "./card.ts";
 import { committer } from "./commit.ts";
 import { walkWhole } from "./call.ts";
-import { fileJournal, NO_JOURNAL } from "./journal.ts";
+import { fileJournal, NO_JOURNAL, type Journal } from "./journal.ts";
+import { whileLocked } from "./lock.ts";
+import type { Replay } from "./replay.ts";
 import { writeSnapshot } from "./snapshot.ts";
 import { Run } from "./walk.ts";
 import type { World } from "./world.ts";
@@ -54,23 +56,38 @@ export type FlowResult =
 
 /**
  * Runs `run` on `input`. Given `runDir`, the run directory first receives
- * the snapshot, then the journal as the run goes.
+ * the snapshot, then the journal as the run goes, and the run holds its lock
+ * until it ends.
  *
  * Throws, before anything is spawned, on an input off the flow's `input:`,
  * and on a run directory that already holds a run: that is the caller's
  * mistake, not a run that went wrong. Every other failure is a result.
  */
 export async function runFlow(run: CheckedRun, input: unknown, options: RunFlowOptions = {}): Promise<FlowResult> {
-	const { flow, cwd, ports, scripts } = run;
-	checkInput(flow, input);
+	checkInput(run.flow, input);
 	const { runDir, model, timeoutMs } = options;
-	if (runDir !== undefined) writeSnapshot(runDir, run, input, { model, timeoutMs });
-	const journal = runDir === undefined ? NO_JOURNAL : fileJournal(runDir);
+	if (runDir === undefined) return walkFlow(run.flow, input, options, realWorld(run, input, NO_JOURNAL), run.cwd);
+	writeSnapshot(runDir, run, input, { model, timeoutMs });
+	return whileLocked(
+		runDir,
+		(why) => {
+			throw new Error(why);
+		},
+		() => walkFlow(run.flow, input, options, realWorld(run, input, fileJournal(runDir)), run.cwd),
+	);
+}
+
+/**
+ * The world of a real run: `run`'s ports, in its tree, writing to `journal`;
+ * on a resume, with what `replay` kept, the run's branch included.
+ */
+export function realWorld(run: CheckedRun, input: unknown, journal: Journal, replay?: Replay): World {
+	const { cwd, ports, scripts } = run;
 	// `checkRun` refused a flow needing a port it was not given, or a script it could not read.
 	const check = ports.check as CheckScript;
 	const git = ports.git as GitPort;
-	const commit = committer(git, cwd, input, journal);
-	return walkFlow(flow, input, options, {
+	const commit = committer(git, cwd, input, journal, replay?.branch);
+	return {
 		deadline: ({ ms }) => AbortSignal.timeout(ms),
 		check: (node, _path, signal, tree = cwd) => check({ script: node.script, content: scripts.get(node.script) as string, cwd: tree, timeoutMs: node.timeoutMs, signal }),
 		commit: (_node, _path, message) => commit(message),
@@ -78,7 +95,8 @@ export async function runFlow(run: CheckedRun, input: unknown, options: RunFlowO
 		copies: ports.git,
 		ask: personAsks(run.somebodyThere ? ports.ask : undefined),
 		journal,
-	}, cwd);
+		replay,
+	};
 }
 
 /** Throws on an input off `flow`'s `input:`: the caller's mistake, found before anything runs. */

@@ -26,17 +26,21 @@ type Stop = (typeof STOPS)[number];
 export async function visitLoop(walker: Walker, node: CheckedLoopNode, path: string, here: Here): Promise<Visited> {
 	const usage: Usage[] = [];
 	const done = (ended: Ended, visited?: Partial<Visited>): Visited => ({ ended, usage: sumUsage(usage, 0), ...visited });
-	const ledger = node.ledger ? journaledLedger(walker.journal, path) : undefined;
+	const ledger = node.ledger ? journaledLedger(walker.journal, path, walker.replay?.obligations(path)) : undefined;
 	const frames = here.frames.inside(node.id, ledger);
 	try {
 		let carry = carried(node, "first", here.values);
 		let previous: Record<string, Ended> | undefined;
 		for (let n = 1; ; n++) {
 			if (!carry.ok) return done(carry.ended);
-			if (node.carry !== undefined) walker.journal.append({ type: "carry", path: `${path}#${n}`, value: carry.value });
-			const own = withLedger({ ...(previous && { previous }), ...(node.carry && { carry: carry.value }) }, ledger);
+			const iteration = `${path}#${n}`;
+			// A resumed iteration reads the carry it was given, which is written down once.
+			const restored = walker.replay?.carry(iteration);
+			if (restored !== undefined) carry = restored;
+			else if (node.carry !== undefined) walker.journal.append({ type: "carry", path: iteration, value: carry.value });
+			const own = withLedger({ ...(previous && { previous }), ...(node.carry && { carry: carry.value }) }, ledger?.ledger);
 			const values = here.values.inside().lend(node.id, own, previous === undefined);
-			const walked = await walker.sequence(node.nodes, `${path}#${n}`, { ...here, values, frames });
+			const walked = await walker.sequence(node.nodes, iteration, { ...here, values, frames });
 			usage.push(...walked.usage);
 			if (walked.failed !== undefined) return done(travelled(walked.failed), { failed: walked.failed });
 			const last = Object.fromEntries(node.nodes.map((one) => [one.id, values.ended(one.id) as Ended]));

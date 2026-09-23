@@ -152,8 +152,11 @@ src/                the library
                     copies, loop, call, agent, ask and card (the person's side,
                     one card at a time), check, commit, turn, reads, submit,
                     verdict, frames, values, ended; journal (each fact, through
-                    a port) and snapshot (what a run started with) in its run
-                    directory; dry-run on answers, keys and scripted);
+                    a port), snapshot (what a run started with) and lock (one
+                    runner per run) in its run directory; replay (what a
+                    resume keeps of the journal), resume-point (where it picks
+                    up) and resume (resumeFlow); dry-run on answers, keys and
+                    scripted);
                     index.ts is each one's door
   pipeline/         pipeline (the file), load (where it is), run (our code
                     walks the steps); index.ts is its door

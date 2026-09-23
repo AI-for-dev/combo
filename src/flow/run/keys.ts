@@ -38,8 +38,20 @@ export function answeredNodes(nodes: readonly CheckedNode[], loops = 1, into = n
 	return into;
 }
 
-/** The visit `path` names, walked down from `nodes`. */
+/** The visit `path` names, walked down from `nodes`, when it is one a script answers. */
 export function visitAt(nodes: readonly CheckedNode[], path: string): Keyed | Unkeyed {
+	const found = nodeAt(nodes, path);
+	if ("code" in found) return found;
+	return isAnswered(found.node) ? { node: found.node, at: found.at, most: attempts(found.node) } : { code: "answer-unknown-node" };
+}
+
+/**
+ * The node whose visit `path` names, of any kind, and its address through the
+ * calls. Each loop the path goes through numbers its iteration `#n` and each
+ * `map` its item `[i]`, within their bounds; a loop's or a map's own visit is
+ * named without.
+ */
+export function nodeAt(nodes: readonly CheckedNode[], path: string): { readonly node: CheckedNode; readonly at: string } | Unkeyed {
 	const segments = path.split("/");
 	let here = nodes;
 	let prefix = "";
@@ -47,7 +59,9 @@ export function visitAt(nodes: readonly CheckedNode[], path: string): Keyed | Un
 		const [, id, iteration, item] = /^(\w+)(?:#(\d+)|\[(\d+)\])?$/.exec(segments[i] as string) ?? [];
 		const node = here.find((one) => one.id === id);
 		if (node === undefined) return { code: "answer-unknown-node" };
-		if ((node.kind === "loop") !== (iteration !== undefined) || (node.kind === "map") !== (item !== undefined)) {
+		const last = i === segments.length - 1;
+		const numbered = last ? undefined : node.kind;
+		if ((numbered === "loop") !== (iteration !== undefined) || (numbered === "map") !== (item !== undefined)) {
 			return { code: "answer-unknown-node", why: "a visit path numbers each loop iteration `#n` and each map item `[i]`, and nothing else" };
 		}
 		const bound = node.kind === "loop" ? node.max : node.kind === "map" ? ("items" in node.over ? node.over.items.length : (node.max as number)) : 1;
@@ -55,12 +69,12 @@ export function visitAt(nodes: readonly CheckedNode[], path: string): Keyed | Un
 		if (number < 1 || number > bound) {
 			return { code: "answer-past-max", why: `\`${id}\` runs ${bound} ${node.kind === "loop" ? "iterations" : "items"} at most, numbered from 1` };
 		}
-		const last = i === segments.length - 1;
-		if (node.kind === "flow" && !last) {
+		if (last) return { node, at: under(prefix, node.at) };
+		if (node.kind === "flow") {
 			prefix = under(prefix, node.at);
 			here = node.callee.nodes;
 		} else if (isAnswered(node)) {
-			return last ? { node, at: under(prefix, node.at), most: attempts(node) } : { code: "answer-unknown-node" };
+			return { code: "answer-unknown-node" };
 		} else if (node.kind === "parallel") {
 			const branch = node.branches.find((one) => one.name === segments[++i]);
 			if (branch === undefined) return { code: "answer-unknown-node", why: `a visit inside \`${id}\` names its branch: ${node.branches.map((one) => one.name).join(", ")}` };

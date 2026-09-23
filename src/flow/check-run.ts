@@ -59,8 +59,13 @@ export type CheckedRun = RunStage & {
 /** A checked run, or every fault that refused it. */
 export type CheckRun = { readonly ok: true; readonly run: CheckedRun } | { readonly ok: false; readonly faults: readonly Fault[] };
 
-/** `flow` held to `stage`. A missing port, a missing script and a tree that is no repository are each reported once, at the first node needing it. */
-export async function checkRun(flow: CheckedFlow, stage: RunStage): Promise<CheckRun> {
+/**
+ * `flow` held to `stage`. A missing port, a missing script and a tree that is
+ * no repository are each reported once, at the first node needing it. Given
+ * `read`, each script's content is taken from there instead of the disk: a
+ * resume runs the scripts its run started with.
+ */
+export async function checkRun(flow: CheckedFlow, stage: RunStage, read?: ReadonlyMap<string, string>): Promise<CheckRun> {
 	const faults = new FaultList(flow.file);
 	const nodes = [...unrolled(flow.nodes)];
 	const git = nodes.map(needsGit).find((at) => at !== undefined);
@@ -85,7 +90,7 @@ export async function checkRun(flow: CheckedFlow, stage: RunStage): Promise<Chec
 	for (const { node, at } of checks) {
 		if (scripts.has(node.script) || missing.has(node.script)) continue;
 		try {
-			scripts.set(node.script, readFileSync(join(stage.cwd, node.script), "utf-8"));
+			scripts.set(node.script, read === undefined ? readFileSync(join(stage.cwd, node.script), "utf-8") : kept(read, node.script));
 		} catch (error) {
 			missing.add(node.script);
 			const code = (error as NodeJS.ErrnoException).code;
@@ -98,6 +103,13 @@ export async function checkRun(flow: CheckedFlow, stage: RunStage): Promise<Chec
 	faults.sort((fault) => order.indexOf(fault.at.slice(0, fault.at.lastIndexOf("."))));
 	if (faults.list.length > 0) return { ok: false, faults: faults.list };
 	return { ok: true, run: { ...stage, flow, scripts } as unknown as CheckedRun };
+}
+
+/** The script `path` of `read`, thrown as a file that is not there when it is not. */
+function kept(read: ReadonlyMap<string, string>, path: string): string {
+	const content = read.get(path);
+	if (content === undefined) throw Object.assign(new Error(`${path} is not there`), { code: "ENOENT" });
+	return content;
 }
 
 /** Where `node`, at `at`, needs git, when it does: a commit, a block's copies, a read of `diff`, or a call handing it in. */
