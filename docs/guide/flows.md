@@ -138,14 +138,16 @@ patches land, `.pi/checks/test.sh` runs and an auditor reads the whole change
 against the brief. When the tests fail or the audit is not approved, what the
 audit raised and nobody closed becomes the subtasks of a second round, and
 there is no third. With nothing left open to hand round, the build gives up.
-A build that gives up or ends its second round unapproved fails. The check
+A build that gives up or ends its second round unapproved fails. One that
+passes ends with a synthesiser's report, a few lines on what was done and what
+is left, read from the diff, the last round's pairs and the audit. The check
 is a script of your project: the run is refused before its first turn when
 `.pi/checks/test.sh` is not there.
 
 **`build-attended`** is `build` with somebody there. It calls `interview` on
 the request, shows the specification and asks "Build this?". Answered yes, it
 calls `build` on the specification, has the committer write the message from
-the specification and the diff, and commits on the run's own branch. Answered
+the specification, the build's report and the diff, and commits on the run's own branch. Answered
 no, the run ends `ok: true` with nothing built and nothing committed. With
 nobody there, the confirm defaults to yes.
 

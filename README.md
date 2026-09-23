@@ -123,10 +123,11 @@ usage, and the flag columns are whatever the callback returned. See
     work        a coder and a reviewer per subtask, each pair in a copy of the repository
     tests       .pi/checks/test.sh, your project's own script; its verdict is final
     audit       one agent reads the whole change against the request
+  report      a few lines on what was done and what is left
 ```
 
 It asks nothing on the way, and it commits nothing at the end: the work stays in
-the working tree for you to read, and the answer lands in the conversation. An
+the working tree for you to read, and the report lands in the conversation. An
 interrupted run carries on with `/run resume`, from the first visit that did
 not end. `/run build-attended` interviews you first, asks "Build this?", and
 commits on the run's own branch.

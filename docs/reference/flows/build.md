@@ -25,6 +25,8 @@ flowchart TD
     n8 --> n9
     n9 -.->|"until tests.output.passed #38;#38; audit.output.approved"| n4
   end
+  n10["report<br/>agent synthesiser"]
   n1 --> n2
   n2 --> n3
+  n3 --> n10
 ```

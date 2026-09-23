@@ -52,6 +52,10 @@ nodes:
         agent: auditor
         verdict: deliver
         reads: [input, work, tests, diff, deliver.ledger]
+
+  - id: report
+    agent: synthesiser
+    reads: [input, diff, deliver.output.last.work, deliver.output.last.audit]
 ---
 
 ## locate
@@ -88,3 +92,15 @@ Audit the whole change under `diff` against the brief under `input`.
 done until the code shows it is. `tests` says whether the project's own tests
 pass; while they fail, the work is not finished, so raise what makes them fail.
 `deliver.ledger` holds what an earlier audit raised and nobody has closed yet.
+
+## report
+Tell the person who asked for the work under `input` what they now have. The
+change is under `diff`, and it is the evidence. How each subtask of the last
+round ended is under `deliver.output.last.work`, and the audit of the whole
+under `deliver.output.last.audit`: the tests pass and the audit approved, or
+this turn would not run.
+
+Write a few lines of plain prose for someone about to read the diff, no
+headings and no JSON: what was done, and in which files; then what is left, a
+subtask whose review did not converge or whose patch did not land and each
+remark the audit left, or say that nothing is.
