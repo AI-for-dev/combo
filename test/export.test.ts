@@ -19,6 +19,7 @@ import {
 	createRunDir,
 	exportBaseName,
 	exportSession,
+	newestRunFirst,
 	usageReport,
 	writeUsageReport,
 } from "../src/measure/export.ts";
@@ -91,6 +92,32 @@ describe("createRunDir", () => {
 		const first = createRunDir(base, new Date("2026-07-19T16:52:32Z"));
 		const second = createRunDir(base, new Date("2026-07-19T16:52:33Z"));
 		assert.notEqual(first, second);
+	});
+
+	test("runs started in the same second each get a directory of their own", () => {
+		const base = tmpDir();
+		const names = ["16:52:32.100Z", "16:52:32.900Z", "16:52:32.900Z"].map((time) => path.basename(createRunDir(base, new Date(`2026-07-19T${time}`))));
+
+		assert.deepEqual(names, ["2026-07-19_16-52-32", "2026-07-19_16-52-32-2", "2026-07-19_16-52-32-3"]);
+	});
+
+	test("a name already taken is left as it is, whatever took it", () => {
+		const base = tmpDir();
+		fs.mkdirSync(path.join(base, "2026-07-19_16-52-32"), { recursive: true });
+		fs.writeFileSync(path.join(base, "2026-07-19_16-52-32", "usage.json"), "{}");
+		fs.writeFileSync(path.join(base, "2026-07-19_16-52-32-2"), "not a directory");
+
+		const dir = createRunDir(base, new Date("2026-07-19T16:52:32Z"));
+
+		assert.equal(path.basename(dir), "2026-07-19_16-52-32-3");
+		assert.deepEqual(fs.readdirSync(path.join(base, "2026-07-19_16-52-32")), ["usage.json"]);
+		assert.equal(fs.readFileSync(path.join(base, "2026-07-19_16-52-32-2"), "utf8"), "not a directory");
+	});
+
+	test("newest first orders the runs by start, a tenth in the same second included", () => {
+		const names = ["2026-07-19_16-52-32-10", "2026-07-19_16-52-33", "2026-07-19_16-52-32", "2026-07-19_16-52-32-9", "2026-07-19_16-52-32-2"];
+
+		assert.deepEqual(names.sort(newestRunFirst), ["2026-07-19_16-52-33", "2026-07-19_16-52-32-10", "2026-07-19_16-52-32-9", "2026-07-19_16-52-32-2", "2026-07-19_16-52-32"]);
 	});
 
 	test("git is not told about the exports, so a run can land in the tree it wrote in", () => {

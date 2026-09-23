@@ -28,10 +28,14 @@ rescue.
 export function createRunDir(base = "runs", now = new Date()): string { /* … */ }
 ```
 
-Creates `<base>/<timestamp>/` and returns its path.
+Creates `<base>/<timestamp>/` and returns its path: a directory of its own
+for every call.
 
-The timestamp is sortable and filesystem-safe, so two runs never collide and
-`ls` shows them in order.
+The timestamp is to the second, sortable and filesystem-safe, so `ls` shows
+the runs in order. Two runs started in the same second would share it, and
+a run directory holds one run: the second is `<timestamp>-2`, then `-3`, as
+the run's branch is. Each candidate is created exclusively, so two processes
+never both take one. {@link newestRunFirst} orders the names.
 
 `<base>` is given a `.gitignore` of its own, because the exports land **inside
 the repository the run works on** and git has no reason to know about them.

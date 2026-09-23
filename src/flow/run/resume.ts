@@ -13,6 +13,7 @@
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
+import { newestRunFirst } from "../../measure/index.ts";
 import { checkFlow } from "../check.ts";
 import { checkRun, type FlowPorts } from "../check-run.ts";
 import type { Fault } from "../fault.ts";
@@ -102,14 +103,15 @@ export type Resumable = { readonly ok: true; readonly runDir: string; readonly f
 
 /**
  * The newest run under `runsDir` started in `cwd` that a resume would take,
- * newest by directory name, which a run directory's timestamp makes its age.
+ * newest by directory name, which a run directory's timestamp makes its age
+ * ({@link newestRunFirst}).
  * When none would, the newest run of `cwd` and why; nothing when `cwd`
  * started none there. A directory holding no snapshot holds no run, and one
  * that no longer reads or checks cannot be resumed by this version anyway.
  */
 export function latestResumable(runsDir: string, cwd: string): Resumable | undefined {
 	let newest: Resumable | undefined;
-	for (const name of existsSync(runsDir) ? readdirSync(runsDir).sort().reverse() : []) {
+	for (const name of existsSync(runsDir) ? readdirSync(runsDir).sort(newestRunFirst) : []) {
 		const runDir = join(runsDir, name);
 		if (!existsSync(join(runDir, SNAPSHOT_FILE))) continue;
 		let snapshot: Snapshot;
