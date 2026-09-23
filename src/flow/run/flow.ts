@@ -4,7 +4,8 @@
  * It takes a `CheckedRun` and nothing else of the world: the working tree,
  * the ports and each check script's content were fixed by `checkRun`, so a
  * flow checked against one project cannot run in another. The runner reaches
- * git through the `git` port only.
+ * git through the `git` port only, and the disk through its run directory
+ * only, when it is given one.
  */
 
 import { busFor, type EventListener } from "../../events.ts";
@@ -19,6 +20,8 @@ import { mismatch } from "../type.ts";
 import { personAsks } from "./card.ts";
 import { committer } from "./commit.ts";
 import { walkWhole } from "./call.ts";
+import { fileJournal, NO_JOURNAL } from "./journal.ts";
+import { writeSnapshot } from "./snapshot.ts";
 import { Run } from "./walk.ts";
 import type { World } from "./world.ts";
 
@@ -34,6 +37,11 @@ export type RunFlowOptions = {
 	model?: string;
 	/** The bound of every agent turn, over each node's `timeout:` and the flow's. A check keeps its own. */
 	timeoutMs?: number;
+	/**
+	 * The run directory, which holds the snapshot and the journal. Absent,
+	 * nothing touches the disk, and the run cannot be resumed.
+	 */
+	runDir?: string;
 };
 
 /**
@@ -45,18 +53,23 @@ export type FlowResult =
 	| { readonly ok: false; readonly error: FlowError; readonly path: string; readonly usage: Usage };
 
 /**
- * Runs `run` on `input`.
+ * Runs `run` on `input`. Given `runDir`, the run directory first receives
+ * the snapshot, then the journal as the run goes.
  *
- * Throws, before anything is spawned, on an input off the flow's `input:`:
- * that is the caller's mistake, not a run that went wrong. Every other
- * failure is a result.
+ * Throws, before anything is spawned, on an input off the flow's `input:`,
+ * and on a run directory that already holds a run: that is the caller's
+ * mistake, not a run that went wrong. Every other failure is a result.
  */
-export function runFlow(run: CheckedRun, input: unknown, options: RunFlowOptions = {}): Promise<FlowResult> {
+export async function runFlow(run: CheckedRun, input: unknown, options: RunFlowOptions = {}): Promise<FlowResult> {
 	const { flow, cwd, ports, scripts } = run;
+	checkInput(flow, input);
+	const { runDir, model, timeoutMs } = options;
+	if (runDir !== undefined) writeSnapshot(runDir, run, input, { model, timeoutMs });
+	const journal = runDir === undefined ? NO_JOURNAL : fileJournal(runDir);
 	// `checkRun` refused a flow needing a port it was not given, or a script it could not read.
 	const check = ports.check as CheckScript;
 	const git = ports.git as GitPort;
-	const commit = committer(git, cwd, input);
+	const commit = committer(git, cwd, input, journal);
 	return walkFlow(flow, input, options, {
 		deadline: ({ ms }) => AbortSignal.timeout(ms),
 		check: (node, _path, signal, tree = cwd) => check({ script: node.script, content: scripts.get(node.script) as string, cwd: tree, timeoutMs: node.timeoutMs, signal }),
@@ -64,14 +77,21 @@ export function runFlow(run: CheckedRun, input: unknown, options: RunFlowOptions
 		diff: (tree = cwd) => git.diff(tree),
 		copies: ports.git,
 		ask: personAsks(run.somebodyThere ? ports.ask : undefined),
+		journal,
 	}, cwd);
 }
 
-/** `runFlow`, with the world given: the dry run's door into the same walk, with no tree. */
-export async function walkFlow(checked: CheckedFlow, input: unknown, options: RunFlowOptions, world: World, tree?: string): Promise<FlowResult> {
-	const problem = mismatch(input, checked.input);
-	if (problem !== undefined) throw new Error(`The input of \`${checked.name}\` does not match its \`input:\`: ${problem}`);
+/** Throws on an input off `flow`'s `input:`: the caller's mistake, found before anything runs. */
+export function checkInput(flow: CheckedFlow, input: unknown): void {
+	const problem = mismatch(input, flow.input);
+	if (problem !== undefined) throw new Error(`The input of \`${flow.name}\` does not match its \`input:\`: ${problem}`);
+}
 
+/**
+ * `runFlow`, with the world given and the input checked: the dry run's door
+ * into the same walk, with no tree. How it ended is the journal's last entry.
+ */
+export async function walkFlow(checked: CheckedFlow, input: unknown, options: RunFlowOptions, world: World, tree?: string): Promise<FlowResult> {
 	const started = performance.now();
 	const stopped = new AbortController();
 	const signal = options.signal === undefined ? stopped.signal : AbortSignal.any([options.signal, stopped.signal]);
@@ -79,6 +99,8 @@ export async function walkFlow(checked: CheckedFlow, input: unknown, options: Ru
 	const run = new Run({ ...world, flow: checked, bus: busFor(options), signal, stop, spawn: options.spawn ?? defaultSpawn, model: options.model, timeoutMs: options.timeoutMs });
 	const walked = await walkWhole(run, checked, "", input, { cut: signal, tree });
 	const usage = sumUsage(walked.usage, performance.now() - started);
-	if (walked.failed !== undefined) return { ok: false, error: walked.failed.error, path: walked.failed.path, usage };
-	return { ok: true, ...(walked.last?.ok && { output: walked.last.output }), usage };
+	const result: FlowResult =
+		walked.failed !== undefined ? { ok: false, error: walked.failed.error, path: walked.failed.path, usage } : { ok: true, ...(walked.last?.ok && { output: walked.last.output }), usage };
+	world.journal.append({ type: "run_end", ...result });
+	return result;
 }

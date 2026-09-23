@@ -10,10 +10,9 @@
  * working directory is given, no script is read, no model is reached and git
  * is never run. `diff` reads as an empty text, since no agent wrote anything,
  * and a `copies: true` block makes no copy: each of its branches reads as
- * landed.
+ * landed, and its copy is a journal fact alone.
  */
 
-import type { EventListener, VisitEvent } from "../../events.ts";
 import { spawn } from "../../subagent.ts";
 import type { Usage } from "../../usage.ts";
 import type { SpawnFn } from "../../workflows/options.ts";
@@ -23,21 +22,19 @@ import type { Heard } from "./ask.ts";
 import type { Attempt } from "./agent.ts";
 import { Script, type AnswerFault, type Answers } from "./answers.ts";
 import type { CommitOutcome } from "./commit.ts";
-import { walkFlow, type FlowResult, type RunFlowOptions } from "./flow.ts";
+import { checkInput, walkFlow, type FlowResult, type RunFlowOptions } from "./flow.ts";
+import type { JournalEntry } from "./journal.ts";
 import { scriptedSession, type ScriptedSession } from "./scripted.ts";
 
 /** What a dry run varies: what a run does, short of reaching the world. */
 export type DryRunOptions = Pick<RunFlowOptions, "signal" | "onEvent" | "model" | "timeoutMs">;
 
-/** A `visit_end`, as the journal writes it down. */
-export type JournalEntry = Extract<VisitEvent, { type: "visit_end" }>;
-
 /**
  * How a dry run ended: as the flow did, or at the first visit its script did
  * not answer, which is no outcome of the flow's; or refused before the start,
- * with every fault of the script. The journal holds every visit that ended,
- * in order. Its tokens and cost are zero, since a script spends nothing;
- * the time is measured, like any run's.
+ * with every fault of the script. The journal holds every fact a run would
+ * write, in order, the run's end last. Its tokens and cost are zero, since a
+ * script spends nothing; the time is measured, like any run's.
  */
 export type DryRun =
 	| (FlowResult & { readonly journal: readonly JournalEntry[] })
@@ -49,12 +46,9 @@ export async function dryRunFlow(checked: CheckedFlow, input: unknown, answers: 
 	const checkedScript = Script.check(checked, answers);
 	if (!checkedScript.ok) return { ok: false, faults: checkedScript.faults };
 	const { script } = checkedScript;
+	checkInput(checked, input);
 
 	const journal: JournalEntry[] = [];
-	const onEvent: EventListener = (event) => {
-		if (event.type === "visit_end") journal.push(event);
-		options.onEvent?.(event);
-	};
 	// A hole in the script stops the run the way a person would, so nothing
 	// in the flow can absorb it, and it is reported apart from the flow's end.
 	const halt = new AbortController();
@@ -86,9 +80,10 @@ export async function dryRunFlow(checked: CheckedFlow, input: unknown, answers: 
 	// A hole takes the card down the way a stop does: the visit reads the stop, not this.
 	const ask = async (node: CheckedAskNode, path: string): Promise<Heard> => script.heard(path, node.at) ?? (hole(path), { declined: true });
 	const whole = (node: CheckedCallNode, path: string) => script.whole(path, node.at);
-	const world = { deadline, check: ran<ScriptOutcome>, commit: ran<CommitOutcome>, diff: async () => ({ ok: true as const, value: "" }), ask, whole };
+	const diff = async () => ({ ok: true as const, value: "" });
+	const world = { deadline, check: ran<ScriptOutcome>, commit: ran<CommitOutcome>, diff, ask, whole, journal: { append: (entry: JournalEntry) => journal.push(entry) } };
 
-	const result = await walkFlow(checked, input, { ...options, signal, onEvent, spawn: scripted }, world);
+	const result = await walkFlow(checked, input, { ...options, signal, spawn: scripted }, world);
 	if (unscripted !== undefined) return { ok: false, unscripted, journal, usage: result.usage };
 	return { ...result, journal };
 }

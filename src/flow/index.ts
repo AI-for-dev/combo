@@ -8,6 +8,8 @@
  * implementation: `loadFlowCatalogue` finds what a flow runs against,
  * `checkFlow` is how a flow is read, `checkRun` holds it to the project it is
  * launched in, and `runFlow` and `dryRunFlow` are how a checked one runs.
+ * `readSnapshot` and `readJournal` read back what a run left in its run
+ * directory.
  */
 
 export { loadFlowCatalogue, type FlowCatalogue } from "./catalogue.ts";
@@ -48,6 +50,8 @@ export { FAULT_CODES, type Fault, type FaultCode } from "./fault.ts";
 export {
 	ANSWER_CODES,
 	dryRunFlow,
+	readJournal,
+	readSnapshot,
 	runFlow,
 	type AnswerFault,
 	type Answers,
@@ -56,6 +60,10 @@ export {
 	type FlowResult,
 	type JournalEntry,
 	type RunFlowOptions,
+	type Settings,
+	type Snapshot,
+	type VisitEnd,
 } from "./run/index.ts";
+export type { NamedAgent, Sources } from "./sources.ts";
 export { QUESTION, readSchema, type ReadSchema, type SchemaProblem } from "./schema.ts";
 export { showType, type Field, type ValueType } from "./type.ts";

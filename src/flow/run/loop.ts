@@ -11,12 +11,12 @@
  * all its iterations.
  */
 
-import { createLedger } from "../../review/index.ts";
 import { sumUsage, type Usage } from "../../usage.ts";
 import type { CheckedLoopNode, STOPS } from "../checked.ts";
 import { evaluateCondition, type Condition } from "../condition/index.ts";
 import { failure, travelled, type Ended, type Visited } from "./ended.ts";
 import { withLedger } from "./frames.ts";
+import { journaledLedger } from "./journal.ts";
 import type { Values } from "./values.ts";
 import type { Here, Walker } from "./walk.ts";
 
@@ -26,13 +26,14 @@ type Stop = (typeof STOPS)[number];
 export async function visitLoop(walker: Walker, node: CheckedLoopNode, path: string, here: Here): Promise<Visited> {
 	const usage: Usage[] = [];
 	const done = (ended: Ended, visited?: Partial<Visited>): Visited => ({ ended, usage: sumUsage(usage, 0), ...visited });
-	const ledger = node.ledger ? createLedger() : undefined;
+	const ledger = node.ledger ? journaledLedger(walker.journal, path) : undefined;
 	const frames = here.frames.inside(node.id, ledger);
 	try {
 		let carry = carried(node, "first", here.values);
 		let previous: Record<string, Ended> | undefined;
 		for (let n = 1; ; n++) {
 			if (!carry.ok) return done(carry.ended);
+			if (node.carry !== undefined) walker.journal.append({ type: "carry", path: `${path}#${n}`, value: carry.value });
 			const own = withLedger({ ...(previous && { previous }), ...(node.carry && { carry: carry.value }) }, ledger);
 			const values = here.values.inside().lend(node.id, own, previous === undefined);
 			const walked = await walker.sequence(node.nodes, `${path}#${n}`, { ...here, values, frames });

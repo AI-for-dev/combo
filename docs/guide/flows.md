@@ -473,7 +473,7 @@ const flow = checkFlow("build", loadFlowCatalogue({ cwd }));
 if (!flow.ok) return flow.faults;
 const run = await checkRun(flow.flow, { cwd, ports: { ask, check: bashCheck(), git: gitPort() }, somebodyThere: true });
 if (!run.ok) return run.faults;
-const result = await runFlow(run.run, "add a cache", { model });
+const result = await runFlow(run.run, "add a cache", { model, runDir });
 ```
 
 `checkRun(checked, { cwd, ports, somebodyThere })` is the run stage: what the
@@ -504,15 +504,48 @@ no push, no reset and no rebase.
 
 `runFlow(run, input, options)` takes the `CheckedRun` and the flow's input,
 which must match its `input:`. Its options are `spawn`, `signal`, `onEvent`,
-`model` and `timeoutMs`, and nothing of the world: that came with the
-`CheckedRun`, so a flow checked against one project cannot run in another. It
-returns `{ ok: true, output }`, the output of the last root node, or
-`{ ok: false, error, path }`, the visit the failure started at.
+`model`, `timeoutMs` and `runDir`, and nothing of the world: that came with
+the `CheckedRun`, so a flow checked against one project cannot run in
+another. It returns `{ ok: true, output }`, the output of the last root node,
+or `{ ok: false, error, path }`, the visit the failure started at.
 
 A visit is named by its path: the ids of the nodes around it, `#n` for a loop
 iteration, `[i]` for a `map` item and the branch name for a `parallel`, all
 numbered from 1: `deliver#2/work[1]/review#3/code`. A `flow` node is a
 segment too, its callee's visits named under it: `spec/interview#3/ask_next`.
+
+### The run directory
+
+Given `runDir`, a run keeps two things there. Given none, nothing touches the
+disk.
+
+- **The snapshot**, written before the first node runs: `snapshot.json` holds
+  the flow file and every file it calls, each agent it names as it was read,
+  each check script's content, the input, and the settings (`cwd`,
+  `somebodyThere`, `model`, `timeoutMs`). Each skill a named agent declares
+  is copied under `agents/<agent>/skills/<skill>/`, its whole directory
+  included. This is exactly what validation read: `checkFlow` hands it on as
+  the checked flow's `sources`, and `checkRun` as the run's `scripts`.
+  `readSnapshot(runDir)` reads it back as `{ flow, catalogue, scripts, input,
+  settings }`, and `checkFlow(flow, catalogue)` checks it again whatever the
+  disk says by then. Read back, each agent lives in the run directory, so its
+  skills resolve to the copies. A directory that already holds a snapshot is
+  refused: one directory holds one run.
+- **The journal**, `journal.jsonl`: one JSON line per fact, appended when it
+  happens and never rewritten. `readJournal(runDir)` reads it back in order,
+  ignoring a last line a crash cut short.
+
+| `type` | Written when | Holds |
+| --- | --- | --- |
+| `visit_end` | a visit ended | the `visit_end` event itself, written before it is told |
+| `carry` | a loop computed the `carry` of an iteration | `path` of that iteration (`fix#2`), `value` |
+| `map_items` | a `map` starts | `path`, the `items` it runs over |
+| `obligation_raised` | a verdict raised an obligation | `ledger`, the visit whose scope keeps it (a loop, or a `map` item), and the `obligation` |
+| `obligation_closed` | a verdict closed one | `ledger`, `id`, `closure` |
+| `copy_opened` | a branch of a `copies: true` block got its copy | `path` of the branch, the copy's `dir` and git `branch` |
+| `copy_landed` | the block landed its patches | `path`, `landed`, `refused?` |
+| `branch_opened` | the first commit opened the run's branch | `branch` |
+| `run_end` | the run ended | what `runFlow` returned |
 
 ### What a turn is
 
@@ -619,7 +652,8 @@ nothing of the
 world touched: it takes what `checkFlow` returned, reads no check script, runs
 none, and never runs git. `diff` reads as an empty text, and a `copies: true`
 block makes no copy, each of its branches reading as landed. It returns what
-`runFlow` does plus `journal`, every `visit_end` in order, with zero tokens.
+`runFlow` does plus `journal`, the entries a run would write, in order and in
+an array, with zero tokens. A copy's entries have no `dir` or `branch`.
 
 ```ts
 // The `split` flow at the top of this page, its `first` node given `retry: 1`.

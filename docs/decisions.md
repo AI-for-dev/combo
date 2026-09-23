@@ -1711,6 +1711,54 @@ extension is wired to it yet.
   visits apart would need the loop iterations resolved against each other,
   and a script that does both for one address is almost always a slip.
 
+### A run keeps what its check read, and writes each fact once
+
+A run given a run directory keeps a snapshot there and appends a journal.
+Resuming from them comes next; nothing of the extension uses them yet.
+
+- **The journal is a port, written by the runner.** A real run appends to
+  `journal.jsonl` in its run directory, a run given none writes nowhere, and
+  a dry run keeps the entries in an array. A reporter never writes it, so
+  unplugging every reporter leaves it the same. Each append is synchronous:
+  the fact is on disk before the run goes on, and two branches never
+  interleave a line.
+- **A visit's entry is its `visit_end`, written before it is told.** One
+  object goes to the journal, then to the event stream, so a reader folding
+  the two never sees an event the journal lacks.
+- **Only the last line can be torn.** Whatever follows the last newline is
+  ignored. Any other line that is not an entry throws: that file was not
+  written by a run, and guessing past it would resume a different run.
+- **A ledger writes its own obligations down.** The ledger a loop or a `map`
+  item opens is wrapped to append each raise and each close it accepted, keyed
+  by the visit whose scope keeps it (`fix`, `work[2]`). The review record and
+  the `verdict` tool are unchanged, and a refused close writes nothing.
+- **Every fact is keyed by the visit it belongs to.** A `carry` names the
+  iteration that reads it (`fix#2`). A `map`'s list is written for a literal
+  list too, so every `map` is restored the same way. A copy is written when it
+  is made, with its directory and git branch, and its landing once the block
+  landed; a dry run writes both with no directory. The run's end is what
+  `runFlow` returned, written down.
+- **What validation read is on the checked flow.** `sources` holds the flow
+  file, every file it reaches, and each agent it names with the skills they
+  resolved to. Each checked flow composes its own from its callees', so a
+  callee's is right on its own too. `checkRun` already held each check
+  script's content. The snapshot copies these two and nothing else.
+- **An agent is kept as it was parsed, a skill as its files.** Reading an
+  agent's file again for the snapshot could see a file changed since the
+  check, so the parsed definition is stored. Validation holds only a skill's
+  metadata, so its directory is copied, since the model may open what sits
+  beside `SKILL.md`.
+- **Read back, an agent lives in the run directory.** Its `filePath` becomes
+  `<runDir>/agents/<name>.md`, so its own `skills/` directory, looked up
+  first, is the copy. This holds for the check and for the spawn, and it is
+  the one difference between a check of the snapshot and the first check. A
+  flow file keeps its own path, which a resume needs to say what changed on
+  disk.
+- **A run directory holds one run.** `runFlow` refuses a directory that
+  already holds a snapshot, and checks the input before writing anything, so
+  a refused input leaves no directory behind. The settings kept are the ones
+  a resume must not change: `cwd`, `somebodyThere`, `model`, `timeoutMs`.
+
 ## A chain walked by hand
 
 `/run explore …` put its answer in the conversation, and the session picked it

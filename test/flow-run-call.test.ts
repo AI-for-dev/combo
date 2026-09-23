@@ -14,7 +14,8 @@ import { gitPort } from "../src/git/index.ts";
 import { dryRunFlow, runFlow, type CheckedFlow, type RunFlowOptions } from "../src/flow/index.ts";
 import type { Attempt } from "../src/flow/run/agent.ts";
 import { walkFlow } from "../src/flow/run/flow.ts";
-import { checkedIn, flowSpawn, flowText, launched, runChecked } from "./fixtures/flow.ts";
+import { NO_JOURNAL } from "../src/flow/run/journal.ts";
+import { checkedIn, flowSpawn, flowText, launched, runChecked, visited } from "./fixtures/flow.ts";
 import { git, repository } from "./fixtures/repo.ts";
 
 /** The flow `f` calling `g` at `spec`, and nothing else. */
@@ -150,6 +151,7 @@ describe("`model:` and `timeout:` through calls", () => {
 				commit: async () => ({ ok: false as const, kind: "unavailable" as const, message: "" }),
 				diff: async () => ({ ok: true as const, value: "" }),
 				ask: async () => ({ missed: "nobody" as const }),
+				journal: NO_JOURNAL,
 			};
 			await walkFlow(checked, "x", { spawn: flowSpawn([[{ text: "" }], [{ text: "" }], [{ text: "" }]]).spawn, timeoutMs }, world);
 			return attempts.map(({ at, ms }) => `${at} ${ms}`);
@@ -166,14 +168,14 @@ describe("a call, dry run", () => {
 
 	test("is scripted whole by a key on its address, the callee not walked", async () => {
 		const run = await dryRunFlow(withAfter, "x", { spec: WHOLE, after: "done" });
-		assert.deepEqual("journal" in run && run.journal.map(({ path }) => path), ["spec", "after"]);
+		assert.deepEqual(visited(run).map(({ path }) => path), ["spec", "after"]);
 		const failed = await dryRunFlow(withAfter, "x", { spec: { fail: "child" } });
 		assert.deepEqual(!failed.ok && "error" in failed && [failed.error.kind, failed.path], ["child", "spec"]);
 	});
 
 	test("is walked into by keys under it, by address through the call or by exact visit path", async () => {
 		const run = await dryRunFlow(withAfter, "x", { "spec/round/look": { ready: false }, "spec/round#2/look": { ready: true }, after: "done" });
-		assert.deepEqual("journal" in run && run.journal.map(({ path, ok }) => `${path} ${ok}`), ["spec/round#1/look true", "spec/round#2/look true", "spec/round true", "spec true", "after true"]);
+		assert.deepEqual(visited(run).map(({ path, ok }) => `${path} ${ok}`), ["spec/round#1/look true", "spec/round#2/look true", "spec/round true", "spec true", "after true"]);
 		const hole = await dryRunFlow(withAfter, "x", { after: "done" });
 		assert.deepEqual(!hole.ok && "unscripted" in hole && hole.unscripted, "spec/round#1/look");
 	});

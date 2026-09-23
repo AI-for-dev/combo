@@ -9,17 +9,20 @@
 
 import type { Agent, BrokenAgent } from "../agent.ts";
 import { toolsOf } from "../session.ts";
-import { findSkills, type SkillProblem } from "../skills.ts";
+import { findSkills, type Skill, type SkillProblem } from "../skills.ts";
 import type { FlowCatalogue } from "./catalogue.ts";
 import type { FaultList } from "./fault.ts";
+
+/** What an agent's `skills:` resolved to, and every reason one would never reach the model. */
+type Found = { readonly skills: readonly Skill[]; readonly problems: readonly SkillProblem[] };
 
 /** The agents of one catalogue, by name. Shared by a checker and its quiet copy. */
 export class AgentNames {
 	private readonly agents: ReadonlyMap<string, Agent>;
 	private readonly broken: ReadonlyMap<string, BrokenAgent>;
 	private readonly cwd: string;
-	/** An agent's skill problems, looked up once however many nodes name it. */
-	private readonly problems = new Map<Agent, readonly SkillProblem[]>();
+	/** An agent's skills and their problems, looked up once however many nodes name it. */
+	private readonly found = new Map<Agent, Found>();
 
 	constructor(catalogue: FlowCatalogue) {
 		this.agents = new Map(catalogue.agents.map((agent) => [agent.name, agent]));
@@ -36,17 +39,22 @@ export class AgentNames {
 			else faults.unknown("unknown-agent", at, name, [...this.agents.keys()], "agents");
 			return undefined;
 		}
-		const problems = this.skillProblems(agent);
+		const { problems } = this.lookUp(agent);
 		for (const problem of problems) faults.add(problem.code, at, problem.message);
 		return problems.length === 0 ? agent : undefined;
 	}
 
-	private skillProblems(agent: Agent): readonly SkillProblem[] {
-		let problems = this.problems.get(agent);
-		if (problems === undefined) {
-			problems = findSkills(agent, this.cwd, toolsOf(agent)).problems;
-			this.problems.set(agent, problems);
+	/** The skills `agent`'s `skills:` resolved to, as its check found them. */
+	skills(agent: Agent): readonly Skill[] {
+		return this.lookUp(agent).skills;
+	}
+
+	private lookUp(agent: Agent): Found {
+		let found = this.found.get(agent);
+		if (found === undefined) {
+			found = findSkills(agent, this.cwd, toolsOf(agent));
+			this.found.set(agent, found);
 		}
-		return problems;
+		return found;
 	}
 }

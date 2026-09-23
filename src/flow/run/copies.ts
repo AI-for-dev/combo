@@ -12,7 +12,7 @@
  * the others: nothing is undone.
  */
 
-import type { GitPort, GitResult } from "../../git/index.ts";
+import type { GitPort, GitResult, Scratch } from "../../git/index.ts";
 import type { Walked } from "./ended.ts";
 
 /** What a block asks of the `git` port. */
@@ -27,13 +27,15 @@ export type Landing = {
 };
 
 /**
- * Walks a branch in a copy of `tree`, handing `keep` the patch it left once
- * the copy is gone. A copy that cannot be made fails the branch `unavailable`
- * at its own path, and it runs nothing.
+ * Walks a branch in a copy of `tree`, telling `opened` the copy once it is
+ * made and handing `keep` the patch it left once the copy is gone. A copy
+ * that cannot be made fails the branch `unavailable` at its own path, and it
+ * runs nothing.
  */
-export async function inCopy(copies: Copies, tree: string, prefix: string, walk: (tree: string) => Promise<Walked>, keep: (patch: GitResult<string>) => void): Promise<Walked> {
+export async function inCopy(copies: Copies, tree: string, prefix: string, walk: (tree: string) => Promise<Walked>, opened: (copy: Scratch) => void, keep: (patch: GitResult<string>) => void): Promise<Walked> {
 	const made = await copies.copy(tree, prefix);
 	if (!made.ok) return { usage: [], failed: { path: prefix, error: { kind: "unavailable", message: `no copy of the tree could be made: ${made.error}` } } };
+	opened(made.value);
 	try {
 		return await walk(made.value.path);
 	} finally {

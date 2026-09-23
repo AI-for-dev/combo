@@ -26,6 +26,7 @@ import type { FlowFile, ReadFlow } from "./file.ts";
 import { checkShared } from "./memory.ts";
 import { everyNode, type FlowNode } from "./node.ts";
 import { Scope } from "./scope.ts";
+import { sourcesOf } from "./sources.ts";
 import type { ValueType } from "./type.ts";
 
 /** A checked flow, or every fault that refused it. */
@@ -58,7 +59,8 @@ function checkFile(source: MarkdownFile, { flow, faults }: ReadFlow, callees: Ca
 	faults.sort(flow.rank);
 	if (faults.list.length > 0) return { ok: false, faults: faults.list };
 	const { file, description, input, model, timeoutMs } = flow;
-	return { ok: true, flow: { name, file, description, input, model, timeoutMs, nodes, output: last ?? { kind: "text" } } as unknown as CheckedFlow };
+	const sources = sourcesOf(source, nodes, (agent) => callees.agents.skills(agent));
+	return { ok: true, flow: { name, file, description, input, model, timeoutMs, nodes, output: last ?? { kind: "text" }, sources } as unknown as CheckedFlow };
 }
 
 /**

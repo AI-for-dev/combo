@@ -11,7 +11,7 @@ import path from "node:path";
 import { after, describe, test } from "node:test";
 import { checkRun, dryRunFlow, runFlow, type CheckedCheckNode, type FlowPorts } from "../src/flow/index.ts";
 import { bashCheck } from "../src/verify.ts";
-import { checked, flowSpawn, launched, refused } from "./fixtures/flow.ts";
+import { checked, flowSpawn, launched, refused, visited } from "./fixtures/flow.ts";
 
 const dirs: string[] = [];
 after(() => {
@@ -109,8 +109,8 @@ describe("a check in a dry run", () => {
 
 	test("is answered by the script, reads no file and runs nothing", async () => {
 		const run = await dryRunFlow(FLOW, "x", { "fix/code": "done", "fix/tests": [{ passed: false, report: "1 failed" }, { passed: true, report: "ok" }] });
-		assert.ok(run.ok && "journal" in run, JSON.stringify(run));
-		assert.deepEqual(run.journal.filter((entry) => entry.path.endsWith("tests")).map((entry) => entry.output), [{ passed: false, report: "1 failed" }, { passed: true, report: "ok" }]);
+		assert.ok(run.ok, JSON.stringify(run));
+		assert.deepEqual(visited(run).filter((entry) => entry.path.endsWith("tests")).map((entry) => entry.output), [{ passed: false, report: "1 failed" }, { passed: true, report: "ok" }]);
 	});
 
 	test("fails the way a check can, and a hole in the script is unscripted", async () => {
