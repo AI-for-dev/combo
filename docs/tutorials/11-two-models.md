@@ -2,26 +2,16 @@
 
 ![Same work, two models](../_static/tutorials/11-two-models.svg)
 
-```{note}
-This page was captured before flows replaced the linear pipeline. `/build` is
-`/run build` now, its flags are keys of the [`build` flow](../reference/flows/build.md),
-and a file left in `pipelines/` is refused; see [Deliver a change](../guide/build.md)
-and [From pipelines to flows](../guide/from-pipelines.md). The frames and the
-files below predate that change.
-```
-
 "Which model should the coder run on" gets asked a lot, and most answers are
 benchmarks nobody ran on their own code. The honest version is small: the same
-workflow, on the same repository, on two models, with the bills side by side.
-This page does that twice, once from the prompt line in thirty seconds and
-once properly.
+work, on the same repository, on two models, with the bills side by side.
+This page does that twice, once from the prompt line in a minute and once
+properly.
 
 ## The knob
 
-Every subagent so far ran on the one model the pi that typed these pages was
-started with, because nothing overrode it. That is the last resort in a chain of
-overrides, and the chain is worth knowing because comparing models requires the
-model to be an **argument**:
+Comparing models requires the model to be an **argument**. It is one of four
+places a subagent's model can come from, and the nearest wins:
 
 1. `--model` on `/run` or `/step`, or `model` on the `subagent` tool.
    Every subagent of that call, whatever its file says.
@@ -29,49 +19,55 @@ model to be an **argument**:
 3. `model:` in the agent's frontmatter.
 4. pi's own settings.
 
-Nearest wins. No environment variable is read anywhere: an ambient variable is
-exactly how a run ends up on a model nobody named. Measured, in this
-repository: a `/run explore` with no `--model` put all four subagents on a
-model named nowhere in the tree, and nobody noticed until `usage.json` said so.
-An experiment that left every level empty is measuring the operator, not the
-models.
+No environment variable is read anywhere: an ambient variable is exactly how a
+run ends up on a model nobody named. Measured, in this repository: a `/run
+explore` with no `--model` put all four subagents on a model named nowhere in
+the tree, and nobody noticed until `usage.json` said so. An experiment that
+left every level empty is measuring the operator, not the models.
 
-None of the shipped agents declares a `model:`, on purpose: a package that
-pinned one would override your settings and fail outright for anyone without
-a key for that provider. **A definition that ships leaves it open; a
+None of the shipped agents or flows declares a `model:`, on purpose: a package
+that pinned one would override your settings and fail outright for anyone
+without a key for that provider. **A definition that ships leaves it open; a
 measurement pins it.**
 
 ## The quick version
 
-The two compared below, `provider/model-a` and `provider/model-b`, were both
-small open-weight models of about the same size, served from the same endpoint.
-Put two your pi can reach in their place: what this page shows is the shape of
-the comparison, and the shape does not depend on which two.
+The two compared below are open-weight models served from the same endpoint:
+`provider/model-a`, of 31B parameters, and `provider/model-b`, a 120B
+mixture-of-experts model. Put two your pi can reach in their place: what this
+page shows is the shape of the comparison, and the shape does not depend on
+which two.
 
-You have already run the first half. Now the second:
+The same question, once per model:
 
 ```
-/run --model <provider/model-b> explore how is the wall time of a subagent measured, and where
+/run --model <provider/model-a> explore how is the wall time of a subagent measured, and where is it shown
+/run --model <provider/model-b> explore how is the wall time of a subagent measured, and where is it shown
 ```
 
 Two folders under `runs/`, two `usage.json`, one table:
 
 | | provider/model-a | provider/model-b |
 | --- | --- | --- |
-| wall | 63.5s | 16.4s |
-| busy | 98.8s | 31.8s |
-| parallelism | 1.56 | 1.95 |
-| input | 123.6k | 107.4k |
-| output | 5.1k | 4.0k |
-| tool calls, three scouts | 3 / 5 / 6 | 5 / 8 / 5 |
+| wall | 77.8s | 41.2s |
+| busy | 147.0s | 105.8s |
+| parallelism | 1.89 | 2.57 |
+| input | 191.0k | 710.2k |
+| output | 8.3k | 9.0k |
+| tool calls, three scouts | 9 / 6 / 4 | 25 / 24 / 28 |
 | cost | not reported | not reported |
 
-Four times faster at the same size, a sixth fewer input tokens, more tool calls.
-Both answers found the mechanism, the clock and the three places, and both got
-every line number wrong. The second wrote `~line 149-154`, with a tilde,
-hedging a number it had no way to know; the first wrote `line 163` with none.
-Read the two synthesiser reports in the two folders and you know more about
-these models on your code than a leaderboard can tell you.
+The larger model was twice as fast and spent almost four times the input
+tokens: its scouts made three times the calls, each resending a growing
+context. Both answers found `performance.now()` in `src/subagent.ts`. The
+first gave no line numbers and said where its scouts disagreed, one saying a
+finished subagent's wall time is not displayed on its own, another that the
+expanded view shows it. The second
+gave numbers with confidence, and two of three were wrong: it put the final
+measurement at `src/subagent.ts:353-357`, and `detailLine` at
+`src/reporters/tui.ts` lines 146 to 155, where the code has them at lines 387
+and 176. Read the two synthesiser reports in the two folders and you know more
+about these models on your code than a leaderboard can tell you.
 
 One run each, though. The fast model may have been lucky, the slow one may have
 hit a slow minute on a shared server. That is the limit of the quick version,
@@ -95,23 +91,27 @@ the change rather than making it, and prints the table:
 ```
 | model | runs | ok | converged | iterations | usage | mean wall | mean $ |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| provider/model-a | 2 | 2/2 | 2/2 | 1×2 | 4 turns 252.8s ↑255k ↓27k $0.0000 | 126.4s | $0.0000 |
-| provider/model-b | 2 | 2/2 | 2/2 | 1×1 2×1 | 6 turns 23.8s ↑43k ↓2.9k $0.0000 | 11.9s | $0.0000 |
+| provider/model-a | 2 | 2/2 | 2/2 | 1×2 | 4 turns 496.7s ↑43k ↓21k $0.0000 | 248.4s | $0.0000 |
+| provider/model-b | 2 | 2/2 | 1/2 | 2×1 3×1 | 10 turns 124.9s ↑201k ↓15k $0.0000 | 62.5s | $0.0000 |
 ```
 
-Both converged every time. One took ten times longer per cell and six times
-the input tokens, and the other needed a second round once, which is the
-column `1×1 2×1`: one run of one iteration, one run of two. Whether the slow
-one's review was worth its price is in the transcripts under `runs/`, and is
+The fast model of the quick version was fast again, four times over, and it
+converged once in two: `2×1 3×1` is one run of two iterations and one that
+reached the cap of three with no `LGTM`, which is why `ok` and `converged`
+are two columns. The slow one converged in one iteration both times, and its
+first coder took three minutes to describe a change to one file. Whether
+either review was worth its price is in the transcripts under `runs/`, and is
 the question you actually had.
 
-Something else is in those transcripts. The coder was handed `read`, `grep`,
-`find` and `ls`, and on the first cell it called `write` anyway. pi refused
-the call, because the tool was not in the session, and the working tree was
-untouched afterwards. The event stream recorded the attempt. That is the
-[boundary from page five](05-an-agent-that-cannot-write.md), seen from the
-other side, and it is why the coder's tools were cut down for an example that
-runs on the repository it ships in.
+Something else is in those transcripts. The larger model's reviewer, on its
+first cell, called a tool with an empty name four times, a `search` tool that
+does not exist once, and `grep` with no pattern twice. The smaller one's
+reviewer called `verdict` three times over its two cells, a tool its definition names for when a
+flow hands it one and which a plain loop does not. pi refused each call,
+`Tool search not found`, `Tool verdict not found`, and the turn went on. That
+is the [boundary from page five](05-an-agent-that-cannot-write.md) seen from
+the other side: what a session holds is what can run, whatever the model
+reaches for.
 
 Its shape is short enough to copy:
 
@@ -164,7 +164,7 @@ The rules it keeps, each one a way a comparison learns to lie:
   is expensive.
 
 ```
-runs/2026-09-19_10-46-58/
+runs/2026-09-23_22-27-04/
 ├── experiment.json
 ├── experiment.md
 ├── provider-model-a/
@@ -174,9 +174,10 @@ runs/2026-09-19_10-46-58/
     └── …
 ```
 
-A flow needs no special support: `runFlow(checked, input, { ...cell.options,
-runDir: cell.dir })` in the callback runs `explore` per cell, and the quick
-version above becomes the proper one in a few lines.
+A flow needs no special support: `runFlow(run, input, { ...cell.options,
+runDir: cell.dir })` in the callback runs `explore` per cell, each cell its
+own run directory, and the quick version above becomes the proper one in a
+few lines.
 
 Every subagent in these eleven pages was placed by you, through a call, a file
 or a flag. The last page is about the one that places its own.
