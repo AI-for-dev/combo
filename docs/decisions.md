@@ -725,6 +725,49 @@ has changed its mind - is the record's to state. `verdict.ts` and `ledger.ts`
 stay as they are, each with its own rules and its own tests: the record joins
 them, it does not absorb them.
 
+### The flow grants the verdict, and a definition does not name it
+
+The shipped `reviewer` and `auditor` named `verdict` in their `tools:` and told
+their model to call it "when you are given the tool". Only a `verdict:` node
+gives it, and the runner adds it to its agent's `tools:` itself, as it adds
+`submit` for a typed node, so the name in the file granted nothing anywhere.
+What it did was send the model after the tool where nothing offers it.
+Measured against `ilaas/gemma-4-31b`: a `/step reviewer` called `verdict` three
+times, each answered `Tool verdict not found`, before its prose, and the
+reviewer in the tool's `loop` did the same beside the `LGTM` the loop read.
+The reviewer was held to two contracts at once, a word for a loop and a call
+for a node, and outside a node only the word was ever read.
+
+Three fixes were weighed.
+
+**Refuse, before the spawn, an agent that names a tool nobody provides.**
+Strict, and readable in the file. It would have made the shipped reviewer
+unusable in a `/step` and in a `loop`, where it runs most, and it puts the
+fault on the person running it rather than on the definition.
+
+**Give a reviewer outside a node a `verdict` bound to a throwaway ledger.** The
+calls would succeed and nothing would read them: a `loop` stops on a word, so
+the tool would answer "Recorded" for a decision no code looks at. The verdict
+tool exists so that a decision is read off its own channel, and this one
+would have no reader.
+
+**The definitions stop naming it, and the flow grants it.** Taken. The node
+already adds the tool, and the closing part of its turn already says the call
+is the decision. The definitions keep the word, `LGTM` and `APPROVED`, which is
+what a `loop`'s `until` reads. Each contract is now stated once, by whoever
+reads it: the word by the definition, for anything that matches words, and
+the call by the node that reads the call. What an agent can do stays readable:
+its file says what it holds everywhere, and a `verdict:` node says what it
+adds, as `output:` does for `submit`.
+
+The auditor's line about putting its fixes in `raised` moved to the `audit`
+section of the shipped `build`, the one place it applies. `test/agent.test.ts`
+holds every shipped agent to the rule: neither `verdict` nor `submit` in its
+`tools:` or in its prompt. The tool's `until` description names the two words,
+so a session calling `loop` knows what the shipped agents answer with. A
+user's agent that still names `verdict` is not refused; it runs as before, and
+[Agents](guide/agents.md) says what the name costs.
+
 ### A working copy belongs to the work, not to the subagent
 
 `deliver` pins `concurrency` to 2 because its workers write to the same tree.

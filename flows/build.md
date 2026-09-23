@@ -93,6 +93,9 @@ done until the code shows it is. `tests` says whether the project's own tests
 pass; while they fail, the work is not finished, so raise what makes them fail.
 `deliver.ledger` holds what an earlier audit raised and nobody has closed yet.
 
+Approve the whole, or raise each fix line on its own: each one comes back to
+you by its id, and the work is not finished while one of them is open.
+
 ## report
 Tell the person who asked for the work under `input` what they now have. The
 change is under `diff`, and it is the evidence. How each subtask of the last

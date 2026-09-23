@@ -4,6 +4,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { after, describe, test } from "node:test";
 import { findAgent, loadAgents, loadAgentsFromDir, parseAgent } from "../src/agent.ts";
+import { BUILTIN_AGENTS_DIR } from "../src/builtin.ts";
+import { SUBMIT_TOOL } from "../src/flow/run/submit.ts";
+import { VERDICT_TOOL } from "../src/review/index.ts";
 
 const tmpDirs: string[] = [];
 after(() => {
@@ -158,6 +161,19 @@ describe("loadAgents", () => {
 			loadAgents({ cwd: dir, scope: "project", builtin: true }).some((agent) => agent.name === "scout"),
 			"the extension asks for them: without that it works only where they were copied by hand",
 		);
+	});
+
+	test("a shipped agent neither names nor mentions a tool only a flow node grants", () => {
+		// A `/step`, the tool's modes and a TypeScript `loop` offer neither, and a
+		// model told of one calls it anyway and is refused, turn after turn.
+		const agents = loadAgentsFromDir(BUILTIN_AGENTS_DIR, "builtin");
+		assert.ok(agents.some((agent) => agent.name === "reviewer"));
+		for (const agent of agents) {
+			for (const tool of [VERDICT_TOOL, SUBMIT_TOOL]) {
+				assert.ok(!agent.tools?.includes(tool), `${agent.name} names \`${tool}\` in its tools:`);
+				assert.ok(!agent.systemPrompt.includes(`\`${tool}\``), `${agent.name}'s prompt mentions \`${tool}\``);
+			}
+		}
 	});
 
 	test("a repository's agent replaces a shipped one of the same name", () => {

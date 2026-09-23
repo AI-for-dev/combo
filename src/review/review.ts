@@ -34,8 +34,8 @@ export type ReviewRecordOptions = {
 	 * A caller's own reading of the prose.
 	 *
 	 * It stands in for the word **and** for the tool: a reviewer whose
-	 * definition names `verdict` still decides in prose when the caller says
-	 * how, because the caller's rule is the nearer one.
+	 * `tools:` name `verdict` still decides in prose when the caller says how,
+	 * because the caller's rule is the nearer one.
 	 */
 	approved?: ProseApproval;
 	/** Obligations a previous run recorded, for a resumed one to carry on. */
