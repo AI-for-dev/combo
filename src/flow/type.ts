@@ -7,7 +7,8 @@
  * and the `submit` tool all ask the same question of the same shape.
  *
  * There is no `any` and no `null`. A value a flow cannot name the shape of is
- * text, and text is read by an agent, never by a structural node.
+ * `text`: what an agent wrote with no `output:` schema. An agent reads it; a
+ * condition never does, since a decision read out of prose is a guess.
  */
 
 /**
@@ -17,6 +18,7 @@
  * it changes nothing about what matches.
  */
 export type ValueType = { readonly description?: string } & (
+	| { readonly kind: "text" }
 	| { readonly kind: "string" }
 	| { readonly kind: "number" }
 	| { readonly kind: "boolean" }

@@ -132,9 +132,12 @@ src/                the library
   board/            the swarm's board (board, claims, tool, agreement,
                     announced); index.ts is its door
   flow/             the flow format, built beside pipeline/ until it replaces
-                    it: type (what a value is), schema (how a file writes
+                    it: file (the text, read into nodes), node, sections,
+                    value, fault (why a flow is refused), check (the flow
+                    stage, against a catalogue) and checked (what it hands
+                    on), type (what a value is), schema (how a file writes
                     one), condition/ (a CEL subset: tokens, parse, compile,
-                    evaluate); index.ts is its door
+                    evaluate, address); index.ts is its door
   pipeline/         pipeline (the file), load (where it is), run (our code
                     walks the steps); index.ts is its door
   review/           review (the record), verdict (a decision as a tool call),
@@ -227,6 +230,7 @@ not a bibliography:
 | touch `Usage`, or an export | [docs/guide/measurements.md](docs/guide/measurements.md), [docs/guide/export.md](docs/guide/export.md) |
 | change the extension, a command or a card | [docs/guide/extension.md](docs/guide/extension.md) |
 | add or change a pipeline | [docs/guide/pipelines.md](docs/guide/pipelines.md), [docs/guide/build.md](docs/guide/build.md) |
+| add or change a flow key, a node kind or a fault code | [docs/guide/flows.md](docs/guide/flows.md), then the header of `src/flow/file.ts` |
 | define an agent | [docs/guide/agents.md](docs/guide/agents.md) |
 | pick up the project cold | [NEXT.md](NEXT.md) - what is left, and the traps already paid for |
 

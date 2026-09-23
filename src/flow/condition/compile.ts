@@ -17,7 +17,10 @@ import { parse, type Expr } from "./parse.ts";
 import { SyntaxFault } from "./tokens.ts";
 
 /** Why a condition was refused. Stable, so tests and the documentation's table can name them. */
-export type ConditionCode = "condition-syntax" | "condition-unknown-address" | "condition-type" | "condition-enum-value";
+export const CONDITION_CODES = ["condition-syntax", "condition-unknown-address", "condition-type", "condition-enum-value"] as const;
+
+/** One of {@link CONDITION_CODES}. */
+export type ConditionCode = (typeof CONDITION_CODES)[number];
 
 /** One reason a condition is refused. The validator adds the file and the node. */
 export type ConditionProblem = { readonly code: ConditionCode; readonly message: string };
@@ -47,7 +50,7 @@ export function compileCondition(source: string, readable: Readable): Compiled {
 		if (!(error instanceof SyntaxFault)) throw error;
 		return { ok: false, problems: [{ code: "condition-syntax", message: error.message }] };
 	}
-	const checker = new Checker(source);
+	const checker = new Checker(source, false);
 	const result = checker.check(expr, new Map(Object.entries(readable)));
 	if (result !== undefined && result.type.kind !== "boolean") {
 		checker.problem("condition-type", `a condition is a boolean, and \`${source.trim()}\` is ${article(result.type)}`);
@@ -62,12 +65,21 @@ type Typed = { readonly type: ValueType; readonly literals?: readonly string[] }
 const BOOLEAN: ValueType = { kind: "boolean" };
 const NUMBER: ValueType = { kind: "number" };
 
-class Checker {
+/**
+ * The type checker, for a condition and for an address alike.
+ *
+ * `acceptsText` is the one difference: an address may name an agent's prose
+ * whole, which is what `reads:` hands the next agent, while a condition never
+ * reads prose at all.
+ */
+export class Checker {
 	readonly problems: ConditionProblem[] = [];
 	private readonly source: string;
+	private readonly acceptsText: boolean;
 
-	constructor(source: string) {
+	constructor(source: string, acceptsText: boolean) {
 		this.source = source;
+		this.acceptsText = acceptsText;
 	}
 
 	problem(code: ConditionCode, message: string): undefined {
@@ -84,11 +96,11 @@ class Checker {
 				return this.list(expr, scope);
 			case "name": {
 				const type = scope.get(expr.name);
-				if (type !== undefined) return { type };
+				if (type !== undefined) return this.typed(expr, { type });
 				return this.problem("condition-unknown-address", `\`${expr.name}\` is not readable here; what is: ${[...scope.keys()].join(", ") || "nothing"}`);
 			}
 			case "select":
-				return this.select(expr, this.check(expr.target, scope));
+				return this.typed(expr, this.select(expr, this.check(expr.target, scope)));
 			case "not":
 				return this.booleans([expr.operand], scope);
 			case "binary":
@@ -110,6 +122,12 @@ class Checker {
 				return this.booleans([expr.body], new Map([...scope, [expr.variable, target.type.of]]));
 			}
 		}
+	}
+
+	/** What an address gave, unless it is prose a condition may not read. */
+	private typed(expr: Expr, typed: Typed): Typed {
+		if (typed === undefined || typed.type.kind !== "text" || this.acceptsText) return typed;
+		return this.problem("condition-type", `\`${this.text(expr)}\` is text, written with no \`output:\` schema; a condition reads typed values only`);
 	}
 
 	private list(expr: Expr & { kind: "list" }, scope: ReadonlyMap<string, ValueType>): Typed {
@@ -210,6 +228,8 @@ function article(type: ValueType): string {
 		case "list":
 		case "object":
 			return `${type.kind === "list" ? "a list" : "an object"} (${showType(type)})`;
+		case "text":
+			return "text, read whole";
 		default:
 			return `a ${type.kind}`;
 	}

@@ -1299,6 +1299,44 @@ after `input:`) into the one type model conditions are checked against.
   a dash as subtraction, so `next-step` would be a field no condition could
   read. It is refused where the schema declares it.
 
+### A flow is refused whole, and each mistake once
+
+`src/flow/file.ts` reads a flow's text into nodes and `src/flow/check.ts`
+resolves its names against a catalogue; `checkFlow` is the one door, and a
+`CheckedFlow` is the one thing the runner will take.
+
+- **A fault is data with a stable code.** `{ code, file, at, message }`, never
+  an exception, so every fault of a file comes back at once and a caller formats
+  them. Tests assert codes, not wording, and `docs/guide/flows.md` explains each
+  code in a table that a test holds to `FAULT_CODES`. There are no warnings:
+  what deserves flagging deserves refusing.
+- **One mistake is one fault.** A node that is refused is left out of its
+  sequence and its id remembered, so a read of it, a section for it and a
+  condition on it say nothing more. A broken `input:` is treated the same way.
+  Faults come back in file order (the flow's keys, then each node with its own
+  section, then the body), whatever order the checks ran in.
+- **A key valid elsewhere is still unknown here.** `max:` on an `agent` node is
+  refused with the keys the kind has; a typo is offered the nearest key within
+  two edits.
+- **An id is a CEL identifier, everywhere.** Letters, digits and `_`, and
+  neither an address word nor a word CEL reserves. A node id with a dash would
+  be readable by `reads:` and not by a condition, which is two rules for one
+  name; one rule means no flow ever holds a node its conditions cannot name.
+  The message offers `ask_next` for `ask-next`.
+- **A flow is found by its file name, and its `name:` must agree.** A file that
+  does not parse still has a name then, so it is reported as broken rather than
+  as unknown; an author asking for `build` and told "unknown flow" while
+  `build.md` sits right there is the failure this prevents.
+- **An agent's text is its own type.** `text` is what an agent with no
+  `output:` wrote: `reads:` hands it on whole, and a condition refuses it. The
+  alternative, typing it `string`, would let `plan.output == "done"` read a
+  decision out of prose.
+- **An address is typed by the condition checker.** `plan.output.first` is a
+  CEL field selection, so `reads:`, `agent-from:` and a condition share one
+  parser and one checker and cannot disagree on what an address names.
+- **A `##` inside a fenced code block is prose.** A section may show the
+  Markdown it asks for, and the linear format's reader would have cut it there.
+
 ## A chain walked by hand
 
 `/run explore …` put its answer in the conversation, and the session picked it
