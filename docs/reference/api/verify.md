@@ -17,6 +17,10 @@ array. The pattern is the one `git.ts` already follows: the agents produce
 text, our code performs the act, and the result comes back as evidence
 nobody can argue with.
 
+A flow's `check` node has a port of its own, {@link CheckScript}: it runs a
+script whose content was read before the run, so it takes more than
+`Verify`'s nothing. `Verify` stays for the linear pipeline, and goes with it.
+
 ## `commandVerifier`
 
 *function*

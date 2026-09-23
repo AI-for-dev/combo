@@ -22,6 +22,7 @@ export const KIND_KEYS = {
 	map: "map",
 	"map-from": "map",
 	loop: "loop",
+	check: "check",
 } as const;
 
 /** Every key a node of each kind may carry. Anything else is refused. */
@@ -31,7 +32,17 @@ export const NODE_KEYS = {
 	parallel: ["id", "parallel", "copies", "fail-fast", "on-fail"],
 	map: ["id", "map", "map-from", "max", "concurrency", "copies", "fail-fast", "ledger", "do", "on-fail"],
 	loop: ["id", "loop", "max", "give-up", "carry", "ledger", "do", "on-fail"],
+	check: ["id", "check", "timeout", "on-fail"],
 } as const;
+
+/**
+ * The kinds that refuse `retry:`, each with what to do instead. It is refused
+ * with its own reason rather than as an unknown key, since an author who
+ * wrote it meant something the kind has an answer to.
+ */
+export const RETRY_REFUSED: Partial<Record<NodeKind, string>> = {
+	check: "a check is not retried: raise `timeout:`, or make the check stable",
+};
 
 /** A kind of node. */
 export type NodeKind = keyof typeof NODE_KEYS;
@@ -105,8 +116,16 @@ export type LoopNode = Common & {
 	readonly nodes: readonly FlowNode[];
 };
 
+/** A script of the project, run with `bash` in the working tree the node sits in. */
+export type CheckNode = Common & {
+	readonly kind: "check";
+	/** Its path from the repository root, normalised. */
+	readonly script: string;
+	readonly timeoutMs: number;
+};
+
 /** A node of any kind. */
-export type FlowNode = AgentNode | ChoiceNode | ParallelNode | MapNode | LoopNode;
+export type FlowNode = AgentNode | ChoiceNode | ParallelNode | MapNode | LoopNode | CheckNode;
 
 /** What reading a whole file shares, from one node to the next and into nested ones. */
 export type ReadContext = {

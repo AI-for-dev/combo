@@ -50,11 +50,13 @@ export function head(text: string, max: number, what = "text"): string {
  * The last `max` characters, marked when something was cut.
  *
  * For a check's output: the failure is at the end, after everything that
- * passed, and the end is what a reader needs.
+ * passed, and the end is what a reader needs. `dropped` counts what a reader
+ * of a stream already let go before `text`, so the mark says the whole.
  */
-export function tail(text: string, max: number): string {
+export function tail(text: string, max: number, dropped = 0): string {
 	const trimmed = text.trim();
-	return trimmed.length <= max ? trimmed : `[…${trimmed.length - max} bytes cut]\n${trimmed.slice(-max)}`;
+	const cut = dropped + Math.max(0, trimmed.length - max);
+	return cut === 0 ? trimmed : `[…${cut} bytes cut]\n${trimmed.slice(-max)}`;
 }
 
 /** The first line, or `""`. What a collapsed row shows of a command. */

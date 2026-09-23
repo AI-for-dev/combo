@@ -1418,7 +1418,7 @@ are. `src/flow/agents.ts` resolves the names a flow gives.
 
 ### The runner composes every turn, and reads a typed value from a tool call
 
-`src/flow/run/` walks a `CheckedFlow`: `runFlow`, and `dryRunFlow` on scripted
+`src/flow/run/` walks a checked flow: `runFlow`, and `dryRunFlow` on scripted
 sessions. It walks every kind of node, and throws before the first spawn on
 `copies: true`, since the checked flow is fine and it is the runner that falls
 short.
@@ -1520,6 +1520,55 @@ and the ledgers and `verdict:` nodes go through the review record.
 - **A subagent's `spawn` event carries its `visit`.** That is the one link the
   live view needs between a plan line and the subagents that ran it. A scope's
   subagent names the first visit that asked for it.
+
+### A check runs what was read before the run, and the run stage reads it
+
+A `check` node names a script of the project; `checkRun` is the run stage,
+and `runFlow` takes the `CheckedRun` it returns in place of a flow and a
+`cwd` option.
+
+- **The `check` port sits beside `Verify` in `src/verify.ts`.** `CheckScript`
+  takes the script's content, a directory and a bound; `Verify` takes nothing,
+  and the linear pipeline still calls it. Both are the project checking itself,
+  so they share a file, and `Verify` goes when the pipeline does.
+- **The content runs as `bash -c <content> <path>`.** `checkRun` reads each
+  script once, and the `CheckedRun` holds what it read, so an agent editing the
+  file mid-run changes nothing and no file is read twice. `$0` is the path, so
+  a script that finds its siblings by `dirname "$0"` still does. Its stdin is
+  closed: nobody can type into a check, and one that waits for input ends.
+- **The script leads a process group, killed whenever it ends.** A timeout or a
+  stop that killed only `bash` would leave a test runner's workers holding the
+  pipes, and the check would not end until they did; killing the group at a
+  normal exit too clears what a script left in the background.
+- **The report is a rolling window over both streams, in arrival order.** The
+  output of a check is not bounded, and 8000 bytes of it is all that is kept, so
+  no more than twice that is ever held. `tail` takes how much was already let go,
+  and its mark counts the whole.
+- **A check's bound is its own.** The run's `timeoutMs` and the flow's
+  `timeout:` bound agent turns: a slow provider, which the operator sees and the
+  author cannot. How long a project's suite takes is the project's, and a
+  `--timeout` raised for a slow model should not let a hung suite hang the run.
+- **`retry:` on a check is refused with its reason, not as an unknown key.**
+  `retry-refused` says to raise `timeout:` or make the check stable; a plain
+  unknown key would offer the kind's keys to someone who meant something.
+  `RETRY_REFUSED` holds one reason per kind, so `commit` and `flow` add theirs.
+- **The path is checked twice.** An absolute path, or one leaving the
+  repository, is a flow-stage `key-type`, since no project can make it right.
+  Whether the file is there is the run stage's, against the `cwd` it is given,
+  which the launch sets to the repository root.
+- **A missing port or script is one fault.** Two nodes naming one missing
+  script, or a flow of checks launched with no `check` port, is one mistake,
+  reported at the first node that needs it.
+- **The port says `stopped`, the runner reads the signals.** `CheckScript`
+  knows nothing of `fail-fast`, so a stop and a cut are read off the run's and
+  the block's signals, as for an agent visit.
+- **A dry run answers a check by the same keys as an agent turn.** An answer
+  is `{ passed, report }` or `{ fail: "unavailable" | "timeout" }`, checked
+  before the start, and a check no answer covers is `unscripted`. It takes a
+  `CheckedFlow`, so it reads no script.
+- **`checkRun` takes `somebodyThere` already.** The launch states it once, and
+  the `CheckedRun` holds it, so the `ask` node reads it rather than changing
+  every caller of `checkRun`.
 
 ## A chain walked by hand
 

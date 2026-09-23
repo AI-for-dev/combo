@@ -13,12 +13,14 @@ import type { EventBus } from "../../events.ts";
 import { VERDICT_TOOL } from "../../review/index.ts";
 import { toolsOf } from "../../session.ts";
 import { emptyUsage, sumUsage, type Usage } from "../../usage.ts";
+import type { ScriptOutcome } from "../../verify.ts";
 import type { SpawnFn } from "../../workflows/options.ts";
-import { caseNames, type CheckedAgentNode, type CheckedChoiceNode, type CheckedFlow, type CheckedNode, type FlowError } from "../checked.ts";
+import { caseNames, type CheckedAgentNode, type CheckedCheckNode, type CheckedChoiceNode, type CheckedFlow, type CheckedNode, type FlowError } from "../checked.ts";
 import { evaluateCondition } from "../condition/index.ts";
 import { sharedKey, sharedSubagents, submitted } from "../memory.ts";
 import { visitAgent, type AgentRun, type Attempt } from "./agent.ts";
 import { visitMap, visitParallel } from "./blocks.ts";
+import { visitCheck, type CheckingRun } from "./check.ts";
 import { failure, interruption, travelled, under, type Ended, type Visited, type Walked } from "./ended.ts";
 import type { Frames, Held } from "./frames.ts";
 import { visitLoop } from "./loop.ts";
@@ -38,20 +40,29 @@ export type Here = { readonly values: Values; readonly frames: Frames; readonly 
 /** What a block needs of the walk: the run's signal, and a sequence walked inside it. */
 export type Walker = { readonly signal: AbortSignal; sequence(nodes: readonly CheckedNode[], prefix: string, here: Here): Promise<Walked> };
 
-/** What a run is given: the flow, and how it reaches the world. */
-export type Walk = {
+/**
+ * How a walk reaches the world: the tree its subagents work in, the deadline
+ * of each agent attempt, and a check's script run. A real run's come from its
+ * `CheckedRun`; a dry run's are scripted, and give no tree.
+ */
+export type World = {
+	readonly cwd?: string;
+	deadline(attempt: Attempt): AbortSignal;
+	check(node: CheckedCheckNode, path: string, signal: AbortSignal): Promise<ScriptOutcome>;
+};
+
+/** What a run is given: the flow, its settings, and how it reaches the world. */
+export type Walk = World & {
 	readonly flow: CheckedFlow;
 	readonly bus: EventBus;
 	readonly signal: AbortSignal;
 	readonly spawn: SpawnFn;
 	readonly model?: string;
 	readonly timeoutMs?: number;
-	readonly cwd?: string;
-	readonly deadline: (attempt: Attempt) => AbortSignal;
 };
 
 /** One run of a checked flow. */
-export class Run implements AgentRun, Walker {
+export class Run implements AgentRun, CheckingRun, Walker {
 	readonly signal: AbortSignal;
 	private readonly walk: Walk;
 	private readonly shared: ReturnType<typeof sharedSubagents>;
@@ -86,6 +97,10 @@ export class Run implements AgentRun, Walker {
 
 	deadline(attempt: Attempt): AbortSignal {
 		return this.walk.deadline(attempt);
+	}
+
+	check(node: CheckedCheckNode, path: string, signal: AbortSignal): Promise<ScriptOutcome> {
+		return this.walk.check(node, path, signal);
 	}
 
 	/**
@@ -139,6 +154,8 @@ export class Run implements AgentRun, Walker {
 				return visitMap(this, node, path, here);
 			case "loop":
 				return visitLoop(this, node, path, here);
+			case "check":
+				return visitCheck(this, node, path, here);
 		}
 	}
 

@@ -14,7 +14,7 @@ import { AgentNames } from "./agents.ts";
 import type { FlowCatalogue } from "./catalogue.ts";
 import { checkChoice, checkMap, checkParallel } from "./check-blocks.ts";
 import { checkLoop } from "./check-loop.ts";
-import { VERDICT, type CheckedAgentNode, type CheckedFlow, type CheckedNode, type CheckedRead } from "./checked.ts";
+import { CHECK, VERDICT, type CheckedAgentNode, type CheckedFlow, type CheckedNode, type CheckedRead } from "./checked.ts";
 import { compileCondition, typeOfAddress, type Condition, type Readable } from "./condition/index.ts";
 import { FaultList, type Fault } from "./fault.ts";
 import { readFlow, type FlowFile } from "./file.ts";
@@ -139,6 +139,8 @@ export class Checker {
 				return checkMap(this, node, scope);
 			case "loop":
 				return checkLoop(this, node, scope);
+			case "check":
+				return { node, output: CHECK };
 		}
 	}
 
