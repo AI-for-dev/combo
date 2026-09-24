@@ -4140,6 +4140,19 @@ without answering anyone. The board's own caps still bound it.
 it would have counted as the quoter's own. A cap on results would also be
 worthless if a vote could still arrive as a `tell`.
 
+### A member's failed turn is asked again once
+
+A member whose turn failed dropped out of the swarm for good. `/swarm --agent
+debater --until agree` on qwen-3.6-35b-instruct: one debater's first turn was cut
+by the output limit, in a loop repeating one phrase. It dropped out holding no
+vote, so `agreed(3)` could not fire, and the three rounds left ran for nothing.
+
+A failed turn is now asked again the next round, and two failed turns in a row
+take the member out. The shipped flows follow the same rule: every agent node
+is asked at most twice. Asked again in the same round, the member would see the
+same board it failed on. The next round hands it what the others said since,
+and the round cap still bounds the whole.
+
 ### A member does not post the same thing twice
 
 `/swarm --agent debater --until agree` in a real pi, on

@@ -155,9 +155,9 @@ done.claims;   // what was held at the end, and what the swarm released
 done.converged // whether `until` fired. Reaching the round cap is not success
 ```
 
-A round is one `ask` per live member. A member whose turn fails drops out rather
-than costing every remaining round, and keeps the turn that failed as its
-answer. `lifetime` defaults to `"workflow"` here and nowhere else: a member that
+A round is one `ask` per live member. A member whose turn fails is asked again
+the next round. After two failed turns in a row it drops out rather than costing
+every remaining round, and keeps the turn that failed as its answer. `lifetime` defaults to `"workflow"` here and nowhere else: a member that
 forgets the last round cannot build on what it saw. For the same reason
 `lifetime: "task"` with more than one round is refused outright - a member's id
 is its name on the board, and a task-lifetime member gets a new one every round.

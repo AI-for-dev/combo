@@ -52,6 +52,16 @@ import { mapConcurrent } from "./concurrent.ts";
 import { offerBoth, type WorkflowOptions } from "./options.ts";
 import { type Held, SubagentPool } from "./pool.ts";
 
+/**
+ * Failed turns in a row that take a member out of the swarm.
+ *
+ * Two, so a failed turn is asked again once, the rule every agent node of the
+ * shipped flows follows. Measured in a real pi: a debater cut by the output
+ * limit in the first round dropped out, and an agreement that needed its vote
+ * could not happen in any of the three rounds still paid for.
+ */
+const DROPPED_AFTER = 2;
+
 /** How many of one agent stand on the board. A swarm of one is a run. */
 export type MemberSpec = {
 	/** Whose copies these are. */
@@ -134,8 +144,9 @@ export type SwarmResult = WorkflowResult & {
  * Runs a swarm.
  *
  * A round is one `ask` per live member, through `mapConcurrent`. A member whose
- * turn fails drops out rather than costing every remaining round, and keeps the
- * turn that failed as its result.
+ * turn fails is asked again the next round; two failed turns in a row and it
+ * drops out rather than costing every remaining round, keeping the turn that
+ * failed as its result.
  *
  * The pool closes everything in a `finally`, cancellation included, and the
  * claims of whoever is gone are released before the result is built.
@@ -205,6 +216,7 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 		members = await mapConcurrent(roster, concurrency, async (agent, index) => ({
 			...(await pool.hold(agent, { key: `${agent.name}@${index}` })),
 			agent,
+			failures: 0,
 		}));
 
 		for (let round = 1; round <= rounds; round++) {
@@ -213,9 +225,10 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 				break;
 			}
 
-			// A member whose turn failed drops out rather than costing every
-			// remaining round, and keeps the turn that failed as its answer.
-			const asking = members.filter((one) => round === 1 || one.result?.ok);
+			// A failed turn is asked again once, the next round. Two in a row and the
+			// member drops out rather than costing every remaining round, keeping the
+			// turn that failed as its answer.
+			const asking = members.filter((one) => one.failures < DROPPED_AFTER);
 			if (asking.length === 0) {
 				stoppedBy = "members";
 				break;
@@ -226,6 +239,7 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 				const seat = seatOf(member.id);
 				seat.turn?.begin();
 				member.result = await member.ask(task(goal, round, seat.reader.next().posts, claims));
+				member.failures = member.result.ok ? 0 : member.failures + 1;
 			});
 
 			if (until?.(board)) {
@@ -281,6 +295,8 @@ type Seat = { reader: Reader; turn?: TurnBoard };
 /** A member, while the swarm runs: who it is, and what it last said. */
 type Member = Held & {
 	agent: Agent;
+	/** Its failed turns in a row. */
+	failures: number;
 	result?: Result;
 };
 
