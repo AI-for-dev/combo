@@ -234,6 +234,9 @@ reachable by forgetting an argument.
 - A turn can **fail without throwing**: read the last assistant message's
   `stopReason`. `length` is one: the output limit cut the answer, often in
   its thinking with no text at all.
+- **An abort during pi's own retry wait leaves no trace in `messages`.** pi
+  drops the failed request before it waits, so the cut turn ends on a tool
+  call with no text and no error. Only the signal says it never finished.
 - **A `tool_execution_start` can carry an empty `toolName`.** Not missing,
   empty, so `??` never fires and the name reads as nothing at all. Anything
   taking a name off a pi event wants `|| "?"`, not `?? "?"`.

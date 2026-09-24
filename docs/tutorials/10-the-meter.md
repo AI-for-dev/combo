@@ -29,7 +29,7 @@ Two consequences you have already seen and may not have read:
   turn ends, and nothing stands in for them before.
 - **`input` counts every request, not every turn.** pi sends the whole prompt
   on each round trip, so a scout that makes seven tool calls sends its growing
-  context eight times. The run below has one that read 53k for a single turn.
+  context eight times. The run below has one that read 121k for a single turn.
   That number is right. The turn is the cost, and the counter is telling you
   so.
 
@@ -44,67 +44,71 @@ subagents still working:
 ● look · 0/3
   ● look[1]
     ● look[1]/find
-      ● scout#1  grep /wall\s*time|walltime/  provider/model · 13.1s
+      ▸ scout#1  read extension/ui/run.ts:90  provider/model · 13.4s
   ● look[2]
     ● look[2]/find
-      ▸ scout#2  read src/subagent.ts  provider/model · 13.1s
+      ● scout#2  read src/subagent.ts  provider/model · 13.4s
   ● look[3]
     ● look[3]/find
-      ● scout#3  grep /subagent/  provider/model · 13.1s
-○ answer · agent synthesiser (.pi/agents/synthesiser.md) · reads input, look · timeout 30m by default · ≤ 1 turn · ≤ …
+      ● scout#3  read src/subagent.ts  provider/model · 13.4s
+○ answer · agent synthesiser (.pi/agents/synthesiser.md) · reads input, look · retry 1 · timeout 30m by default · ≤ 2…
 esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
 ```
 
 `ctrl+del` stops the one it points at:
 
 ```
-stop: scout#2 stopped - the other subagents are untouched
+stop: scout#1 stopped - the other subagents are untouched
 
-● explore · 1 visit · 1 failed · 17s · ↑9.1k ↓557
+● explore · 1 visit · 1 failed · 16s · ↑25k ↓714
 ● look · 1/3
-  ● look[1]
-    ● look[1]/find
-      ● scout#1  read src/subagent.ts  provider/model · 16.8s
-  ✗ look[2] · stopped: scout#2 was stopped · 14s · ↑9.1k ↓557
+  ✗ look[1] · stopped: scout#1 was stopped · 16s · ↑25k ↓714
+  ● look[2]
+    ● look[2]/find
+      ● scout#2  read src/subagent.ts  provider/model · 15.9s
   ● look[3]
     ● look[3]/find
-      ● scout#3  grep /subagent/  provider/model · 16.8s
-○ answer · agent synthesiser (.pi/agents/synthesiser.md) · reads input, look · timeout 30m by default · ≤ 1 turn · ≤ …
+      ● scout#3  read src/subagent.ts  provider/model · 15.8s
+○ answer · agent synthesiser (.pi/agents/synthesiser.md) · reads input, look · retry 1 · timeout 30m by default · ≤ 2…
 esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
 ```
 
 The stopped visit has a bill: its turn ended, by the stop, so pi's counters
 were read. The two still working have none yet.
 
-Be quick about it. Twice, on this page's runs, the scout under the `▸`
-finished between the two keys, and `ctrl+del` answered with a warning rather
+Be quick about it. Twice, on earlier runs of this page, the scout under the
+`▸` finished between the two keys, and `ctrl+del` answered with a warning rather
 than stopping a subagent that was no longer there:
 
 ```
 Warning: stop: no subagent `scout#1` is running - try scout#2, scout#3
 ```
 
-`/stop scout#2` does what `ctrl+del` did, by name. `esc`, or `/stop all`, stops every
+`/stop scout#1` does what `ctrl+del` did, by name. `esc`, or `/stop all`, stops every
 subagent of the run, and the run with them.
 
 One subagent stopping is **not** the run stopping, and what happens next is
-the flow's business. `explore` marks its scouts `on-fail: continue`, so the
-map ended with one failed item, and the synthesiser was handed the two reports
-and the failure:
+the flow's business. The scouts' `retry: 1` does not cover a stop: a person
+pressing a key is not a failure to try again, so `look[1]` stayed failed.
+`explore` marks its scouts `on-fail: continue`, so the map ended with one
+failed item, and the synthesiser was handed the two reports and the failure:
 
 ```
-✓ explore · 5 visits · 1 failed · 1m3s · ↑86k ↓5.6k
-✓ look · 3 items · 1 failed · 58s · ↑84k ↓4.4k
-✓ answer · synthesiser · 5s · ↑1.9k ↓1.2k
+✓ explore · 5 visits · 1 failed · 1m25s · ↑168k ↓6.6k
+✓ look · 3 items · 1 failed · 1m18s · ↑166k ↓5.6k
+✓ answer · synthesiser · 7s · ↑2.1k ↓948
 ```
 
-Its answer did not say that a third of the reading was missing, and it said
-that the wall time "is generally not shown as a standalone duration for a
-single instance in the primary UI", with a sentence from one of these
-tutorials, a model's answer quoted on an earlier page, as its evidence. The
-clock on every
-line above is that duration. The scout sent to find how it is tested was the
-one stopped.
+Its answer did not say that a third of the reading was missing. It said that
+the wall time "is generally not shown as a standalone duration for a subagent
+and is primarily used internally for calculations such as parallelism", and
+named its source: `docs/tutorials/10-the-meter.md`, this page. `scout#3`'s
+grep had matched the paragraph you are reading, as an earlier run of this
+page wrote it: it quoted an earlier synthesiser's claim in order to refute
+it, and the scout handed the quote on as the documentation. The clock on every
+line above is that duration. The scout that was stopped was the one sent to
+find where the wall time is implemented, and it was reading
+`extension/ui/run.ts`, the live view, when the key landed.
 
 ## Read the bill
 
@@ -114,27 +118,27 @@ its times rounded to the millisecond:
 
 ```json
 {
-	"wallMs": 62332,
-	"total": { "wallMs": 62332, "busyMs": 132591, "turns": 4, "input": 85919, "output": 5596, "cost": 0, "subagents": 4, "failed": 1 },
-	"parallelism": 2.127,
+	"wallMs": 84516,
+	"total": { "wallMs": 84516, "busyMs": 117984, "turns": 4, "input": 168037, "output": 6564, "cost": 0, "subagents": 4, "failed": 1 },
+	"parallelism": 1.396,
 	"subagents": [
-		{ "id": "scout#2", "agent": "scout", "model": "provider/model", "ok": false, "error": "stopped", "toolCalls": 3,
-		  "usage": { "wallMs": 13657, "turns": 1, "input": 9078, "output": 557, "cost": 0 }, "home": "look[2]/find", "life": 1 }
+		{ "id": "scout#1", "agent": "scout", "model": "provider/model", "ok": false, "error": "stopped", "toolCalls": 4,
+		  "usage": { "wallMs": 15847, "turns": 1, "input": 24792, "output": 714, "cost": 0 }, "home": "look[1]/find", "life": 1 }
 	],
 	"visits": [
-		{ "path": "look", "node": "look", "kind": "map", "life": 1, "ok": true, "wallMs": 57624, "usage": { "input": 84007 } },
-		{ "path": "look[2]/find", "node": "look/find", "kind": "agent", "agent": "scout", "subagent": "scout#2", "life": 1, "ok": false, "wallMs": 13681 },
-		{ "path": "look[3]/find", "node": "look/find", "kind": "agent", "agent": "scout", "subagent": "scout#3", "life": 1, "ok": true, "wallMs": 56683 },
-		{ "path": "look[1]/find", "node": "look/find", "kind": "agent", "agent": "scout", "subagent": "scout#1", "life": 1, "ok": true, "wallMs": 57624 },
-		{ "path": "answer", "node": "answer", "kind": "agent", "agent": "synthesiser", "subagent": "synthesiser#1", "life": 1, "ok": true, "wallMs": 4704 }
+		{ "path": "look", "node": "look", "kind": "map", "life": 1, "ok": true, "wallMs": 77871, "usage": { "input": 165961 } },
+		{ "path": "look[1]/find", "node": "look/find", "kind": "agent", "agent": "scout", "subagent": "scout#1", "life": 1, "ok": false, "wallMs": 15870 },
+		{ "path": "look[3]/find", "node": "look/find", "kind": "agent", "agent": "scout", "subagent": "scout#3", "life": 1, "ok": true, "wallMs": 17706 },
+		{ "path": "look[2]/find", "node": "look/find", "kind": "agent", "agent": "scout", "subagent": "scout#2", "life": 1, "ok": true, "wallMs": 77871 },
+		{ "path": "answer", "node": "answer", "kind": "agent", "agent": "synthesiser", "subagent": "synthesiser#1", "life": 1, "ok": true, "wallMs": 6643 }
 	],
 	"nodes": [
-		{ "node": "look", "visits": 1, "wallMs": 57624 },
-		{ "node": "look/find", "visits": 3, "wallMs": 127987 },
-		{ "node": "answer", "visits": 1, "wallMs": 4704 }
+		{ "node": "look", "visits": 1, "wallMs": 77871 },
+		{ "node": "look/find", "visits": 3, "wallMs": 111446 },
+		{ "node": "answer", "visits": 1, "wallMs": 6643 }
 	],
 	"lives": [
-		{ "startedAt": "2026-09-24T00:52:38.599Z", "wallMs": 62332, "end": "ok" }
+		{ "startedAt": "2026-09-24T04:00:28.178Z", "wallMs": 84516, "end": "ok" }
 	]
 }
 ```
@@ -142,22 +146,23 @@ its times rounded to the millisecond:
 Four lists, each linked to the others by path and id:
 
 - **`subagents`**, one per subagent, the stopped one included with its bill.
-  A scout stopped after 9k tokens cost 9k tokens, and dropping it would make
+  A scout stopped after 25k tokens cost 25k tokens, and dropping it would make
   an expensive failure read as a cheap run.
 - **`visits`**, one per visit of the flow, every kind included: a `check` or
   an `ask` has its time and no tokens. A visit holds the visits inside it, so
   `look` is the three scouts, and the three `find`s come after it in the order
   they ended.
 - **`nodes`**, one per node of the file, summed over its visits: `look/find`
-  ran three times for 128 seconds of work.
+  ran three times for 111 seconds of work.
 - **`lives`**, one per process that ran it. This one had a single life. The
   build of [page eight](08-build.md) that was killed and resumed has two, the
   first `"end": "interrupted"` and `"partial": true`: rebuilt from its journal,
   it counts the visits it ended and nothing of the review it was cut in.
 
-`parallelism` is busy over wall: 133 seconds of work in 62. A fan-out of three
-that reads 2.13 has its slowest branch setting the pace, and that ratio is the
-only number that says whether the fan-out bought anything.
+`parallelism` is busy over wall: 118 seconds of work in 85. A fan-out of three
+that reads 1.40 has its slowest branch setting the pace: `scout#2` read for 78
+seconds, and the other two had stopped or finished before 18. That ratio is
+the only number that says whether the fan-out bought anything.
 
 ## Set the deadline
 
@@ -171,26 +176,30 @@ a map of three gets three deadlines, a loop one per turn per iteration. A
 ```
 
 Twenty seconds is too short for these scouts, on purpose. Each turn was cut
-through pi's own abort, and each visit ended failed, with what it had spent,
-as the run's journal has it:
+through pi's own abort, and a timeout is one of the failures `retry: 1`
+covers, so each visit was asked twice, the second time by a fresh scout given
+the whole turn again. Both attempts ran out of time, and each visit ended
+failed, with what its two attempts had spent, as the run's journal has it:
 
-| visit | error | input |
-| --- | --- | --- |
-| `look[1]/find` | `timeout: no answer within 20000 ms` | 7,917 |
-| `look[2]/find` | `timeout: no answer within 20000 ms` | 22,999 |
-| `look[3]/find` | `timeout: no answer within 20000 ms` | 21,146 |
+| visit | scouts | error | turns | input |
+| --- | --- | --- | --- | --- |
+| `look[1]/find` | scout#1, scout#6 | `timeout: no answer within 20000 ms` | 2 | 44,186 |
+| `look[2]/find` | scout#2, scout#4 | `timeout: no answer within 20000 ms` | 2 | 9,088 |
+| `look[3]/find` | scout#3, scout#5 | `timeout: no answer within 20000 ms` | 2 | 54,422 |
 
 ```
-✓ explore · 5 visits · 3 failed · 23s · ↑53k ↓2.4k
-✓ look · 3 items · 3 failed · 21s · ↑52k ↓2.3k
-✓ answer · synthesiser · 3s · ↑1.4k ↓126
+✓ explore · 5 visits · 3 failed · 42s · ↑109k ↓4.7k
+✓ look · 3 items · 3 failed · 41s · ↑108k ↓4.5k
+✓ answer · synthesiser · 2s · ↑1.4k ↓170
 ```
 
-The synthesiser, handed three failures, said so: "All three reports failed
-due to timeouts; therefore, there is no information available regarding how
-the wall time of a subagent is measured or where it is shown." The run is
-`ok` because the flow decided that a failed scout is a value, not an end; the
-`1 failed` and `3 failed` on its lines are how you tell.
+Six scouts for three items, forty seconds a visit. The retry doubled what a
+too-short deadline costs, and it could not have saved a turn that needs more
+than twenty seconds: raise the deadline instead. The synthesiser, handed three
+failures, said so: "No information is available on how the wall time of a
+subagent is measured or where it is shown, as all three reports failed." The
+run is `ok` because the flow decided that a failed scout is a value, not an
+end; the `1 failed` and `3 failed` on its lines are how you tell.
 
 A loop has a cap of its own, `max:`, and a `map-from` list a `max:` of its own
 too, both required. A turn's deadline has a default and a loop's cap does not,
