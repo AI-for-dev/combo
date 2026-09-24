@@ -32,11 +32,13 @@ nodes:
     do:
       - id: find
         agent: scout
+        retry: 1
         reads: [input, item]
         on-fail: continue
 
   - id: answer
     agent: synthesiser
+    retry: 1
     reads: [input, look]
 ---
 
@@ -55,7 +57,11 @@ Two nodes. A `map` over three **literal** tasks, whose one node is a scout's
 turn, then a synthesiser that reads the question and the three reports. Each
 turn is handed exactly what its `reads:` names, each under its own heading.
 Nothing in the file decides anything at run time: our code walks it, and the
-only thing a model chooses is what to write.
+only thing a model chooses is what to write. Both agent nodes carry
+`retry: 1`: a turn that fails on the provider, off its deadline or off its
+schema is asked once more, so each node is asked at most twice. A stop is
+never retried. [Flows](../guide/flows.md#failures-retries-and-timeouts) has
+the rules.
 
 ## Run it
 
@@ -66,51 +72,57 @@ only thing a model chooses is what to write.
 The flow's plan appears above the prompt at once, and fills as it goes:
 
 ```
-● explore · 1 visit · 20s · ↑17k ↓1.1k
+● explore · 1 visit · 20s · ↑20k ↓714
 ● look · 1/3
-  ● look[1]
-    ● look[1]/find
-      ● scout#1  read src/subagent.ts  provider/model · 19.2s
+  ✓ look[1] · 13s · ↑20k ↓714
   ● look[2]
     ● look[2]/find
-      ● scout#2  read test/trail.test.ts  provider/model · 19.2s
-  ✓ look[3] · 15s · ↑17k ↓1.1k
-○ answer · agent synthesiser (.pi/agents/synthesiser.md) · reads input, look · timeout 30m by default · ≤ 1 turn · ≤ …
+      ● scout#2  read test/trail.test.ts  provider/model · 19.1s
+  ● look[3]
+    ● look[3]/find
+      ● scout#3  read docs/tutorials/03-keep-the-session-out.md  provider/model · 19.1s
+○ answer · agent synthesiser (.pi/agents/synthesiser.md) · reads input, look · retry 1 · timeout 30m by default · ≤ 2…
 esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
 ```
 
-`look[3]` has finished and folded to one line, with its tokens. The two scouts
+`look[1]` has finished and folded to one line, with its tokens. The two scouts
 still working show a clock and no tokens: pi reports a turn's tokens when the
 turn ends, and until then there is no figure to show. The first line counts
-the run's time as it goes and adds up what has ended. Watch `scout#2`: it
-greps, reads `src/subagent.ts`, then `test/measured.test.ts`,
-`test/trail.test.ts` and `test/export.test.ts`. That is the branch that was
+the run's time as it goes and adds up what has ended. The dimmed last node
+says what the file gave it: what it reads, its one retry, and a bound of two
+turns, which the terminal's width cuts to `≤ 2…`. Watch `scout#2`: it greps
+twice, reads `src/subagent.ts`, then `test/trail.test.ts`,
+`test/measured.test.ts` and `test/export.test.ts`. That is the branch that was
 asked about tests, and you can see it doing that and nothing else. When the
-last scout closes, the synthesiser runs alone for 71 seconds, and the answer
+last scout closes, the synthesiser runs alone for 28 seconds, and the answer
 lands **in the conversation**:
 
 ```
 ◆ explore
 Result of the explore flow, asked to: how is the wall time of a subagent measured, and where.
 
-The wall time of a subagent is measured as the elapsed time from when it is spawned until it is either closed or
-accessed via its usage getter. This is implemented in src/subagent.ts using performance.now().
+The wall time of a subagent is measured in src/subagent.ts by calculating the elapsed time from the moment the subagent
+is spawned until the current time or until it is closed, using performance.now() to ensure a monotonic clock.
 
-The process is as follows:
-- Spawn: A timestamp is captured using performance.now() when the subagent is created.
-- Current Wall Time: The usage getter calculates the elapsed time by subtracting the spawn timestamp from the current
-  performance.now().
-- Final Wall Time: The duration is calculated one final time when the subagent is closed.
+Specifically:
+- At spawn: The start time is recorded: const spawnedAt = performance.now(); (line 174).
+- On demand: The usage getter calculates the current elapsed wall time: wallMs: performance.now() - spawnedAt (lines
+  206-208).
+- At close: The final total wall time is captured in the close() method: const finalUsage = { ...usage, wallMs:
+  performance.now() - spawnedAt }; (line 316).
 
-The reports disagree on the exact line numbers in src/subagent.ts where these are implemented (citing various lines
-around 161–176 for spawning, 203–227 for the getter, and 304–387 for closing). This is documented in
-docs/tutorials/03-keep-the-session-out.md.
+This implementation is documented in docs/guide/measurements.md as wallMs ("spawn to close, waiting included"). It is
+tested indirectly through test/trail.test.ts, test/measured.test.ts, and test/export.test.ts, which assert that wall
+time reflects actual elapsed time rather than the sum of busy times.
 
-ok · runs/2026-09-24_00-47-07
+The reports disagree on the line numbers for the spawn time and the usage getter; the code supports the line numbers
+provided in the third report (174 and 204-207 respectively).
 
-✓ explore · 5 visits · 1m44s · ↑102k ↓4.5k
-✓ look · 3 items · 33s · ↑100k ↓3.7k
-✓ answer · synthesiser · 1m11s · ↑2.2k ↓759
+ok · runs/2026-09-24_03-56-30
+
+✓ explore · 5 visits · 1m20s · ↑142k ↓5.8k
+✓ look · 3 items · 52s · ↑133k ↓4.1k
+✓ answer · synthesiser · 28s · ↑9.8k ↓1.7k
 ```
 
 That is the frame, verbatim. The line under the answer says how the run
@@ -119,11 +131,13 @@ finished, drawn for you and not sent to the model.
 
 ## Read the disagreement
 
-The three scouts each read `src/subagent.ts` and reported three different
-line numbers for each of the same three statements: 169, 161 and 176 for the
-spawn, 214, 203 and 224-227 for the getter, 307, 304 and 387 for the close.
-The synthesiser was told to say so rather than pick one, and it did, as
-ranges. Settle it yourself:
+The three scouts each read `src/subagent.ts` and gave line numbers for the
+same three statements: 201, 177 and 174 for the spawn, 233-236, 216-219 and
+204-207 for the getter, and 316 from all three for the close. The flow's
+prompt told the synthesiser to name a disagreement rather than pick a side;
+its own definition lets it read the code to settle one. It read
+`src/subagent.ts` once, ruled for the third report, and listed the getter as
+206-208 a few lines above its ruling. Settle it yourself:
 
 ```bash
 grep -n spawnedAt src/subagent.ts
@@ -135,12 +149,19 @@ grep -n spawnedAt src/subagent.ts
 387:			const finalUsage = { ...usage, wallMs: performance.now() - spawnedAt };
 ```
 
-One number in nine was right, and the next section says where it came from.
-The content was right three times over: the mechanism, the clock, the three
-places. The line numbers were a small model's guess written as a citation. Had one scout
-answered alone you would have had one confident wrong number and no way of
-knowing. Three that disagree tell you something; an answer that averaged them,
-or took the first, would have hidden it.
+None of the nine numbers was right, and the synthesiser's ruling was wrong
+too, after it had read the file. The content was right three times over: the
+mechanism, the clock, the three places. The line numbers were a small model's
+guess written as a citation.
+
+The one number all three agreed on is the worst of them. Each scout's first
+grep matched line 34 of [the next page](03-keep-the-session-out.md), which
+quotes an earlier scout's `src/subagent.ts:316` and then says that none of
+that report's numbers is right. All three wrote 316, and the
+synthesiser, seeing no disagreement there, said nothing about it. Three
+reports that agree are one claim, not three, when they read the same page.
+Three that disagree at least tell you where to look; an answer that averaged
+them, or took the first, would have hidden it.
 
 The synthesiser works by one rule, and so should anything that folds several
 agents' work into one: a report is a claim, not evidence. A branch that fails
@@ -153,22 +174,22 @@ answering from two reports as if there had been three.
 Open the folder the answer named. It is the run directory:
 
 ```bash
-find runs/2026-09-24_00-47-07 -type f -not -path '*/.sessions/*' | sort
+find runs/2026-09-24_03-56-30 -type f -not -path '*/.sessions/*' | sort
 ```
 
 ```
-runs/2026-09-24_00-47-07/answer/synthesiser.html
-runs/2026-09-24_00-47-07/answer/synthesiser.jsonl
-runs/2026-09-24_00-47-07/journal.jsonl
-runs/2026-09-24_00-47-07/look[1]/find/scout.html
-runs/2026-09-24_00-47-07/look[1]/find/scout.jsonl
-runs/2026-09-24_00-47-07/look[2]/find/scout.html
-runs/2026-09-24_00-47-07/look[2]/find/scout.jsonl
-runs/2026-09-24_00-47-07/look[3]/find/scout.html
-runs/2026-09-24_00-47-07/look[3]/find/scout.jsonl
-runs/2026-09-24_00-47-07/main.jsonl
-runs/2026-09-24_00-47-07/snapshot.json
-runs/2026-09-24_00-47-07/usage.json
+runs/2026-09-24_03-56-30/answer/synthesiser.html
+runs/2026-09-24_03-56-30/answer/synthesiser.jsonl
+runs/2026-09-24_03-56-30/journal.jsonl
+runs/2026-09-24_03-56-30/look[1]/find/scout.html
+runs/2026-09-24_03-56-30/look[1]/find/scout.jsonl
+runs/2026-09-24_03-56-30/look[2]/find/scout.html
+runs/2026-09-24_03-56-30/look[2]/find/scout.jsonl
+runs/2026-09-24_03-56-30/look[3]/find/scout.html
+runs/2026-09-24_03-56-30/look[3]/find/scout.jsonl
+runs/2026-09-24_03-56-30/main.jsonl
+runs/2026-09-24_03-56-30/snapshot.json
+runs/2026-09-24_03-56-30/usage.json
 ```
 
 One transcript per turn, under the visit that ran it and rendered by pi
@@ -179,28 +200,26 @@ transcripts were exported from. And `usage.json`:
 
 | subagent | wall | input | output | what it did |
 | --- | --- | --- | --- | --- |
-| scout#1 | 22.8s | 13.4k | 505 | two tool calls, the implementation |
-| scout#2 | 33.0s | 69.5k | 2.1k | six tool calls, the tests |
-| scout#3 | 14.5s | 16.7k | 1.1k | two tool calls, the docs |
-| synthesiser#1 | 70.8s | 2.2k | 759 | no tool call, the answer |
-| **run** | **103.8s** | **101.7k** | **4.5k** | parallelism 1.36 |
+| scout#1 | 12.6s | 19.9k | 714 | three tool calls, the implementation |
+| scout#2 | 51.6s | 68.2k | 1.9k | six tool calls, the tests |
+| scout#3 | 27.4s | 44.6k | 1.5k | four tool calls, the docs |
+| synthesiser#1 | 27.7s | 9.8k | 1.7k | one tool call, the answer |
+| **run** | **79.3s** | **142.5k** | **5.8k** | parallelism 1.50 |
 
-`parallelism` is busy time over wall time: 141 seconds of work happened in
-104. Three scouts did not give three times the speed, because the slowest
+`parallelism` is busy time over wall time: 119 seconds of work happened in
+79. Three scouts did not give three times the speed, because the slowest
 branch sets the pace and the synthesiser waits for all of them. Here the
-synthesiser alone took longer than the three scouts together. That number is
-in `usage.json` because it answers "was the fan-out worth it", and nothing on
-screen could have told you.
+tests scout alone took 52 of the 79 seconds; the other two had long finished,
+and the answer could not start until it did. No retry ran: every turn ended
+the first time. That number is in `usage.json` because it answers "was the
+fan-out worth it", and nothing on screen could have told you.
 
-The quickest branch is worth a look. `scout#3` was asked what documents the
-wall time. Its grep matched `docs/tutorials/03-keep-the-session-out.md`, the
-next page of this tutorial, whose frame quotes an earlier scout's report with
-line numbers in it. Then it read `src/subagent.ts` whole, reported that the
-page "matches the code's logic perfectly", kept two of its numbers, and
-"corrected" the third, `283`, the one the page had right, to `224-227`. Its
-`387`, the one right number of the nine, came from a page and not from the
-code. A document that quotes a model is one more claim, and a scout reading it
-cannot tell.
+The docs branch is worth a look. `scout#3` was asked what documents the wall
+time. It read `src/subagent.ts`, then the page its grep had matched, then
+`docs/guide/measurements.md`, and concluded that "the documentation matches
+the code implementation". The page it read gives the file's own numbers,
+`217`, `283` and `387`, and `scout#3` reported 316 all the same. A document that quotes a model is one more claim, and a scout
+reading it cannot tell.
 
 `cost` reads `0` in every row. That provider reports no cost, and combo does
 not estimate one from characters: a zero here means "not reported", never
@@ -218,22 +237,22 @@ you type can lean on it:
 > and is busyMs measured the same way?
 ```
 
-> No, `busyMs` is measured differently.
->
-> While **wall time** is a continuous measurement from the moment the subagent
-> is spawned until it is accessed or closed, **busy time** is the sum of the
-> durations of all active turns. …
+> No, `busyMs` is measured differently. While `wallMs` tracks the total
+> elapsed time from spawn to close (including idle time), `busyMs` tracks
+> only the time the subagent was actively working. …
 
 That is `/run`'s reason to put the answer there: an exploration you have to
 paste back into the conversation yourself is a report in the wrong place.
 
 It is also what it costs. Before answering, the session took the report's
 word for where to look and read `src/subagent.ts` itself, and the status line
-went from `0.2%` to `17.0%`: pi's own system prompt and the context files,
+went from `0.2%` to `14.0%`: pi's own system prompt and the context files,
 paid on the session's first request, and one of the files the scouts read so
-that you would not have to. A main model that has read a report starts acting
-on it. It becomes the orchestrator, and every step you ask for next is chosen
-against a conclusion it already holds. When the window is meant to stay a
-console, what reaches it changes the answers.
+that you would not have to. It had the file in front of it and still quoted
+the report's line 174 for the spawn, then gave 224, 257 and 265 for three
+lines the file has at 294, 331 and 341. A main model that has read a report
+starts acting on it. It becomes the orchestrator, and every step you ask for
+next is chosen against a conclusion it already holds. When the window is
+meant to stay a console, what reaches it changes the answers.
 
 **Next:** [Keep the session out of it](03-keep-the-session-out.md).
