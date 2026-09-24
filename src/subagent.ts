@@ -320,6 +320,11 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 					// what a combinator frames the work with is English, and it arrives
 					// in this very message. See `src/language.ts`.
 					await session.prompt(inTheLanguageOfTheWork(task));
+					// pi drops a failed request from the conversation before it waits
+					// to retry it. Cut during that wait, the turn returns quietly and
+					// ends on the last good message, so only the signal still says the
+					// turn never finished.
+					if (signal.aborted) error = "aborted";
 				}
 			} catch (cause) {
 				error = cause instanceof Error ? cause.message : String(cause);
