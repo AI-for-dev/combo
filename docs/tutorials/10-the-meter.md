@@ -183,21 +183,22 @@ failed, with what its two attempts had spent, as the run's journal has it:
 
 | visit | scouts | error | turns | input |
 | --- | --- | --- | --- | --- |
-| `look[1]/find` | scout#1, scout#6 | `timeout: no answer within 20000 ms` | 2 | 44,186 |
-| `look[2]/find` | scout#2, scout#4 | `timeout: no answer within 20000 ms` | 2 | 9,088 |
-| `look[3]/find` | scout#3, scout#5 | `timeout: no answer within 20000 ms` | 2 | 54,422 |
+| `look[1]/find` | scout#1, scout#5 | `timeout: timed out after 20s` | 2 | 13,028 |
+| `look[2]/find` | scout#2, scout#4 | `timeout: timed out after 20s` | 2 | 33,657 |
+| `look[3]/find` | scout#3, scout#6 | `timeout: timed out after 20s` | 2 | 20,204 |
 
 ```
-✓ explore · 5 visits · 3 failed · 42s · ↑109k ↓4.7k
-✓ look · 3 items · 3 failed · 41s · ↑108k ↓4.5k
-✓ answer · synthesiser · 2s · ↑1.4k ↓170
+✓ explore · 5 visits · 3 failed · 42s · ↑68k ↓3.2k
+✓ look · 3 items · 3 failed · 41s · ↑67k ↓3.1k
+✓ answer · synthesiser · 2s · ↑1.3k ↓138
 ```
 
 Six scouts for three items, forty seconds a visit. The retry doubled what a
 too-short deadline costs, and it could not have saved a turn that needs more
 than twenty seconds: raise the deadline instead. The synthesiser, handed three
-failures, said so: "No information is available on how the wall time of a
-subagent is measured or where it is shown, as all three reports failed." The
+failures, said so: "All three reports failed due to timeouts, so there is no
+information available on how the wall time of a subagent is measured or where
+it is shown." The
 run is `ok` because the flow decided that a failed scout is a value, not an
 end; the `1 failed` and `3 failed` on its lines are how you tell.
 

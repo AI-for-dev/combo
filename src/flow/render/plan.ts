@@ -9,7 +9,8 @@
  */
 
 import type { Agent } from "../../agent.ts";
-import { showDuration, turnTimeout, type Bound } from "../bounds.ts";
+import { showDuration } from "../../duration.ts";
+import { turnTimeout, type Bound } from "../bounds.ts";
 import type { CheckedAgentNode, CheckedAskNode, CheckedFlow, CheckedLoopNode, CheckedMapNode, CheckedNode, CheckedRead } from "../checked.ts";
 import type { NodeKind } from "../node.ts";
 import { showType } from "../type.ts";

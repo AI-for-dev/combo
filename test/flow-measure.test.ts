@@ -126,15 +126,17 @@ describe("a measured flow run", () => {
 		assert.equal(report.total.wallMs, report.lives?.[0]?.wallMs);
 	});
 
-	test("reads a deadline as a timeout in `usage.json`, as the journal does", async () => {
+	test("words a deadline once, in the result, the journal and `usage.json` alike", async () => {
 		const runDir = path.join(fs.realpathSync(plainDirectory()), "run");
 		const run = measuredRun({ dir: runDir });
 		const flow = flowOf("  - id: look\n    agent: scout", { look: "Look." });
-		await runFlow(await launched(flow), "x", { spawn: flowSpawn([[said("late", { delayMs: 5_000 })]]).spawn, onEvent: run.onEvent, runDir, timeoutMs: 20 });
+		const result = await runFlow(await launched(flow), "x", { spawn: flowSpawn([[said("late", { delayMs: 5_000 })]]).spawn, onEvent: run.onEvent, runDir, timeoutMs: 20 });
 		run.finish();
 
+		const timeout = { kind: "timeout", message: "timed out after 20ms" };
+		assert.deepEqual(!result.ok && result.error, timeout);
 		const ended = readJournal(runDir).find((entry) => entry.type === "visit_end");
-		assert.deepEqual(ended?.type === "visit_end" && ended.error, { kind: "timeout", message: "no answer within 20 ms" });
+		assert.deepEqual(ended?.type === "visit_end" && ended.error, timeout);
 		assert.deepEqual(
 			usageIn(runDir).subagents.map(({ ok, error }) => ({ ok, error })),
 			[{ ok: false, error: "timed out after 20ms" }],

@@ -86,7 +86,7 @@ describe("a check, run", () => {
 		assert.deepEqual(!unavailable.ok && [unavailable.error.kind, unavailable.path], ["unavailable", "tests"]);
 		const started = performance.now();
 		const late = await runFlow(await launched(TESTS("\n    timeout: 1s"), { cwd, ports: PORTS }), "x");
-		assert.deepEqual(!late.ok && late.error, { kind: "timeout", message: "`.pi/checks/tests.sh` ran past its bound of 1000 ms" });
+		assert.deepEqual(!late.ok && late.error, { kind: "timeout", message: "`.pi/checks/tests.sh` timed out after 1s" });
 		assert.ok(performance.now() - started < 3_000, "the script and what it started are killed at the bound");
 	});
 

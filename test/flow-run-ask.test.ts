@@ -128,7 +128,7 @@ describe("an ask, run", () => {
 		const started = performance.now();
 		const result = await asked(flow, them.ask);
 		const elapsed = performance.now() - started;
-		assert.deepEqual(!result.ok && [result.error, result.path], [{ kind: "timeout", message: "no answer within 1000 ms, and the question has no `default:`" }, "note"]);
+		assert.deepEqual(!result.ok && [result.error, result.path], [{ kind: "timeout", message: "timed out after 1s, and the question has no `default:`" }, "note"]);
 		assert.ok(elapsed >= 2_000 && elapsed < 4_000, `${elapsed} ms`);
 		assert.ok(them.cards.every((card) => card.asking.signal?.aborted), "each card is taken down");
 	});

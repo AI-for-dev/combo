@@ -5,12 +5,24 @@
  * the signal's reason, so whoever set the deadline, a subagent's own
  * `timeoutMs` or a flow's attempt, the subagent that was cut reads the same
  * words for it, and the transcript, `usage.json` and the journal of a run
- * agree on what happened.
+ * agree on what happened. It also words the deadline, once, for every bound
+ * that fires: a turn's, a question's, a check's.
  */
+
+import { showDuration } from "./duration.ts";
+
+/**
+ * How a bound of `ms` that fired reads: `timed out after 30m`, as a flow file
+ * writes the bound, or in milliseconds when it is not whole seconds, which
+ * rounding would misstate.
+ */
+export function timedOutAfter(ms: number): string {
+	return `timed out after ${ms % 1000 === 0 ? showDuration(ms) : `${ms}ms`}`;
+}
 
 /** The reason a deadline of `ms` aborts with: a `TimeoutError`, as `AbortSignal.timeout` gives. */
 export function expiry(ms: number): DOMException {
-	return new DOMException(`timed out after ${ms}ms`, "TimeoutError");
+	return new DOMException(timedOutAfter(ms), "TimeoutError");
 }
 
 /** A signal that aborts `ms` from now, with {@link expiry} as its reason. Its timer never keeps the process alive. */

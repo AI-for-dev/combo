@@ -4732,3 +4732,23 @@ so a caller's abort before the deadline still reads `aborted`, and a person's
 stop still reads `stopped`. The other way was to pass the flow's bound as
 `timeoutMs`, which would have taken away the flow's own deadline port, the
 switch a dry run throws when its script says an attempt timed out.
+
+## A deadline is worded once, as the flow file writes it
+
+One fact was worded three ways: `timed out after 20000ms` in the subagent's
+failure and `usage.json`, `no answer within 20000 ms` in a flow's journal, and
+`ran past its bound of 20000 ms` for a check. A turn that hit its deadline
+read one way in the journal and another in `usage.json`, two files a person
+reads side by side.
+
+`src/deadline.ts` now builds the phrase, `timedOutAfter`, and every bound that
+fires uses it: the reason a deadline aborts with, an agent node's failure, an
+`ask` with no `default:` (which adds that clause after it), a check. The words
+are `timed out after`, which the subagent already said. The bound is shown the
+way a flow file writes it and the plan prints it, `30m` rather than
+`1800000ms`, so the error reads like the `timeout:` a person wrote and the
+`timeout 30m by default` the plan showed them. A bound that is not whole
+seconds, which only a `timeoutMs` passed from code can give, stays in
+milliseconds: the plan's formatter rounds up, which suits a worst case and
+would misstate a deadline. That formatter moved out of `src/flow/` into
+`src/duration.ts`, because a subagent's deadline exists without any flow.

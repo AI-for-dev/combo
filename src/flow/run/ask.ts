@@ -10,6 +10,7 @@
  */
 
 import type { Answer, Asking, Question } from "../../ask.ts";
+import { timedOutAfter } from "../../deadline.ts";
 import type { GitResult } from "../../git/index.ts";
 import { emptyUsage } from "../../usage.ts";
 import type { CheckedAskNode } from "../checked.ts";
@@ -76,7 +77,8 @@ function unanswered(node: CheckedAskNode, question: Question, kind: "nobody" | "
 		return { ok: true, output: outputOf(node, { question: question.question, answer, custom: !question.options.some((one) => one.label === given) }) };
 	}
 	if (node.enough !== undefined) return { ok: true, output: NOT_ANSWERED };
-	return failure(kind, kind === "nobody" ? "nobody is there to answer, and the question has no `default:`" : `no answer within ${node.timeoutMs} ms, and the question has no \`default:\``);
+	const why = kind === "timeout" && node.timeoutMs !== undefined ? timedOutAfter(node.timeoutMs) : "nobody is there to answer";
+	return failure(kind, `${why}, and the question has no \`default:\``);
 }
 
 /** The question a literal writes, or the `Question` an `ask-from:` reads; or why it could not be read. */

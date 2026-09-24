@@ -118,6 +118,8 @@ src/                the library
   tool.ts           a tool we offer: what an agent declared, how a call refuses
   delegate.ts       the subagent tool, for an agent whose `tools:` names it
   stop.ts           stopSwitch: one branch of a run, or the whole of it
+  deadline.ts       a bound that fires, and the one phrase it reads as;
+                    duration.ts shows the bound as a flow file writes it
   markdown.ts       finding and reading a .md with frontmatter
   skills.ts         resolving what an agent's `skills:` names, nearest first
   nearest.ts        the name probably meant, for a message refusing one

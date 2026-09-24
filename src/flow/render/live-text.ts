@@ -8,10 +8,11 @@
  * alike; `–` marks a node its sequence never reached.
  */
 
+import { showDuration } from "../../duration.ts";
 import { statusIcon } from "../../reporters/tui.ts";
 import { plural } from "../../text.ts";
 import { showCost, showTokens, type Usage } from "../../usage.ts";
-import { showBound, showDuration } from "../bounds.ts";
+import { showBound } from "../bounds.ts";
 import type { LiveLine, LivePlan, LiveState } from "./live.ts";
 import type { LiveSummary } from "./summary.ts";
 import { NOT_VISITED } from "./text.ts";
