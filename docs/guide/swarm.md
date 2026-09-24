@@ -219,6 +219,9 @@ avoiding.
 - **No network.** combo grants none, and a swarm is the last place to start.
 - **Every cap has a default.** `rounds` is 3, `concurrency` 4, the board's own
   limits are 200 posts of 2000 characters, 50 per member.
+- **A member cannot repeat itself.** A post with the same kind, reader and text
+  as one the member already made is refused, and the refusal names the earlier
+  post.
 - **A run can be stopped.** `esc` in the extension, an `AbortSignal` from code.
 
 ## What is deliberately absent

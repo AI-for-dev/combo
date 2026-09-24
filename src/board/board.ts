@@ -25,6 +25,11 @@
  *   the run has time for, and the only number nobody chose is "as many as it
  *   takes".
  *
+ * And one refusal that is not a cap: **a member does not say again exactly what
+ * it already said**, same kind, same reader, same words. The copy tells nobody
+ * anything new and costs every reader a slot on its page. It was measured: a
+ * member told to post once a turn posted one vote six times in a single turn.
+ *
  * What it deliberately is not: a queue, a channel with delivery guarantees, or
  * anything a member can read twice by accident. {@link Board.since} hands a
  * reader what it has not been given yet and a cursor to ask again with, so the
@@ -146,6 +151,8 @@ export function createBoard(options: BoardOptions = {}): Board {
 	const posts: Post[] = [];
 	const openedAt = performance.now();
 	const countFor = new Map<string, number>();
+	// Each thing a member said, under the id it was first said as.
+	const said = new Map<string, string>();
 
 	return {
 		post(from, draft) {
@@ -164,6 +171,9 @@ export function createBoard(options: BoardOptions = {}): Board {
 			if (draft.to && members && !members.has(draft.to)) {
 				return { ok: false, error: `nobody here is called \`${draft.to}\` - the board has ${[...members].join(", ")}` };
 			}
+			const saying = JSON.stringify([from, draft.kind, draft.to ?? "", text]);
+			const before = said.get(saying);
+			if (before) return { ok: false, error: `you already posted that as ${before}: say something new, or nothing` };
 
 			const post: Post = {
 				id: `p${posts.length + 1}`,
@@ -175,6 +185,7 @@ export function createBoard(options: BoardOptions = {}): Board {
 			};
 			posts.push(post);
 			countFor.set(from, mine + 1);
+			said.set(saying, post.id);
 			return { ok: true, post };
 		},
 

@@ -4096,6 +4096,21 @@ past what it merely looked at - which the tool used to do on its own after the
 fact. A `read` event has to say what was handed over, and only the one that
 decides the page can say it.
 
+### A member does not post the same thing twice
+
+`/swarm --agent debater --until agree` in a real pi, on
+`qwen-3.6-35b-instruct`: one member posted the same vote, word for word, six
+times in a single turn. Its definition says to post one `result` a turn, and a
+prompt is not a boundary. Every copy took a slot on each reader's page and told
+nobody anything.
+
+So the board refuses a post whose kind, reader and trimmed text match one the
+same member already made, and the refusal names the first one's id. Only an
+exact match is refused. Deciding that two phrasings say the same thing is a
+judgement, and the board does not make judgements. The same words from another
+member, under another kind or to another reader are a different post: a vote
+repeated by a second member is the agreement a debate is looking for.
+
 ## A claim is granted, never announced
 
 A board lets a member say what it is taking, and that turned out not to be
