@@ -70,9 +70,10 @@ node examples/15-swarm.ts --model <provider/model> --control
 See [Swarms](../guide/swarm.md) for what three arms of it came back with.
 
 `16-debate.ts` is the swarm with nothing to divide: three `debater`s on one
-question, each opening for a camp it takes from the board, until every latest
-vote agrees. `--same` is its control, the same question with no camps, and
-`--camps`, `--members` and `--rounds` change the rest.
+question, each opening for the camp its brief names, until every latest vote
+agrees. They post one vote a turn and answer each other's posts with `re`.
+`--same` is its control, the same question with no camps. `--camps` and
+`--rounds` change the rest, and `--members` sets the size of the control.
 
 ```bash
 node examples/16-debate.ts --model <provider/model> --same
