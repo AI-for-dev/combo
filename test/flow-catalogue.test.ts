@@ -172,6 +172,18 @@ describe("checkFlow, the agents of a catalogue on disk", () => {
 		assert.deepEqual(faults(cwd), ["skills-without-read go.agent", "unknown-skill go.agent"]);
 	});
 
+	test("a skill whose SKILL.md names it otherwise is reported with the name it has", () => {
+		const cwd = root({
+			".pi/flows/f.md": flow("    agent: scout"),
+			".pi/agents/scout.md": agent("scout", "skills: assertion-smell\n"),
+			".pi/agents/scout/skills/assertion-smell/SKILL.md": skill("assertion-smells"),
+		});
+		const result = checkFlow("f", loadFlowCatalogue({ cwd, scope: "both" }));
+		assert.ok(!result.ok);
+		assert.deepEqual(result.faults.map(({ code }) => code), ["unknown-skill"]);
+		assert.match(result.faults[0]?.message ?? "", /SKILL\.md is named "assertion-smells".*Skills found: assertion-smells\./);
+	});
+
 	test("a skill resolves beside its agent, in the repository or in the user's directory", () => {
 		const cwd = root({
 			".pi/flows/f.md": flow("    agent: scout"),

@@ -12,7 +12,7 @@
  */
 
 import type { CheckedAgentNode, CheckedAskNode, CheckedCallNode, CheckedCheckNode, CheckedCommitNode, CheckedNode } from "../checked.ts";
-import { nearest } from "../fault.ts";
+import { nearest } from "../../nearest.ts";
 import { under } from "./ended.ts";
 
 /** A node a script answers: an agent turn, a check's script run, a commit, a question, or a call whole. */

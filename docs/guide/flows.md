@@ -1090,7 +1090,7 @@ stage's.
 | `unknown-agent` | no agent of the catalogue has that name | use the name offered, or add the agent |
 | `broken-agent` | the agent file of that name is not an agent: its YAML, or a missing `name:` or `description:` | fix the file at the path given |
 | `skills-without-read` | the agent declares `skills:` and its `tools:` leave out `read`, so it could not open one | add `read` to its `tools:`, or drop `skills:` |
-| `unknown-skill` | a skill the agent declares is in none of the directories listed | fix the name, or add the skill |
+| `unknown-skill` | a skill the agent declares is in none of the directories listed; the message lists the skills found there and the nearest name | declare the name its `SKILL.md` gives, which is not its directory's, or add the skill |
 | `skill-hidden` | a skill the agent declares sets `disable-model-invocation`, so pi never shows it | drop it from `skills:`, or unset the flag |
 | `unknown-address` | an address names nothing readable here | read a node that already ended, or a field that exists |
 | `invalid-address` | an address is not a name followed by fields, or reads into text | write `node.output.field`, and read an agent's text whole |
