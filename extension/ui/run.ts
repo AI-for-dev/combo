@@ -114,9 +114,10 @@ export type LiveRun = {
 export function liveRun(ui: RunUi | undefined, options: LiveRunOptions = {}): LiveRun {
 	// What a flow's plan is folded from: the visits, and the spawns naming them.
 	// Text and tool calls come by the thousand, and the fold reads none of them.
+	// The fold reads no clock, so this life's time is handed to it at each paint.
 	const told: SubagentEvent[] = [];
 	const { flow } = options;
-	const plan = () => (flow === undefined ? undefined : livePlan(flow.checked, flow.journal, told));
+	const plan = () => (flow === undefined ? undefined : livePlan(flow.checked, flow.journal, told, run.elapsedMs()));
 	// A view is a measured run with a terminal on top. `herdrAll` belongs to the
 	// reporter, not to the spawn: whether a pane opens is a display decision,
 	// and the workflow runs identically either way.

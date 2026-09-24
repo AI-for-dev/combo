@@ -253,7 +253,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 	const unsubscribe = session.subscribe((event) => {
 		const seen = streamed(event);
 		if (seen?.type === "text") bus.emit({ type: "text", id, delta: seen.delta });
-		else if (seen?.type === "tool") bus.emit({ type: "tool", id, name: seen.name, args: seen.args });
+		else if (seen !== undefined) bus.emit({ ...seen, id });
 	});
 
 	const openInHerdr = options.openInHerdr ?? agent.openInHerdr ?? false;

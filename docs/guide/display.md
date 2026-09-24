@@ -310,6 +310,21 @@ lands when a turn ends - so the widget reads the turn's start and repaints on a
 timer. A subagent thinking for twenty seconds emits nothing, and a frozen clock
 reads as a hung agent.
 
+The tokens wait for a turn to end, because that is when pi's counters are
+read. A subagent in its first turn shows its model and its clock alone,
+`provider/model · 3.1s`, and `↑0 ↓0` there would be a figure nobody measured.
+After a turn, a provider that reports no tokens reads `↑0 ↓0`: that zero was
+read. The cost follows the same rule: it is shown when pi reported one, and
+left out when it did not, since `$0.0000` reads as free. The tool row's totals
+and the summary table do the same, and an experiment's `mean $` column says
+`not reported`.
+
+A tool call that came back an error, refused because the agent has no such
+tool or failed while it ran, is marked `✗` with the first line pi said about
+it, in the activity and in the tool row alike:
+`✗ write notes.txt · Tool write not found`. pi's event does not say which of
+the two it was, so the words are pi's.
+
 **Two lines while it works, one once it is over**, as `scout#2` above. The
 second line of a finished subagent held its last tool call, which nobody needs
 any more, so its numbers move up beside the tick and the line goes. A fan-out of
@@ -337,7 +352,11 @@ visits go: a running visit expanded, with each of its subagents under it on one
 line, what it is doing, its model, tokens and clock; an ended one a single
 line; what is not visited yet dimmed under `○`. The plan takes sixteen rows at
 most, cut above and below what runs now, and it is a component painted at the
-width pi gives it, since pi cuts a widget given as lines at ten. See
+width pi gives it, since pi cuts a widget given as lines at ten. Every line is
+cut to that width in terminal columns, colour codes and wide characters
+counted as the terminal counts them: pi stops on a line one column too wide.
+The summary line's time is how long the run has gone on, by the view's clock,
+and each ended line counts what every life of the run spent there. See
 [Extension](extension.md#running-a-flow).
 
 ### Stopping what you are watching

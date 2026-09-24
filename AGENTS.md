@@ -178,6 +178,7 @@ extension/          the pi extension: index.ts (tool, renderers), execute.ts
                     (the tool body) and execute-flow.ts (its `flow` mode),
                     and the floor the commands stand on:
                     pi.ts deps.ts command.ts flags.ts params.ts relay.ts
+                    notice.ts (a notice fitted to the terminal's width)
   commands/         one file per slash command (flows is /flows, run is /run
                     and /run resume); stage beside /step, the command that
                     uses it, answer, the message /run and /quote leave, and

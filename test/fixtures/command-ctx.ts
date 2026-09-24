@@ -66,8 +66,8 @@ export function fakeCtx(answers: ScriptedAnswers = {}) {
 		widgets,
 		statuses,
 		inputs,
-		/** Everything the user was told, as one string - what most assertions match on. */
-		said: () => notes.map((note) => note.message).join("\n"),
+		/** Everything the user was told, as one string and without its colours - what most assertions match on. */
+		said: () => notes.map((note) => note.message.replace(/\x1b\[[0-9;]*m/g, "")).join("\n"),
 		editorText: () => editorText,
 	};
 }

@@ -122,7 +122,8 @@ export function experimentTable(report: ExperimentReport): string[] {
 				...flags.map((key) => formatFlag(summary.flags[key], summary.runs)),
 				formatUsage(summary.total),
 				`${(summary.total.wallMs / summary.runs / 1000).toFixed(1)}s`,
-				`$${(summary.total.cost / summary.runs).toFixed(4)}`,
+				// A column cannot leave its cell out the way a line leaves out its cost.
+				summary.total.cost > 0 ? `$${(summary.total.cost / summary.runs).toFixed(4)}` : "not reported",
 			]),
 		);
 	}

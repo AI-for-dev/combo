@@ -52,7 +52,9 @@ A zeroed `Usage`. The starting point of a freshly spawned subagent.
 export function formatUsage(usage: Usage): string { /* … */ }
 ```
 
-Compact usage line: `3 turns 12.4s ↑12k ↓2.1k R8k $0.0412 ctx:34k`.
+Compact usage line: `3 turns 12.4s ↑12k ↓2.1k R8k $0.0412 ctx:34k`. The
+tokens wait for a turn to end and the cost for pi to report one, as in
+{@link showTokens} and {@link showCost}.
 
 ## `sumUsage`
 

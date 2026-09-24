@@ -122,19 +122,36 @@ export function sumUsage(parts: readonly Usage[], wallMs: number): Usage {
 	return total;
 }
 
-/** Compact usage line: `3 turns 12.4s ↑12k ↓2.1k R8k $0.0412 ctx:34k`. */
+/**
+ * Compact usage line: `3 turns 12.4s ↑12k ↓2.1k R8k $0.0412 ctx:34k`. The
+ * tokens wait for a turn to end and the cost for pi to report one, as in
+ * {@link showTokens} and {@link showCost}.
+ */
 export function formatUsage(usage: Usage): string {
-	const parts = [
-		plural(usage.turns, "turn"),
-		`${(usage.busyMs / 1000).toFixed(1)}s`,
-		`↑${compact(usage.input)}`,
-		`↓${compact(usage.output)}`,
-	];
+	const parts = [plural(usage.turns, "turn"), `${(usage.busyMs / 1000).toFixed(1)}s`, ...showTokens(usage)];
 	if (usage.cacheRead > 0) parts.push(`R${compact(usage.cacheRead)}`);
 	if (usage.cacheWrite > 0) parts.push(`W${compact(usage.cacheWrite)}`);
-	parts.push(`$${usage.cost.toFixed(4)}`);
+	parts.push(...showCost(usage));
 	if (usage.contextTokens !== undefined) parts.push(`ctx:${compact(usage.contextTokens)}`);
 	return parts.join(" ");
+}
+
+/**
+ * `↑12k ↓2.1k` once a turn has ended, and nothing before. pi's counters are
+ * read when a turn ends, so a subagent in its first turn has no figure yet,
+ * and a `0` there would be one nobody measured. After a turn, a provider that
+ * reports nothing reads `↑0 ↓0`: that zero was read.
+ */
+export function showTokens(usage: Usage): string[] {
+	return usage.turns > 0 ? [`↑${compact(usage.input)} ↓${compact(usage.output)}`] : [];
+}
+
+/**
+ * `$0.0412` when pi reported a cost, and nothing when it did not: several
+ * providers report none, and `$0.0000` would read as free.
+ */
+export function showCost(usage: Usage): string[] {
+	return usage.cost > 0 ? [`$${usage.cost.toFixed(4)}`] : [];
 }
 
 /** `12k`, `2.1k`, `1.4M` - a token count that fits in a narrow column. */

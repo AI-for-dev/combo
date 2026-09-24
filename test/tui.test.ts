@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { createRunPicture } from "../src/reporters/picture.ts";
 import {
+	callLine,
+	currentActivity,
 	detailLine,
 	elapsedMs,
 	formatToolCall,
@@ -61,7 +63,7 @@ describe("the widget above the prompt", () => {
 			spawned("scout#1", undefined, "ilaas/qwen-3.6-35b-instruct"),
 			{ type: "status", id: "scout#1", status: "working" },
 			{ type: "tool", id: "scout#1", name: "grep", args: { pattern: "lifetime" } },
-			{ type: "usage", id: "scout#1", usage: { ...emptyUsage(), input: 12_000, output: 209, busyMs: 12_400 } },
+			{ type: "usage", id: "scout#1", usage: { ...emptyUsage(), turns: 1, input: 12_000, output: 209, busyMs: 12_400 } },
 		);
 
 		assert.deepEqual(widgetLines(picture.snapshot()), [
@@ -71,21 +73,37 @@ describe("the widget above the prompt", () => {
 	});
 
 	test("the dot becomes a check when it finishes, a cross when it fails", () => {
-		const ok = replay(spawned("scout#1"), closed("scout#1", true));
+		const ok = replay(spawned("scout#1"), closed("scout#1", true, { turns: 1 }));
 		// No "done" beside the tick: the tick is what says so.
 		assert.match(widgetLines(ok.snapshot())[0] as string, /^✓ scout#1 {2}↑0 ↓0/);
 
-		const bad = replay(spawned("scout#1"), closed("scout#1", false));
+		const bad = replay(spawned("scout#1"), closed("scout#1", false, { turns: 1 }));
 		assert.match(widgetLines(bad.snapshot())[0] as string, /^✗ scout#1 {2}it broke {2}↑0 ↓0/);
 	});
 
 	test("a subagent that is over takes one line, and its numbers move up beside the tick", () => {
 		const picture = replay(
 			spawned("scout#1", undefined, "ilaas/qwen-3.6-35b-instruct"),
-			closed("scout#1", true, { input: 12_000, output: 209, busyMs: 12_400 }),
+			closed("scout#1", true, { turns: 1, input: 12_000, output: 209, busyMs: 12_400 }),
 		);
 
 		assert.deepEqual(widgetLines(picture.snapshot()), ["✓ scout#1  ilaas/qwen-3.6-35b-instruct · ↑12k ↓209 · 12.4s"]);
+	});
+
+	test("a call that came back an error is marked so, with pi's words, and never reads as one that ran", () => {
+		const picture = replay(
+			spawned("scout#1"),
+			{ type: "status", id: "scout#1", status: "working" },
+			{ type: "tool", id: "scout#1", name: "write", args: { path: "notes.txt" }, call: "c1" },
+			{ type: "tool", id: "scout#1", name: "read", args: { path: "a.ts" }, call: "c2" },
+			{ type: "tool_error", id: "scout#1", name: "write", error: "Tool write not found", call: "c1" },
+		);
+		const [write, read] = picture.snapshot().subagents[0]?.tools ?? [];
+		assert.equal(callLine(write!), "✗ write notes.txt · Tool write not found");
+		assert.equal(callLine(read!), "read a.ts");
+
+		const last = replay(spawned("scout#1"), { type: "tool", id: "scout#1", name: "write", args: { path: "notes.txt" } }, { type: "tool_error", id: "scout#1", name: "write", error: "Tool write not found" });
+		assert.equal(currentActivity(last.snapshot().subagents[0]!), "✗ write notes.txt · Tool write not found");
 	});
 
 	test("the activity is the tool in flight, or a word when there is none yet", () => {
@@ -110,7 +128,7 @@ describe("the widget above the prompt", () => {
 	});
 
 	test("the rows say what they are, so the caller applies colour and we can test layout", () => {
-		const failed = widgetRows(replay(spawned("scout#1"), closed("scout#1", false)).snapshot());
+		const failed = widgetRows(replay(spawned("scout#1"), closed("scout#1", false, { turns: 1 })).snapshot());
 		assert.equal(failed.length, 1, "a subagent that is over is one row");
 		assert.equal(failed[0]?.kind, "activity");
 		assert.equal((failed[0] as { status: string }).status, "failed", "colour is chosen from this, not parsed back out");
@@ -126,7 +144,16 @@ describe("the widget above the prompt", () => {
 		const detail = widgetLines(picture.snapshot())[1] as string;
 
 		assert.ok(!detail.includes("undefined"), detail);
-		assert.match(detail, /↑0 ↓0/);
+		assert.equal(detail, "  0.0s");
+	});
+
+	test("no token figure until a turn has ended, since pi reads its counters then", () => {
+		const first = replay(spawned("scout#1", undefined, "ilaas/gemma-4-31b"), { type: "status", id: "scout#1", status: "working" });
+		assert.match(widgetLines(first.snapshot())[1] as string, /^ {2}ilaas\/gemma-4-31b · \d+\.\ds$/);
+
+		// A provider that reports nothing reads zero once a turn has ended: that zero was read.
+		const after = replay(spawned("scout#1", undefined, "ilaas/gemma-4-31b"), { type: "usage", id: "scout#1", usage: { ...emptyUsage(), turns: 1 } });
+		assert.match(widgetLines(after.snapshot())[1] as string, /· ↑0 ↓0 ·/);
 	});
 
 	test("the clock counts up while it works, instead of sitting at 0.0s", () => {
@@ -150,7 +177,7 @@ describe("the widget above the prompt", () => {
 	});
 
 	test("cost appears only when the provider reported one", () => {
-		const free = replay(spawned("scout#1"), closed("scout#1", true, { input: 10 }));
+		const free = replay(spawned("scout#1"), closed("scout#1", true, { turns: 1, input: 10 }));
 		assert.ok(!(widgetLines(free.snapshot())[0] as string).includes("$"));
 
 		const paid = replay(spawned("scout#1"), closed("scout#1", true, { input: 10, cost: 0.0412 }));

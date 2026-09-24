@@ -144,6 +144,15 @@ describe("formatUsage", () => {
 		assert.equal(line, "3 turns 12.4s ↑12k ↓2.1k $0.0412");
 	});
 
+	test("says no cost when pi reported none, rather than `$0.0000`, which reads as free", () => {
+		assert.equal(formatUsage(usage({ turns: 1, busyMs: 1_000, input: 500, output: 20 })), "1 turn 1.0s ↑500 ↓20");
+	});
+
+	test("gives no token figure before a turn has ended, and the zero a turn read after", () => {
+		assert.equal(formatUsage(usage({ busyMs: 400 })), "0 turns 0.4s");
+		assert.equal(formatUsage(usage({ turns: 1, busyMs: 400 })), "1 turn 0.4s ↑0 ↓0");
+	});
+
 	test("shows cache and context when present", () => {
 		const line = formatUsage(usage({ turns: 1, busyMs: 1_000, input: 500, cacheRead: 8_000, contextTokens: 34_000 }));
 		assert.match(line, /R8k/);

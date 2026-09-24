@@ -15,7 +15,6 @@
  */
 
 import type { SubagentEvent } from "../../events.ts";
-import { costOf } from "../../measure/index.ts";
 import type { Usage } from "../../usage.ts";
 import type { CheckedFlow, CheckedNode } from "../checked.ts";
 import type { JournalEntry } from "../run/index.ts";
@@ -45,7 +44,7 @@ export type LiveLine = {
 	readonly facts: readonly string[];
 	/** The plan's bound, while pending. */
 	readonly bound?: PlanLine["bound"];
-	/** What it cost, once over: `wallMs` is its time. */
+	/** What it cost, once over, in every life that ran it: `wallMs` is its time. */
 	readonly usage?: Usage;
 	/** The subagents spawned for an `agent` visit. */
 	readonly subagents: readonly string[];
@@ -67,9 +66,13 @@ export type LivePlan = {
  * The live view of the run of `checked`: `journal` is what its earlier lives
  * wrote, `events` what this one told. A finished run's journal alone draws
  * its last frame, and a live run's events alone draw it as it goes.
+ *
+ * `elapsedMs` is how long this life has run, by the caller's clock, while it
+ * runs: the summary's time, which the visits it ended cannot give. The fold
+ * reads no clock of its own, so the same arguments draw the same frame.
  */
-export function livePlan(checked: CheckedFlow, journal: readonly JournalEntry[], events: readonly SubagentEvent[]): LivePlan {
-	const visits = new Visits(checked, journal, events);
+export function livePlan(checked: CheckedFlow, journal: readonly JournalEntry[], events: readonly SubagentEvent[], elapsedMs?: number): LivePlan {
+	const visits = new Visits(checked, journal, events, elapsedMs);
 	const fold = new Fold(visits);
 	const lines = fold.sequence(checked.nodes, planOf(checked).lines, "", visits.runEnd !== undefined);
 	return { flow: checked.name, summary: summaryOf(visits, fold.over(checked.nodes, "")), lines };
@@ -92,7 +95,7 @@ class Fold {
 			const end = this.visits.ended(path);
 			if (end !== undefined) {
 				stopped = !end.ok && stopsSequence(node, end);
-				return { ...line(plan, path, end.ok ? "done" : "failed", outcome(node, end)), usage: { ...end.usage, wallMs: end.wallMs }, subagents: this.visits.subagents(path) };
+				return { ...line(plan, path, end.ok ? "done" : "failed", outcome(node, end)), usage: this.visits.spent(path), subagents: this.visits.subagents(path) };
 			}
 			// A visit begun and not ended is open: running now, or cut short by a kill.
 			if (this.visits.live(path) || this.visits.touched(path)) return this.open(node, plan, path);
@@ -158,7 +161,7 @@ class Fold {
 	private branch(kind: "branch" | "item" | "iteration", prefix: string, nodes: readonly CheckedNode[], plans: readonly PlanLine[], now: boolean, current = false): LiveLine {
 		const own = { kind, label: prefix, path: prefix, subagents: [], lines: [] };
 		const over = this.over(nodes, prefix);
-		if (over !== undefined) return { ...own, state: over.ok ? "done" : "failed", facts: over.facts, usage: costOf(this.visits.endedIn(prefix)) };
+		if (over !== undefined) return { ...own, state: over.ok ? "done" : "failed", facts: over.facts, usage: this.visits.spent(prefix) };
 		if (!current && !this.visits.touched(prefix)) return { ...own, state: "pending", facts: [] };
 		return { ...own, state: now ? "working" : "pending", facts: [], lines: this.sequence(nodes, plans, prefix, false) };
 	}

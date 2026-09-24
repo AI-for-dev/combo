@@ -10,6 +10,7 @@
 
 import { loadAgents, loadFlowCatalogue, type Agent, type FlowCatalogue } from "../src/index.ts";
 import type { CommandDeps, Deps } from "./deps.ts";
+import { fitted, type Level } from "./notice.ts";
 import type { CommandCtx, RunUi } from "./pi.ts";
 import { liveRun, STATUS, type LiveRun, type LiveRunOptions } from "./ui/index.ts";
 
@@ -32,9 +33,13 @@ export function loadFlows(ctx: CommandCtx, deps: Pick<Deps, "loadFlowCatalogue">
 	return deps.loadFlowCatalogue({ cwd: ctx.cwd, scope: "both", builtin: true });
 }
 
-/** Notifies and returns `undefined` - the shape every refusal in these commands has. */
-export function refuse(ctx: CommandCtx, message: string, level: "info" | "warning" | "error"): undefined {
-	ctx.ui.notify(message, level);
+/**
+ * Notifies and returns `undefined` - the shape every refusal in these
+ * commands has. The message is fitted to the terminal first, so pi never cuts
+ * a path it names in two.
+ */
+export function refuse(ctx: CommandCtx, message: string, level: Level): undefined {
+	ctx.ui.notify(fitted(message, ctx.cwd, level), level);
 	return undefined;
 }
 

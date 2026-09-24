@@ -28,7 +28,8 @@ import { watched } from "../command.ts";
 import type { CommandDeps } from "../deps.ts";
 import { somebodyThere, type AskUi, type CommandCtx, type RunUi } from "../pi.ts";
 import { createAskUi, type LiveRunOptions } from "../ui/index.ts";
-import { faultRows, notified } from "./flows.ts";
+import { notified } from "../notice.ts";
+import { faultRows } from "./flows.ts";
 
 /** What a launch reads of pi: the tree, how pi runs, the terminal when there is one, and pi's signal. */
 export type LaunchCtx = { cwd: string; mode?: CommandCtx["mode"]; ui?: RunUi & AskUi; signal?: AbortSignal };

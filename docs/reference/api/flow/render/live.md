@@ -36,7 +36,7 @@ export type LiveLine = {
 	readonly facts: readonly string[];
 	/** The plan's bound, while pending. */
 	readonly bound?: PlanLine["bound"];
-	/** What it cost, once over: `wallMs` is its time. */
+	/** What it cost, once over, in every life that ran it: `wallMs` is its time. */
 	readonly usage?: Usage;
 	/** The subagents spawned for an `agent` visit. */
 	readonly subagents: readonly string[];
@@ -52,12 +52,16 @@ One line of the live view, and the lines under it.
 *function*
 
 ```typescript
-export function livePlan(checked: CheckedFlow, journal: readonly JournalEntry[], events: readonly SubagentEvent[]): LivePlan { /* … */ }
+export function livePlan(checked: CheckedFlow, journal: readonly JournalEntry[], events: readonly SubagentEvent[], elapsedMs?: number): LivePlan { /* … */ }
 ```
 
 The live view of the run of `checked`: `journal` is what its earlier lives
 wrote, `events` what this one told. A finished run's journal alone draws
 its last frame, and a live run's events alone draw it as it goes.
+
+`elapsedMs` is how long this life has run, by the caller's clock, while it
+runs: the summary's time, which the visits it ended cannot give. The fold
+reads no clock of its own, so the same arguments draw the same frame.
 
 ## `LivePlan`
 

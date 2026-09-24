@@ -143,6 +143,16 @@ describe("renderCall", () => {
 		assert.match(text, /find the auth code/);
 	});
 
+	test("names what the mode runs, whatever else the model passed beside it", () => {
+		const loop = { steps: ["coder", "reviewer"], until: "LGTM", task: "t" };
+		const header = (args: Record<string, unknown>) => (lines(tool.renderCall(args, theme, context)).replace(/\x1b\[[0-9;]*m/g, "").split("\n")[0] ?? "").trim();
+		assert.equal(header(loop), "subagent loop coder → reviewer");
+		assert.equal(header({ ...loop, agent: "coder" }), header(loop));
+		assert.equal(header({ mode: "chain", agent: "scout", steps: ["scout", "reviewer"] }), "subagent chain scout → reviewer");
+		assert.equal(header({ agent: "router", candidates: ["scout", "coder"] }), "subagent route router");
+		assert.equal(header({ candidates: ["scout", "coder"] }), "subagent route scout, coder");
+	});
+
 	test("flags a persistent run and a herdr run", () => {
 		const text = lines(tool.renderCall({ agent: "scout", lifetime: "workflow", openInHerdr: true }, theme, context));
 		assert.match(text, /workflow/);
@@ -184,6 +194,19 @@ describe("renderResult", () => {
 		assert.match(text, /grep \/lifetime\//, "tool calls are formatted the way pi shows them");
 		assert.match(text, /read .*:60-80/);
 		assert.match(text, /1 turn 1\.5s/);
+	});
+
+	test("collapsed: a provider that reported no cost gets no `$0.0000` in the totals, and one that did gets its cost", () => {
+		assert.doesNotMatch(lines(tool.renderResult(result(), { expanded: false, isPartial: false }, theme, context)), /\$/);
+		const paid = result({ subagents: [subagent({ usage: { ...emptyUsage(), turns: 1, busyMs: 1_500, input: 12_000, output: 209, cost: 0.0412 } })] });
+		assert.match(lines(tool.renderResult(paid, { expanded: false, isPartial: false }, theme, context)), /\$0\.0412/);
+	});
+
+	test("collapsed and expanded: a call pi refused is marked so, with pi's words", () => {
+		const refused = result({ subagents: [subagent({ tools: [{ name: "write", args: { path: "notes.txt" }, error: "Tool write not found" }] })] });
+		for (const expanded of [false, true]) {
+			assert.match(lines(tool.renderResult(refused, { expanded, isPartial: false }, theme, context)).replace(/\x1b\[[0-9;]*m/g, ""), /✗ write notes\.txt · Tool write not found/);
+		}
 	});
 
 	test("collapsed: the expand hint comes from the keybinding config, not a hard-coded Ctrl+O", () => {

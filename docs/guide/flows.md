@@ -980,12 +980,14 @@ when a page there no longer matches its flow.
 
 ### The live view
 
-`livePlan(checked, journal, events)` is the plan of a run, filled as its
-visits go. `journal` is what the run's earlier lives wrote and `events` is
-what this life reports on the stream. A finished run's journal alone draws
+`livePlan(checked, journal, events, elapsedMs?)` is the plan of a run, filled
+as its visits go. `journal` is what the run's earlier lives wrote and `events`
+is what this life reports on the stream. A finished run's journal alone draws
 its last frame, a live run's events alone draw it as it goes, and a resume
 passes both. A dry run reports the same events and hands back the same
-journal, so its result is drawn the same way.
+journal, so its result is drawn the same way. `elapsedMs` is how long this
+life has run, by the caller's clock: the fold reads no clock of its own, so
+the same arguments always draw the same frame.
 
 Each line is folded by the state of its visit:
 
@@ -997,7 +999,10 @@ Each line is folded by the state of its visit:
   under it.
 - A visit that ended is one line: why it failed, or the agent it ran, the
   case a `choice` took, a loop's iterations and whether it converged, the
-  items or branches a block joined. Its time and tokens follow.
+  items or branches a block joined. Its time and tokens follow, added up
+  over every life that ran it: a loop a resume ran again counts the
+  iterations the killed life ended as well. The tokens are left out where no
+  turn ran, in a `check`, an `ask` or a `commit`.
 - A node not visited yet is its plan line, marked `○`. A `choice` folds its
   cases to one line until it decides (`○ case 1, default`), then shows the
   case it took and one line for the others (`○ not taken: default`).
@@ -1038,7 +1043,8 @@ as its second iteration starts its second item:
 The summary counts every visit that ended, as it last ended, and every one
 that failed, those `on-fail: continue` absorbed included. It names each loop
 that hit its cap or gave up (`fix not converged`) and adds up what every
-life cost. Past the first life it says how many there were, how many were
+life cost, so the root lines add up to it. While a life runs, its time is
+the `elapsedMs` it was given, not the visits it has ended so far. Past the first life it says how many there were, how many were
 killed before writing their end (`2 lives (1 partial)`), and the visit the
 last one picked up from (`resumed from fix#2/work`). A visit from an earlier
 life is drawn like any ended visit. Each life opens with its `life_start`,

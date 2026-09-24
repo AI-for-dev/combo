@@ -24,7 +24,7 @@ console.log(experimentTable(report).join("\n"));
 | model | runs | ok | converged | iterations | usage | mean wall | mean $ |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | anthropic/claude-sonnet-5 | 3 | 3/3 | 3/3 | 1×2 2×1 | 8 turns 74.1s ↑121k ↓9.4k $0.4127 | 24.7s | $0.1376 |
-| local/qwen/qwen3-coder-next | 3 | 3/3 | 1/3 | 3×3 | 18 turns 402.6s ↑340k ↓22k $0.0000 | 134.2s | $0.0000 |
+| local/qwen/qwen3-coder-next | 3 | 3/3 | 1/3 | 3×3 | 18 turns 402.6s ↑340k ↓22k | 134.2s | not reported |
 ```
 
 ## An experiment is a function, not a combinator
@@ -122,8 +122,8 @@ node examples/12-experiment.ts <modelA> <modelB>
 
 Two repetitions of the same loop per model, the table printed at the end. Several
 providers report no cost, and some report no tokens either - see
-[Measurements](measurements.md) - so a `$0.0000` column means "not reported",
-never "free". Give the matrix a `timeoutMs` it can live with: a cell lost to a
+[Measurements](measurements.md) - so a usage with no `$` figure, and a
+`mean $` of `not reported`, mean what they say, never "free". Give the matrix a `timeoutMs` it can live with: a cell lost to a
 turn that would not end is a cell missing from the comparison.
 
 ## Reference

@@ -57,8 +57,10 @@ On a `"task"` subagent the two times are nearly equal. On a `"workflow"` one, th
 - **Never estimate tokens by counting characters.** If the provider does not
   report them, the field is `0` and we say so - and what a provider reports
   changes under you: one measured here reported no tokens at all, reports them
-  today, and still reports no cost. So `$0.0000` means "not reported", never
-  "free".
+  today, and still reports no cost. So a line with no `$` figure means "not
+  reported", never "free", and a table's cost column says `not reported`.
+  Tokens wait for a turn to end, since pi's counters are read then: before
+  that a line gives none, and after it `↑0 ↓0` is a zero pi reported.
 - **`input` counts every request, not every turn.** pi sends the whole prompt on
   each round trip, so one turn of a hundred tool calls sends a 14k context a
   hundred times and the counter reads millions. That number is right; the turn

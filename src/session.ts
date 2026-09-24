@@ -120,12 +120,20 @@ export function modelLabel(session: SessionPort): string | undefined {
  */
 export type SessionEvent =
 	| { type: "message_update"; assistantMessageEvent: { type: string; delta?: string } }
-	| { type: "tool_execution_start"; toolName: string; args: unknown }
+	| { type: "tool_execution_start"; toolCallId?: string; toolName: string; args: unknown }
+	| { type: "tool_execution_end"; toolCallId?: string; toolName: string; result?: { content?: readonly { type: string; text?: string }[] }; isError?: boolean }
 	| { type: "turn_end" }
 	| { type: string };
 
-/** What a streamed event means to a listener: a piece of the answer, or a tool being called. */
-export type Streamed = { type: "text"; delta: string } | { type: "tool"; name: string; args: unknown };
+/**
+ * What a streamed event means to a listener: a piece of the answer, a tool
+ * being called, or a call that came back an error. `call` is pi's id for the
+ * call, which tells two calls of one tool apart when they run together.
+ */
+export type Streamed =
+	| { type: "text"; delta: string }
+	| { type: "tool"; name: string; args: unknown; call?: string }
+	| { type: "tool_error"; name: string; error: string; call?: string };
 
 /**
  * Reads a streamed session event, or nothing when it is one a listener has
@@ -143,8 +151,18 @@ export function streamed(event: SessionEvent): Streamed | undefined {
 		return inner?.type === "text_delta" && inner.delta ? { type: "text", delta: inner.delta } : undefined;
 	}
 	if (event.type === "tool_execution_start") {
-		const call = event as { toolName?: string; args?: unknown };
-		return { type: "tool", name: call.toolName?.trim() || "?", args: call.args };
+		const call = event as { toolCallId?: string; toolName?: string; args?: unknown };
+		return { type: "tool", name: call.toolName?.trim() || "?", args: call.args, ...(call.toolCallId && { call: call.toolCallId }) };
+	}
+	if (event.type === "tool_execution_end") {
+		// A call pi refused, an unknown tool or arguments it could not take, ends
+		// as an error without running; so does one that ran and failed. pi's own
+		// words say which.
+		const end = event as Extract<SessionEvent, { type: "tool_execution_end" }>;
+		if (!end.isError) return undefined;
+		const said = (end.result?.content ?? []).map((part) => (part.type === "text" ? (part.text ?? "") : "")).join("\n");
+		const error = said.split("\n").find((line) => line.trim() !== "")?.trim() ?? "error";
+		return { type: "tool_error", name: end.toolName?.trim() || "?", error, ...(end.toolCallId && { call: end.toolCallId }) };
 	}
 	return undefined;
 }
