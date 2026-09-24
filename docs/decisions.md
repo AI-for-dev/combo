@@ -4752,3 +4752,28 @@ seconds, which only a `timeoutMs` passed from code can give, stays in
 milliseconds: the plan's formatter rounds up, which suits a worst case and
 would misstate a deadline. That formatter moved out of `src/flow/` into
 `src/duration.ts`, because a subagent's deadline exists without any flow.
+
+## A frontmatter lifetime holds inside a workflow
+
+The record said it from the start: a frontmatter `lifetime` is the agent's
+default, and an explicit argument wins over it. `spawn` did that. The pool did
+not: it passed `options.lifetime ?? "task"` to every spawn, so it chose the
+default before it looked at the agent. In a `loop` that named no lifetime, the
+shipped `coder` and `reviewer`, both `lifetime: workflow`, got a fresh subagent
+every iteration, and the `spawn` events said `task`.
+
+The pool now resolves the lifetime per agent, with the same rule as `spawn`
+(`lifetimeOf` in `src/agent.ts`, the one place that writes it): the workflow's
+`lifetime` when it names one, then the agent's frontmatter, then `"task"`. This
+keeps invariant 6. A `lifetime: workflow` in a definition is persistence asked
+for, in the file that defines the agent, and a workflow that wants every agent
+fresh says `lifetime: "task"`. The pool closes the subagents it opens either
+way: `"task"` after the turn, the rest in `closeAll()`.
+
+Two paths still set the lifetime themselves, on purpose. `run` is one turn and
+forces `"task"`. A flow node reads `memory:`: it runs as `"task"` unless it
+names a scope, because in a flow the file says which nodes share a subagent,
+and a frontmatter default would let an agent definition change how a flow
+reads. `interview` and `swarm` keep their own `"workflow"` default, which they
+pass as the workflow's lifetime, so it wins over a frontmatter the same way a
+caller's would.

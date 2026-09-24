@@ -49,7 +49,9 @@ export class SubagentPool {
 Holds the subagents a workflow created, plays their turns, and closes them
 all.
 
-The lifetime rule lives here, in one place:
+The lifetime rule lives here, in one place, and it is decided per agent:
+the workflow's `lifetime` when it names one, else the agent's frontmatter,
+else `"task"`.
 - `"task"`: a fresh subagent per turn, closed as soon as the turn is over.
 - anything else: one subagent per key, reused, closed at the end.
 

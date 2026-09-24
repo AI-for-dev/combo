@@ -80,7 +80,7 @@ The caller owns the returned object and must `close()` it, ideally in a
 
 ```typescript
 export type SpawnOptions = {
-	/** Overrides the lifetime declared by the agent. Defaults to `"task"`. */
+	/** Overrides the lifetime declared by the agent. Absent from both, `"task"`. */
 	lifetime?: Lifetime;
 	/** Working directory the subagent's tools act in. Defaults to the process's own. */
 	cwd?: string;

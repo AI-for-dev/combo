@@ -13,6 +13,13 @@ which is why the choice is **explicit and local** and never inferred.
 Resolution order, always: the explicit argument, then the agent's frontmatter,
 then `"task"`. Persistence is asked for. It is never obtained by accident.
 
+The order holds inside a workflow too, and it is decided agent by agent. In a
+`loop` that names no lifetime, the shipped `coder` and `reviewer` both declare
+`lifetime: workflow`, so each keeps one subagent for the whole loop, while a
+`task` agent beside them gets a fresh one every turn. Two places set the
+lifetime themselves: `run` forces `"task"`, and a flow node runs as `"task"`
+unless its `memory:` names a scope, whatever the frontmatter says.
+
 ## The two regimes, on one workflow
 
 Same code, one parameter, two different behaviours.
@@ -73,7 +80,8 @@ included. See [Export](export.md).
 
 No combinator spawns or closes anything itself. Each one plays its turns
 through a `SubagentPool` built from the options it was handed, and the rule
-above lives there, in one place:
+above lives there, in one place. The lifetime is the workflow's when it names
+one, otherwise each agent's own:
 
 - `"task"`: a fresh subagent per turn, closed as soon as the turn is over.
 - anything else: one subagent per `key`, reused, closed by `closeAll()`.

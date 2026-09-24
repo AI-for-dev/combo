@@ -39,7 +39,7 @@ export type Agent = {
 	skills?: string[];
 	/** Model pattern, e.g. `"anthropic/claude-sonnet-5"`. Absent means pi's default. */
 	model?: string;
-	/** Default lifetime. An explicit call always wins. */
+	/** Default lifetime, in a workflow as in `spawn`. An explicit call always wins. */
 	lifetime?: Lifetime;
 	/**
 	 * How many subagents this agent runs at once when it delegates.

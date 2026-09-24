@@ -7,7 +7,7 @@
  * that a combinator cannot forget half of it.
  */
 
-import type { Agent, Lifetime } from "./../agent.ts";
+import { lifetimeOf, type Agent, type Lifetime } from "./../agent.ts";
 import { busFor } from "./../events.ts";
 import { failed, type Result } from "./../result.ts";
 import { spawn as defaultSpawn, type AskOptions, type SpawnOptions, type Subagent } from "./../subagent.ts";
@@ -48,7 +48,9 @@ export type Held = {
  * Holds the subagents a workflow created, plays their turns, and closes them
  * all.
  *
- * The lifetime rule lives here, in one place:
+ * The lifetime rule lives here, in one place, and it is decided per agent:
+ * the workflow's `lifetime` when it names one, else the agent's frontmatter,
+ * else `"task"`.
  * - `"task"`: a fresh subagent per turn, closed as soon as the turn is over.
  * - anything else: one subagent per key, reused, closed at the end.
  *
@@ -66,7 +68,8 @@ export class SubagentPool {
 	readonly trail: Trail;
 	private readonly live = new Map<string, Subagent>();
 	private readonly owned: Subagent[] = [];
-	private readonly lifetime: Lifetime;
+	/** What the workflow asked for. Absent, each agent's own lifetime applies. */
+	private readonly lifetime: Lifetime | undefined;
 	private readonly spawnFn: SpawnFn;
 	private readonly spawnOptions: SpawnOptions;
 	private readonly askOptions: AskOptions;
@@ -78,14 +81,13 @@ export class SubagentPool {
 	 */
 	constructor(options: WorkflowOptions, trail = new Trail()) {
 		this.trail = trail;
-		this.lifetime = options.lifetime ?? "task";
+		this.lifetime = options.lifetime;
 		this.spawnFn = options.spawn ?? defaultSpawn;
 		this.customTools = options.customTools;
 		this.askOptions = { signal: options.signal, timeoutMs: options.timeoutMs };
 
 		const bus = busFor(options);
 		this.spawnOptions = {
-			lifetime: this.lifetime,
 			bus,
 			cwd: options.cwd,
 			sessionDir: options.sessionDir,
@@ -108,11 +110,13 @@ export class SubagentPool {
 	async turn(agent: Agent, task: string, options: TurnOptions = {}): Promise<Result> {
 		if (this.askOptions.signal?.aborted) return this.refuse(agent);
 
-		const subagent = await this.acquire(agent, options.key ?? agent.name);
+		const lifetime = lifetimeOf(agent, this.lifetime);
+		const subagent = await this.acquire(agent, lifetime, options.key ?? agent.name);
 		try {
 			return await this.play(subagent, task);
 		} finally {
-			await this.release(subagent);
+			// In `"task"` lifetime, giving it back is closing it.
+			if (lifetime === "task") await subagent.close();
 		}
 	}
 
@@ -131,7 +135,7 @@ export class SubagentPool {
 		const key = options.key ?? agent.name;
 		if (this.askOptions.signal?.aborted) return { id: key, ask: async () => this.refuse(agent) };
 
-		const subagent = await this.acquire(agent, key);
+		const subagent = await this.acquire(agent, lifetimeOf(agent, this.lifetime), key);
 		return { id: subagent.id, ask: (task) => this.play(subagent, task) };
 	}
 
@@ -156,19 +160,13 @@ export class SubagentPool {
 	}
 
 	/** Gets a subagent for this key, creating it if the lifetime calls for it. */
-	private async acquire(agent: Agent, key: string): Promise<Subagent> {
-		const existing = this.lifetime === "task" ? undefined : this.live.get(key);
+	private async acquire(agent: Agent, lifetime: Lifetime, key: string): Promise<Subagent> {
+		const existing = lifetime === "task" ? undefined : this.live.get(key);
 		if (existing) return existing;
 
-		const subagent = await this.spawnFn(agent, { ...this.spawnOptions, customTools: this.customTools?.(agent) });
+		const subagent = await this.spawnFn(agent, { ...this.spawnOptions, lifetime, customTools: this.customTools?.(agent) });
 		this.owned.push(subagent);
-		if (this.lifetime !== "task") this.live.set(key, subagent);
+		if (lifetime !== "task") this.live.set(key, subagent);
 		return subagent;
-	}
-
-	/** Gives a subagent back. In `"task"` lifetime this closes it right away. */
-	private async release(subagent: Subagent): Promise<void> {
-		if (this.lifetime !== "task") return;
-		await subagent.close();
 	}
 }
