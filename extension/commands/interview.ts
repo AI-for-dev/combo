@@ -17,7 +17,8 @@ export default function registerInterviewCommand(pi: PiApi) {
 	pi.registerCommand("interview", {
 		description: "Turn a vague request into a brief, one question at a time (`--model <pattern>`, `--questions <n>`)",
 		handler: async (args, ctx: CommandCtx) => {
-			const { model, questions, request } = parseInterviewArgs(args);
+			const { model, questions, request, refused } = parseInterviewArgs(args);
+			if (refused) return refuse(ctx, `interview: ${refused}`, "warning");
 			await runInterview(request, ctx, {}, { model, maxQuestions: questions });
 		},
 	});

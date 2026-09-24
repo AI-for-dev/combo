@@ -4,15 +4,12 @@
  */
 
 /** `/interview [--model <pattern>] [--questions <n>] <request>`. */
-export function parseInterviewArgs(args: string): { model?: string; questions?: number; request: string } {
-	const { flags, rest } = parseLeadingFlags(args, ["model", "questions"]);
+export function parseInterviewArgs(args: string): { model?: string; questions?: number; request: string; refused?: string } {
+	const { flags, rest, refused } = parseLeadingFlags(args, ["model"], { counts: ["questions"] });
 	const parsed: ReturnType<typeof parseInterviewArgs> = { request: rest };
+	if (refused) parsed.refused = refused;
 	if (flags.model) parsed.model = flags.model;
-
-	// A count that is not one is dropped rather than guessed at: `--questions x`
-	// is a typo, and turning it into 0 would silently skip the interview.
-	const questions = Number(flags.questions);
-	if (Number.isInteger(questions) && questions > 0) parsed.questions = questions;
+	if (flags.questions) parsed.questions = Number(flags.questions);
 	return parsed;
 }
 
@@ -31,7 +28,7 @@ export function parseInterviewArgs(args: string): { model?: string; questions?: 
 const GAP = String.raw`(?:\s|\\\r?\n)*`;
 
 /** A flag name, and the `=value` written against it. */
-const HEAD = new RegExp(String.raw`^${GAP}--([a-z]+)(?:=(\S+))?`, "i");
+const HEAD = new RegExp(String.raw`^${GAP}--([a-z]+)(?:=(\S*))?`, "i");
 
 /**
  * A flag that takes a value, up to and including the gap after it.
@@ -42,6 +39,24 @@ const HEAD = new RegExp(String.raw`^${GAP}--([a-z]+)(?:=(\S+))?`, "i");
  */
 const VALUED = new RegExp(String.raw`^${GAP}--[a-z]+(?:=|\s+)(?:"([^"]*)"|(\S+))${GAP}`, "i");
 
+/** A count as it is typed: `1.5`, `0x10` or `1e2` is a number, and not what anybody means by one. */
+const COUNT = /^[1-9]\d*$/;
+
+/** Which of the names a command reads take no value, and which take a count. */
+export type FlagKinds = {
+	/** Flags that take no value: `--name`, `--name=true` or `--name=false`. */
+	switches?: readonly string[];
+	/** Valued flags whose value is a whole number of at least 1. */
+	counts?: readonly string[];
+};
+
+/**
+ * What was read off a line. `refused` names the first flag written with a
+ * value it does not take, and what it takes: the command says so and runs
+ * nothing, since whatever it did instead is a guess at what was meant.
+ */
+export type ReadFlags = { flags: Record<string, string>; rest: string; refused?: string };
+
 /**
  * Reads leading flags off a command line, in any order.
  *
@@ -49,20 +64,22 @@ const VALUED = new RegExp(String.raw`^${GAP}--[a-z]+(?:=|\s+)(?:"([^"]*)"|(\S+))
  * because in free prose it may simply *be* the text. `=` and a space both
  * separate a value, like everywhere in pi.
  *
- * A name in `switches` takes no value and arrives as `"true"`. Which list a
- * name is in has to be decided here rather than guessed from what follows it:
- * in `--agent explore the parser`, `explore` is the name and not the flag's value.
+ * A switch arrives as `"true"` or `"false"`, and absent when it was not
+ * written, which is a third answer and not `false`. Which list a name is in
+ * has to be decided here rather than guessed from what follows it: in
+ * `--agent explore the parser`, `explore` is the name and not the flag's value.
+ * `--agent=no` is refused rather than read: `no`, `off` and `0` are words
+ * somebody writes to mean false, and reading any word but `false` as true
+ * would do the opposite of what was typed.
  *
  * A {@link GAP} between two flags may hold a line continuation: a command with
  * six flags on it gets written across two lines by whoever has to read it back.
  */
-export function parseLeadingFlags(
-	args: string,
-	names: readonly string[],
-	switches: readonly string[] = [],
-): { flags: Record<string, string>; rest: string } {
+export function parseLeadingFlags(args: string, names: readonly string[], kinds: FlagKinds = {}): ReadFlags {
+	const { switches = [], counts = [] } = kinds;
 	const flags: Record<string, string> = {};
 	let rest = args;
+	const refuse = (name: string, takes: string, value: string): ReadFlags => ({ flags, rest: rest.trim(), refused: `--${name} takes ${takes}, not "${value}"` });
 
 	for (;;) {
 		// The name first, and an `=value` only if it is written that way. What
@@ -72,15 +89,18 @@ export function parseLeadingFlags(
 		if (!head || !name) break;
 
 		if (switches.includes(name)) {
-			flags[name] = head[2] === "false" ? "false" : "true";
+			const value = head[2]?.toLowerCase() ?? "true";
+			if (value !== "true" && value !== "false") return refuse(name, "no value, or =true or =false", head[2] ?? "");
+			flags[name] = value;
 			rest = rest.slice(head[0].length);
 			continue;
 		}
-		if (!names.includes(name)) break;
+		if (!names.includes(name) && !counts.includes(name)) break;
 
 		const valued = VALUED.exec(rest);
 		const value = valued?.[1] ?? valued?.[2];
 		if (!valued || !value) break;
+		if (counts.includes(name) && !COUNT.test(value)) return refuse(name, "a whole number of at least 1", value);
 		flags[name] = value;
 		rest = rest.slice(valued[0].length);
 	}
