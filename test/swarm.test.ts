@@ -174,6 +174,36 @@ describe("the board", () => {
 		assert.deepEqual(reads, ["Nothing new on the board."]);
 	});
 
+	test("`resultsPerTurn` refuses a result past it, tells the member to end its turn, and starts over next turn", async () => {
+		const board = createBoard();
+		const said: string[] = [];
+		let turn = 0;
+		const fake = fakeSpawn(async (_task, _agent, options) => {
+			const tool = offeredTools(options, "member#1")[0];
+			turn++;
+			for (const text of [`VOTE: Go (${turn})`, `VOTE: Go, still (${turn})`]) {
+				said.push((await callTool(tool!, { action: "post", kind: "result", text })).content[0]?.text ?? "");
+			}
+			said.push((await callTool(tool!, { action: "post", kind: "tell", text: `thinking aloud (${turn})` })).content[0]?.text ?? "");
+			return {};
+		});
+		await swarm({ members: [{ agent: member, count: 1 }], goal: "do it", rounds: 2, resultsPerTurn: 1, board, spawn: fake.spawn });
+
+		assert.match(said[1] ?? "", /already posted your result for this turn as p1.*end your turn/s);
+		assert.deepEqual(
+			board.all().map((one) => one.kind),
+			["result", "tell", "result", "tell"],
+			"one result a turn, and a tell whenever it likes",
+		);
+	});
+
+	test("`resultsPerTurn` below one is a mistake", async () => {
+		await assert.rejects(
+			() => swarm({ members: [{ agent: member, count: 1 }], goal: "x", resultsPerTurn: 0, spawn: fakeSpawn().spawn }),
+			/resultsPerTurn.*at least 1/,
+		);
+	});
+
 	test("the posts come back with the result, in order", async () => {
 		const board = createBoard();
 		board.post("member#9", { kind: "tell", text: "first" });
@@ -313,6 +343,10 @@ describe("what a member is told", () => {
 		assert.ok(!first.includes("on the board"), "nothing happened yet, so nothing is said about it");
 		assert.match(first, /Take what you will work on/);
 		assert.match(task("the goal", 2, [], claims), /Round 2/);
+	});
+
+	test("that what the others post comes to it next turn, so it has no reason to wait", () => {
+		for (const round of [1, 2]) assert.match(task("g", round, [], createClaims()), /reaches you at the top of your next turn/);
 	});
 
 	test("what is still free, when the caller said what there was", () => {

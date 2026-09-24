@@ -44,6 +44,13 @@ describe("latestVotes", () => {
 	test("a post with no vote line in it is not a vote", () => {
 		assert.equal(latestVotes(boardOf(["a", "I would pivot to Rust"]).all()).size, 0);
 	});
+
+	test("only a result is a vote: a tell quoting one has quoted it", () => {
+		const board = boardOf(["a", "VOTE: Go"]);
+		board.post("a", { kind: "tell", text: "VOTE: Rust was debater#2's, and here is what it missed" });
+
+		assert.deepEqual([...latestVotes(board.all())], [["a", "go"]]);
+	});
 });
 
 describe("agreed", () => {

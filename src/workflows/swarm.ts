@@ -39,10 +39,12 @@ import {
 	createBoard,
 	createClaims,
 	createReader,
+	turnBoard,
 	type Board,
 	type Claims,
 	type Post,
 	type Reader,
+	type TurnBoard,
 } from "../board/index.ts";
 import { busFor } from "./../events.ts";
 import { failed, joinOutputs, type Result, type WorkflowResult } from "./../result.ts";
@@ -97,6 +99,12 @@ export type SwarmOptions = WorkflowOptions & {
 	claims?: Claims;
 	/** Has the goal been reached? Read from the board, after every round. */
 	until?: (board: Board) => boolean;
+	/**
+	 * How many `result`s a member may post in one turn. Absent, as many as the
+	 * board takes: a member describing files posts one per file. A debate wants
+	 * 1, because a vote posted again is not an argument.
+	 */
+	resultsPerTurn?: number;
 };
 
 /**
@@ -137,6 +145,10 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 	const rounds = options.rounds ?? 3;
 	const lifetime = options.lifetime ?? "workflow";
 	if (rounds < 1) throw new Error(`swarm: \`rounds\` must be at least 1, got ${rounds}`);
+	const { resultsPerTurn } = options;
+	if (resultsPerTurn !== undefined && !(resultsPerTurn >= 1)) {
+		throw new Error(`swarm: \`resultsPerTurn\` must be at least 1, got ${resultsPerTurn}`);
+	}
 	// A member's id is its name on the board. A `"task"` member is a new subagent
 	// with a new id every round, so from the second one nobody would be talking to
 	// who they think they are.
@@ -156,12 +168,16 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 	// back from a member that is gone - land in the same record.
 	const board = announcedBoard(options.board ?? createBoard(), bus);
 	const claims = announcedClaims(options.claims ?? createClaims(), bus);
-	// One cursor per member, for the handout and its own `read` alike.
-	const readers = new Map<string, Reader>();
-	const readerOf = (id: string): Reader => {
-		let reader = readers.get(id);
-		if (!reader) readers.set(id, (reader = createReader(board, id)));
-		return reader;
+	// Each member's place on the board: one cursor, for the handout and its own
+	// `read` alike, and the count of what it posted this turn.
+	const seats = new Map<string, Seat>();
+	const seatOf = (id: string): Seat => {
+		let seat = seats.get(id);
+		if (!seat) {
+			seat = { reader: createReader(board, id), ...(resultsPerTurn === undefined ? {} : { turn: turnBoard(board, resultsPerTurn) }) };
+			seats.set(id, seat);
+		}
+		return seat;
 	};
 	const pool = new SubagentPool({
 		...options,
@@ -171,7 +187,10 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 		// Every member is handed the board under its own name, beside whatever the
 		// caller offered it. The id exists only once the subagent does, which is
 		// what the function form is for.
-		customTools: offerBoth(options.customTools, () => (id: string) => [boardTool({ board, from: id, claims, reader: readerOf(id) })]),
+		customTools: offerBoth(options.customTools, () => (id: string) => {
+			const { reader, turn } = seatOf(id);
+			return [boardTool({ board: turn?.board ?? board, from: id, claims, reader })];
+		}),
 	});
 
 	let converged = false;
@@ -204,7 +223,9 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 
 			ran = round;
 			await mapConcurrent(asking, concurrency, async (member) => {
-				member.result = await member.ask(task(goal, round, readerOf(member.id).next().posts, claims));
+				const seat = seatOf(member.id);
+				seat.turn?.begin();
+				member.result = await member.ask(task(goal, round, seat.reader.next().posts, claims));
 			});
 
 			if (until?.(board)) {
@@ -254,6 +275,9 @@ export function membersOutput(members: readonly SwarmMember[]): string {
 	return joinOutputs(members.map((one) => ({ ...one.result, agent: one.id })));
 }
 
+/** Where a member reads from, and what it may still post this turn. */
+type Seat = { reader: Reader; turn?: TurnBoard };
+
 /** A member, while the swarm runs: who it is, and what it last said. */
 type Member = Held & {
 	agent: Agent;
@@ -277,6 +301,7 @@ export function task(goal: string, round: number, posts: readonly Post[], claims
 		round === 1
 			? "Others are on this at the same time. Take what you will work on before you start."
 			: `Round ${round}. Carry on, or take something else if what you had is done.`,
+		"What the others post while you work reaches you at the top of your next turn, so there is no need to wait for it.",
 	]
 		.filter(Boolean)
 		.join("\n");

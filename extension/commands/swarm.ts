@@ -132,6 +132,9 @@ export async function runSwarm(args: string, ctx: CommandCtx, injected: StepDeps
 					// debate hand out the opening positions, and reporting on one is not
 					// the same as the others coming round to it.
 					...(toAgree ? { until: agreed(count) } : keys.length ? { until: everythingDescribed(keys) } : {}),
+					// A vote posted again in the same turn is not an argument, and the
+					// members reading it next round count it as one.
+					...(toAgree ? { resultsPerTurn: 1 } : {}),
 					cwd: ctx.cwd,
 					exportDir: begun.dir,
 					model: flags.model,

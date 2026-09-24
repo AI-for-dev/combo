@@ -143,6 +143,12 @@ export type SwarmOptions = WorkflowOptions & {
 	claims?: Claims;
 	/** Has the goal been reached? Read from the board, after every round. */
 	until?: (board: Board) => boolean;
+	/**
+	 * How many `result`s a member may post in one turn. Absent, as many as the
+	 * board takes: a member describing files posts one per file. A debate wants
+	 * 1, because a vote posted again is not an argument.
+	 */
+	resultsPerTurn?: number;
 };
 ```
 

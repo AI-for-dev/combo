@@ -169,6 +169,14 @@ member's latest vote says the same. The instruction is written where the votes
 are counted, because a stop condition that depends on a format nobody was told
 about never fires, and one told in one place and read in another drifts.
 
+Only a `result` counts as a vote, and `--until agree` lets a member post one
+`result` a turn (`resultsPerTurn: 1` in code). A second one is refused, and the
+member is told to end its turn, because what the others answer reaches it at
+the top of the next one. A `tell` is always free: that is where a member thinks
+aloud. Without the cap, one member on gemma-4-31b read an empty board and
+posted its vote again seven times in the first round. The next round the other
+two were handed mostly that one vote, and came round to it.
+
 It reads the roster rather than whoever spoke: two members of three that agree
 have not agreed, and a member that dropped out never lets it fire, so the run
 spends its rounds and comes back `stopped by rounds`. Reaching a cap is not

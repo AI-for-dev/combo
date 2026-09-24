@@ -55,7 +55,9 @@ The latest post wins, because changing your mind is the thing being watched
 for and a run scored on opening positions cannot see it happen. Within one
 post it is the first vote line that counts, which is where the member was
 told to put it: a member quoting somebody else's vote underneath its own has
-quoted, not voted.
+quoted, not voted. For the same reason only a `result` is read, which is
+what {@link VOTE_INSTRUCTION} asks the vote to be posted as: a `tell`
+answering somebody's vote quotes it on its first line as often as not.
 
 ## `VOTE_INSTRUCTION`
 
