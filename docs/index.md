@@ -138,6 +138,7 @@ Several members on one job, a board between them, and nobody dividing it.
 
 ## Reference
 
+- [Cheatsheet](reference/cheatsheet.md) - commands, flags, keys, agent and flow syntax, the API, on one page.
 - [API reference](reference/api/index.md) - every public export, generated from the source.
 - [Flows](reference/flows/index.md) - each shipped flow, drawn from its file.
 - [Examples](reference/examples.md) - one runnable script per shape.
@@ -210,6 +211,7 @@ tutorials/index
 :caption: Reference
 :hidden:
 
+reference/cheatsheet
 reference/api/index
 reference/flows/index
 reference/examples

@@ -193,6 +193,8 @@ See [Extension](docs/guide/extension.md),
 ## Documentation
 
 - [Manual](docs/index.md) - agents, lifetime, workflows, flows, display, export, experiments.
+- [Cheatsheet](docs/reference/cheatsheet.md) - commands, flags, agent and flow
+  syntax, the API, on one page.
 - [Tutorials](docs/tutorials/index.md) - twelve sittings in front of pi, one
   problem each, every one run on this repository.
 - [API reference](docs/reference/api/index.md) - every public export, generated from the
