@@ -6,10 +6,12 @@ input: string
 nodes:
   - id: locate
     agent: scout
+    retry: 1
     reads: [input]
 
   - id: plan
     agent: planner
+    retry: 1
     reads: [input, locate]
     output: { subtasks: [{ text: string }] }
 
@@ -57,6 +59,7 @@ nodes:
 
   - id: report
     agent: synthesiser
+    retry: 1
     reads: [input, diff, deliver.output.last.work, deliver.output.last.audit]
 ---
 

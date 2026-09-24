@@ -205,7 +205,7 @@ live. The reviewer approves with APPROVED and nothing else.
 
 One `deliver` step held a planner, a pair per subtask, a check and an audit,
 none of it in the file. The flow writes each one as a node, which is what lets
-`/flows build` print its bound (112 turns at most) and a dry run walk it:
+`/flows build` print its bound (154 turns at most) and a dry run walk it:
 
 - `plan` is the planner's turn, its subtasks typed.
 - `deliver` is the audit round, `maxAuditRounds: 2` becoming `max: 2`. Its
@@ -217,8 +217,12 @@ none of it in the file. The flow writes each one as a node, which is what lets
   share a subagent each for the whole pair (`memory: pair`), and the reviewer
   decides through `verdict: pair` rather than a word.
 - `tests` is the check, a script of the project in place of `verify:`.
-- `audit` decides the round through `verdict: deliver`. It and the review are
-  asked once more (`retry: 1`) when a turn ends without the call.
+- `audit` decides the round through `verdict: deliver`.
+- `report` is the synthesiser's few lines on what was done and what is left.
+
+Every agent node is asked once more (`retry: 1`) when its turn fails: a review
+or an audit that ends without its call, a plan off its schema, a provider
+error, or an answer cut by the output limit.
 
 ```markdown
 ---
@@ -229,10 +233,12 @@ input: string
 nodes:
   - id: locate
     agent: scout
+    retry: 1
     reads: [input]
 
   - id: plan
     agent: planner
+    retry: 1
     reads: [input, locate]
     output: { subtasks: [{ text: string }] }
 
@@ -277,10 +283,15 @@ nodes:
         verdict: deliver
         retry: 1
         reads: [input, work, tests, diff, deliver.ledger]
+
+  - id: report
+    agent: synthesiser
+    retry: 1
+    reads: [input, diff, deliver.output.last.work, deliver.output.last.audit]
 ---
 ```
 
-The five sections, `locate`, `plan`, `code`, `review` and `audit`, are in the
+The six sections, `locate`, `plan`, `code`, `review`, `audit` and `report`, are in the
 shipped [`flows/build.md`](../reference/flows/build.md). The check is the part
 each project writes: `.pi/checks/test.sh` runs the project's own tests, and a
 build launched where it is missing is refused before its first turn with

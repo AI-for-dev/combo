@@ -797,10 +797,10 @@ nothing is rewritten. Its output is `{ approved, remarks? }`, where
 recorded call ends the turn: nothing reads what the model would write after
 it, and a model left to go on has been measured calling `verdict` again and
 again until its deadline. A turn that calls no `verdict` fails with `schema`,
-which `retry:` covers: the shipped `build` gives its `review` and `audit`
-`retry: 1`, so a turn that answered in prose is sent back once with the
-failure named. `<id>.ledger` reads the open obligations as `[{ id, text }]` at
-the moment it is read.
+which `retry:` covers: the shipped `build` gives every agent node, `review`
+and `audit` included, `retry: 1`, so a turn that answered in prose is sent
+back once with the failure named. `<id>.ledger` reads the open obligations as
+`[{ id, text }]` at the moment it is read.
 
 ### Failures, retries and timeouts
 

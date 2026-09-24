@@ -114,6 +114,18 @@ describe("build", () => {
 		assert.deepEqual([owed, closed], [["the empty key is not handled"], ["o1"]], "the second attempt's remark went on the ledger, and was closed");
 	});
 
+	test("a locate, a plan or a report that fails is asked once more, and the build goes on", async () => {
+		const run = await dryRunFlow(build, "add a cache", {
+			...approved(),
+			locate: [{ fail: "provider" }, "src/store.ts:10"],
+			plan: [{ fail: "schema" }, { subtasks: [{ text: "add the cache" }, { text: "test it" }] }],
+			report: [{ fail: "timeout" }, "Added the cache in src/store.ts, and its tests. Nothing is left."],
+		});
+		assert.ok(run.ok && "output" in run, JSON.stringify(run));
+		assert.equal(run.output, "Added the cache in src/store.ts, and its tests. Nothing is left.");
+		assert.deepEqual([...ended(run, "locate"), ...ended(run, "plan"), ...ended(run, "report")], ["locate true", "plan true", "report true"]);
+	});
+
 	test("an audit that is not approved carries what it raised into a second round, which converges", async () => {
 		const run = await dryRunFlow(build, "add a cache", {
 			...approved(),

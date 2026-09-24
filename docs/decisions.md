@@ -823,9 +823,9 @@ of four with this change and two of two without it, although no file it reads
 names the tool. That is the model's own habit, and there a refused call costs
 a line of the display, not a decision.
 
-### A turn cut by the output limit fails
+### A turn cut by the output limit fails, and every agent node of `build` is asked twice
 
-Measuring real `/run build` runs on `ilaas/gemma-4-31b` turned up a hole.
+Measuring real `/run build` runs on `ilaas/gemma-4-31b` turned up two holes.
 
 - **A turn that ended on the output limit passed.** pi ends such a turn with
   `stopReason: "length"`, and `lastTurn` read only `error` and `aborted` as a
@@ -844,6 +844,16 @@ Measuring real `/run build` runs on `ilaas/gemma-4-31b` turned up a hole.
   `retry:` covers it with no new kind in `ERROR_KINDS`: a new kind would be a
   thirteenth that every condition reading `x.error.kind` has to learn, for a
   failure no flow has been measured treating differently.
+- **`plan` gets `retry: 1`.** 2 of 16 real builds failed there, one on
+  `schema` and one on a provider error; both are what `retry:` covers, and a
+  plan that fails ends the build before any work. `review` and `audit` got
+  theirs for the same reason.
+- **So do `locate` and `report`.** Neither failed in those 16 builds, but the
+  first hole closed turns a cut answer, which used to pass, into a failure on
+  exactly those two untyped nodes. `report` runs after every patch has landed,
+  so a failure there fails a finished build for want of one more turn. `locate`
+  failing costs less, since nothing has run yet, and one retry costs less
+  still. Every agent node of `build` is now asked at most twice.
 
 ### A working copy belongs to the work, not to the subagent
 
