@@ -4096,6 +4096,22 @@ past what it merely looked at - which the tool used to do on its own after the
 fact. A `read` event has to say what was handed over, and only the one that
 decides the page can say it.
 
+### A member has one cursor, whoever hands it posts
+
+The swarm hands each member what is new at the top of its turn, and the
+member's `read` hands it what is new since its last `read`. Each kept its own
+cursor, so a `read` after the handout gave the same posts back. In a real pi
+(`/swarm --agent debater`, qwen-3.6-35b-instruct), a member handed one post
+read the board at once and got that post again. In round four, a `read`
+returned posts from rounds two and three. Weak models read on nearly every
+turn, so they paid for nearly every post twice, against what the board header
+and the debater's definition promise.
+
+`createReader(board, id)` now holds the member's one cursor. The swarm makes one
+per member and gives the same reader to the handout and to the member's tool.
+A tool built with no reader keeps its own, as before, because outside a swarm
+nobody else hands that member anything.
+
 ### A member does not post the same thing twice
 
 `/swarm --agent debater --until agree` in a real pi, on

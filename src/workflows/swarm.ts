@@ -38,9 +38,11 @@ import {
 	boardTool,
 	createBoard,
 	createClaims,
+	createReader,
 	type Board,
 	type Claims,
 	type Post,
+	type Reader,
 } from "../board/index.ts";
 import { busFor } from "./../events.ts";
 import { failed, joinOutputs, type Result, type WorkflowResult } from "./../result.ts";
@@ -154,6 +156,13 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 	// back from a member that is gone - land in the same record.
 	const board = announcedBoard(options.board ?? createBoard(), bus);
 	const claims = announcedClaims(options.claims ?? createClaims(), bus);
+	// One cursor per member, for the handout and its own `read` alike.
+	const readers = new Map<string, Reader>();
+	const readerOf = (id: string): Reader => {
+		let reader = readers.get(id);
+		if (!reader) readers.set(id, (reader = createReader(board, id)));
+		return reader;
+	};
 	const pool = new SubagentPool({
 		...options,
 		bus,
@@ -162,7 +171,7 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 		// Every member is handed the board under its own name, beside whatever the
 		// caller offered it. The id exists only once the subagent does, which is
 		// what the function form is for.
-		customTools: offerBoth(options.customTools, () => (id: string) => [boardTool({ board, from: id, claims })]),
+		customTools: offerBoth(options.customTools, () => (id: string) => [boardTool({ board, from: id, claims, reader: readerOf(id) })]),
 	});
 
 	let converged = false;
@@ -195,9 +204,7 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 
 			ran = round;
 			await mapConcurrent(asking, concurrency, async (member) => {
-				const reading = board.since(member.id, member.cursor);
-				member.cursor = reading.cursor;
-				member.result = await member.ask(task(goal, round, reading.posts, claims));
+				member.result = await member.ask(task(goal, round, readerOf(member.id).next().posts, claims));
 			});
 
 			if (until?.(board)) {
@@ -247,10 +254,9 @@ export function membersOutput(members: readonly SwarmMember[]): string {
 	return joinOutputs(members.map((one) => ({ ...one.result, agent: one.id })));
 }
 
-/** A member, while the swarm runs: who it is, where it has read to, what it last said. */
+/** A member, while the swarm runs: who it is, and what it last said. */
 type Member = Held & {
 	agent: Agent;
-	cursor?: string;
 	result?: Result;
 };
 
