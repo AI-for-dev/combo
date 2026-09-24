@@ -9,8 +9,8 @@ run to be repeated.
 import { experiment, experimentTable, loop } from "@ai-for-dev/combo";
 
 const report = await experiment({
-	models: ["anthropic/claude-sonnet-5", "local/qwen/qwen3-coder-next"],
-	repetitions: 3,
+	models: ["ilaas/gemma-4-31b", "ilaas/gpt-oss-120b"],
+	repetitions: 2,
 	run: async (cell) => {
 		const result = await loop({ ...cell.options, steps: [coder, reviewer], input, until: lgtm });
 		return { ok: result.ok, converged: result.converged, iterations: result.iterations };
@@ -20,12 +20,19 @@ const report = await experiment({
 console.log(experimentTable(report).join("\n"));
 ```
 
+That is the shape of [`examples/12-experiment.ts`](#running-one), and this is
+the table it printed on those two models:
+
 ```
 | model | runs | ok | converged | iterations | usage | mean wall | mean $ |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| anthropic/claude-sonnet-5 | 3 | 3/3 | 3/3 | 1×2 2×1 | 8 turns 74.1s ↑121k ↓9.4k $0.4127 | 24.7s | $0.1376 |
-| local/qwen/qwen3-coder-next | 3 | 3/3 | 1/3 | 3×3 | 18 turns 402.6s ↑340k ↓22k | 134.2s | not reported |
+| ilaas/gemma-4-31b | 2 | 2/2 | 2/2 | 1×2 | 4 turns 368.6s ↑30k ↓21k | 184.3s | not reported |
+| ilaas/gpt-oss-120b | 2 | 2/2 | 2/2 | 1×2 | 4 turns 47.9s ↑53k ↓5.8k | 24.0s | not reported |
 ```
+
+`1×2` is two runs of one iteration each. The provider reports no cost, so the
+usage has no `$` figure and `mean $` says `not reported`: a missing figure is
+not a zero.
 
 ## An experiment is a function, not a combinator
 
@@ -77,15 +84,15 @@ distinct sentences compares nothing.
 ## On disk
 
 ```
-runs/2026-08-01_10-24-03/
+runs/2026-09-24_00-45-16/
 ├── experiment.json                machine-readable, every cell
 ├── experiment.md                  the table, plus the failures named under it
-├── anthropic-claude-sonnet-5/
+├── ilaas-gemma-4-31b/
 │   ├── rep-1/                     pi's transcripts per subagent
 │   │   ├── usage.json             time and tokens, attributed
 │   │   └── events.jsonl           the cell's whole event stream, in order
 │   └── rep-2/
-└── local-qwen-qwen3-coder-next/
+└── ilaas-gpt-oss-120b/
     └── …
 ```
 

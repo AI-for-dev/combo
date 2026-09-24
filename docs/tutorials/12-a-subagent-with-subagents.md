@@ -47,48 +47,55 @@ was told to think: two to four tasks, three in flight.
 The dots draw the tree as it grows:
 
 ```
-● explorer#1  subagent agent=scout tasks=["Analyze src/reporters/conso…
-  provider/model · ↑0 ↓0 · 41.6s
-  ✓ scout#1  provider/model · ↑5.8k ↓986 · 9.8s
-  ● scout#2  read src/reporters/herdr-probe.ts
-    provider/model · ↑0 ↓0 · 30.1s
-  ✓ scout#3  provider/model · ↑6.3k ↓1k · 25.2s
+● explorer#1  subagent agent=scout tasks=["Analyze `src/reporters/cons…
+  provider/model · 75.2s
+  ● scout#1  read src/reporters/console.ts
+    provider/model · 13.9s
+  ✓ scout#2  provider/model · ↑2.7k ↓313 · 7.9s
+  ✓ scout#3  provider/model · ↑4.4k ↓1.1k · 7.0s
+  ● scout#4  read src/reporters/herdr-probe.ts
+    provider/model · 6.9s
 esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
 ```
 
-The explorer listed the directory, read its `index.ts`, wrote three tasks and
-handed them over. The children sit under the one that asked for them,
-indented, and the tool row keeps that shape when it is over:
+The explorer listed the directory, read its `index.ts`, `src/events.ts` and
+`tui.ts`, wrote four tasks and handed them over. Three ran at once, and the
+fourth started when the first of them ended. The explorer's own line has no
+tokens after 75 seconds: it is still in its first turn, waiting on the call,
+and pi's counters are read when a turn ends. The children sit under the one
+that asked for them, indented, and the tool row keeps that shape when it is
+over:
 
 ```
 subagent single explorer [provider/model] [export]
-  compare the reporters in src/reporters
-✓ explorer#1 compare the reporters in src/reporters
-    ls src/reporters
-    read src/reporters/index.ts
-    subagent agent=scout tasks=["Analyze src/reporters/conso…
-  ✓ scout#1 Analyze src/reporters/console.ts, src/reporters/s…
+  Compare the reporters in src/reporters
+✓ explorer#1 Compare the reporters in src/reporters
+    … 2 earlier calls
+    read src/events.ts
+    read src/reporters/tui.ts
+    subagent agent=scout tasks=["Analyze `src/reporters/cons…
+  ✓ scout#1 Analyze `src/reporters/console.ts`. What does the…
       read src/reporters/console.ts
-      read src/reporters/silent.ts
-      read src/reporters/tui.ts
-  ✓ scout#2 Analyze src/reporters/herdr.ts, src/reporters/her…
+  ✓ scout#2 Analyze `src/reporters/record.ts`. What does the …
+      read src/reporters/record.ts
+  ✓ scout#3 Analyze `src/reporters/picture.ts`. How does `cre…
+      read src/reporters/picture.ts
+  ✓ scout#4 Analyze `src/reporters/herdr.ts` and its related …
+      … 1 earlier call
       read src/reporters/herdr.ts
       read src/reporters/herdr-client.ts
       read src/reporters/herdr-probe.ts
-  ✓ scout#3 Analyze src/reporters/picture.ts, src/reporters/r…
-      … 1 earlier call
-      read src/reporters/record.ts
-      read src/reporters/traffic.ts
-      read src/reporters/tree.ts
 
-4 turns 117.6s ↑30k ↓5.7k $0.0000  ×2.24
-exported to /…/combo/runs/2026-09-23_22-38-59
+5 turns 134.5s ↑61k ↓6k  ×1.48
+exported to /…/combo/runs/2026-09-24_00-45-00
 ```
 
-Read the three tasks. Each scout sees only the line the explorer wrote it, and
-each line names the files to start from. That is the explorer's prompt doing
-its job, and the first thing to check when a delegating agent comes back with
-nonsense is whether the children were asked badly.
+Read the four tasks. Each scout sees only the line the explorer wrote it, and
+each line names the files to start from and asks one question about them.
+That is the explorer's prompt doing its job, and the first thing to check
+when a delegating agent comes back with nonsense is whether the children were
+asked badly. It is also where a gap shows: `silent.ts`, `tree.ts` and
+`traffic.ts` went to nobody, and the explorer had read only `tui.ts` itself.
 
 A failed child is a value the parent reads, not the end of its turn. An
 earlier run of the same line lost one of its four scouts to the provider,
@@ -103,14 +110,15 @@ fifth scout read the three herdr files the fourth never reached.
 
 | subagent | parent | wall | input | output | calls |
 | --- | --- | --- | --- | --- | --- |
-| explorer#1 | | 52.4s | 9.5k | 2.2k | 3 |
-| scout#1 | explorer#1 | 9.8s | 5.8k | 986 | 3 |
-| scout#2 | explorer#1 | 30.2s | 8.1k | 1.5k | 3 |
-| scout#3 | explorer#1 | 25.2s | 6.3k | 1.0k | 4 |
-| **run** | | **52.4s** | **29.6k** | **5.7k** | parallelism 2.24 |
+| explorer#1 | | 90.9s | 29.1k | 1.8k | 5 |
+| scout#1 | explorer#1 | 14.6s | 2.9k | 733 | 1 |
+| scout#2 | explorer#1 | 7.9s | 2.7k | 313 | 1 |
+| scout#3 | explorer#1 | 7.0s | 4.4k | 1.1k | 1 |
+| scout#4 | explorer#1 | 14.1s | 21.7k | 2.0k | 4 |
+| **run** | | **91.0s** | **60.9k** | **6.0k** | parallelism 1.48 |
 
 Two rules are visible in it. **The total is the tree, never the root.** The
-explorer's own turn cost 9.5k input tokens; the run cost 29.6k, and a report
+explorer's own turn cost 29.1k input tokens; the run cost 60.9k, and a report
 that summed the roots would call this a cheap agent when it is a cheap agent
 and an expensive run. **The link is an id, never a name.** Two explorers
 running at once share a name; `parentId` is the id `spawn` minted for whoever
@@ -122,15 +130,17 @@ than vanishing from the sum.
 Two levels by default: your session, a child, a grandchild. Pass `maxDepth`
 on the call to change it. At the bound, the tool is **still handed over and
 refuses when called**, saying how deep it is and how deep it may go. With
-`maxDepth 1` on the same line, the explorer's own call came back:
+`maxDepth 1` on the same line, the tool row says `[≤1 deep]`, and the
+explorer's own call came back:
 
 ```
 You are 1 level(s) deep and 1 is the limit. Do this part of the work yourself.
 ```
 
-It did: it read eight of the files itself, one turn of 51.7 seconds and 60k
-input tokens, twice the input of the tree above, because every file it read
-was sent again with each call after it. Withholding the tool instead would leave a
+It tried once more, with a single task for one file, got the same sentence,
+and then did as told: it read ten of the files itself, one turn of 264.4
+seconds and 113k input tokens, nearly twice the input of the tree above,
+because every file it read was sent again with each call after it. Withholding the tool instead would leave a
 model calling a tool that is not there, getting "unknown tool", and trying
 again. That is the runaway turn [the meter](10-the-meter.md) exists to catch,
 and a refusal in words is what a model can act on.

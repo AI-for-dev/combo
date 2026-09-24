@@ -49,25 +49,25 @@ Two folders under `runs/`, two `usage.json`, one table:
 
 | | provider/model-a | provider/model-b |
 | --- | --- | --- |
-| wall | 77.8s | 41.2s |
-| busy | 147.0s | 105.8s |
-| parallelism | 1.89 | 2.57 |
-| input | 191.0k | 710.2k |
-| output | 8.3k | 9.0k |
-| tool calls, three scouts | 9 / 6 / 4 | 25 / 24 / 28 |
+| wall | 112.0s | 44.1s |
+| busy | 191.6s | 100.7s |
+| parallelism | 1.71 | 2.28 |
+| input | 283.6k | 937.9k |
+| output | 8.2k | 8.2k |
+| tool calls, three scouts | 6 / 5 / 13 | 18 / 30 / 17 |
 | cost | not reported | not reported |
 
-The larger model was twice as fast and spent almost four times the input
-tokens: its scouts made three times the calls, each resending a growing
-context. Both answers found `performance.now()` in `src/subagent.ts`. The
-first gave no line numbers and said where its scouts disagreed, one saying a
-finished subagent's wall time is not displayed on its own, another that the
-expanded view shows it. The second
-gave numbers with confidence, and two of three were wrong: it put the final
-measurement at `src/subagent.ts:353-357`, and `detailLine` at
-`src/reporters/tui.ts` lines 146 to 155, where the code has them at lines 387
-and 176. Read the two synthesiser reports in the two folders and you know more
-about these models on your code than a leaderboard can tell you.
+The larger model was two and a half times as fast and spent more than three
+times the input tokens: its scouts made three times the calls, each resending
+a growing context. Both answers found `performance.now()` in
+`src/subagent.ts`, where the code has it at lines 217, 283 and 387. The first
+said its three scouts disagreed on the line numbers, then settled the
+disagreement on the wrong side: it named 157, 187 and 282 as correct. The
+second gave the lines within a few of the truth and a table of eleven places
+the wall time is shown, among them a "VS Code extension UI" and CSV reports,
+neither of which exists here. Read the two synthesiser reports in the two
+folders and you know more about these models on your code than a leaderboard
+can tell you.
 
 One run each, though. The fast model may have been lucky, the slow one may have
 hit a slow minute on a shared server. That is the limit of the quick version,
@@ -91,27 +91,27 @@ the change rather than making it, and prints the table:
 ```
 | model | runs | ok | converged | iterations | usage | mean wall | mean $ |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| provider/model-a | 2 | 2/2 | 2/2 | 1×2 | 4 turns 496.7s ↑43k ↓21k $0.0000 | 248.4s | $0.0000 |
-| provider/model-b | 2 | 2/2 | 1/2 | 2×1 3×1 | 10 turns 124.9s ↑201k ↓15k $0.0000 | 62.5s | $0.0000 |
+| provider/model-a | 2 | 2/2 | 2/2 | 1×2 | 4 turns 368.6s ↑30k ↓21k | 184.3s | not reported |
+| provider/model-b | 2 | 2/2 | 2/2 | 1×2 | 4 turns 47.9s ↑53k ↓5.8k | 24.0s | not reported |
 ```
 
-The fast model of the quick version was fast again, four times over, and it
-converged once in two: `2×1 3×1` is one run of two iterations and one that
-reached the cap of three with no `LGTM`, which is why `ok` and `converged`
-are two columns. The slow one converged in one iteration both times, and its
-first coder took three minutes to describe a change to one file. Whether
-either review was worth its price is in the transcripts under `runs/`, and is
-the question you actually had.
+The fast model of the quick version was fast again, seven times over this
+time, and both converged in one iteration both times: `1×2` is two runs of one
+iteration each. `ok` and `converged` are two columns because they can differ,
+a loop that reaches its cap with no `LGTM` being `ok` and not converged; here
+they did not. The usage has no cost in it and `mean $` says `not reported`,
+since the provider reports none, and a table cannot leave a cell empty the way
+a line leaves a figure out. Whether either review was worth its price is in
+the transcripts under `runs/`, and is the question you actually had.
 
-Something else is in those transcripts. The larger model's reviewer, on its
-first cell, called a tool with an empty name four times, a `search` tool that
-does not exist once, and `grep` with no pattern twice. The smaller one's
-reviewer called `verdict` three times over its two cells, a tool its definition names for when a
-flow hands it one and which a plain loop does not. pi refused each call,
-`Tool search not found`, `Tool verdict not found`, and the turn went on. That
-is the [boundary from page five](05-an-agent-that-cannot-write.md) seen from
-the other side: what a session holds is what can run, whatever the model
-reaches for.
+Something else is in those transcripts. The larger model's first cell called
+a tool with an empty name twice, `read` with no path once, and `grep` with a
+pattern that does not parse twice. Each came back an error, `Tool  not
+found`, `Validation failed for tool "read"`, `rg: regex parse error`, and the
+turn went on. That is the
+[boundary from page five](05-an-agent-that-cannot-write.md) seen from the
+other side: what a session holds is what can run, whatever the model reaches
+for.
 
 Its shape is short enough to copy:
 
@@ -164,7 +164,7 @@ The rules it keeps, each one a way a comparison learns to lie:
   is expensive.
 
 ```
-runs/2026-09-23_22-27-04/
+runs/2026-09-24_00-45-16/
 ├── experiment.json
 ├── experiment.md
 ├── provider-model-a/

@@ -32,7 +32,7 @@ Without it, the run is refused before a single subagent spawns:
 
 ```
 Error: run: `build` cannot run here
-  .pi/flows/build.md deliver/tests.check: `.pi/checks/test.sh` is not there, from
+  flows/build.md deliver/tests.check: `.pi/checks/test.sh` is not there, from
     `/…/tut-slug`
 ```
 
@@ -57,28 +57,32 @@ asks "Build this?" before building.
 
 ## What runs
 
-The widget draws the flow's plan and fills it as it goes. Three minutes into
+The widget draws the flow's plan and fills it as it goes. Two minutes into
 the second of the two runs this page made, the coder had finished and the
-reviewer was reading:
+reviewer was thinking:
 
 ```
-● build · 3 visits · 3m9s · ↑99k ↓11k
-✓ locate · scout · 1m18s · ↑66k ↓5.1k
-✓ plan · planner · 13s · ↑5.1k ↓2.1k
+● build · 3 visits · 2m · ↑107k ↓8.5k
+✓ locate · scout · 42s · ↑34k ↓2.2k
+✓ plan · planner · 15s · ↑3.2k ↓1.1k
 ● deliver · #1 of 2
   ● deliver#1
     ● deliver#1/work · 0/1 so far
       ● deliver#1/work[1]
         ● deliver#1/work[1]/pair · #1 of 3
           ● deliver#1/work[1]/pair#1
-            ✓ deliver#1/work[1]/pair#1/code · coder · 1m39s · ↑27k ↓4.2k
+            ✓ deliver#1/work[1]/pair#1/code · coder · 50s · ↑70k ↓5.2k
             ● deliver#1/work[1]/pair#1/review
-              ● reviewer#1  read words.test.js  provider/model · ↑0 ↓0 · 11.8s
+              ● reviewer#1  thinking…  provider/model · 13.7s
     ○ deliver#1/tests · check .pi/checks/test.sh · timeout 10m · ≤ 20m
     ○ deliver#1/audit · agent auditor (.pi/agents/auditor.md) · reads input, work, tests, diff, deliver.ledger · verd…
 ○ report · agent synthesiser (.pi/agents/synthesiser.md) · reads input, diff, deliver.output.last.work, deliver.outpu…
 esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
 ```
+
+The reviewer's line has no tokens yet: they are read when its turn ends. The
+summary's `2m` is the run's own clock, and its tokens add up the visits that
+have ended.
 
 A scout maps the code. A planner splits the brief into subtasks, a typed list
 the flow reads rather than prose it parses; this one made one. Each subtask
@@ -98,24 +102,23 @@ ends unapproved fails.
 
 ## What it leaves
 
-The first run of that command went through in one round, four and a half
-minutes on a small open-weight model, and put its answer in the conversation:
+The first run of that command went through in one round, nine and a half
+minutes on a small open-weight model served to several runs at once, and put
+its answer in the conversation:
 
 ```
 Result of the build flow, asked to: add a slugify helper to slug.js, with tests.
 
-I have implemented the slugify helper in slug.js and added a comprehensive test suite in slug.test.js. I also added a
-test.sh script to run the tests.
+A slugify helper has been implemented in slug.js and comprehensive tests have been added in slug.test.js. Nothing is
+left to do.
 
-Nothing is left to do.
+ok · runs/2026-09-24_00-44-45
 
-ok · runs/2026-09-23_21-52-24
-
-✓ build · 10 visits · 4m34s · ↑108k ↓16k
-✓ locate · scout · 1m24s · ↑38k ↓4.6k
-✓ plan · planner · 9s · ↑4.1k ↓976
-✓ deliver · 1 iteration · 2m46s · ↑63k ↓10k
-✓ report · synthesiser · 16s · ↑2.4k ↓303
+✓ build · 10 visits · 9m33s · ↑107k ↓9.8k
+✓ locate · scout · 2m47s · ↑64k ↓3.1k
+✓ plan · planner · 4s · ↑3.5k ↓391
+✓ deliver · 1 iteration · 6m39s · ↑37k ↓6.1k
+✓ report · synthesiser · 5s · ↑2.1k ↓201
 ```
 
 The work is in the working tree, uncommitted:
@@ -124,13 +127,12 @@ The work is in the working tree, uncommitted:
 $ git status --short
 ?? slug.js
 ?? slug.test.js
-?? test.sh
 ```
 
-Nobody asked for `test.sh`. The coder wrote one at the root, and the report
-says so because it is written from the diff, not from what the pairs claimed.
-That is what the report is for: telling you what to look at. It does not
-replace `git diff`, and nothing is committed, pushed or undone on your behalf.
+The report is written from the diff, not from what the pairs claimed, so a
+file nobody asked for would be named in it. That is what the report is for:
+telling you what to look at. It does not replace `git diff`, and nothing is
+committed, pushed or undone on your behalf.
 
 ## Interrupt it
 
@@ -143,23 +145,35 @@ fresh pi, in the same directory:
 ```
 
 ```
-run: resuming build in runs/2026-09-23_21-59-40, from deliver#1/work[1]/pair#1/review
+run: resuming build in runs/2026-09-24_00-56-47, from deliver#1/work[1]/pair#1/review
 ```
 
 It says what it picked up rather than asking: typing `/run resume` was the
 answer. The scout's map, the plan and the coder's work had ended, so they were
 kept; the review had not, so it ran again, in the copy the coder had left
 open, with a fresh reviewer that read the tree rather than a replayed
-conversation. The run ended like the first one, and its summary counts both
-processes:
+conversation. Its summary counts both processes:
 
 ```
-✓ build · 10 visits · 4m14s · ↑146k ↓16k · 2 lives (1 partial) · resumed from deliver#1/work[1]/pair#1/review
+✓ build · 10 visits · 2 failed · 5m36s · ↑120k ↓21k · 2 lives (1 partial) · resumed from deliver#1/work[1]/pair#1/review
+✓ locate · scout · 42s · ↑34k ↓2.2k
+✓ plan · planner · 15s · ↑3.2k ↓1.1k
+✓ deliver · 1 iteration · 4m31s · ↑81k ↓17k
+✓ report · synthesiser · 9s · ↑2.2k ↓385
 ```
 
 The first life is `partial` because it was killed before it could write its
 own measurement: it is counted from the visits it ended, and the review it was
 in the middle of costs nothing on this bill, since nothing measured it.
+
+The `2 failed` are the fresh reviewer's doing. It found a real defect,
+`slugify("hello.world")` returning `"helloworld"`, and wrote it up as prose,
+but ended its turn without the `verdict` call the node asked for. The review
+failed with `schema: the turn ended with no verdict call`, and its pair with
+it. The pair is `on-fail: continue`, so its work landed anyway; the tests
+passed, the auditor approved, and the run is `ok`. The remark was not raised
+as an obligation, so no second round went after it. The failures are on the
+summary line because that is where a run that is `ok` says what it absorbed.
 
 A run that failed by a decision of its own, a second round unapproved, would
 decide the same again, and `/run resume` refuses it with why.
