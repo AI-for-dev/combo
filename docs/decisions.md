@@ -2192,6 +2192,13 @@ writing them for real moved them in the places below.
   synthesiser reads a failed branch as `{ ok: false, error }`, as its prompt
   expects. A plan past `max:` still fails the run: that is the flow's bound,
   not a missing report.
+- **A disagreement between reports is the synthesiser's to settle.** Its
+  definition says to name one and say which report the code supports, and it
+  holds `read` and `grep` for that. `explore`'s and `split`'s `answer` said to
+  name it "rather than picking one", so one turn carried both rules and the
+  model chose which to obey. The flows no longer mention disagreements: the
+  rule lives in the definition, which reads whole on its own and reaches every
+  flow and workflow that uses the agent.
 - **The split planner's prose names the two workers.** `orchestrate` handed
   the planner the workers' descriptions; a flow hands it only its `reads:`, so
   the section says what a scout and a reviewer do.

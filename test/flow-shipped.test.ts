@@ -30,6 +30,20 @@ describe("the shipped flows", () => {
 		}
 	});
 
+	test("a synthesiser's node leaves a disagreement to the synthesiser's own rule", () => {
+		// Two rules in one turn, "say which one the code supports" and "rather than
+		// picking one", leave the model to choose which to obey.
+		const catalogue = shippedCatalogue(ROOT);
+		const synthesiser = catalogue.agents.find((one) => one.name === "synthesiser");
+		assert.match(synthesiser?.systemPrompt ?? "", /disagree/);
+		const framed = catalogue.flows.flatMap(({ name }) => {
+			const checked = checkFlow(name, catalogue);
+			assert.ok(checked.ok);
+			return checked.flow.nodes.filter((node) => node.kind === "agent" && node.agent === synthesiser && /disagree/i.test(node.prose)).map((node) => `${name}/${node.id}`);
+		});
+		assert.deepEqual(framed, []);
+	});
+
 	test("they are reachable at pi's project location, and the tarball carries them", () => {
 		assert.deepEqual(readdirSync(join(ROOT, ".pi", "flows")), readdirSync(join(ROOT, "flows")));
 		const manifest = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { files: string[] };

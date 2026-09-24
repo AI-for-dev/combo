@@ -30,5 +30,4 @@ an empty report is worth more than a guess.
 
 ## answer
 Answer the question under `input` from the three reports under `look`. Where
-they disagree, say so rather than picking one; where they are all silent, say
-that too.
+they are all silent, say so.
