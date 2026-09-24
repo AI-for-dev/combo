@@ -855,6 +855,41 @@ Measuring real `/run build` runs on `ilaas/gemma-4-31b` turned up two holes.
   failing costs less, since nothing has run yet, and one retry costs less
   still. Every agent node of `build` is now asked at most twice.
 
+### Every agent node of the shipped flows is asked twice
+
+`build` alone had `retry: 1` on every agent node, while `explore`, `split`,
+`interview` and `build-attended` failed on the first provider error, cut
+answer, deadline or missing `submit`. Each node was weighed on its own, and
+none had a reason to go without:
+
+- **`explore`'s `find` and `split`'s `act`.** Their map has `on-fail:
+  continue`, so a failed scout or worker did not fail the run, but it reached
+  the answer as a hole: a third of `explore`'s evidence, or a whole task of
+  `split`'s. The failures `retry:` covers are transient, and one more turn
+  costs less than an answer written around a gap. A second failure still
+  reaches the answer as a failed report, as before.
+- **`split`'s `plan`.** It is typed, so a plan that forgets `submit` fails on
+  `schema`, the failure `build`'s `plan` was measured failing on. It fails the
+  run before any worker starts.
+- **`explore`'s and `split`'s `answer`.** It runs last, so a failure there
+  throws away every report already paid for, the case `build`'s `report` got
+  its retry for.
+- **`interview`'s `ask_next`.** The loop's `on-fail: continue` absorbs a
+  failure, but it absorbs it by ending the questions: one prose answer where a
+  `submit` was due would silently hand `brief` an interview cut short. It has
+  `memory: flow`, so the retry resumes the same interviewer, which keeps what
+  it asked and what it was told. No question is put twice: the card is its own
+  node, after `ask_next`.
+- **`interview`'s `brief`.** It is the flow's output, written once the person
+  has answered every question. Failing there loses their answers, and in
+  `build-attended` fails the run before the confirm.
+- **`build-attended`'s `message`.** It runs after the whole build, so a failed
+  commit message fails a finished build. The `commit` node refuses `retry:`
+  and names the node writing its message as the one to take it.
+
+Each of these nodes is now asked at most twice, and every bound counts the
+second turn.
+
 ### A working copy belongs to the work, not to the subagent
 
 `deliver` pins `concurrency` to 2 because its workers write to the same tree.

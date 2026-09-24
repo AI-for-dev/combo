@@ -24,6 +24,7 @@ nodes:
 
           - id: message
             agent: committer
+            retry: 1
             reads: [spec, work, diff]
 
           - id: commit

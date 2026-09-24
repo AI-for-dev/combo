@@ -56,6 +56,13 @@ describe("explore", () => {
 		const look = visited(run).find((entry) => entry.path === "look");
 		assert.deepEqual((look?.output as { ok: boolean }[]).map((item) => item.ok), [true, false, true]);
 	});
+
+	test("a scout or the answer that fails once is asked again, and the run goes on whole", async () => {
+		const run = await dryRunFlow(explore, "q", { "look/find": "found", "look[2]/find": [{ fail: "provider" }, "found"], answer: [{ fail: "timeout" }, "a"] });
+		assert.deepEqual(run.ok && "output" in run && run.output, "a");
+		const look = visited(run).find((entry) => entry.path === "look");
+		assert.deepEqual((look?.output as { ok: boolean }[]).map((item) => item.ok), [true, true, true]);
+	});
 });
 
 describe("split", () => {
@@ -73,6 +80,16 @@ describe("split", () => {
 		const run = await dryRunFlow(split, "q", { plan: { tasks } });
 		assert.deepEqual(!run.ok && "error" in run && [run.error.kind, run.path], ["too-many", "work"]);
 		assert.deepEqual(paths(run), ["plan true", "work false"]);
+	});
+
+	test("a plan, a worker or the answer that fails once is asked again, and the run goes on", async () => {
+		const tasks = [{ worker: "scout", task: "find the journal" }, { worker: "reviewer", task: "judge its torn-line rule" }];
+		const run = await dryRunFlow(split, "q", { plan: [{ fail: "schema" }, { tasks }], "work/act": "report", "work[1]/act": [{ fail: "provider" }, "report"], answer: [{ fail: "timeout" }, "a"] });
+		assert.deepEqual(run.ok && "output" in run && run.output, "a");
+		// The two workers run at once, and the one asked twice ends second.
+		assert.deepEqual(paths(run), ["plan true", "work[2]/act true", "work[1]/act true", "work true", "answer true"]);
+		const work = visited(run).find((entry) => entry.path === "work");
+		assert.deepEqual((work?.output as { ok: boolean }[]).map((item) => item.ok), [true, true]);
 	});
 });
 
@@ -112,5 +129,24 @@ describe("interview", () => {
 		assert.deepEqual(run.ok && "output" in run && run.output, "b");
 		const loop = visited(run).find((entry) => entry.path === "interview");
 		assert.deepEqual([loop?.ok, loop?.converged, visited(run).filter((entry) => entry.path.endsWith("/ask")).length], [true, false, 6]);
+	});
+
+	test("a question or a brief that fails once is asked again, and nothing the person answered is lost", async () => {
+		const run = await dryRunFlow(interview, "add a cache", {
+			"interview/ask_next": [{ fail: "schema" }, { question: QUESTION }, {}],
+			"interview/gate/ask": { answered: true, answer: "In memory" },
+			brief: [{ fail: "provider" }, "Cache results in memory."],
+		});
+		assert.deepEqual(run.ok && "output" in run && run.output, "Cache results in memory.");
+		assert.deepEqual(paths(run), [
+			"interview#1/ask_next true",
+			"interview#1/gate/ask true",
+			"interview#1/gate true",
+			"interview#2/ask_next true",
+			"interview#2/gate true",
+			"interview true",
+			"brief true",
+		]);
+		assert.equal(visited(run).find((entry) => entry.path === "interview")?.converged, true);
 	});
 });

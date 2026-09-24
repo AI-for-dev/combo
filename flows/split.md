@@ -6,6 +6,7 @@ input: string
 nodes:
   - id: plan
     agent: planner
+    retry: 1
     reads: [input]
     output: { tasks: [{ worker: scout | reviewer, task: string }] }
 
@@ -17,11 +18,13 @@ nodes:
       - id: act
         agent-from: item.worker
         among: [scout, reviewer]
+        retry: 1
         reads: [item.task]
         on-fail: continue
 
   - id: answer
     agent: synthesiser
+    retry: 1
     reads: [input, work]
 ---
 

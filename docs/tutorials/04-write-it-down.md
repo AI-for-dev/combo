@@ -83,18 +83,18 @@ branch as it ended.
 
 ```
 6 flows
-build           project  ≤ 113 turns · ≤ 29h50m                      Locate the code, split the work, implement it in
+build           project  ≤ 154 turns · ≤ 41h20m                      Locate the code, split the work, implement it in
                                                                      pairs, check and audit the whole
-build-attended  project  ≤ 121 turns · ≤ 33h50m + a person's answer  Interview the user, confirm, build, then commit
+build-attended  project  ≤ 170 turns · ≤ 49h20m + a person's answer  Interview the user, confirm, build, then commit
                                                                      on the run's branch
 docs-drift      project  ≤ 3 turns · ≤ 1h                            One scout reads the code and one reads the guide
                                                                      on a topic, then one agent lists where they
                                                                      disagree
-explore         project  ≤ 4 turns · ≤ 1h                            Three scouts read the code in parallel, then one
+explore         project  ≤ 8 turns · ≤ 2h                            Three scouts read the code in parallel, then one
                                                                      agent answers from what they found
-interview       project  ≤ 7 turns · ≤ 3h30m + a person's answer     Ask the user one question at a time, then write a
+interview       project  ≤ 14 turns · ≤ 7h + a person's answer       Ask the user one question at a time, then write a
                                                                      specification
-split           project  ≤ 6 turns · ≤ 2h                            A planner splits a read-only question between a
+split           project  ≤ 12 turns · ≤ 4h                           A planner splits a read-only question between a
                                                                      scout and a reviewer, then one agent answers
 ```
 
