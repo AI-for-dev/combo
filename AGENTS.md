@@ -128,7 +128,8 @@ src/                the library
                     flow-usage (its visits, nodes and lives in usage.json);
                     index.ts is its door
   ask.ts verify.ts                      the ports that touch the world
-  git/              run (git itself), git (what a run may do), worktree
+  git/              run (git itself), registry (the commands on the list of
+                    copies, one at a time), git (what a run may do), worktree
                     and scratch (the copies), tree (read without touching
                     it), land (patches come home), port (what a flow run may
                     ask); index.ts is its door

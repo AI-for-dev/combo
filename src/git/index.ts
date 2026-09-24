@@ -2,8 +2,9 @@
  * The working copy: the git a run may do, the copies of the repository
  * two agents write in at once, and how their work comes home.
  *
- * Files stacked in that order - `run.ts` runs git, `git.ts` and
- * `worktree.ts` say what may be run on the repository and on its copies,
+ * Files stacked in that order - `run.ts` runs git, `registry.ts` queues
+ * what touches the list of copies, `git.ts` and `worktree.ts` say what may
+ * be run on the repository and on its copies,
  * `tree.ts` reads the tree without touching it, `scratch.ts` is the one shape
  * every caller of a copy wants, `land.ts` brings patches home one at a time,
  * and `port.ts` is what a flow run may ask of all of them - and this is their
