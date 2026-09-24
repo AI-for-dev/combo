@@ -56,13 +56,27 @@ describe("a round", () => {
 		assert.equal(done.converged, false, "reaching the cap is not success");
 	});
 
-	test("a member whose turn fails drops out and keeps the turn that failed", async () => {
+	test("a member whose turn fails is asked again the next round, and is back if it recovers", async () => {
 		let asked = 0;
-		// The second member to be asked breaks, once.
-		const fake = fakeSpawn(() => (++asked === 2 ? { ok: false, error: "402 from the provider" } : {}));
+		// The second member to be asked breaks, once: measured, a turn cut by the
+		// output limit, which the next turn did not repeat.
+		const fake = fakeSpawn(() => (++asked === 2 ? { ok: false, error: "the answer reached the output limit" } : {}));
 		const done = await swarm({ members: [{ agent: member, count: 2 }], goal: "do it", rounds: 3, spawn: fake.spawn });
 
-		assert.equal(fake.asks.length, 4, "two in the first round, then only the survivor");
+		assert.equal(fake.asks.length, 6, "both members, every round");
+		assert.equal(done.ok, true, "its last turn is the one that counts");
+	});
+
+	test("two failed turns in a row and a member drops out, keeping the turn that failed", async () => {
+		const flaky = testAgent("flaky", { description: "breaks every time" });
+		const fake = fakeSpawn((_task, agent) => (agent.name === "flaky" ? { ok: false, error: "402 from the provider" } : {}));
+		const done = await swarm({ members: [{ agent: member, count: 1 }, { agent: flaky, count: 1 }], goal: "do it", rounds: 3, spawn: fake.spawn });
+
+		assert.deepEqual(
+			fake.asks.map((one) => one.id),
+			["member#1", "flaky#2", "member#1", "flaky#2", "member#1"],
+			"asked once more after its first failure, then only the survivor",
+		);
 		assert.equal(done.ok, false);
 		assert.equal(done.error, "402 from the provider");
 		assert.equal(done.members.filter((one) => !one.result.ok).length, 1);
@@ -73,7 +87,7 @@ describe("a round", () => {
 		const done = await swarm({ members: [{ agent: member, count: 2 }], goal: "do it", rounds: 3, spawn: fake.spawn });
 
 		assert.equal(done.stoppedBy, "members");
-		assert.equal(fake.asks.length, 2, "nobody is asked a second time");
+		assert.equal(fake.asks.length, 4, "each asked twice, and not a third time");
 	});
 
 	test("cancellation: a swarm already called off holds nobody, and says what stopped it", async () => {

@@ -178,8 +178,10 @@ posted its vote again seven times in the first round. The next round the other
 two were handed mostly that one vote, and came round to it.
 
 It reads the roster rather than whoever spoke: two members of three that agree
-have not agreed, and a member that dropped out never lets it fire, so the run
-spends its rounds and comes back `stopped by rounds`. Reaching a cap is not
+have not agreed. A member whose turn failed gets one more turn the next round,
+so a turn cut by the output limit does not cost the vote. A member that failed
+twice in a row has dropped out and never lets it fire, so the run spends its
+rounds and comes back `stopped by rounds`. Reaching a cap is not
 success here either.
 
 The two compose, and a debate wants both: `--claim Python,Rust,Go --hold 1`

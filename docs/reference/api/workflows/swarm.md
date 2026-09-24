@@ -73,8 +73,9 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> { /* â€
 Runs a swarm.
 
 A round is one `ask` per live member, through `mapConcurrent`. A member whose
-turn fails drops out rather than costing every remaining round, and keeps the
-turn that failed as its result.
+turn fails is asked again the next round; two failed turns in a row and it
+drops out rather than costing every remaining round, keeping the turn that
+failed as its result.
 
 The pool closes everything in a `finally`, cancellation included, and the
 claims of whoever is gone are released before the result is built.
