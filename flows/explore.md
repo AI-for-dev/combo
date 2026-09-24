@@ -13,11 +13,13 @@ nodes:
     do:
       - id: find
         agent: scout
+        retry: 1
         reads: [input, item]
         on-fail: continue
 
   - id: answer
     agent: synthesiser
+    retry: 1
     reads: [input, look]
 ---
 

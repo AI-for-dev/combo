@@ -173,6 +173,13 @@ describe("build-attended", () => {
 		assert.equal(outputAt(run, "spec"), "Cache results in memory.");
 	});
 
+	test("a commit message that fails once is asked again, and the build is committed", async () => {
+		const commit = { committed: true, sha: "abc123", branch: "combo/add-a-cache" };
+		const run = await dryRunFlow(attended, "add a cache", { ...interviewed, go: { yes: true }, ...approved("gate/work/"), "gate/message": [{ fail: "provider" }, "Cache results in memory"], "gate/commit": commit });
+		assert.deepEqual(run.ok && "output" in run && run.output, { case: "1", output: commit });
+		assert.equal(outputAt(run, "gate/message"), "Cache results in memory");
+	});
+
 	test("a confirm answered no ends the run ok, with nothing built and nothing committed", async () => {
 		const run = await dryRunFlow(attended, "add a cache", { ...interviewed, go: { yes: false } });
 		assert.ok(run.ok && "output" in run, JSON.stringify(run));

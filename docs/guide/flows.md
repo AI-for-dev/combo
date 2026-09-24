@@ -151,6 +151,13 @@ the specification, the build's report and the diff, and commits on the run's own
 no, the run ends `ok: true` with nothing built and nothing committed. With
 nobody there, the confirm defaults to yes.
 
+Every agent node of the five flows has `retry: 1`: a turn that fails on a
+provider error, on the output limit, on its deadline or off its schema is
+asked once more with the failure named, so each agent node is asked at most
+twice. A scout of `explore` or a worker of `split` still reaches the answer as
+a failed report when its second attempt fails too. The interviewer resumes its
+own conversation on a retry, since it keeps one (`memory: flow`).
+
 ## Nodes
 
 A node is `id:` plus exactly one kind key, which holds its main argument, and
@@ -797,9 +804,9 @@ nothing is rewritten. Its output is `{ approved, remarks? }`, where
 recorded call ends the turn: nothing reads what the model would write after
 it, and a model left to go on has been measured calling `verdict` again and
 again until its deadline. A turn that calls no `verdict` fails with `schema`,
-which `retry:` covers: the shipped `build` gives every agent node, `review`
-and `audit` included, `retry: 1`, so a turn that answered in prose is sent
-back once with the failure named. `<id>.ledger` reads the open obligations as
+which `retry:` covers: the shipped flows give every agent node, `build`'s
+`review` and `audit` included, `retry: 1`, so a turn that answered in prose
+is sent back once with the failure named. `<id>.ledger` reads the open obligations as
 `[{ id, text }]` at the moment it is read.
 
 ### Failures, retries and timeouts

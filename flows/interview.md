@@ -12,6 +12,7 @@ nodes:
       - id: ask_next
         agent: interviewer
         memory: flow
+        retry: 1
         reads: [input, interview.previous.gate]
         output: { question?: Question }
 
@@ -27,6 +28,7 @@ nodes:
   - id: brief
     agent: interviewer
     memory: flow
+    retry: 1
     reads: [input]
 ---
 
