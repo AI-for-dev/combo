@@ -20,6 +20,13 @@ is a second surface over one core, never a place where logic lives.
 > use subagent with export true to explore the parser with three scouts
 ```
 
+The model may leave `mode` out: the fields it gives pick one. `candidates`
+reads as a route, unless `concurrency`, `maxTasks` or `reduceWith` stands beside
+it, three fields a route never reads, and then it is an orchestration. Each
+field's description in the schema ends with the modes that read it, so a model
+knows which fields a mode will ignore. The
+[cheatsheet](../reference/cheatsheet.md#the-subagent-tool) has the table.
+
 Agents come from `~/.pi/agent/agents/` by default. The demo agents of this
 repository live in `.pi/agents/`, so ask for them explicitly:
 

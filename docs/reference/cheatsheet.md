@@ -77,14 +77,15 @@ The model calls it; you ask for it in plain words.
 ```
 
 With no `mode`, the fields given pick it, in this order: `flow`, then `candidates`
-(route), `reduceWith`, `until` or `maxIterations` (loop), `steps` (chain), `tasks`
-(parallel), else single. `orchestrate` is never inferred: it needs `mode`.
+(orchestrate beside `concurrency`, `maxTasks` or `reduceWith`, route otherwise),
+`reduceWith` (reduce), `until` or `maxIterations` (loop), `steps` (chain), `tasks`
+(parallel), else single.
 
 | Param | Used by | Default | Meaning |
 | --- | --- | --- | --- |
 | `mode` | all | inferred | `single`, `chain`, `parallel`, `loop`, `route`, `orchestrate`, `reduce`, `flow` |
-| `agent` | single, parallel, reduce; the router or planner | | agent name |
-| `task` | all | | the task; the input of a flow |
+| `agent` | single, parallel, route, orchestrate, reduce | | agent name |
+| `task` | all but parallel | | the task; the input of a flow |
 | `tasks` | parallel, reduce | | independent tasks |
 | `steps` | chain, loop | | agent names, in order |
 | `candidates` | route, orchestrate | | agents the router or planner may pick |
@@ -93,15 +94,15 @@ With no `mode`, the fields given pick it, in this order: `flow`, then `candidate
 | `maxIterations` | loop | `5` | loop cap |
 | `maxTasks` | orchestrate | `8` | most subtasks a plan may hold |
 | `concurrency` | parallel, reduce, orchestrate | `4` | branches at once |
-| `lifetime` | all | the agent's, else `task` | `task`, `workflow` or `session` |
+| `lifetime` | all but flow | the agent's, else `task` | `task`, `workflow` or `session` |
 | `flow` | flow | | a flow name; takes only `task`, `model`, `timeoutMs`, `scope`, `herdrAll` |
 | `model` | all | | one model for every subagent of the call |
 | `timeoutMs` | all | none | deadline per turn |
 | `scope` | all | `user` | agents from `user`, `project` or `both`; the shipped ones always |
-| `maxDepth` | all | `2` | how deep a subagent may delegate |
-| `openInHerdr` | all | | a herdr split per subagent |
+| `maxDepth` | all but flow | `2` | how deep a subagent may delegate |
+| `openInHerdr` | all but flow | | a herdr split per subagent |
 | `herdrAll` | all | | a split for every subagent, not only those that ask |
-| `export` | all | | transcripts and `usage.json` into `runs/<timestamp>/` |
+| `export` | all but flow | | transcripts and `usage.json` into `runs/<timestamp>/` |
 
 See [Extension](../guide/extension.md#the-tool).
 

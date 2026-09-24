@@ -4777,3 +4777,24 @@ and a frontmatter default would let an agent definition change how a flow
 reads. `interview` and `swarm` keep their own `"workflow"` default, which they
 pass as the workflow's lifetime, so it wins over a frontmatter the same way a
 caller's would.
+
+## `candidates` beside a field only orchestrate reads is an orchestration
+
+The tool inferred `route` from `candidates` whatever stood beside it, so a call
+with `candidates` and `reduceWith` ran a route. The route never read
+`reduceWith`, no synthesiser was spawned, and nothing said so. The schema did
+not say that `orchestrate` needed an explicit `mode`, and the `task`
+description named three of the seven modes that read it.
+
+`candidates` alone is still a route, the cheaper of the two. Beside
+`concurrency`, `maxTasks` or `reduceWith`, the fields orchestrate reads and a
+route does not, it is an orchestration: a route would drop that field, so the
+call has only one reading. The other way was to keep `orchestrate`
+explicit-only and say so in the schema. That still let a call that meant an
+orchestration run as a route and drop a field.
+
+`extension/params.ts` now keeps one table of which modes read each field.
+The descriptions a model reads are written from it, the set of fields that
+make an orchestration comes from it, and so does the list `flow` mode accepts.
+A test does not take the table on trust: it runs every mode, records which
+fields the tool body reads, and checks each description against that.
