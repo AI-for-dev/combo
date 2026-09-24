@@ -171,7 +171,7 @@ export function streamed(event: SessionEvent): Streamed | undefined {
 export type TurnReading = {
 	/** The text parts of the last assistant message, joined and trimmed. `""` when there is none. */
 	text: string;
-	/** Set when that message ended on a failing `stopReason`: a turn can fail without throwing. */
+	/** Set when that message ended on a failing `stopReason` (`error`, `aborted`, `length`): a turn can fail without throwing. */
 	error?: string;
 };
 
@@ -197,6 +197,9 @@ export function lastTurn(messages: readonly AgentMessage[]): TurnReading {
 			: "";
 		if (message.stopReason === "error") return { text, error: message.errorMessage ?? "model error" };
 		if (message.stopReason === "aborted") return { text, error: "aborted" };
+		// The provider's output limit cut the answer off, often in its thinking
+		// with no text at all: what is there is not the answer, however long.
+		if (message.stopReason === "length") return { text, error: "the answer reached the output limit" };
 		return { text };
 	}
 	return { text: "" };

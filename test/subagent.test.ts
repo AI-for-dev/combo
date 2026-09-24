@@ -165,6 +165,14 @@ describe("ask", () => {
 		assert.equal(result.error, "boom");
 	});
 
+	test("a turn cut by the output limit is a failure, with or without text", async () => {
+		const { subagent } = await spawnWith([{ stopReason: "length" }, { text: "half an answ", stopReason: "length" }]);
+		for (const result of [await subagent.ask("a"), await subagent.ask("b")]) {
+			assert.equal(result.ok, false);
+			assert.equal(result.error, "the answer reached the output limit");
+		}
+	});
+
 	test("aborting the signal aborts the session", async () => {
 		const { subagent, session } = await spawnWith([{ delayMs: 50, text: "never finished" }]);
 		const controller = new AbortController();

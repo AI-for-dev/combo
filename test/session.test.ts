@@ -113,6 +113,7 @@ describe("lastTurn", () => {
 		assert.deepEqual(lastTurn([assistant("partial", "error", "402 from the provider")]), { text: "partial", error: "402 from the provider" });
 		assert.deepEqual(lastTurn([assistant("partial", "error")]), { text: "partial", error: "model error" });
 		assert.deepEqual(lastTurn([assistant("", "aborted")]), { text: "", error: "aborted" });
+		assert.deepEqual(lastTurn([assistant("half", "length")]), { text: "half", error: "the answer reached the output limit" });
 	});
 
 	test("no assistant message is an empty answer, not a throw", () => {

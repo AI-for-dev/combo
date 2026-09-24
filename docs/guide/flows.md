@@ -810,6 +810,12 @@ and its kind (`gate/look: provider: ...`). `stopped` and `cancelled` keep
 their own kind on the way up. `on-fail: continue` on any node stops the travel
 there, and later nodes read `x.ok` and `x.error`.
 
+A turn fails `provider` when pi says it failed: the provider returned an
+error, or the answer reached the provider's output limit. A cut answer fails
+even with text in it, since it is not the whole of one. One cut in the
+model's thinking has no text at all, and fails rather than reach the next
+node as an empty answer.
+
 `retry: n` gives an `agent` node `n` more attempts after a `provider`,
 `timeout` or `schema` failure, never after a stop or a cut. A retry asks the
 same subagent again with the failure named, except after a timeout, which
