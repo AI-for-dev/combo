@@ -31,7 +31,7 @@ docs/
     quickstart.md       the first subagent, the first workflow, the first build
     agents.md           defining an agent in Markdown, tools, scopes
     lifetime.md         the central choice: disposable or persistent
-    workflows.md        the eight combinators and the options they share
+    workflows.md        the combinators and the options they share
     flows.md            a task graph written in Markdown, checked whole before it runs
     from-pipelines.md   rewriting a linear pipeline as a flow
     build.md            plan, pair, check, audit, unattended

@@ -275,9 +275,10 @@ settings you already made and fail outright if you hold no key for that provider
 The cost of that is invisible unless it is said out loud: a run with no `--model`
 runs on your `~/.pi/agent/settings.json`, whatever is in it that day. Fine for
 using the thing; useless for measuring it. So **anything whose numbers will be
-compared names its model** - `experiment({ models })`, `--model` on `/run` and
-`/step`, `--model` in the examples' argv. An agent you write for your own
-machine is welcome to declare one; it is only what ships that must not.
+compared names its model** - `experiment({ models })`, `--model` on `/run`,
+`/step`, `/swarm` and `/interview`, `--model` in the examples' argv. An agent
+you write for your own machine is welcome to declare one; it is only what ships
+that must not.
 
 ## Agents shipped here
 

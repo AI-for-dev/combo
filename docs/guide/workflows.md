@@ -29,7 +29,13 @@ same way, and never has to rebuild one.
 Every combinator is an exported function. No classes, no inheritance, no global
 registry.
 
-## The ten
+## The combinators, and two patterns that are not
+
+There are eight combinators: `chain`, `fanOut`, `loop`, `reduce`, `route`,
+`orchestrate`, `interview` and `swarm`. Two more sections cover patterns you
+would look for here, and neither is a combinator: a reviewer until approval is
+written as a flow, and a subagent with subagents is given a tool,
+`delegateTool`.
 
 ### `chain` - 1 to 1 to 1
 

@@ -59,7 +59,7 @@ export default function registerStepCommands(pi: PiApi) {
 }
 
 /**
- * `/step [--from <id>] [--model <pattern>] [--agent] <name> <instruction>`.
+ * `/step [--from <id|last|none>] [--model <pattern>] [--agent] <name> <instruction>`.
  *
  * One stage of the chain: the named flow or agent is handed the previous
  * step's output and whatever is typed after it, and what it answers goes into
