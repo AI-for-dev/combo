@@ -12,7 +12,7 @@ import path from "node:path";
 import { describe, test } from "node:test";
 import { gitPort } from "../src/git/index.ts";
 import { checkRun, dryRunFlow, runFlow, type FlowPorts } from "../src/flow/index.ts";
-import { bashCheck } from "../src/verify.ts";
+import { bashCheck, type CheckScript } from "../src/verify.ts";
 import { checked, flowSpawn, launched, refused } from "./fixtures/flow.ts";
 import { git, plainDirectory, repository } from "./fixtures/repo.ts";
 
@@ -98,8 +98,18 @@ describe("a copies block, run", () => {
 	test("stopped, lands nothing and removes every copy, the work kept on its copy's branch", async () => {
 		const cwd = scripts("echo a > a.txt; sleep 30", "sleep 30");
 		const stop = new AbortController();
-		setTimeout(() => stop.abort(), 300);
-		const result = await runFlow(await launched(both(), { cwd, ports: PORTS }), "x", { signal: stop.signal });
+		// Stopped once `a` has written, mid-script: a stop on a clock can land
+		// before the branch starts, and a branch that wrote nothing keeps nothing.
+		const run = bashCheck();
+		const stopOnWrite: CheckScript = async (request) => {
+			const watcher = fs.watch(request.cwd, (_, name) => name === "a.txt" && stop.abort());
+			try {
+				return await run(request);
+			} finally {
+				watcher.close();
+			}
+		};
+		const result = await runFlow(await launched(both(), { cwd, ports: { git: PORTS.git, check: stopOnWrite } }), "x", { signal: stop.signal });
 		assert.deepEqual(!result.ok && result.error.kind, "stopped");
 		assert.deepEqual([fs.existsSync(path.join(cwd, "a.txt")), worktrees(cwd)], [false, 1]);
 		assert.match(git(cwd, "log", "--all", "--name-only", "--format="), /^a\.txt$/m);
