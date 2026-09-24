@@ -88,8 +88,9 @@ KEYS = {
 }
 
 # The widget's dimmed row, repainted four times a second while a subagent works.
-# Hundreds of copies of it bury the one frame worth reading.
-SPINNER = re.compile(r"↑\d+ ↓\d+ · [\d.]+s")
+# Hundreds of copies of it bury the one frame worth reading. Until its first
+# turn ends it carries no tokens, only the model and the clock.
+SPINNER = re.compile(r"(?:↑\d+ ↓\d+|/[\w.-]+) · [\d.]+s")
 
 
 def readable(text: str, raw: bool) -> str:
