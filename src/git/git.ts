@@ -17,6 +17,7 @@
  * away a name and never work.
  */
 
+import { gitOnRegistry } from "./registry.ts";
 import { git, gitWithInput, type GitResult } from "./run.ts";
 import { head } from "../text.ts";
 
@@ -145,7 +146,9 @@ export function branchName(request: string, prefix = "combo"): string {
  * a branch that was made and never written on, not to discard work.
  */
 export async function deleteBranch(cwd: string, name: string): Promise<GitResult<string>> {
-	const result = await git(cwd, ["branch", "-d", name]);
+	// On the registry's queue: `-d` walks every copy, to refuse a branch one of
+	// them has checked out.
+	const result = await gitOnRegistry(cwd, ["branch", "-d", name]);
 	return result.ok ? { ok: true, value: name } : result;
 }
 

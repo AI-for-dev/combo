@@ -17,6 +17,7 @@
  * module performs on anyone's behalf.
  */
 
+import { gitOnRegistry } from "./registry.ts";
 import { git, type GitResult } from "./run.ts";
 import { head } from "../text.ts";
 
@@ -48,14 +49,14 @@ export type CreateWorktreeOptions = {
  * already exists fails, as it does in `createBranch`.
  */
 export async function createWorktree(repo: string, options: CreateWorktreeOptions): Promise<GitResult<Worktree>> {
-	const result = await git(repo, ["worktree", "add", "-b", options.branch, options.path, options.base ?? "HEAD"]);
+	const result = await gitOnRegistry(repo, ["worktree", "add", "-b", options.branch, options.path, options.base ?? "HEAD"]);
 	if (!result.ok) return result;
 	return { ok: true, value: { path: options.path, branch: options.branch } };
 }
 
 /** Every working copy of this repository, the main one included. */
 export async function listWorktrees(repo: string): Promise<GitResult<Worktree[]>> {
-	const result = await git(repo, ["worktree", "list", "--porcelain"]);
+	const result = await gitOnRegistry(repo, ["worktree", "list", "--porcelain"]);
 	if (!result.ok) return result;
 
 	const worktrees: Worktree[] = [];
@@ -116,6 +117,6 @@ export async function removeWorktree(repo: string, path: string, options: { patc
 	// caller saying the work is somewhere else now, and that is the only thing
 	// this flag is for.
 	const args = ["worktree", "remove", ...(options.patched ? ["--force"] : []), path];
-	const result = await git(repo, args);
+	const result = await gitOnRegistry(repo, args);
 	return result.ok ? { ok: true, value: undefined } : result;
 }

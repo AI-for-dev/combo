@@ -40,6 +40,17 @@ what lets git's own refusal be passed, since git knows nothing about the patch
 you are holding. A caller who wants a copy gone whatever it holds deletes the
 directory itself: that is not an act this module performs on anyone's behalf.
 
+## Copies made and removed at once
+
+git keeps the list of a repository's copies under `.git/worktrees/` and takes
+no lock on it. A `worktree add` writes the new copy's files there one at a
+time, and a command that walks the list at that moment (another `add`, a
+`remove`, `list`, `branch -d`) can read a half-written copy and die on it. So
+this module runs those commands one at a time per repository, keyed by its
+common git directory, whether they are called from the repository or from one
+of its copies. The queue lives in the process; a second process working on the
+same repository does not wait on it.
+
 ## What the patch contains
 
 `worktreePatch` runs `git add --intent-to-add` before it diffs, because a file
