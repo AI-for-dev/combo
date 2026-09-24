@@ -174,7 +174,8 @@ src/                the library
   review/           review (the record), verdict (a decision as a tool call),
                     ledger (what is owed); index.ts is its door
   workflows/        chain fan-out loop reduce route orchestrate
-                    interview plan swarm;
+                    interview plan swarm (swarm-task: what a member is
+                    told each turn);
                     options.ts pool.ts (turn, hold, closeAll) concurrent.ts
   reporters/        picture (the stream folded once, for every reader), tree,
                     tui (formats, draws nothing), herdr and the probe that

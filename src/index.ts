@@ -50,7 +50,6 @@ export { chain, type ChainOptions } from "./workflows/chain.ts";
 export { aggregate, fanOut, type FanOutOptions, type FanOutResult } from "./workflows/fan-out.ts";
 export {
 	swarm,
-	task as swarmTask,
 	type MemberSpec,
 	type SwarmClaim,
 	type SwarmEnd,
@@ -59,6 +58,7 @@ export {
 	membersOutput,
 	type SwarmResult,
 } from "./workflows/swarm.ts";
+export { swarmTask } from "./workflows/swarm-task.ts";
 export { loop, type LoopOptions, type LoopResult, type UntilPredicate } from "./workflows/loop.ts";
 export { formatBranches, reduce, type ReduceOptions } from "./workflows/reduce.ts";
 export { pickDestination, route, routingPrompt, type RouteOptions, type RouteResult } from "./workflows/route.ts";
