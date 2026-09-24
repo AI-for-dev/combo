@@ -4716,3 +4716,19 @@ the tip of `main` at the time: the first release reads what comes after it.
 taken from, and is not here. It suits a project released as a whole. It does not
 suit a package whose readers write `~0.1.0` and would then never be offered a
 fix.
+
+## A deadline travels in the abort's reason
+
+pi cannot tell a deadline from a stop: both are `session.abort()`. A subagent
+told the two apart only when the deadline was its own `timeoutMs`. A flow
+bounds each attempt with a signal of its own and passes it as the turn's
+`signal`, so its journal said `timeout` while the subagent's `Result`, and the
+`usage.json` built from it, said `aborted`.
+
+The deadline now says what it is in the signal's reason, a `TimeoutError`, as
+`AbortSignal.timeout` gives, and `src/deadline.ts` both writes that reason and
+reads it back. The subagent reads the reason of whichever signal fired first,
+so a caller's abort before the deadline still reads `aborted`, and a person's
+stop still reads `stopped`. The other way was to pass the flow's bound as
+`timeoutMs`, which would have taken away the flow's own deadline port, the
+switch a dry run throws when its script says an attempt timed out.

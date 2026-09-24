@@ -8,6 +8,7 @@
  * only, when it is given one.
  */
 
+import { deadline } from "../../deadline.ts";
 import { busFor, type EventListener } from "../../events.ts";
 import type { GitPort } from "../../git/index.ts";
 import { spawn as defaultSpawn } from "../../subagent.ts";
@@ -92,7 +93,7 @@ export function realWorld(run: CheckedRun, input: unknown, runDir?: string, repl
 	const git = ports.git as GitPort;
 	const commit = committer(git, cwd, input, journal, replay?.branch);
 	return {
-		deadline: ({ ms }) => AbortSignal.timeout(ms),
+		deadline: ({ ms }) => deadline(ms),
 		check: (node, _path, signal, tree = cwd) => check({ script: node.script, content: scripts.get(node.script) as string, cwd: tree, timeoutMs: node.timeoutMs, signal }),
 		commit: (_node, _path, message) => commit(message),
 		diff: (tree = cwd) => git.diff(tree),

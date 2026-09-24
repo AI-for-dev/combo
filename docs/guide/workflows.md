@@ -293,6 +293,12 @@ await fanOut({ agent: scout, tasks, timeoutMs: 60_000 });   // per branch
 There is no default because the library does not get to decide that a legitimate
 task took too long. Set one on anything unattended.
 
+A turn cut by its deadline fails with `"timed out after 120000ms"`, one called
+off by the caller's `signal` with `"aborted"`, and one a person stopped with
+`"stopped"`. A `signal` that aborts with a `TimeoutError` as its reason, as
+`AbortSignal.timeout` does, counts as a deadline too: that is how a flow bounds
+its attempts, and why its journal and its `usage.json` both read a timeout.
+
 `loop`'s `maxIterations` *does* default to 5, and that is not inconsistent: an
 iteration is a discrete, expensive unit with a meaningful small default, whereas
 any wall-clock default would be arbitrary. The two guards sit at different

@@ -22,6 +22,10 @@ export type AskOptions = {
 	/**
 	 * Cancels this turn. pi's `prompt()` takes no signal, so we bridge it to
 	 * `session.abort()`.
+	 *
+	 * The turn fails with `"aborted"`, unless the signal's reason is a
+	 * `TimeoutError`, as `AbortSignal.timeout` gives: then it is a deadline,
+	 * and fails with the reason's message, as {@link AskOptions.timeoutMs} does.
 	 */
 	signal?: AbortSignal;
 	/**

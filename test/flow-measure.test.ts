@@ -126,6 +126,21 @@ describe("a measured flow run", () => {
 		assert.equal(report.total.wallMs, report.lives?.[0]?.wallMs);
 	});
 
+	test("reads a deadline as a timeout in `usage.json`, as the journal does", async () => {
+		const runDir = path.join(fs.realpathSync(plainDirectory()), "run");
+		const run = measuredRun({ dir: runDir });
+		const flow = flowOf("  - id: look\n    agent: scout", { look: "Look." });
+		await runFlow(await launched(flow), "x", { spawn: flowSpawn([[said("late", { delayMs: 5_000 })]]).spawn, onEvent: run.onEvent, runDir, timeoutMs: 20 });
+		run.finish();
+
+		const ended = readJournal(runDir).find((entry) => entry.type === "visit_end");
+		assert.deepEqual(ended?.type === "visit_end" && ended.error, { kind: "timeout", message: "no answer within 20 ms" });
+		assert.deepEqual(
+			usageIn(runDir).subagents.map(({ ok, error }) => ({ ok, error })),
+			[{ ok: false, error: "timed out after 20ms" }],
+		);
+	});
+
 	test("without a run directory touches no disk", async () => {
 		const fake = flowSpawn([[said("seen")]]);
 		const result = await runFlow(await launched(flowOf("  - id: look\n    agent: scout", { look: "Look." })), "x", { spawn: fake.spawn });
