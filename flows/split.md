@@ -38,6 +38,5 @@ modified, only found, read and judged.
 Do the task under `item.task`.
 
 ## answer
-Answer the request under `input` from the reports under `work`. Where two of
-them disagree, say so rather than picking one; where none of them covers a part
-of the request, say that too.
+Answer the request under `input` from the reports under `work`. Where none of
+them covers a part of the request, say so.

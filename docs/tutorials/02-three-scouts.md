@@ -49,8 +49,7 @@ an empty report is worth more than a guess.
 
 ## answer
 Answer the question under `input` from the three reports under `look`. Where
-they disagree, say so rather than picking one; where they are all silent, say
-that too.
+they are all silent, say so.
 ```
 
 Two nodes. A `map` over three **literal** tasks, whose one node is a scout's
@@ -133,9 +132,9 @@ finished, drawn for you and not sent to the model.
 
 The three scouts each read `src/subagent.ts` and gave line numbers for the
 same three statements: 201, 177 and 174 for the spawn, 233-236, 216-219 and
-204-207 for the getter, and 316 from all three for the close. The flow's
-prompt told the synthesiser to name a disagreement rather than pick a side;
-its own definition lets it read the code to settle one. It read
+204-207 for the getter, and 316 from all three for the close. The
+synthesiser's definition tells it to name a disagreement and say which report
+the code supports, reading the files to settle it. It read
 `src/subagent.ts` once, ruled for the third report, and listed the getter as
 206-208 a few lines above its ruling. Settle it yourself:
 
