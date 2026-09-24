@@ -51,9 +51,9 @@ The widget draws the flow's plan as it fills, the visit running now expanded
 with what its subagent is doing:
 
 ```
-● build · 2 visits · 25s · ↑5.6k ↓1.7k
-✓ locate · scout · 4s · ↑2.4k ↓111
-✓ plan · planner · 22s · ↑3.2k ↓1.6k
+● build · 2 visits · 54s · ↑22k ↓1.9k
+✓ locate · scout · 33s · ↑12k ↓831
+✓ plan · planner · 10s · ↑9.8k ↓1.1k
 ● deliver · #1 of 2
   ● deliver#1
     ● deliver#1/work · 0/1 so far
@@ -61,13 +61,16 @@ with what its subagent is doing:
         ● deliver#1/work[1]/pair · #1 of 3
           ● deliver#1/work[1]/pair#1
             ● deliver#1/work[1]/pair#1/code
-              ● coder#1  read slug.js  ilaas/gemma-4-31b · ↑0 ↓0 · 6.7s
+              ● coder#1  grep /node/ in .  ilaas/gemma-4-31b · 11.2s
             ○ deliver#1/work[1]/pair#1/review · agent reviewer (.pi/agents/reviewer.md) · reads item.text, code, diff…
     ○ deliver#1/tests · check .pi/checks/test.sh · timeout 10m · ≤ 20m
     ○ deliver#1/audit · agent auditor (.pi/agents/auditor.md) · reads input, work, tests, diff, deliver.ledger · verd…
 ○ report · agent synthesiser (.pi/agents/synthesiser.md) · reads input, diff, deliver.output.last.work, deliver.outpu…
 esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
 ```
+
+A subagent's line gives its tokens once its turn has ended, since that is when
+pi's counters are read; the coder above is still in its first.
 
 When it ends, its answer lands in the conversation: the output of its last
 root node, `report`, a few lines a synthesiser wrote from the diff, how each
@@ -78,19 +81,17 @@ the last frame:
 Result of the build flow, asked to: make slugify lowercase the title, turn every run of characters that are not letters
 or digits into one dash, and trim dashes at both ends; add tests for it.
 
-The slugify function in slug.js was updated to lowercase the title, replace every run of non-alphanumeric characters
-with a single dash, and trim dashes from both ends. Comprehensive tests verifying these requirements were added to
-slug.test.js.
+The slugify function in slug.js now lowercases the title, replaces any sequence of non-alphanumeric characters with a
+single dash, and trims dashes from both ends. A new test file, slug.test.js, was added to verify these behaviors.
+Nothing remains to be done.
 
-Nothing is left to do.
+ok · runs/2026-09-24_01-06-54
 
-ok · runs/2026-09-23_21-35-50
-
-✓ build · 10 visits · 1m12s · ↑41k ↓6.2k
-✓ locate · scout · 4s · ↑2.4k ↓111
-✓ plan · planner · 22s · ↑3.2k ↓1.6k
-✓ deliver · 1 iteration · 44s · ↑34k ↓4k
-✓ report · synthesiser · 5s · ↑2.2k ↓467
+✓ build · 12 visits · 2m19s · ↑69k ↓12k
+✓ locate · scout · 33s · ↑12k ↓831
+✓ plan · planner · 10s · ↑9.8k ↓1.1k
+✓ deliver · 1 iteration · 1m32s · ↑45k ↓9.3k
+✓ report · synthesiser · 5s · ↑2.1k ↓456
 ```
 
 The report is written from the diff, so it names what a coder did beyond the

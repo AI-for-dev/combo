@@ -196,22 +196,27 @@ visits go, each running visit expanded with what its subagents are doing under
 it:
 
 ```
-● build · 2 visits · 10s · ↑7.6k ↓1k
-✓ locate · scout · 3s · ↑3.8k ↓326
-✓ plan · planner · 7s · ↑3.8k ↓710
+● build · 3 visits · 1m51s · ↑40k ↓4.1k
+✓ locate · scout · 33s · ↑12k ↓831
+✓ plan · planner · 10s · ↑9.8k ↓1.1k
 ● deliver · #1 of 2
   ● deliver#1
     ● deliver#1/work · 0/1 so far
       ● deliver#1/work[1]
         ● deliver#1/work[1]/pair · #1 of 3
           ● deliver#1/work[1]/pair#1
-            ● deliver#1/work[1]/pair#1/code
-              ● coder#1  read slug.test.js  ilaas/gemma-4-31b · ↑0 ↓0 · 4.1s
-            ○ deliver#1/work[1]/pair#1/review · agent reviewer (agents/reviewer.md) · reads item.text, code, diff · v…
+            ✓ deliver#1/work[1]/pair#1/code · coder · 37s · ↑18k ↓2.2k
+            ● deliver#1/work[1]/pair#1/review
+              ● reviewer#1  verdict approved=false raised=["Replace `t.strictEqual` wit… remarks=The tests use an inc…
     ○ deliver#1/tests · check .pi/checks/test.sh · timeout 10m · ≤ 20m
-    ○ deliver#1/audit · agent auditor (agents/auditor.md) · reads input, work, tests, diff, deliver.ledger · verdict …
+    ○ deliver#1/audit · agent auditor (.pi/agents/auditor.md) · reads input, work, tests, diff, deliver.ledger · verd…
+○ report · agent synthesiser (.pi/agents/synthesiser.md) · reads input, diff, deliver.output.last.work, deliver.outpu…
 esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
 ```
+
+A running subagent's line is its last call, its model, its tokens once a turn
+has ended and its clock, cut to the terminal's width: the reviewer here is
+calling `verdict`, and the call fills the room.
 
 The plan takes sixteen rows at most. Past that it is cut above and below what
 runs now, and each cut says how many lines it holds. The keys are those of any
