@@ -797,10 +797,10 @@ nothing is rewritten. Its output is `{ approved, remarks? }`, where
 recorded call ends the turn: nothing reads what the model would write after
 it, and a model left to go on has been measured calling `verdict` again and
 again until its deadline. A turn that calls no `verdict` fails with `schema`,
-which `retry:` covers: the shipped `build` gives its `review` and `audit`
-`retry: 1`, so a turn that answered in prose is sent back once with the
-failure named. `<id>.ledger` reads the open obligations as `[{ id, text }]` at
-the moment it is read.
+which `retry:` covers: the shipped `build` gives every agent node, `review`
+and `audit` included, `retry: 1`, so a turn that answered in prose is sent
+back once with the failure named. `<id>.ledger` reads the open obligations as
+`[{ id, text }]` at the moment it is read.
 
 ### Failures, retries and timeouts
 
@@ -809,6 +809,12 @@ failed by a node inside it fails with `child`, whose message names the visit
 and its kind (`gate/look: provider: ...`). `stopped` and `cancelled` keep
 their own kind on the way up. `on-fail: continue` on any node stops the travel
 there, and later nodes read `x.ok` and `x.error`.
+
+A turn fails `provider` when pi says it failed: the provider returned an
+error, or the answer reached the provider's output limit. A cut answer fails
+even with text in it, since it is not the whole of one. One cut in the
+model's thinking has no text at all, and fails rather than reach the next
+node as an empty answer.
 
 `retry: n` gives an `agent` node `n` more attempts after a `provider`,
 `timeout` or `schema` failure, never after a stop or a cut. A retry asks the

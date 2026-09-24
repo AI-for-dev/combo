@@ -170,6 +170,23 @@ describe("`retry:`", () => {
 		assert.equal(result.usage.input, 130);
 	});
 
+	test("covers a turn cut by the output limit, which is a provider failure and not an empty answer", async () => {
+		const flow = checked("  - id: look\n    agent: scout\n    retry: 1\n  - id: after\n    agent: synthesiser\n    reads: [look]", { look: "Look.", after: "After." });
+		const fake = flowSpawn([[{ stopReason: "length" }, { text: "found" }], [{ text: "read it" }]]);
+		const result = await runChecked(flow, "x", { spawn: fake.spawn });
+		assert.deepEqual(result.ok && result.output, "read it");
+		assert.equal(fake.created[0]?.prompts[1], `Your last answer failed (provider: the answer reached the output limit). Do the same task again.\n\n${IN_THE_LANGUAGE_OF_THE_WORK}`);
+		assert.ok(fake.created[1]?.prompts[0]?.includes("## look\n\nfound"));
+	});
+
+	test("without one, a turn cut by the output limit fails its node rather than hand the next one nothing", async () => {
+		const flow = checked("  - id: look\n    agent: scout\n  - id: after\n    agent: synthesiser\n    reads: [look]", { look: "Look.", after: "After." });
+		const fake = flowSpawn([[{ stopReason: "length" }], [{ text: "read nothing" }]]);
+		const result = await runChecked(flow, "x", { spawn: fake.spawn });
+		assert.deepEqual(!result.ok && [result.error, result.path], [{ kind: "provider", message: "the answer reached the output limit" }, "look"]);
+		assert.equal(fake.created.length, 1, "the next node never started");
+	});
+
 	test("is spent: a node with none left fails", async () => {
 		const flow = checked("  - id: look\n    agent: scout\n    retry: 1", { look: "Look." });
 		const result = await runChecked(flow, "x", { spawn: flowSpawn([[{ stopReason: "error" }, { stopReason: "error" }]]).spawn });

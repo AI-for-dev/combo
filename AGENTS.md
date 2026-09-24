@@ -231,7 +231,8 @@ reachable by forgetting an argument.
 - `session.prompt()` takes **no `AbortSignal`** - bridge it to `session.abort()`,
   and remove the listener after the turn.
 - A turn can **fail without throwing**: read the last assistant message's
-  `stopReason`.
+  `stopReason`. `length` is one: the output limit cut the answer, often in
+  its thinking with no text at all.
 - **A `tool_execution_start` can carry an empty `toolName`.** Not missing,
   empty, so `??` never fires and the name reads as nothing at all. Anything
   taking a name off a pi event wants `|| "?"`, not `?? "?"`.

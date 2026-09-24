@@ -20,8 +20,8 @@ export type Turn = {
 	contextTokens?: number;
 	/** Makes `prompt()` reject. */
 	throws?: string;
-	/** Makes the turn end on a failing `stopReason`, without throwing. */
-	stopReason?: "error" | "aborted";
+	/** Makes the turn end on a `stopReason` other than `stop`, without throwing: `length` is pi's output limit. */
+	stopReason?: "error" | "aborted" | "length";
 	/** Milliseconds spent in `prompt()`, to observe concurrency. */
 	delayMs?: number;
 	/** Tool calls emitted during the turn. */

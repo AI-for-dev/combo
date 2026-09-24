@@ -823,6 +823,38 @@ of four with this change and two of two without it, although no file it reads
 names the tool. That is the model's own habit, and there a refused call costs
 a line of the display, not a decision.
 
+### A turn cut by the output limit fails, and every agent node of `build` is asked twice
+
+Measuring real `/run build` runs on `ilaas/gemma-4-31b` turned up two holes.
+
+- **A turn that ended on the output limit passed.** pi ends such a turn with
+  `stopReason: "length"`, and `lastTurn` read only `error` and `aborted` as a
+  failure. On a node with neither `verdict:` nor `output:`, a turn that spent
+  its whole output budget thinking passed as `ok: true` with an empty answer,
+  and the next node read nothing. Reproduced with a scratch agent directory
+  (`PI_CODING_AGENT_DIR`, the user's `~/.pi` untouched) giving the model
+  `maxTokens: 200`: 200 output tokens, `output: ""`, `ok: true`. Two other
+  models on 24 tokens passed a sentence cut mid-word the same way.
+- **`length` is now a failure in `lastTurn`, text or not.** That is the one
+  place pi's message shape is read, so `Subagent.ask`, `run()`, every
+  combinator and the flow runner see it alike. What is there is kept as the
+  message's text, but it is not an answer: a cut plan or a cut report handed on
+  as whole is the same silent failure with more words. In a flow it is
+  `provider`, the kind for a turn that failed on the provider's side, so
+  `retry:` covers it with no new kind in `ERROR_KINDS`: a new kind would be a
+  thirteenth that every condition reading `x.error.kind` has to learn, for a
+  failure no flow has been measured treating differently.
+- **`plan` gets `retry: 1`.** 2 of 16 real builds failed there, one on
+  `schema` and one on a provider error; both are what `retry:` covers, and a
+  plan that fails ends the build before any work. `review` and `audit` got
+  theirs for the same reason.
+- **So do `locate` and `report`.** Neither failed in those 16 builds, but the
+  first hole closed turns a cut answer, which used to pass, into a failure on
+  exactly those two untyped nodes. `report` runs after every patch has landed,
+  so a failure there fails a finished build for want of one more turn. `locate`
+  failing costs less, since nothing has run yet, and one retry costs less
+  still. Every agent node of `build` is now asked at most twice.
+
 ### A working copy belongs to the work, not to the subagent
 
 `deliver` pins `concurrency` to 2 because its workers write to the same tree.
@@ -3700,7 +3732,7 @@ Points to watch:
 - Messages are read from `session.messages`; `session.agent.state.messages` is an
   internal detail.
 - A turn can fail **without throwing**: look at the last assistant message's
-  `stopReason` (`"error"`, `"aborted"`).
+  `stopReason` (`"error"`, `"aborted"`, and `"length"` for the output limit).
 - **Not every provider reports tokens.** Several return a `usage` that is already
   zero at the source; `getSessionStats()` then sums zeros. We display `0`, we
   never estimate it. And what a provider reports changes: one that reported
