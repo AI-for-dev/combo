@@ -25,12 +25,14 @@ One dot, then the report appears in the transcript:
 
 ```
 ◇ scout agent  1 turn  outside this conversation - /quote puts it in
-  The wall time of a subagent is measured by calculating the difference between the current time and the time it was
-  spawned (performance.now() - spawnedAt).
+  The wall time of a subagent is measured in src/subagent.ts by recording the time of its creation and calculating the
+  elapsed time using performance.now().
 
-  - src/subagent.ts:176: captures the start time using performance.now().
-  - src/subagent.ts:283: calculates the current wall time in the usage getter.
-  - src/subagent.ts:387: calculates the final wall time when the subagent is closed.
+  - src/subagent.ts:167: records the spawn time: const spawnedAt = performance.now();.
+  - src/subagent.ts:201-204: the usage getter calculates the current elapsed wall time: return { ...usage, wallMs:
+    performance.now() - spawnedAt };.
+  - src/subagent.ts:316: the final wall time is captured during the close() process: const finalUsage = { ...usage,
+    wallMs: performance.now() - spawnedAt };.
 
 scout: 1 turn - /step <next> carries it on, /quote puts it in this conversation
 ```
@@ -46,7 +48,7 @@ left and full width is exactly how an answer the session gave is drawn.
 
 ```
 1. scout  agent where is the wall time of a subagent me…  1 turn
-1 step, 1 turn - exported to /…/combo/runs/2026-09-23_22-06-31
+1 step, 1 turn - exported to /…/combo/runs/2026-09-24_00-47-28
 ```
 
 Now the second step, with no instruction beyond a question. It receives the
@@ -70,7 +72,7 @@ reviewer: 1 turn - /step <next> carries it on, /quote puts it in this conversati
 ```
 1. scout     agent where is the wall time of a subagent me…  1 turn
 2. reviewer  agent ←scout is the measurement trustworthy  1 turn
-2 steps, 2 turns - exported to /…/combo/runs/2026-09-23_22-06-31
+2 steps, 2 turns - exported to /…/combo/runs/2026-09-24_00-47-28
 ```
 
 The arrow says what the reviewer was handed. Both steps were exported into one
@@ -82,9 +84,11 @@ folder, `1-scout/` and `2-reviewer/`, each with its transcript and its own
 Look at that `LGTM`. The reviewer opened `src/subagent.ts`, thought it
 through, and answered with the one word its definition allows for approval.
 Its reasons are in its transcript and nowhere in the step. Look at the
-scout's report too: `283` and `387` are right, `176` is not (the line is
-`217`), and the reviewer approved a report with a wrong citation in it,
-because it was asked about the measurement and not about the report.
+scout's report too: none of its three line numbers is right (the lines are
+`217`, `283` and `387`), and the reviewer approved a report with three wrong
+citations in it, because it was asked about the measurement and not about the
+report. Its own thinking had put the three statements at `167`, `202` and
+`316`: the scout's numbers, not the file's.
 
 Nothing acted on that. Had this been `/run` on a flow, the next node would
 have been handed `LGTM` as its input and carried on. Here it is a line in the
@@ -98,12 +102,11 @@ Now ask the session:
 > what did the reviewer say?
 ```
 
-No reviewer ran in its conversation, and its thinking said so: "the
-reviewer" might refer to a subagent, a person, or some output from a run.
-Then it went looking.
-It listed `runs/` with `bash`, found `2-reviewer/reviewer-1.jsonl`, grepped
-the assistant messages out of it, and summarised the reviewer's reasoning,
-ending "The reviewer concluded the analysis with **`LGTM`**."
+No reviewer ran in its conversation, and its thinking said so: "I don't have
+any active subagent sessions or recent logs in the current context". Then it
+went looking. It listed `runs/` with `bash`, found
+`2-reviewer/reviewer-1.jsonl`, read it, and summarised the reviewer's
+reasoning, ending "The final verdict was: **LGTM**."
 
 The two steps were not in its context, which is what you asked for. They were
 on disk, in the working directory of a session that holds `bash`. `/step`
@@ -147,36 +150,42 @@ and its answer lands where a step's does, outside the conversation:
 
 ```
 ◇ explore flow  4 turns  outside this conversation - /quote puts it in
-  The wall time of a subagent is measured in src/subagent.ts by recording the start time at spawn and calculating the
-  difference using performance.now() during usage queries or upon closure.
+  The wall time of a subagent is measured in src/subagent.ts using performance.now(). It is calculated as the
+  difference between the current time and a spawnedAt timestamp recorded when the subagent is created.
 
-  There is a disagreement between the reports regarding the exact line numbers in src/subagent.ts:
-  - Report 1 cites lines 254 (spawn), 308-311 (usage getter), and 448-449 (closure).
-  - Report 3 cites lines 168 (spawn), 214-217 (usage getter), and 311 (closure).
-  …
+  This measurement occurs at three points:
+  - During the spawn process (where spawnedAt is initialized).
+  - Within the usage getter (to provide the current elapsed wall time).
+  - In the close method (to capture the final total wall time).
+
+  The reports disagree on the specific line numbers where these occur:
+  - Spawn: reported as line 163, 184, or 217.
+  - Usage: reported as lines 205-208, 224, or 283.
+  - Close: reported as line 267, 343, or 387.
+
+explore: 4 turns - /step <next> carries it on, /quote puts it in this conversation
 
 ◇ reviewer agent ←explore  1 turn  outside this conversation - /quote puts it in
-  The "Output of step explore" is consistent with the code.
-
-  1. src/subagent.ts: Wall time is indeed measured by recording spawnedAt = performance.now() during spawn (line 254)
-     and calculating the difference in the usage getter (lines 308-311) and the close method (line 448). These line
-     numbers match Report 1.
-  …
+  LGTM
 
 1. explore   flow where is the wall time of a subagent me…  4 turns
 2. reviewer  agent ←explore is the answer consistent with the code  1 turn
-2 steps, 5 turns - exported to /…/combo/runs/2026-09-23_22-12-17
+2 steps, 5 turns - exported to /…/combo/runs/2026-09-24_00-50-38
 ```
 
 The chain says which stage was a flow. The flow's run directory is the step's
 folder, `1-explore/`, so a stage that stops can be carried on with `/run
 resume` like any run.
 
-And read the reviewer once more. It opened `src/subagent.ts` and confirmed
-Report 1's numbers against it; the line is `217`, not `254`. It was not
-guessing from the report, it had the file in front of it. That is the thing a
-step drawn outside the conversation is for: the claim waits on your screen
-until you have checked it.
+And read the reviewer once more, in its transcript this time. It opened
+`src/subagent.ts`, put the getter at `267` and the close at `343`, two numbers
+it had from the reports and not from the file, then saw a `grep` of its own
+disagree and took the grep's `217`, `283` and `387`. One scout had those three
+numbers right, and the answer lists them beside the wrong ones. The reviewer
+checked the claim against the file and said `LGTM`, and the one word is all
+the step shows. That is the thing a step drawn outside the conversation is
+for: the claim waits on your screen until you have checked it, and the
+transcript says how the reviewer checked it.
 
 ## A different model per step
 
@@ -218,7 +227,7 @@ is the measurement trustworthy
 
 ## Output of step `scout`
 
-The wall time of a subagent is measured by calculating the difference between the current time and the time it was spawned (`performance.now() - spawnedAt`).
+The wall time of a subagent is measured in `src/subagent.ts` by recording the time of its creation and calculating the elapsed time using `performance.now()`.
 …
 ```
 
