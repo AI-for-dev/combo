@@ -966,6 +966,31 @@ repository: **a run's own exports are invisible to git**. They land in `runs/`
 inside the tree the delivery is about to land in, so while git counted them the
 answer to "can the patches come back" was always no.
 
+### Copies of one repository are made and removed one at a time
+
+git keeps the list of a repository's copies under `.git/worktrees/` and takes
+no lock on it. A `worktree add` writes the new entry one file at a time, and
+`add`, `remove`, `list` or `branch -d` walking the list meanwhile can read it
+half written and die. A `remove` that takes the last copy can also delete the
+directory under an `add` about to write into it. Two copies made and released
+at once are enough, which is exactly what `copies: true` does. A test caught it
+once in 94 suite runs under load, and a stress run of the same pattern failed 8
+times in 14,400 copies.
+
+So those four commands wait in a queue per repository (`src/git/registry.ts`).
+It is keyed by the common git directory, not by `cwd`, because a copy and the
+repository it came from share one list. Three alternatives were set aside:
+
+- **Retrying the command when it fails.** The failure shows up as several
+  different messages, and a retry keyed on those messages would hide a real
+  error that happens to look the same.
+- **A lock file shared across processes.** One run makes all its copies in one
+  process, and nothing has yet needed two processes to share a repository's
+  copies. The limit is stated in the guide instead.
+- **Serialising every git command.** Only the commands that touch the list race.
+  Queuing `apply`, `commit` or `diff` would make parallel branches wait on each
+  other for nothing.
+
 ### Patches go in one at a time, and nothing is undone
 
 Two patches that each apply cleanly on their own can still be wrong together:
