@@ -74,15 +74,16 @@ export default function registerSwarmCommand(pi: PiApi) {
  */
 export async function runSwarm(args: string, ctx: CommandCtx, injected: StepDeps): Promise<RelayStep | undefined> {
 	const deps = resolved(injected);
-	const { flags, rest: goal } = parseLeadingFlags(args, ["members", "rounds", "hold", "claim", "agent", "model", "until"]);
+	const { flags, rest: goal, refused } = parseLeadingFlags(args, ["claim", "agent", "model", "until"], { counts: ["members", "rounds", "hold"] });
+	if (refused) return refuse(ctx, `swarm: ${refused}`, "warning");
 	if (!goal.trim()) {
 		return refuse(ctx, "swarm: say what they are all on, for example /swarm describe every file under src/reporters/", "warning");
 	}
 
 	const cast = await checked(ctx, async () => {
 		const member = findAgent(loadRoster(ctx, deps), flags.agent ?? DEFAULT_MEMBER);
-		const count = whole(flags.members, "members") ?? DEFAULT_MEMBERS;
-		const rounds = whole(flags.rounds, "rounds");
+		const count = whole(flags.members) ?? DEFAULT_MEMBERS;
+		const rounds = whole(flags.rounds);
 		if (flags.model) await deps.checkModel(flags.model);
 		return { member, count, rounds };
 	});
@@ -110,7 +111,7 @@ export async function runSwarm(args: string, ctx: CommandCtx, injected: StepDeps
 	const toAgree = flags.until !== undefined;
 
 	const keys = keysFrom(flags.claim);
-	const claims = claimsFrom(keys, whole(flags.hold, "hold"));
+	const claims = claimsFrom(keys, whole(flags.hold));
 	const begun = beginStep(member.name, deps.runDir);
 
 	let done: SwarmResult;
@@ -220,10 +221,7 @@ export function claimsFrom(keys: readonly string[], hold: number | undefined): C
 	});
 }
 
-/** A whole number a user typed, or a refusal naming the flag they got wrong. */
-function whole(value: string | undefined, flag: string): number | undefined {
-	if (value === undefined) return undefined;
-	const n = Number(value);
-	if (!Number.isInteger(n) || n < 1) throw new Error(`swarm: --${flag} takes a whole number of at least 1, not "${value}"`);
-	return n;
+/** A count the parser already checked, or `undefined` when it was not written. */
+function whole(value: string | undefined): number | undefined {
+	return value === undefined ? undefined : Number(value);
 }

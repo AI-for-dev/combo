@@ -72,7 +72,8 @@ export default function registerStepCommands(pi: PiApi) {
  */
 export async function runStep(args: string, ctx: CommandCtx, injected: StepDeps): Promise<RelayStep | undefined> {
 	const deps = resolved(injected);
-	const { flags, rest } = parseLeadingFlags(args, ["from", "model"], ["agent"]);
+	const { flags, rest, refused } = parseLeadingFlags(args, ["from", "model"], { switches: ["agent"] });
+	if (refused) return refuse(ctx, `step: ${refused}`, "warning");
 	const [name, ...words] = rest.split(/\s+/).filter(Boolean);
 	if (!name) {
 		return refuse(ctx, "step: say which flow or agent, for example /step planner three steps at most. /agents lists them", "warning");

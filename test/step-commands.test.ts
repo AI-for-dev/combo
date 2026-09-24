@@ -112,6 +112,15 @@ describe("/step", () => {
 		assert.deepEqual(requested.map((one) => one.options.model), ["local/qwen"]);
 	});
 
+	test("--agent written with a value other than true or false is refused before anything runs", async () => {
+		const { ctx, said } = fakeCtx();
+		const { deps: injected, requested, agentAsks } = deps();
+
+		assert.equal(await runStep("--agent=no explore where usage is measured", ctx, injected), undefined);
+		assert.equal(requested.length + agentAsks.length, 0);
+		assert.equal(said(), 'step: --agent takes no value, or =true or =false, not "no"');
+	});
+
 	test("a lone agent is a step too, and that is the point of the command", async () => {
 		const { ctx } = fakeCtx();
 		const { deps: injected, agentAsks } = deps();

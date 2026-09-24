@@ -97,7 +97,11 @@ member on pi's own model - its `--model` had become the first two words of the
 goal, and nothing said so.
 
 `--agent` on `/step` takes no value, unlike `--model`: a flag that swallowed
-the word after it would eat the first word of the request. Whether a flow's
+the word after it would eat the first word of the request. It is written
+`--agent`, `--agent=true` or `--agent=false`, and any other value is refused,
+`--agent=no` included. A count (`--members`, `--rounds`, `--hold`,
+`--questions`) is a whole number of at least 1, and anything else is refused
+too. The refusal names the flag and what it takes, and nothing runs. Whether a flow's
 workers get a copy of the repository is the file's to say, with `copies: true`
 on a block; see [Worktrees](worktree.md) for what it costs and what it buys.
 

@@ -35,7 +35,9 @@ See [Quickstart](../guide/quickstart.md) and [Extension](../guide/extension.md).
 
 Flags come before the text, in any order, written `--name value` or `--name=value`. A
 value with spaces goes in double quotes. A line may end on `\` and go on below. `/run`
-also reads its two flags at the end of the line.
+also reads its two flags at the end of the line. A flag without a value, like `--agent`,
+is written alone, `=true` or `=false`. A count `<n>` is a whole number of at least 1.
+Any other value is refused and nothing runs.
 
 | Command | Flag | Default | Meaning |
 | --- | --- | --- | --- |

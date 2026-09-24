@@ -4798,3 +4798,27 @@ The descriptions a model reads are written from it, the set of fields that
 make an orchestration comes from it, and so does the list `flow` mode accepts.
 A test does not take the table on trust: it runs every mode, records which
 fields the tool body reads, and checks each description against that.
+
+## A flag written wrong is refused, not read
+
+`parseLeadingFlags` read a switch written `--name=<word>` as on for any word
+but `false`. `/step --agent=no explore where usage is measured` forced the
+agent, the opposite of what was typed, and refused with `Unknown agent
+"explore"` when no agent had that name. A switch now takes `--name`,
+`--name=true` or `--name=false`, in any case. Any other value is refused, and
+the refusal says what the switch takes. `yes`, `no`, `on`, `off`, `1` and `0`
+are refused too. Nothing in this record asked for them, one spelling of each
+answer is enough, and a word the parser does not read is better refused than
+guessed at. An absent switch still arrives as nothing, so a switch keeps the
+three answers `--worktree` was given.
+
+A count went the same way. `/swarm` refused `--members x` in its own words,
+and `/interview` dropped `--questions x` without saying so. The reason given
+for dropping it was that `0` would skip the interview, but running on the
+default of 6 is also a guess, and nobody is told. A count is now a whole
+number of at least 1, checked in `flags.ts` for every command that names one.
+It is written in digits: `1.5`, `0x10` and `1e2` are all refused.
+
+The parser returns the refusal as `refused` and does not throw. Each command
+prefixes it with its own name and shows it through `refuse()`, as a warning,
+the same level as its other refusals of what was typed.
