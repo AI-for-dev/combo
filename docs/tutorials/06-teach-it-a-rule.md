@@ -145,21 +145,27 @@ does not start:
 ```
 subagent single test-reader
   read test/fan-out.test.ts
-Agent "test-reader" declares unknown skill(s) assertion-smell. Looked in:
+Agent "test-reader" declares unknown skill(s) assertion-smell. "assertion-smell": did you mean "assertion-smells"?
+Skills found: assertion-smells. Looked in:
 /…/combo/.pi/agents/test-reader/skills, /home/you/.pi/agent/skills.
 ```
 
-Two directories listed and not three, because this repository has no
-`.pi/skills/`. What the session did next is worth knowing. It found
-`.pi/agents/test-reader/skills/assertion-smells/` and renamed the directory
-to the misspelt name with `mv`, which changed nothing: a skill's name is the
-`name:` in its `SKILL.md`, not its directory's. It moved the file once more,
-failed a third time, then called `edit` on `.pi/agents/test-reader.md`,
-deleted the `skills:` line, and called the reader again, which now ran without
-its rules. The refusal was exact and the session holds `edit` and `bash`: it
-repaired the call by removing the thing that made it fail, and left the skill
-it had moved behind it. A definition under version control shows that as a
-diff; read it before you trust the next report.
+The refusal says what it found as well as where it looked: the skills in
+those directories, and the nearest name among them. Two directories are listed
+and not three, because this repository has no `.pi/skills/`. A skill goes by
+the `name:` in its `SKILL.md`, not by its directory, so renaming a directory
+never fixes a refusal. If a directory named `assertion-smell` held a
+`SKILL.md` saying `name: assertion-smells`, the message would say exactly that.
+
+The session read the hint. It ran `find` for the agent's files, read
+`.pi/agents/test-reader.md`, and called `edit` to change
+`skills: assertion-smell` to `skills: assertion-smells`. On the second call the
+reader opened the skill first, as its prompt asks, and reported twenty tests
+without naming a single smell, `accepts one agent per task` included. The edit
+was the right one, and it was still a session rewriting an agent's definition
+to get past a refusal: it holds `edit` and `bash`, and it did not ask before
+editing. Under version control that shows as a one-word diff; read it before
+you trust the next report.
 
 Two more refusals, both for a skill that would resolve and never be seen: an
 agent whose `tools:` lacks `read` cannot open the file, and pi drops the whole
