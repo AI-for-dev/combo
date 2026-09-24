@@ -7,7 +7,8 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { boardLines, createBoard, type Draft } from "../src/board/board.ts";
+import { createBoard, type Draft } from "../src/board/board.ts";
+import { boardLines } from "../src/board/lines.ts";
 
 const tell = (text: string, to?: string): Draft => ({ kind: "tell", text, ...(to ? { to } : {}) });
 
@@ -93,6 +94,57 @@ describe("posting", () => {
 
 		assert.ok(first.at >= 0 && first.at < 1000, `${first.at}`);
 		assert.ok(second.at >= first.at, `${second.at} < ${first.at}`);
+	});
+});
+
+describe("answering", () => {
+	test("a post can answer another, which the board records with who wrote it", () => {
+		const board = createBoard();
+		posted(board.post("debater#1", { kind: "result", text: "VOTE: Rust" }));
+		const answer = posted(board.post("debater#2", { kind: "tell", text: "the borrow checker slows a new team", re: "p1" }));
+
+		assert.deepEqual(answer.re, { id: "p1", from: "debater#1" });
+		assert.equal(boardLines([answer]), "p2 debater#2 re p1 (debater#1) [tell] the borrow checker slows a new team");
+	});
+
+	test("an answer is read by everybody, not only by whoever it answers", () => {
+		const board = createBoard({ members: ["debater#1", "debater#2", "debater#3"] });
+		board.post("debater#1", { kind: "result", text: "VOTE: Rust" });
+		board.post("debater#2", { kind: "tell", text: "not for a new team", re: "p1" });
+
+		assert.equal(board.since("debater#3").posts.length, 2, "a debate is argued in public");
+	});
+
+	test("an answer to a post that is not there is refused, by what there is", () => {
+		const board = createBoard();
+		board.post("debater#1", tell("one"));
+
+		const stray = board.post("debater#2", { kind: "tell", text: "no", re: "p7" });
+		assert.equal(stray.ok, false);
+		assert.match(stray.ok ? "" : stray.error, /there is no post p7: the board has p1 to p1/);
+		assert.ok(board.post("debater#2", { kind: "tell", text: "no", re: "p1" }).ok);
+	});
+
+	test("the same words answering two posts are two posts, not a repeat", () => {
+		const board = createBoard();
+		board.post("debater#1", tell("one"));
+		board.post("debater#3", tell("two"));
+
+		assert.ok(board.post("debater#2", { kind: "tell", text: "I disagree", re: "p1" }).ok);
+		assert.ok(board.post("debater#2", { kind: "tell", text: "I disagree", re: "p2" }).ok);
+	});
+
+	test("handed to a member, what answers it comes first, under a line that says so", () => {
+		const board = createBoard();
+		board.post("debater#1", { kind: "result", text: "VOTE: Rust" });
+		board.post("debater#3", tell("thinking aloud about Go"));
+		board.post("debater#2", { kind: "tell", text: "not for a new team", re: "p1" });
+
+		assert.equal(
+			boardLines(board.since("debater#1").posts, "debater#1"),
+			["Answering you:", "p3 debater#2 re p1 (debater#1) [tell] not for a new team", "", "The rest:", "p2 debater#3 [tell] thinking aloud about Go"].join("\n"),
+		);
+		assert.equal(boardLines(board.since("debater#3").posts, "debater#3"), boardLines(board.since("debater#3").posts), "nothing answers it, so nothing is set apart");
 	});
 });
 

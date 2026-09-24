@@ -48,6 +48,12 @@ something arbitrates, members stop reading the board altogether, and charging
 them a call to learn what the workflow already knows is charging them for its
 bookkeeping.
 
+A post can answer another: `re: "p3"` names it, and the board records who wrote
+p3. Everybody still reads an answer, which is what sets it apart from `to`, the
+mail only its addressee is handed. What answers a member is handed to it first,
+under `Answering you:`, and the rest after. A post with no `re` answers nobody in
+particular, which is how a member thinks aloud.
+
 ## Taking, rather than announcing
 
 A member can post a `claim` saying what it is working on, and that settles

@@ -4153,6 +4153,26 @@ is asked at most twice. Asked again in the same round, the member would see the
 same board it failed on. The next round hands it what the others said since,
 and the round cap still bounds the whole.
 
+### An answer names the post it answers, in public
+
+Debaters on gemma-4-31b wrote `To p2:` and `To the Rust advocate (p2):` at the
+top of their `tell`s. They were answering an argument, not writing to a person,
+and the board had no way to say so. `to` would have been worse: it is mail, and
+the third debater would never have seen the exchange.
+
+A draft now takes `re`, the id of the post it answers. The board refuses an id
+that is not on it, as it refuses a `to` that reaches nobody, and records the
+answered post's author beside the id. It stamps that name, like `from`, so the
+answer's author never supplies it. An answer is read by everybody.
+`boardLines(posts, reader)` puts what answers the reader first, under
+`Answering you:`: handed ten posts, a weak model reads the first few, and those
+should be the ones that are its business. The handout and the tool's `read` both
+use it.
+
+`re` is optional. A post that answers nobody is how a member thinks aloud, and
+a debate needs that as much as it needs replies. The refusal of an exact repeat
+counts `re`, so the same "I disagree" under two posts is two answers.
+
 ### A member does not post the same thing twice
 
 `/swarm --agent debater --until agree` in a real pi, on
