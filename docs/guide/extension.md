@@ -147,7 +147,7 @@ and what a tree costs in [Measurements](measurements.md).
 | `/chain`, `/chain reset` | The steps walked so far; or drop them and start a new chain. |
 | `/quote [id]` | Put one step of the chain into the conversation, attributed. |
 | `/stop [<id>\|all]` | Stops the selected subagent, one named by id, or the whole run. `esc` and `ctrl+del` do the same from the keyboard. |
-| `/herdr on\|off` | Give every subagent its own herdr split for this session. `on` asks herdr first, and says so when the answer is no. |
+| `/herdr [on\|off]` | Give every subagent its own herdr split for this session. `on` asks herdr first, and says so when the answer is no. Alone, it says where it stands; any other word is refused. |
 
 A question card is shown during a model's turn as well as during a command:
 the `subagent` tool puts a flow's questions to you while the turn waits. `/run
