@@ -7,6 +7,7 @@
  */
 
 import { createHerdrSend, detectHerdr, probeHerdr } from "../../src/index.ts";
+import { refuse } from "../command.ts";
 import type { CommandCtx, PiApi } from "../pi.ts";
 import { watchEverything, watchEverythingIs } from "../ui/index.ts";
 
@@ -43,13 +44,12 @@ export default function registerHerdrCommand(pi: PiApi) {
  */
 export async function toggleHerdr(args: string, ctx: CommandCtx, deps: HerdrDeps = {}): Promise<boolean> {
 	const word = args.trim().toLowerCase();
-	const on = word === "on" || word === "all" ? true : word === "off" ? false : watchEverything();
-
-	if (word && word !== "on" && word !== "off" && word !== "all") {
-		ctx.ui.notify(`herdr: say on or off (currently ${watchEverything() ? "on" : "off"})`, "warning");
+	if (word && word !== "on" && word !== "off") {
+		refuse(ctx, `herdr: takes on or off, not "${word}" - it is ${watchEverything() ? "on" : "off"}`, "warning");
 		return watchEverything();
 	}
 
+	const on = word ? word === "on" : watchEverything();
 	watchEverythingIs(on);
 	if (!on) {
 		ctx.ui.notify("herdr: only the subagents that ask for a split get one", "info");
