@@ -359,6 +359,13 @@ describe("what a member is told", () => {
 		assert.match(task("the goal", 2, [], claims), /Round 2/);
 	});
 
+	test("what answers it first, when the swarm says who it is", () => {
+		const answer = { id: "p2", from: "member#2", kind: "tell", text: "no", at: 0, re: { id: "p1", from: "member#1" } } as const;
+		const aside = { id: "p3", from: "member#3", kind: "tell", text: "aside", at: 0 } as const;
+
+		assert.match(task("g", 2, [aside, answer], createClaims(), "member#1"), /Answering you:\np2 member#2 re p1 \(member#1\) \[tell\] no\n\nThe rest:\np3/);
+	});
+
 	test("that what the others post comes to it next turn, so it has no reason to wait", () => {
 		for (const round of [1, 2]) assert.match(task("g", round, [], createClaims()), /reaches you at the top of your next turn/);
 	});

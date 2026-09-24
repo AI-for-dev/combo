@@ -23,8 +23,9 @@
  */
 
 import { Type } from "typebox";
-import { boardLines, type Board, type PostKind } from "./board.ts";
+import type { Board, PostKind } from "./board.ts";
 import type { Claims } from "./claims.ts";
+import { boardLines } from "./lines.ts";
 import { createReader, type Reader } from "./reader.ts";
 import { defineTool, type ToolDefinition } from "../session.ts";
 import { declares, refuse, said } from "../tool.ts";
@@ -97,6 +98,7 @@ export function boardTool(options: BoardToolOptions): ToolDefinition {
 		description:
 			"Leave a message for the others, or read what they have left. " +
 			"Everyone works at the same time and nobody sees your context: the board is all they know of you. " +
+			"To answer a post, give its id as `re`. " +
 			`Kinds: ${KINDS.join(", ")}.` +
 			(claims ? " Before you start on something, `take` it: the first to ask holds it and everyone else is refused." : ""),
 		promptSnippet: "Post to the board, or read what the others posted",
@@ -108,7 +110,10 @@ export function boardTool(options: BoardToolOptions): ToolDefinition {
 			}),
 			kind: Type.Optional(Type.String({ description: `What the post is for. One of: ${KINDS.join(", ")}.` })),
 			text: Type.Optional(Type.String({ description: "What you are saying. Required to post." })),
-			to: Type.Optional(Type.String({ description: "One member. Left out, everybody reads it." })),
+			to: Type.Optional(Type.String({ description: "One member, and nobody else reads it. Left out, everybody reads it." })),
+			re: Type.Optional(
+				Type.String({ description: "The id of the post you are answering, such as p3. Everybody still reads it. Left out, the post answers nobody in particular." }),
+			),
 			key: Type.Optional(Type.String({ description: "The thing to take or release, named exactly." })),
 		}),
 		async execute(_toolCallId, params) {
@@ -130,7 +135,9 @@ export function boardTool(options: BoardToolOptions): ToolDefinition {
 				return refuse(`\`kind\` is one of: ${KINDS.join(", ")}. You sent ${kind ? `"${params.kind}"` : "nothing"}.`);
 			}
 
-			const outcome = board.post(from, { kind: kind as PostKind, text, ...(params.to ? { to: params.to.trim() } : {}) });
+			const to = params.to?.trim();
+			const re = params.re?.trim();
+			const outcome = board.post(from, { kind: kind as PostKind, text, ...(to ? { to } : {}), ...(re ? { re } : {}) });
 			return outcome.ok ? said(`Posted as ${outcome.post.id}.`) : refuse(outcome.error);
 		},
 	});
@@ -168,6 +175,7 @@ export function boardTool(options: BoardToolOptions): ToolDefinition {
 	function read(): string {
 		const { posts, waiting } = reader.next(PAGE);
 		if (posts.length === 0) return "Nothing new on the board.";
-		return waiting > 0 ? `${boardLines(posts)}\n\n(${waiting} more waiting - read again.)` : boardLines(posts);
+		const lines = boardLines(posts, from);
+		return waiting > 0 ? `${lines}\n\n(${waiting} more waiting - read again.)` : lines;
 	}
 }

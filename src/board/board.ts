@@ -54,6 +54,12 @@ export type Post = {
 	readonly to?: string;
 	/** What it is for, so a reader can sort traffic without reading it. */
 	readonly kind: PostKind;
+	/**
+	 * The post it answers, and who wrote that one. The id comes from the draft,
+	 * the author from the board's own record, so an answer names the member it
+	 * answers without that member having to be claimed.
+	 */
+	readonly re?: { readonly id: string; readonly from: string };
 	/** What it says, trimmed. Never rewritten afterwards. */
 	readonly text: string;
 	/** Milliseconds since the board opened. Ours, and monotonic. */
@@ -68,6 +74,8 @@ export type Draft = {
 	text: string;
 	/** Who it is for. Left out, everyone reads it. */
 	to?: string;
+	/** The id of the post it answers. Left out, it answers nobody in particular. */
+	re?: string;
 };
 
 /** A post that went up, or why it did not. */
@@ -171,7 +179,12 @@ export function createBoard(options: BoardOptions = {}): Board {
 			if (draft.to && members && !members.has(draft.to)) {
 				return { ok: false, error: `nobody here is called \`${draft.to}\` - the board has ${[...members].join(", ")}` };
 			}
-			const saying = JSON.stringify([from, draft.kind, draft.to ?? "", text]);
+			const answered = draft.re ? posts[Number(draft.re.slice(1)) - 1] : undefined;
+			if (draft.re && answered?.id !== draft.re) {
+				const range = posts.length ? `the board has p1 to p${posts.length}` : "the board is empty";
+				return { ok: false, error: `there is no post ${draft.re}: ${range}` };
+			}
+			const saying = JSON.stringify([from, draft.kind, draft.to ?? "", draft.re ?? "", text]);
 			const before = said.get(saying);
 			if (before) return { ok: false, error: `you already posted that as ${before}: say something new, or nothing` };
 
@@ -182,6 +195,7 @@ export function createBoard(options: BoardOptions = {}): Board {
 				text,
 				at: Math.round(performance.now() - openedAt),
 				...(draft.to ? { to: draft.to } : {}),
+				...(answered ? { re: { id: answered.id, from: answered.from } } : {}),
 			};
 			posts.push(post);
 			countFor.set(from, mine + 1);
@@ -208,9 +222,4 @@ export function createBoard(options: BoardOptions = {}): Board {
 			return posts;
 		},
 	};
-}
-
-/** Posts as a member reads them: who, to whom, what kind, what it said. */
-export function boardLines(posts: readonly Post[]): string {
-	return posts.map((one) => `${one.id} ${one.from}${one.to ? ` → ${one.to}` : ""} [${one.kind}] ${one.text}`).join("\n");
 }

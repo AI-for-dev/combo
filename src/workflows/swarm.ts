@@ -238,7 +238,7 @@ export async function swarm(options: SwarmOptions): Promise<SwarmResult> {
 			await mapConcurrent(asking, concurrency, async (member) => {
 				const seat = seatOf(member.id);
 				seat.turn?.begin();
-				member.result = await member.ask(task(goal, round, seat.reader.next().posts, claims));
+				member.result = await member.ask(task(goal, round, seat.reader.next().posts, claims, member.id));
 				member.failures = member.result.ok ? 0 : member.failures + 1;
 			});
 
@@ -305,14 +305,15 @@ type Member = Held & {
  *
  * The goal every time, because a member is not asked to remember its brief; the
  * board's news only when there is some, because a line saying nothing happened
- * is a line spent saying nothing.
+ * is a line spent saying nothing. Given the `reader`, what answers its posts
+ * comes first.
  */
-export function task(goal: string, round: number, posts: readonly Post[], claims: Claims): string {
+export function task(goal: string, round: number, posts: readonly Post[], claims: Claims, reader?: string): string {
 	const free = claims.free();
 	return [
 		goal,
 		"",
-		posts.length > 0 ? `Since your last turn, on the board:\n${boardLines(posts)}\n` : "",
+		posts.length > 0 ? `Since your last turn, on the board:\n${boardLines(posts, reader)}\n` : "",
 		free && free.length > 0 ? `Still free to take: ${free.join(", ")}.\n` : "",
 		round === 1
 			? "Others are on this at the same time. Take what you will work on before you start."

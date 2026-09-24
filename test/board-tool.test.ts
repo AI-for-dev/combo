@@ -98,6 +98,18 @@ describe("reading", () => {
 		assert.equal(await answer(tool, { action: "read" }), "Nothing new on the board.");
 	});
 
+	test("a post answers another by its id, and what answers a member is the first thing its read shows", async () => {
+		const board = createBoard();
+		const mine = boardTool({ board, from: "debater#1" });
+		const theirs = boardTool({ board, from: "debater#2" });
+		await callTool(mine, { action: "post", kind: "result", text: "VOTE: Rust" });
+		board.post("debater#3", { kind: "tell", text: "thinking aloud" });
+
+		assert.equal(await answer(theirs, { action: "post", kind: "tell", text: "not for a new team", re: " p1 " }), "Posted as p3.");
+		assert.match(await answer(mine, { action: "read" }), /^Answering you:\np3 debater#2 re p1 \(debater#1\) \[tell\] not for a new team\n\nThe rest:\np2 /);
+		assert.match(await answer(theirs, { action: "post", kind: "tell", text: "and again", re: "p9" }), /there is no post p9/);
+	});
+
 	test("each member keeps its own place", async () => {
 		const board = createBoard();
 		board.post("scout#3", { kind: "tell", text: "one" });

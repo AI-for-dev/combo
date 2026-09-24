@@ -42,7 +42,8 @@ export function trafficLine(event: SubagentEvent, options: TrafficOptions = {}):
 	switch (event.type) {
 		case "post": {
 			const to = event.post.to ? ` → ${event.post.to}` : "";
-			return `✉${who(event.id)}${to} [${event.post.kind}] ${truncate(event.post.text, SAID)}`;
+			const re = event.post.re ? ` re ${event.post.re.id} (${event.post.re.from})` : "";
+			return `✉${who(event.id)}${to}${re} [${event.post.kind}] ${truncate(event.post.text, SAID)}`;
 		}
 		case "read":
 			return `⇣${who(event.id)} was handed ${handed(event.posts.length, event.waiting)}`;

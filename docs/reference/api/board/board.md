@@ -91,16 +91,6 @@ Each default is a number somebody chose, which is the whole point of them
 being here: a board with no cap is one where a loop between two members is
 bounded by the deadline and nothing else.
 
-## `boardLines`
-
-*function*
-
-```typescript
-export function boardLines(posts: readonly Post[]): string { /* … */ }
-```
-
-Posts as a member reads them: who, to whom, what kind, what it said.
-
 ## `BoardOptions`
 
 *type*
@@ -148,6 +138,8 @@ export type Draft = {
 	text: string;
 	/** Who it is for. Left out, everyone reads it. */
 	to?: string;
+	/** The id of the post it answers. Left out, it answers nobody in particular. */
+	re?: string;
 };
 ```
 
@@ -167,6 +159,12 @@ export type Post = {
 	readonly to?: string;
 	/** What it is for, so a reader can sort traffic without reading it. */
 	readonly kind: PostKind;
+	/**
+	 * The post it answers, and who wrote that one. The id comes from the draft,
+	 * the author from the board's own record, so an answer names the member it
+	 * answers without that member having to be claimed.
+	 */
+	readonly re?: { readonly id: string; readonly from: string };
 	/** What it says, trimmed. Never rewritten afterwards. */
 	readonly text: string;
 	/** Milliseconds since the board opened. Ours, and monotonic. */
