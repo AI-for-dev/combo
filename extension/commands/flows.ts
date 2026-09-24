@@ -15,13 +15,10 @@ import { checkFlow, planOf, plural, showBound, showPlan, type AgentSource, type 
 import { loadFlows } from "../command.ts";
 import { resolved, type CommandDeps } from "../deps.ts";
 import type { CommandCtx, PiApi } from "../pi.ts";
-import { tidy } from "../ui/index.ts";
+import { notified, type Row } from "../notice.ts";
 
-/** A line of what `/flows` shows, and the column its text goes on at when the terminal is narrower than the line. */
-export type Row = { readonly text: string; readonly hang: number };
-
-/** What `/flows` shows, and whether anything in it is refused. */
-export type Listing = { readonly rows: readonly Row[]; readonly broken: boolean };
+/** What `/flows` shows. */
+export type Listing = { readonly rows: readonly Row[] };
 
 /** A flow checked, with its bound and description, or a file refused, with its faults. */
 type Entry = { readonly name: string; readonly source: AgentSource; readonly faults: readonly Fault[]; readonly bound?: string; readonly description?: string };
@@ -50,7 +47,7 @@ export function flowLines(catalogue: FlowCatalogue, removed: readonly RemovedPip
 	const refused = entries.filter((entry) => entry.faults.length > 0).length;
 	const count = `${plural(entries.length - refused, "flow")}${refused > 0 ? `, ${plural(refused, "file")} refused` : ""}`;
 	const widths = widthsOf(entries);
-	return { rows: [{ text: count, hang: 0 }, ...entries.flatMap((entry) => entryRows(entry, widths))], broken: refused > 0 };
+	return { rows: [{ text: count, hang: 0 }, ...entries.flatMap((entry) => entryRows(entry, widths))] };
 }
 
 /**
@@ -62,31 +59,26 @@ export function planLines(name: string, catalogue: FlowCatalogue, removed: reado
 	const checked = checkFlow(name, catalogue);
 	const shown = checked.ok
 		? showPlan(planOf(checked.flow)).split("\n").map((text) => ({ text, hang: text.search(/\S/) + 2 }))
-		: [{ text: `${name}  broken`, hang: 0 }, ...faultRows(checked.faults)];
+		: [{ text: `${name}  broken`, hang: 0, refused: true }, ...faultRows(checked.faults)];
 	const left = removed.filter((one) => one.name === name).map(removedEntry);
 	const widths = widthsOf(left);
-	return { rows: [...shown, ...left.flatMap((entry) => [{ text: "", hang: 0 }, ...entryRows(entry, widths)])], broken: !checked.ok || left.length > 0 };
+	return { rows: [...shown, ...left.flatMap((entry) => [{ text: "", hang: 0 }, ...entryRows(entry, widths)])] };
 }
 
-/** `/flows [<name>]`: the listing, or one flow's plan, cut to the terminal. */
+/**
+ * `/flows [<name>]`: the listing, or one flow's plan, cut to the terminal.
+ * A refused file's lines read as a warning and the rest as the listing they
+ * are in: pi colours a notification whole, so each line carries its own.
+ */
 export function showFlows(args: string, ctx: CommandCtx, deps: CommandDeps = {}, width = process.stdout.columns): string[] {
 	const all = resolved(deps);
 	const catalogue = loadFlows(ctx, all);
 	const removed = all.removedPipelines({ cwd: ctx.cwd, scope: "both" });
 	const name = args.trim();
-	const { rows, broken } = name === "" ? flowLines(catalogue, removed) : planLines(name, catalogue, removed);
-	const lines = notified(rows, ctx.cwd, width);
-	ctx.ui.notify(lines.join("\n"), broken ? "warning" : "info");
-	return lines;
-}
-
-/**
- * `rows` as the lines of a notification `width` columns wide, paths tidied,
- * each row going on under its `hang`.
- */
-export function notified(rows: readonly Row[], cwd: string, width = process.stdout.columns): string[] {
-	// pi draws a notification one column in, and a line as wide as the terminal would wrap again.
-	return rows.flatMap((row) => wrap({ ...row, text: tidy(row.text, cwd) }, width === undefined ? undefined : width - 2));
+	const { rows } = name === "" ? flowLines(catalogue, removed) : planLines(name, catalogue, removed);
+	const drawn = rows.map((row) => ({ row, lines: notified([row], ctx.cwd, width) }));
+	ctx.ui.notify(drawn.flatMap(({ row, lines }) => lines.map((line) => ctx.ui.theme.fg(row.refused ? "warning" : "dim", line))).join("\n"), "info");
+	return drawn.flatMap(({ lines }) => lines);
 }
 
 function checkedEntry(name: string, source: AgentSource, catalogue: FlowCatalogue): Entry {
@@ -108,47 +100,13 @@ function widthsOf(entries: readonly Entry[]): Widths {
 function entryRows(entry: Entry, widths: Widths): Row[] {
 	const columns = [entry.name.padEnd(widths.name), entry.source.padEnd(widths.source), (entry.bound ?? "broken").padEnd(widths.bound)];
 	const text = [...columns, entry.description ?? ""].join("  ").trimEnd();
-	return [{ text, hang: columns.join("  ").length + 2 }, ...faultRows(entry.faults)];
+	return [{ text, hang: columns.join("  ").length + 2, ...(entry.faults.length > 0 && { refused: true }) }, ...faultRows(entry.faults)];
 }
 
 /** Faults the way a listing writes them, one per line and indented: `file at: message`. */
 export function faultRows(faults: readonly Fault[]): Row[] {
 	return faults.map(({ file, at, message }) => {
 		const where = [file, at].filter((part) => part !== "").join(" ");
-		return { text: `  ${where === "" ? message : `${where}: ${message}`}`, hang: 4 };
+		return { text: `  ${where === "" ? message : `${where}: ${message}`}`, hang: 4, refused: true };
 	});
-}
-
-/**
- * A row cut to `width`, each line after the first starting at its `hang`:
- * after a ` · ` when one fits, so a fact of a plan stays whole, else at a
- * space. A word wider than the room is left whole, for the terminal to wrap.
- */
-function wrap({ text, hang }: Row, width: number | undefined): string[] {
-	const lines: string[] = [];
-	let rest = text;
-	while (width !== undefined && rest.length > width) {
-		const dot = factEnd(rest, width - 2);
-		const space = rest.lastIndexOf(" ", width);
-		const [end, next] = dot > hang ? [dot + 2, dot + 3] : [space, space + 1];
-		if (end <= hang) break;
-		lines.push(rest.slice(0, end));
-		rest = `${" ".repeat(hang)}${rest.slice(next)}`;
-	}
-	return [...lines, rest];
-}
-
-/**
- * The last ` · ` starting at or before `from` that ends a fact, `-1` for
- * none. A bound is two facts joined the same way, `≤ 4 turns · ≤ 1h`, and
- * reads as one: it is not cut between its turns and its time.
- */
-function factEnd(text: string, from: number): number {
-	for (let at = text.lastIndexOf(" · ", from); at >= 0; at = text.lastIndexOf(" · ", at - 1)) {
-		const start = at === 0 ? -1 : text.lastIndexOf(" · ", at - 1);
-		const before = text.slice(start < 0 ? 0 : start + 3, at);
-		if (!(before.startsWith("≤ ") && text.startsWith("≤ ", at + 3))) return at;
-		if (at === 0) break;
-	}
-	return -1;
 }

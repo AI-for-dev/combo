@@ -140,7 +140,7 @@ and what a tree costs in [Measurements](measurements.md).
 | `/run resume [<run directory>]` | Carries on a run that stopped: the newest one here that can go on, or the one named. |
 | `/run` | Lists the flows, as `/flows` does. |
 | `/agents` | Lists the agents that can be spawned, grouped by where they came from. |
-| `/flows` | Lists the flows, where each comes from, the most it can cost in turns and time, and its description. A refused file is listed beside them with its faults, a file left in an old `pipelines/` directory included. |
+| `/flows` | Lists the flows, where each comes from, the most it can cost in turns and time, and its description. A refused file is listed beside them with its faults, in the warning colour, a file left in an old `pipelines/` directory included. |
 | `/flows <name>` | Prints that flow's plan: every node, what it reads, its agent and file, its bound. |
 | `/step [--from <id>] [--model <pattern>] [--agent] <name> <instruction>` | Runs one flow or agent on the previous step's output. Drawn, and kept out of this session's context. |
 | `/swarm [--members <n>] [--claim a,b] [--hold <n>] [--until agree] [--rounds <n>] [--agent <name>] [--model <pattern>] <goal>` | Several copies of one agent on one job, with a board between them. Finished by coverage of what `--claim` names, or by `--until agree` when they all vote the same. Drawn as a step of the chain, like `/step`. |
@@ -254,6 +254,11 @@ is held by a live process, `HEAD` is off its branch (with the `git switch` to
 type). The input and the model are the run's own, so `--model` is refused;
 `--timeout` may be given again. What a resume keeps and what it runs again is
 [Resuming a run](flows.md#resuming-a-run).
+
+A refusal is fitted to the terminal before pi draws it: paths inside this
+directory are named from here, and a line too long is cut before a path
+rather than through it, the `Error: ` or `Warning: ` pi puts in front counted.
+
 
 With herdr, `/herdr on` gives each subagent of a flow a split named by its
 agent and where the flow keeps it, `coder @ deliver#1/work[1]/pair`, for as
