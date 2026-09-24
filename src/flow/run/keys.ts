@@ -76,7 +76,8 @@ export function nodeAt(nodes: readonly CheckedNode[], path: string): { readonly 
 		} else if (isAnswered(node)) {
 			return { code: "answer-unknown-node" };
 		} else if (node.kind === "parallel") {
-			const branch = node.branches.find((one) => one.name === segments[++i]);
+			const name = segments[++i];
+			const branch = node.branches.find((one) => one.name === name);
 			if (branch === undefined) return { code: "answer-unknown-node", why: `a visit inside \`${id}\` names its branch: ${node.branches.map((one) => one.name).join(", ")}` };
 			here = branch.nodes;
 		} else {
