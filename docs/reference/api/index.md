@@ -10,7 +10,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | --- | --- | --- |
 | [`agent`](agent.md) | An agent is *content*: a system prompt, a model, a set of tools. It is declared as Markdown + frontmatter, following the pi convention. | 9 |
 | [`ask`](ask.md) | Asking the *user* a question - the one place a workflow may block on a human. | 6 |
-| [`board/agreement`](board/agreement.md) | When a board has agreed: who voted for what, and whether they all say one thing. | 2 |
+| [`board/agreement`](board/agreement.md) | When a board has agreed: who voted for what, and whether they all say one thing. | 3 |
 | [`board/board`](board/board.md) | A place several subagents can leave messages for each other. | 10 |
 | [`board/claims`](board/claims.md) | One owner per thing, decided here rather than agreed between members. | 6 |
 | [`board/tool`](board/tool.md) | How a member reaches the board. | 2 |

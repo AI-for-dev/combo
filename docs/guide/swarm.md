@@ -177,6 +177,8 @@ success here either.
 The two compose, and a debate wants both: `--claim Python,Rust,Go --hold 1`
 hands out the opening positions one owner at a time, `--until agree` ends it.
 A camp is an opening rather than a verdict, and the vote is free every round.
+`examples/16-debate.ts` is that run in code, with `--same` as the arm that hands
+out no camps.
 
 Measured in a real pi on the line above, three members and one question:
 

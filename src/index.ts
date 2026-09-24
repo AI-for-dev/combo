@@ -296,7 +296,7 @@ export {
 	type PostOutcome,
 	type Reading,
 } from "./board/index.ts";
-export { agreed, VOTE_INSTRUCTION } from "./board/index.ts";
+export { agreed, latestVotes, VOTE_INSTRUCTION } from "./board/index.ts";
 export { type Answer, type Asking, type AskUser, type Choice, type Question, type Shown } from "./ask.ts";
 
 // ── Reaching a live subagent from outside: the mirror a pane attaches to ─────

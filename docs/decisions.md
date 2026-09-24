@@ -4490,6 +4490,13 @@ symbol, `announced`, went with it, and no guide linked to it. The day a script
 needs one of these back, the rule says how: show it in a guide, or call it from
 an example.
 
+`latestVotes` came back that way. `examples/16-debate.ts` prints each member's
+last vote, and it had been written with a parser of its own that stripped
+decoration only after the answer: `VOTE: **Rust**` read as `**rust`, so it and
+`VOTE: Rust` were two votes, and a debate could spend its rounds on an agreement
+it had already reached. The example calls `agreed` and `latestVotes` now, and
+the board's door lists the second.
+
 ## A default is written after the spread, never before
 
 `pair` and `interview` default their lifetime to `"workflow"` - two agents in a

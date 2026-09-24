@@ -18,6 +18,7 @@ node examples/12-experiment.ts   # the same loop on several models, twice each
 node examples/13-concurrent-writers.ts  # two coders writing at once, a copy each
 node examples/14-delegation-tree.ts     # one explorer, three scouts, one answer
 node examples/15-swarm.ts               # three members, one board, nobody dividing it
+node examples/16-debate.ts              # three debaters, one camp each, until they agree
 ```
 
 `11-build.ts` and `13-concurrent-writers.ts` write code, and both refuse to run
@@ -67,6 +68,15 @@ node examples/15-swarm.ts --model <provider/model> --control
 ```
 
 See [Swarms](../guide/swarm.md) for what three arms of it came back with.
+
+`16-debate.ts` is the swarm with nothing to divide: three `debater`s on one
+question, each opening for a camp it takes from the board, until every latest
+vote agrees. `--same` is its control, the same question with no camps, and
+`--camps`, `--members` and `--rounds` change the rest.
+
+```bash
+node examples/16-debate.ts --model <provider/model> --same
+```
 
 ## Watching them work
 
