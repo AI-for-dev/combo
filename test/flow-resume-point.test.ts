@@ -80,6 +80,14 @@ describe("a resume after a kill", () => {
 		assert.deepEqual(added(resumed, from), ["visit_end work[2]/code", "visit_end work", "run_end"]);
 	});
 
+	test("after a parallel, keeps every branch that ended, the last one included", async () => {
+		const branch = (name: string) => `      ${name}:\n        - id: w${name}\n          agent: scout\n`;
+		const flow = checked(`  - id: both\n    parallel:\n${branch("a")}${branch("b")}  - id: after\n    agent: synthesiser`, { wa: "A.", wb: "B.", after: "After." });
+		const { from, point, resumed } = await killedAndResumed(flow, { "both/a/wa": "a", "both/b/wb": "b", after: "done" }, "after", { after: "done" });
+		assert.deepEqual(point.ok && point.from, "after");
+		assert.deepEqual(added(resumed, from), ["visit_end after", "run_end"]);
+	});
+
 	test("inside a sub-flow, runs the callee's visits that did not end, and what follows the call", async () => {
 		const g = flowText("  - id: first\n    agent: scout\n  - id: second\n    agent: planner", { first: "First.", second: "Second." }, "input: string", "g");
 		const flow = checkedIn("f", { f: flowText("  - id: spec\n    flow: g\n    input: input\n  - id: after\n    agent: synthesiser", { after: "After." }), g });
