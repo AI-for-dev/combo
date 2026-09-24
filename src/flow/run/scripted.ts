@@ -6,7 +6,7 @@
  * What it keeps is what the runner reads, so a scripted answer takes the
  * path a real one would. A typed value goes through the real `submit` tool
  * and a verdict through the real `verdict` tool, a provider failure ends the
- * turn on a failing `stopReason`, a timeout fires the attempt's deadline and
+ * turn on a failing `stopReason`, a timeout expires the attempt's deadline and
  * waits for the abort it causes, and a schema failure is a turn that calls
  * nothing.
  */
@@ -16,8 +16,8 @@ import type { AgentMessage, CreateSessionOptions, SessionEvent, SessionPort, Too
 /** What one scripted turn does: say a text, call one of its tools with `args`, or fail as `fail` says. */
 export type ScriptedTurn = { readonly say: string } | { readonly call: string; readonly args: unknown } | { readonly fail: "provider" | "timeout" | "schema" };
 
-/** A scripted session, told before each turn what that turn does and which deadline it runs under. */
-export type ScriptedSession = SessionPort & { stage(turn: ScriptedTurn, deadline: AbortController): void };
+/** A scripted session, told before each turn what that turn does and how to expire the deadline it runs under. */
+export type ScriptedSession = SessionPort & { stage(turn: ScriptedTurn, expire: () => void): void };
 
 type Stats = ReturnType<SessionPort["getSessionStats"]>;
 
@@ -25,7 +25,7 @@ type Stats = ReturnType<SessionPort["getSessionStats"]>;
 export function scriptedSession(options: CreateSessionOptions): ScriptedSession {
 	const listeners = new Set<(event: SessionEvent) => void>();
 	const messages: AgentMessage[] = [];
-	let staged: { turn: ScriptedTurn; deadline: AbortController } | undefined;
+	let staged: { turn: ScriptedTurn; expire: () => void } | undefined;
 	let streaming = false;
 	let cut: (() => void) | undefined;
 
@@ -39,7 +39,7 @@ export function scriptedSession(options: CreateSessionOptions): ScriptedSession 
 
 	async function turn(): Promise<void> {
 		if (staged === undefined) throw new Error("A scripted session was asked a turn nobody staged");
-		const { turn, deadline } = staged;
+		const { turn, expire } = staged;
 		staged = undefined;
 		if ("say" in turn) {
 			emit({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: turn.say } });
@@ -52,7 +52,7 @@ export function scriptedSession(options: CreateSessionOptions): ScriptedSession 
 		}
 		if (turn.fail === "timeout") {
 			const aborted = new Promise<void>((resolve) => (cut = resolve));
-			deadline.abort();
+			expire();
 			await aborted;
 			return answer("", "aborted");
 		}
@@ -67,8 +67,8 @@ export function scriptedSession(options: CreateSessionOptions): ScriptedSession 
 			return streaming;
 		},
 		model: options.model === undefined ? undefined : { id: options.model },
-		stage(turn, deadline) {
-			staged = { turn, deadline };
+		stage(turn, expire) {
+			staged = { turn, expire };
 		},
 		async prompt(text) {
 			messages.push({ role: "user", content: text } as AgentMessage);

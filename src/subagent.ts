@@ -11,6 +11,7 @@
 
 import path from "node:path";
 import type { Agent, Lifetime } from "./agent.ts";
+import { deadline, timedOut } from "./deadline.ts";
 import { busFor, nextSubagentId, type EventBus, type EventListener, type SubagentEvent } from "./events.ts";
 import { exportBaseName, exportSession, type SessionExport } from "./measure/index.ts";
 import { inTheLanguageOfTheWork } from "./language.ts";
@@ -129,6 +130,10 @@ export type AskOptions = {
 	/**
 	 * Cancels this turn. pi's `prompt()` takes no signal, so we bridge it to
 	 * `session.abort()`.
+	 *
+	 * The turn fails with `"aborted"`, unless the signal's reason is a
+	 * `TimeoutError`, as `AbortSignal.timeout` gives: then it is a deadline,
+	 * and fails with the reason's message, as {@link AskOptions.timeoutMs} does.
 	 */
 	signal?: AbortSignal;
 	/**
@@ -297,7 +302,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 			// One signal to watch, whether it comes from this subagent's own stop
 			// switch, from the caller, or from the deadline. The timeout is created
 			// here so it starts with the turn.
-			const timeout = askOptions.timeoutMs ? AbortSignal.timeout(askOptions.timeoutMs) : undefined;
+			const timeout = askOptions.timeoutMs ? deadline(askOptions.timeoutMs) : undefined;
 			const signal = combineSignals(stopper.signal, askOptions.signal, timeout);
 
 			// A signal that has *already* aborted never fires again, so a listener
@@ -353,13 +358,11 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 
 			// All three look like an abort from pi's side. Say which one it was: a
 			// deadline that expired, a caller that changed its mind and a person who
-			// pressed a key call for very different reactions. The most specific
-			// cause wins, and a person asking is as specific as it gets.
-			if (error && stopper.signal.aborted) {
-				error = "stopped";
-			} else if (error && timeout?.aborted && !askOptions.signal?.aborted) {
-				error = `timed out after ${askOptions.timeoutMs}ms`;
-			}
+			// pressed a key call for very different reactions. A person asking is
+			// as specific as it gets; otherwise the signal's reason tells a
+			// deadline, this turn's own or one the caller passed, from a stop.
+			if (error && stopper.signal.aborted) error = "stopped";
+			else if (error) error = timedOut(signal) ?? error;
 
 			const result: Result = error ? failed(agent.name, error, turn, messages) : succeeded(agent.name, said.text, turn, messages);
 

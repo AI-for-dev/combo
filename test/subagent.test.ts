@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { getEventListeners } from "node:events";
 import { beforeEach, describe, test } from "node:test";
+import { deadline } from "../src/deadline.ts";
 import { IN_THE_LANGUAGE_OF_THE_WORK } from "../src/language.ts";
 import { resetSubagentIds, type SubagentEvent } from "../src/events.ts";
 import { run } from "../src/run.ts";
@@ -296,6 +297,14 @@ describe("ask", () => {
 
 		assert.equal(result.ok, false);
 		assert.equal(result.error, "aborted", "an explicit abort is a decision, not a deadline");
+	});
+
+	test("a deadline the caller passes as its signal reads as a timeout, not an abort", async () => {
+		const { subagent } = await spawnWith([{ delayMs: 5_000 }]);
+		const result = await subagent.ask("a", { signal: deadline(20) });
+
+		assert.equal(result.ok, false);
+		assert.equal(result.error, "timed out after 20ms");
 	});
 
 	test("the deadline is per turn, not per subagent", async () => {

@@ -14,6 +14,7 @@
  * journal through the same `resumePoint` a real resume takes.
  */
 
+import { expiry } from "../../deadline.ts";
 import { spawn } from "../../subagent.ts";
 import type { Usage } from "../../usage.ts";
 import type { SpawnFn } from "../../workflows/options.ts";
@@ -72,12 +73,12 @@ export async function dryRunFlow(checked: CheckedFlow, input: unknown, answers: 
 		return subagent;
 	};
 	// No clock: each attempt's deadline is a switch the scripted session
-	// throws when its answer is a timeout.
-	const deadline = ({ path, at, subagent }: Attempt) => {
+	// throws when its answer is a timeout, with the reason a clock would give.
+	const deadline = ({ path, at, subagent, ms }: Attempt) => {
 		const controller = new AbortController();
 		const turn = script.next(path, at);
 		if (turn === undefined) hole(path);
-		else sessions.get(subagent)?.stage(turn, controller);
+		else sessions.get(subagent)?.stage(turn, () => controller.abort(expiry(ms)));
 		return controller.signal;
 	};
 	const ran = async <T extends ScriptOutcome | CommitOutcome>(node: CheckedCheckNode | CheckedCommitNode, path: string): Promise<T> => script.ran<T>(path, node.at) ?? hole<T>(path);
