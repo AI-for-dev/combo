@@ -202,13 +202,27 @@ The first two are how a skill stays reproducible; the third is a convenience
 that depends on the machine. A skill an agent cannot work without belongs in
 the first.
 
+The name is the one `SKILL.md` gives in its frontmatter, not the name of its
+directory: `skills/assertion-smell/SKILL.md` saying `name: assertion-smells` is
+the skill `assertion-smells`.
+
 Nothing is loaded eagerly: pi puts a name, a description and a path in the
 system prompt, and the model opens `SKILL.md` itself. That last part is why an
 agent declaring a skill **needs `read`** in its `tools:` - without it pi drops
 the whole section - and why a skill whose frontmatter sets
 `disable-model-invocation` is refused, since pi keeps that one out of the prompt
 and the agent would never see it. Both fail at spawn, as does a name that
-matches nothing, and the error names the three directories it looked in.
+matches nothing. That error lists the skills it found, offers the nearest name
+when one is close, says so when a directory carries the name but its
+`SKILL.md` names another, and ends with the directories it looked in:
+
+```text
+Agent "scout" declares unknown skill(s) assertion-smell.
+.../agents/scout/skills/assertion-smell/SKILL.md is named "assertion-smells":
+a skill goes by the name in its SKILL.md, not its directory's, so declare
+"assertion-smells" or change that name. Skills found: assertion-smells.
+Looked in: .../agents/scout/skills, .../.pi/skills, ~/.pi/agent/skills.
+```
 
 ## What a subagent inherits
 

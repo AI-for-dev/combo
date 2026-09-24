@@ -120,6 +120,7 @@ src/                the library
   stop.ts           stopSwitch: one branch of a run, or the whole of it
   markdown.ts       finding and reading a .md with frontmatter
   skills.ts         resolving what an agent's `skills:` names, nearest first
+  nearest.ts        the name probably meant, for a message refusing one
   mirror.ts         a live subagent on a socket; mirror-wire.ts is the wire
   measure/          export (runs/<timestamp>/), measured (a run that measures
                     itself), experiment (M models, N repetitions), report;

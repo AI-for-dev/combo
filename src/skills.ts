@@ -17,6 +17,7 @@ import * as path from "node:path";
 import { getAgentDir, loadSkillsFromDir, type Skill } from "@earendil-works/pi-coding-agent";
 import type { Agent } from "./agent.ts";
 import { findProjectDir } from "./markdown.ts";
+import { nearest } from "./nearest.ts";
 
 /** Alias to pi's skill type, so a caller names it without importing pi. */
 export type { Skill };
@@ -82,8 +83,10 @@ export function findSkills(agent: Agent, cwd: string, tools: readonly string[]):
 
 	const dirs = skillDirs(agent, cwd);
 	const found = new Map<string, Skill>();
+	const seen: Skill[] = [];
 	for (const { dir, source } of dirs) {
 		for (const skill of loadSkillsFromDir({ dir, source }).skills) {
+			seen.push(skill);
 			// The nearest directory wins the name, and so does the first file
 			// that carries it within one directory.
 			if (names.includes(skill.name) && !found.has(skill.name)) found.set(skill.name, skill);
@@ -93,7 +96,13 @@ export function findSkills(agent: Agent, cwd: string, tools: readonly string[]):
 
 	const missing = names.filter((name) => !found.has(name));
 	if (missing.length > 0) {
-		const message = `Agent "${agent.name}" declares unknown skill(s) ${missing.join(", ")}. Looked in: ${dirs.map(({ dir }) => dir).join(", ")}.`;
+		const present = [...new Set(seen.map((skill) => skill.name))];
+		const message = [
+			`Agent "${agent.name}" declares unknown skill(s) ${missing.join(", ")}.`,
+			...missing.flatMap((name) => hint(name, seen) ?? []),
+			present.length === 0 ? "No skill was found." : `Skills found: ${present.join(", ")}.`,
+			`Looked in: ${dirs.map(({ dir }) => dir).join(", ")}.`,
+		].join(" ");
 		problems.push({ code: "unknown-skill", message });
 	}
 
@@ -108,6 +117,18 @@ export function findSkills(agent: Agent, cwd: string, tools: readonly string[]):
 	// Declaration order, not discovery order: the definition decides what the
 	// prompt says, and a run is the same whatever the filesystem returns.
 	return { skills: names.flatMap((name) => found.get(name) ?? []), problems };
+}
+
+/**
+ * What was probably meant by a skill name found nowhere. A directory named
+ * like it comes first: pi names a skill after its `SKILL.md` frontmatter, not
+ * its directory, so renaming the directory never fixes it.
+ */
+function hint(name: string, seen: readonly Skill[]): string | undefined {
+	const misnamed = seen.find((skill) => path.basename(skill.baseDir) === name);
+	if (misnamed) return `${misnamed.filePath} is named "${misnamed.name}": a skill goes by the name in its SKILL.md, not its directory's, so declare "${misnamed.name}" or change that name.`;
+	const near = nearest(name, seen.map((skill) => skill.name));
+	return near === undefined ? undefined : `"${name}": did you mean "${near}"?`;
 }
 
 /**

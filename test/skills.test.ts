@@ -120,6 +120,37 @@ describe("resolveSkills", () => {
 		assert.throws(() => resolveSkills(agent, root, ["read"]), /Looked in:.*scout[/\\]skills/);
 	});
 
+	test("an unknown skill names the skills found, and the nearest one", () => {
+		const root = tmpRoot();
+		writeSkill(path.join(root, "agents", "scout", "skills"), "diffing", "Reads a diff");
+		writeSkill(path.join(root, ".pi", "skills"), "linting", "Reads lint");
+		const agent = agentAt(path.join(root, "agents", "scout.md"), ["difing"]);
+
+		assert.throws(() => resolveSkills(agent, root, ["read"]), /did you mean "diffing"\? Skills found: diffing, linting\./);
+	});
+
+	test("a directory named like the skill, whose SKILL.md names another, is said plainly", () => {
+		const root = tmpRoot();
+		const skills = path.join(root, "agents", "scout", "skills");
+		writeSkill(skills, "assertion-smell", "Spots weak assertions");
+		fs.writeFileSync(path.join(skills, "assertion-smell", "SKILL.md"), "---\nname: assertion-smells\ndescription: Spots weak assertions\n---\n");
+		const agent = agentAt(path.join(root, "agents", "scout.md"), ["assertion-smell"]);
+
+		assert.throws(
+			() => resolveSkills(agent, root, ["read"]),
+			(error: Error) =>
+				error.message.includes(`${path.join(skills, "assertion-smell", "SKILL.md")} is named "assertion-smells"`) &&
+				error.message.includes("Skills found: assertion-smells."),
+		);
+	});
+
+	test("an unknown skill where there is none says so", () => {
+		const root = tmpRoot();
+		const agent = agentAt(path.join(root, "agents", "scout.md"), ["diffing"]);
+
+		assert.throws(() => resolveSkills(agent, root, ["read"]), /No skill was found\. Looked in:/);
+	});
+
 	test("a skill the agent could not open is a configuration error, not a silence", () => {
 		const root = tmpRoot();
 		writeSkill(path.join(root, "agents", "scout", "skills"), "diffing", "Reads a diff");
