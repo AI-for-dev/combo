@@ -19,7 +19,7 @@
 
 import { Type } from "typebox";
 import { defineTool, type ToolDefinition } from "../session.ts";
-import { declares, refuse, said } from "../tool.ts";
+import { declares, refuse, said, saidLast } from "../tool.ts";
 
 /** The tool's name, which a `verdict:` node adds to its agent's `tools:`. */
 export const VERDICT_TOOL = "verdict";
@@ -66,6 +66,18 @@ export type VerdictToolOptions = {
 	knows?: (id: string) => boolean;
 	/** The ids it may close, named in the refusal so it can correct itself. */
 	open?: () => readonly string[];
+	/**
+	 * Whether a recorded call ends the turn. Off by default: `pair` hands the
+	 * worker the prose its reviewer writes, and that prose mostly comes after
+	 * the call.
+	 *
+	 * For a caller that reads the call and nothing else. Measured with a small
+	 * open-weight model: a turn left to go on after its call called `verdict`
+	 * again and again, 59 times in one review, until its deadline cut it. The
+	 * last of those calls, the one a record reads, approved a change 33 of them
+	 * had refused.
+	 */
+	ends?: boolean;
 };
 
 /** The tool, and the decisions it has collected so far. */
@@ -93,6 +105,7 @@ export type VerdictTool = {
  */
 export function verdictTool(options: VerdictToolOptions = {}): VerdictTool {
 	const given: Verdict[] = [];
+	const answer = options.ends ? saidLast : said;
 
 	const tool = defineTool({
 		name: VERDICT_TOOL,
@@ -153,13 +166,13 @@ export function verdictTool(options: VerdictToolOptions = {}): VerdictTool {
 			given.push({ approved: params.approved, remarks, resolved: known, raised });
 
 			const recorded = params.approved ? "Recorded: approved." : "Recorded: not approved.";
-			if (unknown.length === 0) return said(recorded);
+			if (unknown.length === 0) return answer(recorded);
 
 			// Said rather than hidden, and in the same breath as the decision: the
 			// agent learns its bookkeeping was wrong without learning that its
 			// answer was thrown away.
 			const open = options.open?.() ?? [];
-			return said(
+			return answer(
 				`${recorded} Nothing was closed for ${unknown.join(", ")}: no obligation has that id. ${
 					open.length ? `The ids you may close: ${open.join(", ")}.` : "Nothing is open."
 				}`,

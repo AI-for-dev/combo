@@ -217,7 +217,8 @@ none of it in the file. The flow writes each one as a node, which is what lets
   share a subagent each for the whole pair (`memory: pair`), and the reviewer
   decides through `verdict: pair` rather than a word.
 - `tests` is the check, a script of the project in place of `verify:`.
-- `audit` decides the round through `verdict: deliver`.
+- `audit` decides the round through `verdict: deliver`. It and the review are
+  asked once more (`retry: 1`) when a turn ends without the call.
 
 ```markdown
 ---
@@ -264,6 +265,7 @@ nodes:
                 agent: reviewer
                 memory: pair
                 verdict: pair
+                retry: 1
                 reads: [item.text, code, diff]
 
       - id: tests
@@ -273,6 +275,7 @@ nodes:
       - id: audit
         agent: auditor
         verdict: deliver
+        retry: 1
         reads: [input, work, tests, diff, deliver.ledger]
 ---
 ```

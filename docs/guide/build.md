@@ -108,8 +108,10 @@ with what every visit cost. See [Flows](flows.md#the-run-directory).
 - **A pair is a coder and a reviewer who remember each other**, for three
   rounds at most. The reviewer decides through a verdict, reading the task,
   the coder's summary and the diff of the copy: the summary is a claim, the
-  diff is the evidence. A pair that reaches three rounds unapproved still
-  lands its work, marked not converged, and the audit reads that.
+  diff is the evidence. A review that ends in prose, with no `verdict` call,
+  is sent back once with the failure named, and so is an audit. A pair that
+  reaches three rounds unapproved still lands its work, marked not
+  converged, and the audit reads that.
 - **The check's verdict is final.** The round is over when the tests pass and
   the auditor approves; no approval turns a failing script into a success.
   Without it, a pair once wrote a helper and its tests, the reviewer approved,

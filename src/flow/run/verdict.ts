@@ -33,8 +33,9 @@ export type VerdictSlot = {
 export function verdictSlot(reviewer: Agent): VerdictSlot {
 	let bound: Ledger | undefined;
 	let round = 0;
-	// The word is never read: the reviewer holds the tool, so the record decides by it.
-	const record = reviewRecord(reviewer, { word: "APPROVED", ledger: () => bound as Ledger });
+	// The word is never read: the reviewer holds the tool, so the record decides
+	// by it. Nor is the prose, so nothing is lost when the call ends the turn.
+	const record = reviewRecord(reviewer, { word: "APPROVED", ledger: () => bound as Ledger, ends: true });
 	const [tool] = toolsOffered(record.offer()?.(reviewer), reviewer.name);
 	return {
 		tool: tool as ToolDefinition,

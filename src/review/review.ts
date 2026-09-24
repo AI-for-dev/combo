@@ -49,6 +49,8 @@ export type ReviewRecordOptions = {
 	 * memory scope keeps may answer to the next ledger its scope opens.
 	 */
 	ledger?: () => Ledger;
+	/** Whether a recorded call ends the reviewer's turn: see `VerdictToolOptions.ends`. */
+	ends?: boolean;
 };
 
 /** What one round of review amounted to. */
@@ -123,6 +125,7 @@ export function reviewRecord(reviewer: Agent, options: ReviewRecordOptions): Rev
 		? verdictTool({
 				knows: (id) => list().open.some((one) => one.id === id),
 				open: () => list().open.map((one) => one.id),
+				ends: options.ends,
 			})
 		: undefined;
 

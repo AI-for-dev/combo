@@ -99,6 +99,21 @@ describe("build", () => {
 		]);
 	});
 
+	test("a review or an audit that ends with no verdict is asked once more, and what it raises then is owed", async () => {
+		const run = await dryRunFlow(build, "add a cache", {
+			...approved(),
+			"deliver#1/work[2]/pair#1/review": [{ fail: "schema" }, { approved: false, raised: ["the empty key is not handled"] }],
+			"deliver#1/work[2]/pair#2/review": { approved: true, resolved: [{ id: "o1", how: "addressed" }] },
+			"deliver/audit": [{ fail: "schema" }, { approved: true }],
+		});
+		assert.ok(run.ok, JSON.stringify(run));
+		assert.deepEqual(ended(run, "/review"), ["deliver#1/work[1]/pair#1/review true", "deliver#1/work[2]/pair#1/review true", "deliver#1/work[2]/pair#2/review true"]);
+		assert.deepEqual(ended(run, "/audit"), ["deliver#1/audit true"]);
+		const owed = run.journal.flatMap((entry) => (entry.type === "obligation_raised" ? [entry.obligation.text] : []));
+		const closed = run.journal.flatMap((entry) => (entry.type === "obligation_closed" ? [entry.id] : []));
+		assert.deepEqual([owed, closed], [["the empty key is not handled"], ["o1"]], "the second attempt's remark went on the ledger, and was closed");
+	});
+
 	test("an audit that is not approved carries what it raised into a second round, which converges", async () => {
 		const run = await dryRunFlow(build, "add a cache", {
 			...approved(),
