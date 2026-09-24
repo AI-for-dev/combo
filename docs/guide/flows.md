@@ -872,7 +872,7 @@ block makes no copy, each of its branches reading as landed. It returns what
 an array, with zero tokens. A copy's entries have no `dir` or `branch`.
 
 ```ts
-// The example at the top of this page, not the shipped `split`, its `first` node given `retry: 1`.
+// The example at the top of this page (not the shipped `split`), `first` given `retry: 1`.
 const run = await dryRunFlow(split, "add a cache", {
 	plan: { first: "scout", task: "find where results are stored" },
 	first: [{ fail: "timeout" }, "in src/store.ts"],
