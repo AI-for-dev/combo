@@ -793,9 +793,14 @@ thing that grants it, so a definition does not name it: the shipped `reviewer`
 and `auditor` do not, and decide in prose everywhere else. Only the node that
 raised an obligation may close it, one it does not mention stays open, and
 nothing is rewritten. Its output is `{ approved, remarks? }`, where
-`approved` is true only when it said yes and nothing is left open. A turn
-that calls no `verdict` fails with `schema`. `<id>.ledger` reads the open
-obligations as `[{ id, text }]` at the moment it is read.
+`approved` is true only when it said yes and nothing is left open. A
+recorded call ends the turn: nothing reads what the model would write after
+it, and a model left to go on has been measured calling `verdict` again and
+again until its deadline. A turn that calls no `verdict` fails with `schema`,
+which `retry:` covers: the shipped `build` gives its `review` and `audit`
+`retry: 1`, so a turn that answered in prose is sent back once with the
+failure named. `<id>.ledger` reads the open obligations as `[{ id, text }]` at
+the moment it is read.
 
 ### Failures, retries and timeouts
 

@@ -42,6 +42,7 @@ nodes:
                 agent: reviewer
                 memory: pair
                 verdict: pair
+                retry: 1
                 reads: [item.text, code, diff]
 
       - id: tests
@@ -51,6 +52,7 @@ nodes:
       - id: audit
         agent: auditor
         verdict: deliver
+        retry: 1
         reads: [input, work, tests, diff, deliver.ledger]
 
   - id: report

@@ -59,7 +59,7 @@ Nothing was spawned to find that out, and `/flows` lists the same fault.
 The planner made two subtasks of that, and both pairs started at once:
 
 ```
-● build · 2 visits · 6m36s · ↑120k ↓8.8k
+● build · 2 visits · 1m59s · ↑164k ↓4.7k
 … 2 lines above
 ● deliver · #1 of 2
   ● deliver#1
@@ -68,13 +68,13 @@ The planner made two subtasks of that, and both pairs started at once:
         ● deliver#1/work[1]/pair · #1 of 3
           ● deliver#1/work[1]/pair#1
             ● deliver#1/work[1]/pair#1/code
-              ● coder#2  read words.test.js  provider/model · 18.0s
+              ● coder#1  write slug.js  provider/model · 21.8s
             ○ deliver#1/work[1]/pair#1/review · agent reviewer (.pi/agents/reviewer.md) · reads item.text, code, diff…
       ● deliver#1/work[2]
         ● deliver#1/work[2]/pair · #1 of 3
           ● deliver#1/work[2]/pair#1
             ● deliver#1/work[2]/pair#1/code
-              ● coder#1  ls .  provider/model · 18.0s
+              ● coder#2  write title.js  provider/model · 21.5s
 … 4 lines below
 esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
 ```
@@ -86,14 +86,14 @@ against it. Each copy starts from a commit of the tree as it stood, uncommitted
 changes included, and has a branch named after its item:
 
 ```
-$ git log --oneline combo/deliver-1-work-2-eQuG6w
-853262a combo: deliver#1/work[2]
-c825974 combo: the tree a copy starts from
-fc78b66 init
+$ git log --oneline combo/deliver-1-work-2-auCq7P
+fccaf65 combo: deliver#1/work[2]
+e12b113 combo: the tree a copy starts from
+20b4e33 init
 ```
 
-The two coders' ids say who spawned first, `coder#1` in the second item; the
-item's place in the flow is the path, and that is what the landing goes by.
+A coder's id says when it was spawned, not which item it works on: the item's
+place in the flow is the path, and that is what the landing goes by.
 
 ## Putting them back
 
@@ -110,29 +110,26 @@ to the next round like any other remark. Here both landed, the tests passed
 and the audit approved:
 
 ```
-✓ build · 13 visits · 4 failed · 10m39s · ↑242k ↓29k
-✓ locate · scout · 5m6s · ↑113k ↓5.6k
-✓ plan · planner · 1m12s · ↑6.4k ↓3.2k
-✓ deliver · 1 iteration · 4m17s · ↑120k ↓20k
-✓ report · synthesiser · 5s · ↑2.6k ↓747
+✓ build · 13 visits · 3m40s · ↑226k ↓19k
+✓ locate · scout · 1m23s · ↑160k ↓3.7k
+✓ plan · planner · 15s · ↑4k ↓955
+✓ deliver · 1 iteration · 1m55s · ↑59k ↓14k
+✓ report · synthesiser · 9s · ↑3k ↓342
 ```
 
 ```
 $ git status --short
 ?? slug.js
 ?? slug.test.js
-?? test_command.sh
 ?? title.js
 ?? title.test.js
 ```
 
-The `4 failed` are the two reviews and the two pairs they belong to. Neither
-reviewer called the `verdict` tool its node asked for: one wrote `LGTM` on its
-own, the other a remark about `slugify(null)` throwing, and a review that ends
-without the call fails with `schema`. A failed pair's patch lands like the
-others, so the audit read both, and the check ran on the tree they made. The
-`test_command.sh` nobody asked for is one coder's, and the report names it,
-because it is written from the diff.
+The first item's reviewer answered `LGTM` in prose, without the `verdict`
+call its node asks for, and a review that ends without the call fails with
+`schema`. The node has `retry: 1`, so the flow sent the reviewer back once,
+naming the failure, and its second answer was the call. Nothing failed: both
+patches landed, the audit read both, and the check ran on the tree they made.
 
 **Nothing is rolled back.** What landed stays landed when a later patch is
 refused or the check fails, and a failed pair's patch lands like the others:
@@ -147,12 +144,12 @@ A copy bounds writes. `..`, `/tmp` and everything else the `read` tool reaches
 are outside any copy, and a subagent that goes looking still finds them.
 
 That run shows it. Its scout, mapping the repository in the main tree before
-any copy existed, made 35 tool calls and spent 113k of the run's 242k input
-tokens. Six of those calls were on `runs/`: it listed the directory, then the
-run it was itself part of, and read that run's `snapshot.json`, and every one
+any copy existed, made 36 tool calls and spent 160k of the run's 226k input
+tokens. Four of those calls were on `runs/`: it listed the directory twice,
+then the run it was itself part of, then that run's `.sessions/`, and every one
 of them was sent again with each call after it. The record of a run is in the
-tree it runs on, and to a model looking for where `slugify` lives, a snapshot
-that mentions it is a place. The copies closed the channel between the two
+tree it runs on, and to a model looking for where `slugify` lives, a run that
+names it is a place. The copies closed the channel between the two
 coders; this one was open to everyone.
 
 ## The one thing it will not do

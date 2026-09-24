@@ -14,7 +14,7 @@ type Execute = (
 	signal: undefined,
 	onUpdate: undefined,
 	ctx: unknown,
-) => Promise<{ content: { type: string; text: string }[]; isError?: boolean }>;
+) => Promise<{ content: { type: string; text: string }[]; isError?: boolean; terminate?: boolean }>;
 
 /** Runs `tool` with `params`, as pi does once a model has asked for it. */
 export function callTool(tool: ToolDefinition, params: unknown) {

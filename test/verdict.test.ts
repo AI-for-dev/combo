@@ -101,6 +101,14 @@ describe("verdictTool", () => {
 		assert.deepEqual(verdicts.take()[0]?.resolved, [{ id: "o9", how: "addressed", reason: undefined }]);
 	});
 
+	test("a recorded call ends the turn when the caller asks, and a refusal never does", async () => {
+		const ending = verdictTool({ ends: true, knows: () => false, open: () => [] });
+		assert.equal((await call(ending.tool, { approved: true })).terminate, true);
+		assert.equal((await call(ending.tool, { approved: true, resolved: [{ id: "o9", how: "addressed" }] })).terminate, true, "an unknown id does not reopen the turn");
+		assert.notEqual((await call(ending.tool, { approved: false })).terminate, true, "the agent must be able to call again");
+		assert.notEqual((await call(verdictTool().tool, { approved: true })).terminate, true, "by default the turn goes on");
+	});
+
 	test("taking drains, so a round reads its own decisions and not the previous ones", async () => {
 		const verdicts = verdictTool();
 		await call(verdicts.tool, { approved: false, remarks: "round one" });

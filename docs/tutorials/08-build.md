@@ -62,18 +62,18 @@ the second of the two runs this page made, the coder had finished and the
 reviewer was thinking:
 
 ```
-● build · 3 visits · 2m · ↑107k ↓8.5k
-✓ locate · scout · 42s · ↑34k ↓2.2k
-✓ plan · planner · 15s · ↑3.2k ↓1.1k
+● build · 3 visits · 2m · ↑61k ↓6.1k
+✓ locate · scout · 27s · ↑40k ↓2k
+✓ plan · planner · 17s · ↑4k ↓956
 ● deliver · #1 of 2
   ● deliver#1
     ● deliver#1/work · 0/1 so far
       ● deliver#1/work[1]
         ● deliver#1/work[1]/pair · #1 of 3
           ● deliver#1/work[1]/pair#1
-            ✓ deliver#1/work[1]/pair#1/code · coder · 50s · ↑70k ↓5.2k
+            ✓ deliver#1/work[1]/pair#1/code · coder · 1m5s · ↑17k ↓3.2k
             ● deliver#1/work[1]/pair#1/review
-              ● reviewer#1  thinking…  provider/model · 13.7s
+              ● reviewer#1  thinking…  provider/model · 12.4s
     ○ deliver#1/tests · check .pi/checks/test.sh · timeout 10m · ≤ 20m
     ○ deliver#1/audit · agent auditor (.pi/agents/auditor.md) · reads input, work, tests, diff, deliver.ledger · verd…
 ○ report · agent synthesiser (.pi/agents/synthesiser.md) · reads input, diff, deliver.output.last.work, deliver.outpu…
@@ -102,23 +102,23 @@ ends unapproved fails.
 
 ## What it leaves
 
-The first run of that command went through in one round, nine and a half
-minutes on a small open-weight model served to several runs at once, and put
-its answer in the conversation:
+The first run of that command went through in one round, under three and a
+half minutes on a small open-weight model served to several runs at once, and
+put its answer in the conversation:
 
 ```
 Result of the build flow, asked to: add a slugify helper to slug.js, with tests.
 
-A slugify helper has been implemented in slug.js and comprehensive tests have been added in slug.test.js. Nothing is
-left to do.
+I have added a slugify helper to slug.js that converts strings to URL-friendly slugs and created slug.test.js with a
+comprehensive set of tests. Nothing is left to do.
 
-ok · runs/2026-09-24_00-44-45
+ok · runs/2026-09-24_02-53-37
 
-✓ build · 10 visits · 9m33s · ↑107k ↓9.8k
-✓ locate · scout · 2m47s · ↑64k ↓3.1k
-✓ plan · planner · 4s · ↑3.5k ↓391
-✓ deliver · 1 iteration · 6m39s · ↑37k ↓6.1k
-✓ report · synthesiser · 5s · ↑2.1k ↓201
+✓ build · 10 visits · 3m22s · ↑139k ↓14k
+✓ locate · scout · 1m4s · ↑54k ↓3.6k
+✓ plan · planner · 18s · ↑6.7k ↓1.2k
+✓ deliver · 1 iteration · 1m57s · ↑76k ↓8.7k
+✓ report · synthesiser · 5s · ↑2.5k ↓305
 ```
 
 The work is in the working tree, uncommitted:
@@ -128,6 +128,12 @@ $ git status --short
 ?? slug.js
 ?? slug.test.js
 ```
+
+Its reviewer's first answer was `LGTM` in prose, without the `verdict` call
+its node asks for, and a review that ends without the call fails with
+`schema`. The node has `retry: 1`, so the flow sent the reviewer back once,
+naming the failure, and its second answer was the call. The summary counts
+visits, not attempts, which is why nothing on it says so.
 
 The report is written from the diff, not from what the pairs claimed, so a
 file nobody asked for would be named in it. That is what the report is for:
@@ -145,7 +151,7 @@ fresh pi, in the same directory:
 ```
 
 ```
-run: resuming build in runs/2026-09-24_00-56-47, from deliver#1/work[1]/pair#1/review
+run: resuming build in runs/2026-09-24_02-53-50, from deliver#1/work[1]/pair#1/review
 ```
 
 It says what it picked up rather than asking: typing `/run resume` was the
@@ -155,25 +161,18 @@ open, with a fresh reviewer that read the tree rather than a replayed
 conversation. Its summary counts both processes:
 
 ```
-✓ build · 10 visits · 2 failed · 5m36s · ↑120k ↓21k · 2 lives (1 partial) · resumed from deliver#1/work[1]/pair#1/review
-✓ locate · scout · 42s · ↑34k ↓2.2k
-✓ plan · planner · 15s · ↑3.2k ↓1.1k
-✓ deliver · 1 iteration · 4m31s · ↑81k ↓17k
-✓ report · synthesiser · 9s · ↑2.2k ↓385
+✓ build · 10 visits · 3m46s · ↑100k ↓22k · 2 lives (1 partial) · resumed from deliver#1/work[1]/pair#1/review
+✓ locate · scout · 27s · ↑40k ↓2k
+✓ plan · planner · 17s · ↑4k ↓956
+✓ deliver · 1 iteration · 3m · ↑53k ↓18k
+✓ report · synthesiser · 4s · ↑3k ↓285
 ```
 
 The first life is `partial` because it was killed before it could write its
 own measurement: it is counted from the visits it ended, and the review it was
-in the middle of costs nothing on this bill, since nothing measured it.
-
-The `2 failed` are the fresh reviewer's doing. It found a real defect,
-`slugify("hello.world")` returning `"helloworld"`, and wrote it up as prose,
-but ended its turn without the `verdict` call the node asked for. The review
-failed with `schema: the turn ended with no verdict call`, and its pair with
-it. The pair is `on-fail: continue`, so its work landed anyway; the tests
-passed, the auditor approved, and the run is `ok`. The remark was not raised
-as an obligation, so no second round went after it. The failures are on the
-summary line because that is where a run that is `ok` says what it absorbed.
+in the middle of costs nothing on this bill, since nothing measured it. The
+fresh reviewer called `verdict` on its first attempt and approved, the tests
+passed and the auditor approved.
 
 A run that failed by a decision of its own, a second round unapproved, would
 decide the same again, and `/run resume` refuses it with why.

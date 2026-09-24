@@ -9,6 +9,7 @@ import { describe, test } from "node:test";
 import type { SubagentEvent } from "../src/events.ts";
 import { IN_THE_LANGUAGE_OF_THE_WORK } from "../src/language.ts";
 import { stopSwitch } from "../src/stop.ts";
+import { callTool } from "./fixtures/call-tool.ts";
 import { checked, flowSpawn, runChecked } from "./fixtures/flow.ts";
 
 function endOf(events: SubagentEvent[], path: string) {
@@ -165,6 +166,31 @@ describe("a ledger and its verdicts", () => {
 		const fake = flowSpawn({ scout: [[{ text: "v1" }]], reviewer: [[{ text: "Looks good to me." }]] });
 		const result = await runChecked(checked(FLOW, SECTIONS), "x", { spawn: fake.spawn });
 		assert.deepEqual(!result.ok && [result.error, result.path], [{ kind: "schema", message: "the turn ended with no `verdict` call" }, "review#1/judge"]);
+	});
+
+	test("a recorded verdict ends the turn, and a refused one does not", async () => {
+		const fake = flowSpawn({ scout: [[{ text: "v1" }]], reviewer: [[{ verdict: { approved: true } }]] });
+		await runChecked(checked(FLOW, SECTIONS), "x", { spawn: fake.spawn });
+		const tool = fake.requested.find(({ agent }) => agent.name === "reviewer")?.options.customTools?.find((one) => one.name === "verdict");
+		assert.ok(tool);
+		assert.equal((await callTool(tool, { approved: true })).terminate, true, "pi asks the model nothing after it");
+		assert.notEqual((await callTool(tool, { approved: false })).terminate, true, "a refusal leaves the turn open to call again");
+	});
+
+	test("with `retry:`, a turn that calls nothing is sent back once, and the second answer is the verdict", async () => {
+		const flow = checked(`${FLOW}\n        retry: 1`, SECTIONS);
+		const fake = flowSpawn({
+			scout: [[{ text: "v1" }], [{ text: "v2" }]],
+			reviewer: [[{ text: "LGTM" }, { verdict: { approved: false, raised: ["add a test"] } }], [{ verdict: { approved: true, resolved: [{ id: "o1", how: "addressed" }] } }]],
+		});
+		const events: SubagentEvent[] = [];
+		const result = await runChecked(flow, "x", { spawn: fake.spawn, onEvent: (event) => events.push(event) });
+		assert.deepEqual(result.ok && (result.output as { iterations: number }).iterations, 2);
+		assert.deepEqual(endOf(events, "review#1/judge").output, { approved: false });
+		const retried = fake.created[fake.requested.findIndex(({ agent }) => agent.name === "reviewer")]?.prompts[1];
+		assert.match(retried ?? "", /^Your last answer failed \(schema: the turn ended with no `verdict` call\)\. Do the same task again\.\n\nEnd by calling the `verdict` tool/);
+		const [, coder2] = firstTurns(fake, "scout");
+		assert.match(coder2 ?? "", /"text": "add a test"/, "what the second answer raised is owed");
 	});
 
 	test("a map keeps one ledger per item", async () => {

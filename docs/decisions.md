@@ -768,6 +768,61 @@ so a session calling `loop` knows what the shipped agents answer with. A
 user's agent that still names `verdict` is not refused; it runs as before, and
 [Agents](guide/agents.md) says what the name costs.
 
+### A review that answers in prose is asked again, and its call ends the turn
+
+Once the definitions stopped naming `verdict`, reviews in real `/run build`
+runs on `ilaas/gemma-4-31b` ended in prose: in three of four pair reviews
+across two tutorial captures the reviewer wrote `LGTM`, wrote a remark, or
+typed the call out as a code block in its text, and never called the tool.
+Each review failed `schema`. `pair` is `on-fail: continue`, so the work
+landed, but the remark (`slugify("hello.world")` returning `"helloworld"`)
+was never raised, and no later round went after it.
+
+The failure is rare in fresh runs and frequent in some contexts. Fresh runs of
+a loop with a ledger, a coder and a `verdict:` reviewer, and of the shipped
+`build`, called the tool in 109 review and audit turns out of 110. The one that
+did not ran out of output tokens. Replaying the four failed turns, each in its
+own recorded context and six times over, is what tells the candidates apart:
+
+| candidate | turns that called `verdict` |
+|---|---|
+| the turn asked again, as it was | 13 of 24 (`LGTM` context: 0 of 6) |
+| (a) a closing line saying prose, `LGTM` included, is not read | 13 of 24 |
+| (b) the reviewer's file: "when you are given a tool to record your decision, that call is your answer" | 18 of 24 |
+| (b) the same, naming `verdict` | 14 of 24 |
+| (c) the failed answer kept, then the runner's retry turn | 24 of 24 |
+
+**(a) changes nothing.** The closing line is already the last thing before the
+language line, and a stronger one is read no better.
+
+**(b) halves the failures and breaks a rule.** A definition that speaks of the
+tool, by name or by description, describes something that a `/step` and a
+`loop` never hold, which is why the definitions stopped naming it.
+
+**(c) is taken:** `retry: 1` on the `review` and `audit` nodes of the shipped
+`build`. A turn that ends without the call fails `schema`, `retry:` covers
+`schema`, and the retry turn names the failure to the same subagent. The
+definitions stay as they are, and the flow file says that the node is asked
+twice. When the tutorials were captured again with it, two of the four
+reviews answered `LGTM` in prose first, and both retries came back as the call.
+
+The retry turn exposed a second defect. In 2 of those 24 retries the model
+called `verdict`, read `Recorded: not approved.`, and called it again, more
+than 250 times, until the turn was cut. Fresh build runs showed the same loop
+once, 59 calls until the turn's deadline, and the last call, which the record
+reads, approved a change 33 of the others had refused. So a `verdict:` node's
+recorded call now ends the turn (`terminate` in pi's tool result). Nothing is
+lost: the node's output is the call, and its prose is never read. With that,
+the retries called the tool once each, 24 of 24, in a median of 13 seconds,
+and eight fresh runs of the shipped `build` ended each of their 24 review and
+audit turns on a single call. The TypeScript `pair` keeps a turn going after the call, because it hands the
+worker the reviewer's prose, and that prose mostly comes after the call.
+
+A `/step reviewer` still calls a `verdict` tool nobody offered, in four runs
+of four with this change and two of two without it, although no file it reads
+names the tool. That is the model's own habit, and there a refused call costs
+a line of the display, not a decision.
+
 ### A working copy belongs to the work, not to the subagent
 
 `deliver` pins `concurrency` to 2 because its workers write to the same tree.

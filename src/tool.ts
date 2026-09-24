@@ -23,6 +23,14 @@ export function said(text: string) {
 	return { content: [{ type: "text" as const, text }], details: undefined };
 }
 
+/**
+ * An answer that ends the turn: pi asks the model nothing after it, as long as
+ * every other call in the same batch ends the turn too.
+ */
+export function saidLast(text: string) {
+	return { ...said(text), terminate: true };
+}
+
 /** A refusal the model can act on, rather than a failure it has to guess at. */
 export function refuse(text: string) {
 	return { content: [{ type: "text" as const, text }], details: undefined, isError: true };
