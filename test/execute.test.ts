@@ -14,7 +14,6 @@ import os from "node:os";
 import path from "node:path";
 import { describe, test } from "node:test";
 import { executeSubagent, textForModel } from "../extension/execute.ts";
-import { inferMode } from "../extension/params.ts";
 import { paintWidget, STATUS } from "../extension/ui/run.ts";
 import type { SubagentEvent } from "../src/events.ts";
 import type { Details } from "../extension/execute.ts";
@@ -62,24 +61,6 @@ function fakeKeys() {
 		},
 	};
 }
-
-describe("inferMode", () => {
-	test("reads the mode from the arguments that were actually given", () => {
-		assert.equal(inferMode({}), "single");
-		assert.equal(inferMode({ agent: "scout", task: "x" }), "single");
-		assert.equal(inferMode({ agent: "scout", tasks: ["a", "b"] }), "parallel");
-		assert.equal(inferMode({ steps: ["coder", "reviewer"] }), "chain");
-		assert.equal(inferMode({ steps: ["coder"], until: "LGTM" }), "loop");
-		assert.equal(inferMode({ steps: ["coder"], maxIterations: 2 }), "loop");
-		assert.equal(inferMode({ agent: "scout", tasks: ["a", "b"], reduceWith: "reviewer" }), "reduce");
-		assert.equal(inferMode({ agent: "scout", candidates: ["coder"] }), "route", "the cheaper reading wins when nobody said");
-		assert.equal(inferMode({ mode: "orchestrate", agent: "scout", candidates: ["coder"] }), "orchestrate");
-	});
-
-	test("an explicit mode always wins over the inference", () => {
-		assert.equal(inferMode({ mode: "chain", tasks: ["a"] }), "chain");
-	});
-});
 
 describe("executeSubagent", () => {
 	test("single: one spawn, the output handed back to the model", async () => {

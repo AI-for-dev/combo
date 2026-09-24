@@ -16,10 +16,10 @@
 import { createRunDir, loadFlowCatalogue, progressLine } from "../src/index.ts";
 import { flowAnswer, launch, launchable, notLaunched } from "./commands/index.ts";
 import type { Details, ExecuteDeps, ToolOutput } from "./execute.ts";
-import type { Params } from "./params.ts";
+import { FLOW_FIELDS, type Params } from "./params.ts";
 
-/** What `flow` mode takes beside `flow` itself. `mode` is taken when it says `flow`. */
-const FLOW_FIELDS: readonly (keyof Params)[] = ["mode", "flow", "task", "model", "timeoutMs", "scope", "herdrAll"];
+/** What `flow` mode takes: `flow`, what it reads beside it, and `mode` when it says `flow`. */
+const TAKEN: readonly (keyof Params)[] = ["mode", "flow", ...FLOW_FIELDS];
 
 /**
  * Runs the flow `params.flow` on `params.task`. Throws, before anything is
@@ -28,9 +28,9 @@ const FLOW_FIELDS: readonly (keyof Params)[] = ["mode", "flow", "task", "model",
  */
 export async function executeFlow(params: Params, deps: ExecuteDeps): Promise<ToolOutput> {
 	const { flow: name, task } = params;
-	const unfit = Object.entries(params).filter(([key, value]) => value !== undefined && (!FLOW_FIELDS.includes(key as keyof Params) || (key === "mode" && value !== "flow")));
+	const unfit = Object.entries(params).filter(([key, value]) => value !== undefined && (!TAKEN.includes(key as keyof Params) || (key === "mode" && value !== "flow")));
 	if (unfit.length > 0) {
-		const fields = FLOW_FIELDS.slice(2).map((key) => `\`${key}\``).join(", ");
+		const fields = FLOW_FIELDS.map((key) => `\`${key}\``).join(", ");
 		throw new Error(`subagent: \`flow\` runs a flow as its file describes it, and takes only ${fields} beside it - drop ${unfit.map(([key]) => `\`${key}\``).join(", ")}`);
 	}
 	if (!name) throw new Error("subagent: `flow` mode needs `flow`, the name of the flow to run");
