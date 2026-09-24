@@ -1,0 +1,1 @@
+../../agents/debater.md

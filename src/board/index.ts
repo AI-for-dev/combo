@@ -4,11 +4,11 @@
  *
  * This is the module's door. `swarm` builds a board and its claims, wraps
  * them so the bus hears every post, and hands each member the tool; the
- * `/swarm` command reads the vote. `latestVotes` is not listed: only the
- * agreement itself counts it.
+ * `/swarm` command reads the vote, and `examples/16-debate.ts` prints who
+ * voted for what.
  */
 
-export { agreed, VOTE_INSTRUCTION } from "./agreement.ts";
+export { agreed, latestVotes, VOTE_INSTRUCTION } from "./agreement.ts";
 export { announcedBoard, announcedClaims } from "./announced.ts";
 export {
 	boardLines,

@@ -4096,6 +4096,21 @@ past what it merely looked at - which the tool used to do on its own after the
 fact. A `read` event has to say what was handed over, and only the one that
 decides the page can say it.
 
+### A member does not post the same thing twice
+
+`/swarm --agent debater --until agree` in a real pi, on
+`qwen-3.6-35b-instruct`: one member posted the same vote, word for word, six
+times in a single turn. Its definition says to post one `result` a turn, and a
+prompt is not a boundary. Every copy took a slot on each reader's page and told
+nobody anything.
+
+So the board refuses a post whose kind, reader and trimmed text match one the
+same member already made, and the refusal names the first one's id. Only an
+exact match is refused. Deciding that two phrasings say the same thing is a
+judgement, and the board does not make judgements. The same words from another
+member, under another kind or to another reader are a different post: a vote
+repeated by a second member is the agreement a debate is looking for.
+
 ## A claim is granted, never announced
 
 A board lets a member say what it is taking, and that turned out not to be
@@ -4489,6 +4504,13 @@ reader is told they may call. The one reference page whose module kept no public
 symbol, `announced`, went with it, and no guide linked to it. The day a script
 needs one of these back, the rule says how: show it in a guide, or call it from
 an example.
+
+`latestVotes` came back that way. `examples/16-debate.ts` prints each member's
+last vote, and it had been written with a parser of its own that stripped
+decoration only after the answer: `VOTE: **Rust**` read as `**rust`, so it and
+`VOTE: Rust` were two votes, and a debate could spend its rounds on an agreement
+it had already reached. The example calls `agreed` and `latestVotes` now, and
+the board's door lists the second.
 
 ## A default is written after the spread, never before
 

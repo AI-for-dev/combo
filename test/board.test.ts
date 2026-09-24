@@ -58,6 +58,28 @@ describe("posting", () => {
 		assert.ok(board.post("scout#1", tell("over here", "scout#2")).ok);
 	});
 
+	test("a member saying again exactly what it already said is refused, by the id it said it as", () => {
+		const board = createBoard();
+		posted(board.post("debater#3", { kind: "result", text: "VOTE: Go" }));
+		posted(board.post("debater#3", tell("an aside")));
+
+		// Measured: a member told to post once a turn posted the same vote six
+		// times in one, and every copy cost its readers a page.
+		const again = board.post("debater#3", { kind: "result", text: "  VOTE: Go " });
+		assert.equal(again.ok, false);
+		assert.match(again.ok ? "" : again.error, /already posted that as p1/);
+		assert.equal(board.all().length, 2);
+	});
+
+	test("the same words are not a repeat from somebody else, under another kind, or to another reader", () => {
+		const board = createBoard();
+		posted(board.post("debater#1", { kind: "result", text: "VOTE: Go" }));
+
+		assert.ok(board.post("debater#2", { kind: "result", text: "VOTE: Go" }).ok);
+		assert.ok(board.post("debater#1", tell("VOTE: Go")).ok);
+		assert.ok(board.post("debater#1", tell("VOTE: Go", "debater#2")).ok);
+	});
+
 	test("a board that was told no members checks no address", () => {
 		// Refusing an address it cannot check would be guessing at who exists.
 		const board = createBoard();

@@ -455,6 +455,7 @@ and [Measurements](../guide/measurements.md).
 | `interviewer` | | `workflow` | turns a vague request into a specification, one question at a time |
 | `committer` | | `task` | writes the commit message for finished work |
 | `member` | `board` | `workflow` | works one job beside other members of a swarm |
+| `debater` | `board`, and none of the four | `workflow` | argues one side beside other debaters, and votes every turn until they all agree |
 
 None names a `model:`. A file of the same name in `~/.pi/agent/agents/` or `.pi/agents/`
 replaces one.

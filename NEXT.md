@@ -596,6 +596,8 @@ node examples/10-interview.ts "add a cache"          # the interview, in readlin
 node examples/11-build.ts <throwaway-repo> "…"       # the build flow, minus the commit
 node examples/15-swarm.ts --model ilaas/gemma-4-31b            # three members, one board
 node examples/15-swarm.ts --model ilaas/gemma-4-31b --control  # the arm it has to beat
+node examples/16-debate.ts --model ilaas/gemma-4-31b           # three debaters, one camp each
+node examples/16-debate.ts --model ilaas/gemma-4-31b --same    # the same question, no camps
 pi -e extension                # interactive, to actually see the TUI
 
 python3 scripts/drive-pi.py \

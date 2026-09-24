@@ -30,6 +30,11 @@ preference:
   the run has time for, and the only number nobody chose is "as many as it
   takes".
 
+And one refusal that is not a cap: **a member does not say again exactly what
+it already said**, same kind, same reader, same words. The copy tells nobody
+anything new and costs every reader a slot on its page. It was measured: a
+member told to post once a turn posted one vote six times in a single turn.
+
 What it deliberately is not: a queue, a channel with delivery guarantees, or
 anything a member can read twice by accident. {@link Board.since} hands a
 reader what it has not been given yet and a cursor to ask again with, so the
