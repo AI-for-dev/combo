@@ -55,7 +55,7 @@ when a tool needs to know who holds it.
 
 ```typescript
 export type WorkflowOptions = {
-	/** Defaults to `"task"`. Persistence is asked for, never assumed. */
+	/** Absent, each agent's frontmatter decides, then `"task"`. Persistence is asked for, never assumed. */
 	lifetime?: Lifetime;
 	/** Propagated down to every `session.prompt()`, and closes open sessions. */
 	signal?: AbortSignal;

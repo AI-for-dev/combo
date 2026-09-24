@@ -124,6 +124,48 @@ describe("SubagentPool", () => {
 			assert.deepEqual(fake.closed.sort(), ["coder#1", "reviewer#2"]);
 		});
 
+		test("an agent's frontmatter lifetime holds when the workflow names none", async () => {
+			const fake = fakeSpawn();
+			const pool = new SubagentPool({ spawn: fake.spawn });
+			const remembering = testAgent("coder", { lifetime: "workflow" });
+
+			await pool.turn(remembering, "a");
+			await pool.turn(remembering, "b");
+			await pool.turn(reviewer, "c");
+			await pool.turn(reviewer, "d");
+			assert.deepEqual(fake.closed, ["reviewer#2", "reviewer#3"]);
+
+			await pool.closeAll();
+
+			assert.deepEqual(
+				fake.spawned.map((entry) => [entry.id, entry.options.lifetime]),
+				[
+					["coder#1", "workflow"],
+					["reviewer#2", "task"],
+					["reviewer#3", "task"],
+				],
+			);
+			assert.deepEqual(fake.closed, ["reviewer#2", "reviewer#3", "coder#1"]);
+		});
+
+		test("the workflow's lifetime beats the frontmatter's, both ways", async () => {
+			const fresh = fakeSpawn();
+			const kept = fakeSpawn();
+			const remembering = testAgent("coder", { lifetime: "workflow" });
+			const forgetting = testAgent("coder", { lifetime: "task" });
+
+			const asTask = new SubagentPool({ spawn: fresh.spawn, lifetime: "task" });
+			await asTask.turn(remembering, "a");
+			await asTask.turn(remembering, "b");
+			const asWorkflow = new SubagentPool({ spawn: kept.spawn, lifetime: "workflow" });
+			await asWorkflow.turn(forgetting, "a");
+			await asWorkflow.turn(forgetting, "b");
+			await asWorkflow.closeAll();
+
+			assert.equal(fresh.spawned.length, 2);
+			assert.equal(kept.spawned.length, 1);
+		});
+
 		test("the key decides who shares a memory, not the agent", async () => {
 			const fake = fakeSpawn();
 			const pool = new SubagentPool({ spawn: fake.spawn, lifetime: "workflow" });

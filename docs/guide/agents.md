@@ -30,7 +30,7 @@ The Markdown body is the system prompt, used verbatim.
 | `skills` | no | Skills it may load, by name. Absent means none - see below. |
 | `concurrency` | no | How many subagents it runs at once when it delegates. Only read for an agent that names `subagent`. |
 | `model` | no | A pattern such as `anthropic/claude-sonnet-5`. A caller's `model` argument beats it; absent everywhere means pi's default - see below. |
-| `lifetime` | no | Default [lifetime](lifetime.md). An explicit argument always wins. |
+| `lifetime` | no | Default [lifetime](lifetime.md), for `spawn` and inside every workflow. A `lifetime` passed to either wins. A flow does not read it: a node's `memory:` decides. |
 | `openInHerdr` | no | Default for "give this agent its own herdr split". See [Display](display.md). |
 
 A file missing `name` or `description` is **ignored silently**. That is pi's

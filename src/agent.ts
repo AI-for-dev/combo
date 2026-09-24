@@ -63,7 +63,7 @@ export type Agent = {
 	skills?: string[];
 	/** Model pattern, e.g. `"anthropic/claude-sonnet-5"`. Absent means pi's default. */
 	model?: string;
-	/** Default lifetime. An explicit call always wins. */
+	/** Default lifetime, in a workflow as in `spawn`. An explicit call always wins. */
 	lifetime?: Lifetime;
 	/**
 	 * How many subagents this agent runs at once when it delegates.
@@ -86,6 +86,15 @@ export type Agent = {
 	/** File path, or a free label for an agent built in memory. */
 	filePath: string;
 };
+
+/**
+ * The lifetime a subagent of `agent` runs with: the one `asked` for, then the
+ * agent's frontmatter, then `"task"`. Every place that spawns reads it here, so
+ * a workflow and a direct `spawn` cannot disagree on what a definition asked.
+ */
+export function lifetimeOf(agent: Agent, asked?: Lifetime): Lifetime {
+	return asked ?? agent.lifetime ?? "task";
+}
 
 /**
  * An agent file that is not an agent: kept by a catalogue that reports it,

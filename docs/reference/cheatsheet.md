@@ -93,7 +93,7 @@ With no `mode`, the fields given pick it, in this order: `flow`, then `candidate
 | `maxIterations` | loop | `5` | loop cap |
 | `maxTasks` | orchestrate | `8` | most subtasks a plan may hold |
 | `concurrency` | parallel, reduce, orchestrate | `4` | branches at once |
-| `lifetime` | all | `task` | `task`, `workflow` or `session` |
+| `lifetime` | all | the agent's, else `task` | `task`, `workflow` or `session` |
 | `flow` | flow | | a flow name; takes only `task`, `model`, `timeoutMs`, `scope`, `herdrAll` |
 | `model` | all | | one model for every subagent of the call |
 | `timeoutMs` | all | none | deadline per turn |
@@ -129,7 +129,7 @@ Run the tests. Report each failure as file:line and one sentence.
 | `tools` | `read, grep, find, ls` | the allowlist, a YAML list or one comma-separated line |
 | `skills` | none | skills it may load, by name; needs `read` in `tools` |
 | `model` | pi's settings | a model pattern |
-| `lifetime` | `task` | what `spawn` uses when the call names none; a workflow passes its own |
+| `lifetime` | `task` | what `spawn` and a workflow use when the call names none; a flow reads `memory:` instead |
 | `concurrency` | | children at once, for an agent whose `tools` names `subagent` |
 | `openInHerdr` | | a herdr split for it by default |
 

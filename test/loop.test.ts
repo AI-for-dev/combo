@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
+import { findAgent, loadAgentsFromDir } from "../src/agent.ts";
+import { BUILTIN_AGENTS_DIR } from "../src/builtin.ts";
+import { spawn } from "../src/subagent.ts";
 import { loop } from "../src/workflows/loop.ts";
+import { fakeSessionFactory } from "./fixtures/fake-session.ts";
 import { fakeSpawn, testAgent } from "./fixtures/fake-subagent.ts";
 
 const coder = testAgent("coder");
@@ -164,6 +168,24 @@ describe("loop", () => {
 			assert.equal(fake.spawned.length, 6);
 			assert.equal(fake.closed.length, 6);
 			assert.equal(new Set(fake.asks.map((ask) => ask.id)).size, 6);
+		});
+
+		test("with no lifetime named, the shipped coder and reviewer keep theirs: one session each, closed at the end", async () => {
+			const shipped = loadAgentsFromDir(BUILTIN_AGENTS_DIR, "builtin");
+			const { createSession, created } = fakeSessionFactory([{ text: "remark" }]);
+			const lifetimes: string[] = [];
+
+			await loop({
+				steps: [findAgent(shipped, "coder"), findAgent(shipped, "reviewer")],
+				input: "x",
+				maxIterations: 3,
+				onEvent: (event) => void (event.type === "spawn" && lifetimes.push(event.lifetime)),
+				spawn: (agent, options) => spawn(agent, { ...options, createSession }),
+			});
+
+			assert.deepEqual(lifetimes, ["workflow", "workflow"]);
+			assert.equal(created.length, 2);
+			assert.ok(created.every((session) => session.disposed));
 		});
 
 		test("the same scenario spawns a different number of subagents per lifetime", async () => {

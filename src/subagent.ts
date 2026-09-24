@@ -10,7 +10,7 @@
  */
 
 import path from "node:path";
-import type { Agent, Lifetime } from "./agent.ts";
+import { lifetimeOf, type Agent, type Lifetime } from "./agent.ts";
 import { deadline, timedOut } from "./deadline.ts";
 import { busFor, nextSubagentId, type EventBus, type EventListener, type SubagentEvent } from "./events.ts";
 import { exportBaseName, exportSession, type SessionExport } from "./measure/index.ts";
@@ -49,7 +49,7 @@ export function toolsOffered(offer: SpawnOptions["customTools"], id: string): To
 
 /** Everything that can be decided about a subagent before it exists. */
 export type SpawnOptions = {
-	/** Overrides the lifetime declared by the agent. Defaults to `"task"`. */
+	/** Overrides the lifetime declared by the agent. Absent from both, `"task"`. */
 	lifetime?: Lifetime;
 	/** Working directory the subagent's tools act in. Defaults to the process's own. */
 	cwd?: string;
@@ -197,7 +197,7 @@ export type Subagent = {
  * `finally`.
  */
 export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<Subagent> {
-	const lifetime = options.lifetime ?? agent.lifetime ?? "task";
+	const lifetime = lifetimeOf(agent, options.lifetime);
 	const { id, order } = nextSubagentId(agent.name);
 
 	const bus = busFor(options);

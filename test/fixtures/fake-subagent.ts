@@ -6,7 +6,7 @@
  * closed - the observable shape of lifetime.
  */
 
-import type { Agent } from "../../src/agent.ts";
+import { lifetimeOf, type Agent } from "../../src/agent.ts";
 import { emptyUsage, type Usage } from "../../src/usage.ts";
 import { failed, succeeded, type Result } from "../../src/result.ts";
 import type { ToolDefinition } from "../../src/session.ts";
@@ -77,7 +77,7 @@ export function fakeSpawn(
 		/** Resolves the in-flight delay, so `stop()` really cuts a turn short. */
 		let interrupt: (() => void) | undefined;
 		if (options.onEvent) bus?.subscribe(options.onEvent);
-		const lifetime = options.lifetime ?? agent.lifetime ?? "task";
+		const lifetime = lifetimeOf(agent, options.lifetime);
 		bus?.emit({
 			type: "spawn",
 			id,
@@ -92,7 +92,7 @@ export function fakeSpawn(
 		const subagent: Subagent = {
 			id,
 			agent,
-			lifetime: options.lifetime ?? "task",
+			lifetime,
 			get usage() {
 				return emptyUsage();
 			},
