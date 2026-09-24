@@ -159,6 +159,21 @@ describe("the board", () => {
 		assert.match(fake.asks[0]?.task ?? "", /the parser is in src\/pipeline\.ts/);
 	});
 
+	test("what a member was handed, its own `read` does not hand it again", async () => {
+		const board = createBoard();
+		board.post("member#9", { kind: "tell", text: "the parser is in src/pipeline.ts" });
+		const reads: string[] = [];
+		const fake = fakeSpawn(async (_task, _agent, options) => {
+			const tool = offeredTools(options, "member#1")[0];
+			if (tool) reads.push((await callTool(tool, { action: "read" })).content[0]?.text ?? "");
+			return {};
+		});
+		await swarm({ members: [{ agent: member, count: 1 }], goal: "do it", rounds: 1, board, spawn: fake.spawn });
+
+		assert.match(fake.asks[0]?.task ?? "", /src\/pipeline\.ts/);
+		assert.deepEqual(reads, ["Nothing new on the board."]);
+	});
+
 	test("the posts come back with the result, in order", async () => {
 		const board = createBoard();
 		board.post("member#9", { kind: "tell", text: "first" });

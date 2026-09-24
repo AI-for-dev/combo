@@ -50,6 +50,12 @@ export type BoardToolOptions = {
 	 * whatever it asked for.
 	 */
 	claims?: Claims;
+	/**
+	 * Where this member has read to. Pass the one the workflow hands out from,
+	 * so a `read` never hands back what the top of the turn already did. Left
+	 * out, the tool keeps its own.
+	 */
+	reader?: Reader;
 };
 ```
 

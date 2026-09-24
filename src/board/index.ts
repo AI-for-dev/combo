@@ -23,4 +23,5 @@ export {
 	type Reading,
 } from "./board.ts";
 export { createClaims, heldList, type Claims, type ClaimsOptions, type Holding, type TakeOutcome } from "./claims.ts";
+export { createReader, type Reader } from "./reader.ts";
 export { boardTool, declaresBoard, type BoardToolOptions } from "./tool.ts";

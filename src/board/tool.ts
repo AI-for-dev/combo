@@ -25,6 +25,7 @@
 import { Type } from "typebox";
 import { boardLines, type Board, type PostKind } from "./board.ts";
 import type { Claims } from "./claims.ts";
+import { createReader, type Reader } from "./reader.ts";
 import { defineTool, type ToolDefinition } from "../session.ts";
 import { declares, refuse, said } from "../tool.ts";
 
@@ -63,6 +64,12 @@ export type BoardToolOptions = {
 	 * whatever it asked for.
 	 */
 	claims?: Claims;
+	/**
+	 * Where this member has read to. Pass the one the workflow hands out from,
+	 * so a `read` never hands back what the top of the turn already did. Left
+	 * out, the tool keeps its own.
+	 */
+	reader?: Reader;
 };
 
 /** Whether an agent's definition asks to be allowed on the board. */
@@ -82,10 +89,7 @@ export function declaresBoard(tools: readonly string[] | undefined): boolean {
  */
 export function boardTool(options: BoardToolOptions): ToolDefinition {
 	const { board, from, claims } = options;
-	// This member's place in the log, kept here because it is nobody else's
-	// business: two members read at their own pace and neither waits for the
-	// other.
-	let cursor: string | undefined;
+	const reader = options.reader ?? createReader(board, from);
 
 	return defineTool({
 		name: BOARD_TOOL,
@@ -162,8 +166,7 @@ export function boardTool(options: BoardToolOptions): ToolDefinition {
 
 	/** What is new for this member, a page at a time. */
 	function read(): string {
-		const { posts, waiting, cursor: next } = board.since(from, cursor, PAGE);
-		cursor = next;
+		const { posts, waiting } = reader.next(PAGE);
 		if (posts.length === 0) return "Nothing new on the board.";
 		return waiting > 0 ? `${boardLines(posts)}\n\n(${waiting} more waiting - read again.)` : boardLines(posts);
 	}
