@@ -193,8 +193,12 @@ success here either.
 The two compose, and a debate wants both: `--claim Python,Rust,Go --hold 1`
 hands out the opening positions one owner at a time, `--until agree` ends it.
 A camp is an opening rather than a verdict, and the vote is free every round.
-`examples/16-debate.ts` is that run in code, with `--same` as the arm that hands
-out no camps.
+`examples/16-debate.ts` is the same debate in code, with one difference: the
+camps are written into each debater's brief by the example rather than taken
+from the board. A debater refused the camp it asked for took no other in two
+runs of four, once on gemma-4-31b and once on qwen-3.6-35b-instruct, and that
+camp went undefended. `--same` is the arm
+that hands out no camps.
 
 Measured in a real pi on the line above, three members and one question:
 

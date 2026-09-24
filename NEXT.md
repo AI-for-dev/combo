@@ -491,8 +491,10 @@ gains a sentence asking for `VOTE: <answer>` on a line of its own, and the run
 stops when every member's latest vote says the same. Same numbers, one question
 instead of three files. What it exposed is worth more than the flag - three
 copies of one model agree on the first turn, having argued nothing, so a swarm
-asked to debate has to be handed its disagreement. `--claim` is the only thing
-here that hands one out, by leasing the opening positions one owner at a time.
+asked to debate has to be handed its disagreement. `--claim` hands one out in
+pi, by leasing the opening positions one owner at a time. `16-debate.ts` writes
+each camp into its debater's brief instead, because a weak model refused its
+camp sometimes took no other.
 
 Three things are left, and the case for each is weaker than it looks:
 
