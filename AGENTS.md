@@ -56,11 +56,11 @@ no enums, no namespaces, no parameter properties.
 
    **The model is an explicit knob at every level, and the nearest override
    wins**: `SpawnOptions.model` / `WorkflowOptions.model` (also the tool's
-   `model` param and `--model` on `/run` and `/step`) > the flow's top-level
-   `model:` > the agent's frontmatter `model:` > pi's own settings. The last
-   resort is still `~/.pi/agent/settings.json` - when *nothing* was set at
-   any level, pi decides. Which side of that is right depends on what the
-   file is for:
+   `model` param and `--model` on `/run`, `/step`, `/swarm` and
+   `/interview`) > the flow's top-level `model:` > the agent's frontmatter
+   `model:` > pi's own settings. The last resort is still
+   `~/.pi/agent/settings.json` - when *nothing* was set at any level, pi
+   decides. Which side of that is right depends on what the file is for:
 
    - **A definition that ships leaves it open.** None of the agents in
      `agents/` declares a `model:`, on purpose: a package that pinned one would

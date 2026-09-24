@@ -86,7 +86,7 @@ The central choice: disposable or persistent, and who closes what.
 :link: guide/workflows
 :link-type: doc
 
-The eight combinators, and the options they all share.
+The combinators, and the options they all share.
 :::
 
 :::{grid-item-card} {octicon}`checklist` Flows

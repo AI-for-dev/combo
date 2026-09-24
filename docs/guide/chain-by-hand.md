@@ -43,7 +43,7 @@ So `/step` does the opposite on that one point, and nothing else:
 | Command | What it does |
 | --- | --- |
 | `/step <name> <instruction>` | Runs one flow or agent on the previous step's output plus what you typed. |
-| `/step --from <id>` | Carry that step instead of the last one. `--from none` starts from scratch. |
+| `/step --from <id\|last\|none>` | Carry that step instead of the last one. `last` is the default, `none` starts from scratch. |
 | `/step --model <pattern>` | This step only. Plan on a large model, code on a small one. |
 | `/step --agent <name>` | When a flow and an agent share a name, run the agent. |
 | `/chain` | The steps walked so far, what each carried, and where they exported. |
