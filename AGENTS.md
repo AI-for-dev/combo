@@ -137,7 +137,8 @@ src/                the library
                     ask); index.ts is its door
   builtin.ts        where the package's own agents/ and flows/ are
   board/            the swarm's board (board, claims, tool, agreement,
-                    announced); index.ts is its door
+                    announced, reader: one member's cursor, turn: its
+                    results in one turn); index.ts is its door
   flow/             the flow format: file (the text, read into nodes), node (what
                     a node is: the closed lists of kinds and keys), read-node,
                     agent-node, ask-node, call-node, blocks, loop and world

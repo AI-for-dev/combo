@@ -163,6 +163,7 @@ describe("/swarm", () => {
 		await runSwarm("--members 3 --until agree which language for the backend", ctx, injected);
 
 		assert.match(asked[0]?.goal ?? "", /VOTE: <your answer>/, "a stop condition nobody was told about never fires");
+		assert.equal(asked[0]?.resultsPerTurn, 1, "one vote a turn: a vote posted again is not an argument");
 		const until = asked[0]?.until;
 		assert.ok(until);
 		const board = createBoard();

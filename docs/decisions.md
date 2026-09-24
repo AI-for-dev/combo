@@ -4112,6 +4112,34 @@ per member and gives the same reader to the handout and to the member's tool.
 A tool built with no reader keeps its own, as before, because outside a swarm
 nobody else hands that member anything.
 
+### One result a turn, when a turn is a vote
+
+`16-debate.ts` on gemma-4-31b, twice. Both times one member, in the first round
+and while the other two were still working, read an empty board, posted its
+vote, read again, and did that seven times, then eleven, in one turn. Each post
+was worded a little differently, so the refusal of an exact repeat did not
+catch any of them. The next round the other two were handed nine and eleven
+posts, most of them that one vote, and both came round to it. A weak model
+counts heads, and the flood gave it heads to count.
+
+`SwarmOptions.resultsPerTurn` caps the `result`s one member posts in one turn.
+`turnBoard` wraps the board the member's tool posts to, and the swarm starts the
+count over before each ask. The refusal tells the member to end its turn: what
+the others post reaches it at the top of the next one. The task says the same
+thing from the first round on, so there is no reason to wait.
+
+The cap is an option, not a default. `15-swarm.ts` posts one `result` per file
+described, several in a turn when a member holds several files, and a cap of
+one would refuse work that is right. `/swarm --until agree` sets it to 1, and
+so does the debate: there a result is a vote, and the same vote again is not an
+argument. A `tell` is never capped, because that is how a member thinks aloud
+without answering anyone. The board's own caps still bound it.
+
+`latestVotes` reads only `result`s now, the kind `VOTE_INSTRUCTION` asks for. A
+`tell` answering somebody's vote quotes it on its first line often enough, and
+it would have counted as the quoter's own. A cap on results would also be
+worthless if a vote could still arrive as a `tell`.
+
 ### A member does not post the same thing twice
 
 `/swarm --agent debater --until agree` in a real pi, on
