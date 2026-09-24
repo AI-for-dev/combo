@@ -872,7 +872,7 @@ block makes no copy, each of its branches reading as landed. It returns what
 an array, with zero tokens. A copy's entries have no `dir` or `branch`.
 
 ```ts
-// The `split` flow at the top of this page, its `first` node given `retry: 1`.
+// The example at the top of this page, not the shipped `split`, its `first` node given `retry: 1`.
 const run = await dryRunFlow(split, "add a cache", {
 	plan: { first: "scout", task: "find where results are stored" },
 	first: [{ fail: "timeout" }, "in src/store.ts"],
@@ -961,14 +961,15 @@ writes, a `choice` case and a `parallel` branch being lines too. Each line has
 its kind, its id, the visit path it stands for, with `#n` where a loop numbers
 its iterations and `[i]` where a `map` numbers its items, what the check
 resolved, and its bound. `showPlan(plan)` writes it as text, every line marked
-`○`, a visit not made yet. The flow at the top of this page, `first` given
-`retry: 1`:
+`○`, a visit not made yet. The example at the top of this page is not the
+shipped `flows/split.md`, whose plan `/flows split` prints. Saved as
+`.pi/flows/split.md`, with `retry: 1` added to `first`, it plans as:
 
 ```text
-split · flows/split.md · input string · ≤ 4 turns · ≤ 2h
-○ plan · agent planner (agents/planner.md) · reads input · output { first: scout | reviewer, task: string } · timeout 30m by default · ≤ 1 turn · ≤ 30m
-○ first · agent from plan.output.first: scout (agents/scout.md), reviewer (agents/reviewer.md) · reads plan.output.task · retry 1 · timeout 30m by default · ≤ 2 turns · ≤ 1h
-○ answer · agent synthesiser (agents/synthesiser.md) · reads input, first · timeout 30m by default · ≤ 1 turn · ≤ 30m
+split · .pi/flows/split.md · input string · ≤ 4 turns · ≤ 2h
+○ plan · agent planner (.pi/agents/planner.md) · reads input · output { first: scout | reviewer, task: string } · timeout 30m by default · ≤ 1 turn · ≤ 30m
+○ first · agent from plan.output.first: scout (.pi/agents/scout.md), reviewer (.pi/agents/reviewer.md) · reads plan.output.task · retry 1 · timeout 30m by default · ≤ 2 turns · ≤ 1h
+○ answer · agent synthesiser (.pi/agents/synthesiser.md) · reads input, first · timeout 30m by default · ≤ 1 turn · ≤ 30m
 ```
 
 A turn's timeout says where it came from: nothing after it for the node's
