@@ -293,9 +293,14 @@ await fanOut({ agent: scout, tasks, timeoutMs: 60_000 });   // per branch
 There is no default because the library does not get to decide that a legitimate
 task took too long. Set one on anything unattended.
 
-A turn cut by its deadline fails with `"timed out after 120000ms"`, one called
-off by the caller's `signal` with `"aborted"`, and one a person stopped with
-`"stopped"`. A `signal` that aborts with a `TimeoutError` as its reason, as
+A turn cut by its deadline fails with `"timed out after 2m"`, one called off by
+the caller's `signal` with `"aborted"`, and one a person stopped with
+`"stopped"`. The bound reads the way a flow file writes a duration, and in
+milliseconds when it is not whole seconds: `timeoutMs: 1_500` fails with
+`"timed out after 1500ms"`. A flow's turn, question and check that run past
+their bound say the same words.
+
+A `signal` that aborts with a `TimeoutError` as its reason, as
 `AbortSignal.timeout` does, counts as a deadline too: that is how a flow bounds
 its attempts, and why its journal and its `usage.json` both read a timeout.
 

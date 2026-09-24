@@ -13,6 +13,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { timedOutAfter } from "./deadline.ts";
 import { tail } from "./text.ts";
 
 /** How much of a check script's output its report keeps: the end of it. */
@@ -71,7 +72,7 @@ export function bashCheck(bash = "bash"): CheckScript {
 				ended ??= outcome;
 				killGroup();
 			};
-			const timer = setTimeout(() => stop({ ok: false, kind: "timeout", message: `\`${script}\` ran past its bound of ${timeoutMs} ms` }), timeoutMs);
+			const timer = setTimeout(() => stop({ ok: false, kind: "timeout", message: `\`${script}\` ${timedOutAfter(timeoutMs)}` }), timeoutMs);
 			const onAbort = () => stop({ ok: false, kind: "stopped", message: "stopped" });
 			signal?.addEventListener("abort", onAbort, { once: true });
 			if (signal?.aborted) onAbort();

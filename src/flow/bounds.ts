@@ -9,6 +9,7 @@
  * its call stands, and its agents inherit the caller's `timeout:`.
  */
 
+import { showDuration } from "../duration.ts";
 import type { CheckedAgentNode, CheckedNode } from "./checked.ts";
 import { through } from "./unrolled.ts";
 
@@ -121,18 +122,6 @@ function worst(a: Bound, b: Bound): Bound {
 /** Branches running at once: their turns add up, their time does not. */
 function together(a: Bound, b: Bound): Bound {
 	return { turns: a.turns + b.turns, ms: Math.max(a.ms, b.ms), waits: a.waits || b.waits };
-}
-
-/** A duration the way a flow file writes one, largest units first: `1h30m`, `90s` reads `1m30s`. */
-export function showDuration(ms: number): string {
-	const seconds = Math.ceil(ms / 1000);
-	const parts: [number, string][] = [
-		[Math.floor(seconds / 3600), "h"],
-		[Math.floor((seconds % 3600) / 60), "m"],
-		[seconds % 60, "s"],
-	];
-	const shown = parts.filter(([n]) => n > 0).map(([n, unit]) => `${n}${unit}`);
-	return shown.length === 0 ? "0s" : shown.join("");
 }
 
 /** A bound as a plan line shows it: `≤ 4 turns · ≤ 2h`, and a person's answer when an ask with no `timeout:` waits for one. */

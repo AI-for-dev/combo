@@ -8,6 +8,7 @@
  */
 
 import type { Agent } from "../../agent.ts";
+import { timedOutAfter } from "../../deadline.ts";
 import type { GitResult } from "../../git/index.ts";
 import type { Result } from "../../result.ts";
 import type { Ledger } from "../../review/index.ts";
@@ -120,7 +121,7 @@ function failed(run: AgentRun, cut: AbortSignal, id: string, result: Result, dea
 	const cutShort = interruption(run.signal, cut);
 	if (cutShort !== undefined) return { ok: false, error: cutShort };
 	if (result.error === "stopped") return failure("stopped", `${id} was stopped`);
-	if (deadline.aborted) return failure("timeout", `no answer within ${ms} ms`);
+	if (deadline.aborted) return failure("timeout", timedOutAfter(ms));
 	return failure("provider", result.error ?? "the turn failed");
 }
 

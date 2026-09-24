@@ -200,7 +200,7 @@ describe("`timeout:`", () => {
 		const started = performance.now();
 		const result = await runChecked(flow, "x", { spawn: flowSpawn([[{ delayMs: 5000 }]]).spawn, timeoutMs: 50 });
 		assert.ok(performance.now() - started < 2000, "the turn was really cut short");
-		assert.deepEqual(!result.ok && result.error, { kind: "timeout", message: "no answer within 50 ms" });
+		assert.deepEqual(!result.ok && result.error, { kind: "timeout", message: "timed out after 50ms" });
 	});
 
 	test("a retry after a timeout starts a fresh subagent, asked the whole turn again", async () => {
@@ -218,7 +218,7 @@ describe("`timeout:`", () => {
 		const result = await runChecked(flow, "x", { spawn: fake.spawn, timeoutMs: 50 });
 		assert.ok(result.ok);
 		assert.equal(fake.created.length, 1);
-		assert.match(fake.created[0]?.prompts[1] ?? "", /^Your last answer failed \(timeout: no answer within 50 ms\)/);
+		assert.match(fake.created[0]?.prompts[1] ?? "", /^Your last answer failed \(timeout: timed out after 50ms\)/);
 	});
 
 	test("resolves the nearest bound: the run's, the node's, the flow's, then thirty minutes", () => {
