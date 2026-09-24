@@ -92,44 +92,39 @@ typing a command inside a repository is the explicit request. Asking is one
 word. Being handed a stranger's instructions by surprise is not acceptable,
 and the boundary is a security decision rather than a preference.
 
-It read one file, for fifty seconds on a small model, and came back with a
-line per test:
+It read one file, in four seconds on a small model, and came back with a line
+per test:
 
 ```
 subagent single test-reader
-  Read the contents of test/loop.test.ts and summarize its purpose and …
-✓ test-reader#1 Read the contents of test/loop.test.ts and summar…
+  read test/loop.test.ts
+✓ test-reader#1 read test/loop.test.ts
     read test/loop.test.ts
 
-1 turn 51.5s ↑4.8k ↓2.1k $0.0000
+1 turn 4.4s ↑4.6k ↓584
 ctrl+o to expand
 ```
 
-> - caps the loop, and defaults to 5: asserts that the loop stops at
->   `maxIterations` and that the default is 5. No.
+> - caps the loop, and defaults to 5: asserts that the loop stops at 5
+>   iterations when no `until` is provided and `maxIterations` is default.
 > - hitting the cap is reported as not converged, even when every turn was
->   fine: asserts that reaching the iteration limit results in `converged:
->   false` while `ok: true`. No.
+>   fine: asserts that reaching `maxIterations` results in `converged: false`
+>   even if all agent calls succeeded.
 > - …
 >
-> The tests in this file are consistently precise. If any promise more than
-> they check, it is:
-> - an async until is awaited: the judge is often a test run: the "awaited"
->   part is mostly implicit in the test's successful completion.
-> - rejects a cap below 1: an unrunnable loop is a programming error: the
->   "programming error" part is a conceptual justification rather than a
->   checked property.
+> The tests are all well-aligned with their assertions.
 
-Seventeen tests, seventeen lines, two named at the end. Whether it is right
-about those two is a question for whoever wrote them. It did the tedious part
-and left the judgement where it belongs.
+Seventeen tests, seventeen lines, and none named at the end: the definition
+asked for the two or three that promise the most, and the reader answered that
+none promise more than they check. Whether it is right is a question for
+whoever wrote them. It did the tedious part and left the judgement where it
+belongs.
 
-Read the second line of the row, though: that is not what you typed. The
-session wrote the task it sent, "Read the contents of test/loop.test.ts and
-summarize its purpose and key test cases", and then summarised the report
-back to you by theme, the two names at the end left out. The row is how you
-know: it shows the task as it was sent, and `ctrl+o` shows the report as it
-came back.
+The second line of the row is the task as it was sent, here word for word what
+you typed. What reached you was not the report: the session regrouped it by
+theme, "Termination", "Iteration Caps", "Lifetimes", and left out the reader's
+last line. The row is how you know the difference: it shows the task as it was
+sent, and `ctrl+o` shows the report as it came back.
 
 ## Try to make it write
 
@@ -143,7 +138,7 @@ Now ask for the thing it cannot do, in a fresh session:
 The first time, on a small open-weight model, the session passed the request
 on as written. The reader, which cannot rename anything, answered that "none
 of them overpromise", and the session reported that "no renames were
-performed". The same reader had named two tests a moment earlier.
+performed".
 
 The second time, same model, same sentence, its thinking went the other way:
 
@@ -178,12 +173,11 @@ nothing to route around.
 
 The other thing that can happen is the one to plan for. A model calls a tool
 its session does not hold anyway. pi refuses it, the model gets an error back,
-and it tries again. The reviewer in [the chain two pages back](03-keep-the-session-out.md)
-did exactly that: its prompt mentions a `verdict` tool, a plain `/step` does
-not hand one over, and its transcript holds five calls to `verdict`, each
-answered `Tool verdict not found`, before the prose you saw. That retry is the argument for a deadline on every call, which is what
-[watch the meter](10-the-meter.md) is about. Widening the allowlist to stop
-the retries is the one fix that is always wrong.
+and it may try again. The tool row keeps such a call apart from one that ran:
+it is marked with a cross, followed by pi's own words for the refusal. A model
+retrying a refused call is the argument for a deadline on every call, which is
+what [watch the meter](10-the-meter.md) is about. Widening the allowlist to
+stop the retries is the one fix that is always wrong.
 
 ## Whose name wins
 

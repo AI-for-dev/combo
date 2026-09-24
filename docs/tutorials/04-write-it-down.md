@@ -212,14 +212,15 @@ failure. The fault names the file, the node and the key, `compare.agent`.
 Now put the name back, delete the `## compare` section, and run `/flows`:
 
 ```
-Warning: 5 flows, 1 file refused
+5 flows, 1 file refused
 …
 docs-drift      project  broken
   .pi/flows/docs-drift.md compare: `compare` is an agent node and has no `## compare` section
 …
 ```
 
-A refused flow is **never** silently skipped. An agent file missing its
+The refused entry and its fault are the two lines drawn in the warning colour;
+the rest is the listing as before. A refused flow is **never** silently skipped. An agent file missing its
 `name` is dropped without a word, following pi, because agents are discovered;
 a flow is asked for by name, and answering "unknown flow" about a file sitting
 right there would be a lie. The most likely reason anyone runs `/flows` is

@@ -72,20 +72,20 @@ stays readable in its own file.
 
 ```
 subagent single test-reader
-  Read the contents of test/fan-out.test.ts and summarize its purpose a…
-✓ test-reader#1 Read the contents of test/fan-out.test.ts and sum…
+  read test/fan-out.test.ts
+✓ test-reader#1 read test/fan-out.test.ts
     read test/fan-out.test.ts
 
-1 turn 56.4s ↑5.3k ↓3.2k $0.0000
+1 turn 60.5s ↑5.3k ↓2.4k
 ctrl+o to expand
 ```
 
 It never opened the skill. Nothing was loaded eagerly: pi put the skill's
 name, its description and its path in the system prompt, and left the model to
 `read` the file when the task matched. pi's own documentation says models do
-not always do this. On the small open-weight model here, three runs in a row
-went straight to the tests; one of them also read `src/workflows/fan-out.ts`,
-and none read the list you wrote, one line away.
+not always do this. On the small open-weight model here it went straight to
+the tests, never read the list you wrote, one line away, and ended "No tests
+promise more than they check."
 
 So the definition has to send it there. Add a sentence to the prompt body:
 
@@ -96,35 +96,32 @@ list beside you: every smell you name comes from it.
 
 ```
 subagent single test-reader
-  Read the contents of test/fan-out.test.ts and report them.
-✓ test-reader#1 Read the contents of test/fan-out.test.ts and rep…
+  read test/fan-out.test.ts
+✓ test-reader#1 read test/fan-out.test.ts
     read /…/combo/.pi/agents/test-reader/skills/assertion-smells/SKILL.md
     read test/fan-out.test.ts
 
-1 turn 115.1s ↑7.7k ↓4.9k $0.0000
+1 turn 12.8s ↑7.5k ↓2.2k
 ctrl+o to expand
 ```
 
-First call, the skill, and the same in the other run with the sentence. The
-report that came back was a line per test, twenty of them, each ending on a
-word from the list:
+First call, the skill. The report that came back was a line per test, twenty
+of them, and not one named a smell:
 
-> - `returns one result per task, in the order of tasks`: asserts the output
->   of results matches the tasks in order. OK.
-> - `accepts one agent per task`: asserts the agents in results match the
->   input agents. Round trip.
+> - returns one result per task, in the order of tasks: asserts that result
+>   outputs match task order regardless of completion speed.
+> - accepts one agent per task: asserts that each result is associated with
+>   the corresponding agent.
 > - …
 >
-> The test whose name promises the most and whose assertion checks the least
-> is `accepts one agent per task` (Round trip).
+> No tests promise more than they check.
 
-That is the second smell by its name: the test hands the fan-out `scout` and
-`coder` and asserts it got `scout` and `coder` back. The other run with the
-sentence read the same list and ended every line "no smell", then "No tests
-promise more than they check." A skill is a page the model has read. It does
-not constrain what the model concludes. The definition can insist, and the
-tool row can show you whether it complied, and that is as far as the guarantee
-goes.
+`accepts one agent per task` is the second smell on the list, a round trip:
+the test hands the fan-out `scout` and `coder` and asserts it got `scout` and
+`coder` back. The reader had the list in front of it and did not see it. A
+skill is a page the model has read. It does not constrain what the model
+concludes. The definition can insist, and the tool row can show you whether it
+complied, and that is as far as the guarantee goes.
 
 ## Where a name resolves
 
@@ -153,12 +150,15 @@ Agent "test-reader" declares unknown skill(s) assertion-smell. Looked in:
 ```
 
 Two directories listed and not three, because this repository has no
-`.pi/skills/`. What the session did next is worth knowing. It listed
-`.pi/agents/test-reader/`, grepped the repository for the name, then called
-`edit` on `.pi/agents/test-reader.md` and deleted the `skills:` line, and
-called the reader again, which now ran without its rules. The refusal was
-exact and the session holds `edit`: it repaired the call by removing the
-thing that made it fail. A definition under version control shows that as a
+`.pi/skills/`. What the session did next is worth knowing. It found
+`.pi/agents/test-reader/skills/assertion-smells/` and renamed the directory
+to the misspelt name with `mv`, which changed nothing: a skill's name is the
+`name:` in its `SKILL.md`, not its directory's. It moved the file once more,
+failed a third time, then called `edit` on `.pi/agents/test-reader.md`,
+deleted the `skills:` line, and called the reader again, which now ran without
+its rules. The refusal was exact and the session holds `edit` and `bash`: it
+repaired the call by removing the thing that made it fail, and left the skill
+it had moved behind it. A definition under version control shows that as a
 diff; read it before you trust the next report.
 
 Two more refusals, both for a skill that would resolve and never be seen: an
