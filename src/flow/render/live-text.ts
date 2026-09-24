@@ -10,7 +10,7 @@
 
 import { statusIcon } from "../../reporters/tui.ts";
 import { plural } from "../../text.ts";
-import { compact, type Usage } from "../../usage.ts";
+import { showCost, showTokens, type Usage } from "../../usage.ts";
 import { showBound, showDuration } from "../bounds.ts";
 import type { LiveLine, LivePlan, LiveState } from "./live.ts";
 import type { LiveSummary } from "./summary.ts";
@@ -18,9 +18,6 @@ import { NOT_VISITED } from "./text.ts";
 
 /** What a node never reached is marked with. */
 const UNREACHED = "–";
-
-/** The kinds no model runs in: their line says how long they took, since `↑0 ↓0` there would read as a count. */
-const TOKENLESS: ReadonlySet<LiveLine["kind"]> = new Set(["check", "commit", "ask"]);
 
 /** One line of the live view as text, before any cut. */
 export type LiveRow = {
@@ -81,7 +78,8 @@ function rowsOf(line: LiveLine, depth: number): LiveRow[] {
 		line.label,
 		...line.facts,
 		...(line.bound === undefined ? [] : [showBound(line.bound)]),
-		...(line.usage === undefined ? [] : [TOKENLESS.has(line.kind) ? showDuration(line.usage.wallMs) : cost(line.usage)]),
+		// A check, a commit or an ask ran no turn, so its line gives its time alone.
+		...(line.usage === undefined ? [] : [cost(line.usage)]),
 	].filter((part) => part !== "");
 	return [{ depth, state: line.state, glyph: glyph(line.state), text: parts.join(" · "), subagents }, ...line.lines.flatMap((one) => rowsOf(one, depth + 1))];
 }
@@ -96,9 +94,9 @@ function glyph(state: LiveState): string {
 	return statusIcon(state);
 }
 
-/** `3m12s · ↑41k ↓2.1k`, and what it cost when pi said. */
+/** `3m12s · ↑41k ↓2.1k`, the tokens once a turn has ended, and what it cost when pi said. */
 function cost(usage: Usage): string {
-	return [showDuration(usage.wallMs), `↑${compact(usage.input)} ↓${compact(usage.output)}`, ...(usage.cost > 0 ? [`$${usage.cost.toFixed(4)}`] : [])].join(" · ");
+	return [showDuration(usage.wallMs), ...showTokens(usage), ...showCost(usage)].join(" · ");
 }
 
 /** `row` cut to `width`, marked when something was. Unlike `truncate`, it keeps the indent. */

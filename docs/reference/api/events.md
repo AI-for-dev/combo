@@ -122,7 +122,14 @@ export type SubagentEvent =
 			task?: string;
 	  }
 	| { type: "text"; id: string; delta: string }
-	| { type: "tool"; id: string; name: string; args: unknown }
+	/** A tool call; `call` is pi's id for it, when pi gave one. */
+	| { type: "tool"; id: string; name: string; args: unknown; call?: string }
+	/**
+	 * A tool call that came back an error: refused before it ran, as a tool
+	 * the agent does not have is, or failed while running. `error` is the first
+	 * line pi said, which names the refusal.
+	 */
+	| { type: "tool_error"; id: string; name: string; error: string; call?: string }
 	/**
 	 * A member said something on the board.
 	 *

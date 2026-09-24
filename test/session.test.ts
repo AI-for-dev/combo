@@ -129,6 +129,13 @@ describe("streamed", () => {
 		assert.equal(streamed({ type: "turn_end" }), undefined);
 	});
 
+	test("a call that came back an error is read with pi's first words and its id; one that did not is nothing", () => {
+		const end = { type: "tool_execution_end" as const, toolCallId: "c1", toolName: "write", result: { content: [{ type: "text", text: "Tool write not found" }] } };
+		assert.deepEqual(streamed({ ...end, isError: true }), { type: "tool_error", name: "write", error: "Tool write not found", call: "c1" });
+		assert.equal(streamed({ ...end, isError: false }), undefined);
+		assert.deepEqual(streamed({ type: "tool_execution_start", toolCallId: "c1", toolName: "write", args: {} }), { type: "tool", name: "write", args: {}, call: "c1" });
+	});
+
 	test("a tool pi could not name reads as ?, because its name arrives empty rather than absent", () => {
 		assert.deepEqual(streamed({ type: "tool_execution_start", toolName: "", args: 1 }), { type: "tool", name: "?", args: 1 });
 	});

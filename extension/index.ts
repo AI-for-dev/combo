@@ -19,7 +19,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
 import {
-	formatToolCall,
+	callLine,
 	formatUsage,
 	MAX_DEPTH,
 	plural,
@@ -46,7 +46,7 @@ import {
 	type ResultDetails,
 } from "./commands/index.ts";
 import { executeSubagent, type Details } from "./execute.ts";
-import { inferMode, Schema, type Params } from "./params.ts";
+import { inferMode, runsWho, Schema, type Params } from "./params.ts";
 import { toolDeps, type PiApi } from "./pi.ts";
 import { PlanFrame } from "./ui/index.ts";
 import { STEP_ENTRY, type StepEntry } from "./relay.ts";
@@ -156,7 +156,7 @@ export default function (pi: PiApi) {
 			const mode = inferMode(args);
 
 			let line = theme.fg("toolTitle", theme.bold("subagent ")) + theme.fg("accent", mode);
-			const who = args.flow ?? args.agent ?? args.steps?.join(" → ") ?? args.candidates?.join(", ");
+			const who = runsWho(args, mode);
 			if (who) line += theme.fg("muted", ` ${who}`);
 			if (args.lifetime === "workflow") line += theme.fg("muted", " [workflow]");
 			if (args.maxDepth !== undefined) line += theme.fg("muted", ` [≤${args.maxDepth} deep]`);
@@ -218,9 +218,7 @@ function renderCollapsed(details: Details, theme: Theme): Container {
 		const shown = one.tools.slice(-COLLAPSED_TOOLS);
 		const hidden = one.tools.length - shown.length;
 		if (hidden > 0) container.addChild(new Text(theme.fg("muted", `${indent}    … ${plural(hidden, "earlier call")}`), 0, 0));
-		for (const tool of shown) {
-			container.addChild(new Text(theme.fg("muted", `${indent}    ${formatToolCall(tool.name, tool.args)}`), 0, 0));
-		}
+		for (const tool of shown) container.addChild(new Text(theme.fg(tool.error === undefined ? "muted" : "error", `${indent}    ${callLine(tool)}`), 0, 0));
 	}
 
 	container.addChild(new Spacer(1));
@@ -251,9 +249,7 @@ function renderExpanded(details: Details, theme: Theme): Container {
 
 		if (one.tools.length > 0) {
 			container.addChild(new Text(theme.fg("muted", "─── tools ───"), 0, 0));
-			for (const tool of one.tools) {
-				container.addChild(new Text(theme.fg("muted", formatToolCall(tool.name, tool.args)), 0, 0));
-			}
+			for (const tool of one.tools) container.addChild(new Text(theme.fg(tool.error === undefined ? "muted" : "error", callLine(tool)), 0, 0));
 		}
 
 		if (one.error) {

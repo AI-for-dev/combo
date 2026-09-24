@@ -11,6 +11,18 @@ draws them. Nothing here holds state - the picture is `picture.ts`, folded
 once for every reader - so a line is tested by calling the function that
 makes it, never by scraping a terminal.
 
+## `callLine`
+
+*function*
+
+```typescript
+export function callLine(call: ToolCall): string { /* … */ }
+```
+
+A call as a row lists it: {@link formatToolCall}, and when it came back an
+error, `✗` first and pi's words after, so a call pi refused never reads as
+one that ran: `✗ write notes.txt · Tool write not found`.
+
 ## `currentActivity`
 
 *function*
@@ -33,7 +45,7 @@ right track, not enough to read instead of the transcript.
 export function detailLine(snapshot: SubagentSnapshot, now?: number): string { /* … */ }
 ```
 
-`provider/model · ↑12k ↓209 · 12.4s`
+`provider/model · ↑12k ↓209 · 12.4s`, the tokens once its first turn has ended.
 
 ## `formatToolCall`
 

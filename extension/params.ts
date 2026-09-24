@@ -95,3 +95,15 @@ export function inferMode(params: Params): Mode {
 	if (params.tasks?.length) return "parallel";
 	return "single";
 }
+
+/**
+ * Who a call in `mode` runs, from the field that mode reads: the flow, the
+ * steps of a chain or a loop, or the agent, and the candidates when a router
+ * or a planner is not named. Another field the model filled in beside them
+ * is not what runs, so the row never names it.
+ */
+export function runsWho(params: Params, mode: Mode): string | undefined {
+	if (mode === "flow") return params.flow;
+	if (mode === "chain" || mode === "loop") return params.steps?.join(" → ");
+	return params.agent ?? params.candidates?.join(", ");
+}

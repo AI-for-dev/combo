@@ -8,17 +8,19 @@
  * stream alone, or a resume's journal and stream together. Each life of the
  * journal opens with its `life_start`, and one with no `run_end` was killed.
  * A visit's last end is the one the frame draws, whichever life wrote it; a
- * `copy_lost` forgets every end under its branch, as a resume does.
+ * `copy_lost` forgets every end under its branch, as a resume does. What a
+ * visit cost is every life's, since each one was paid for: a `copy_lost` or a
+ * visit run again forgets how it ended, never what it spent.
  */
 
 import { isVisit, type SubagentEvent } from "../../events.ts";
 import { costOf, livesOf } from "../../measure/index.ts";
-import type { Usage } from "../../usage.ts";
+import { sumUsage, type Usage } from "../../usage.ts";
 import type { CheckedFlow } from "../checked.ts";
 import { resumePoint, type JournalEntry, type VisitEnd } from "../run/index.ts";
 
-/** One life of a run: what it cost, and whether it was killed before it could write its end. */
-export type Life = { readonly usage: Usage; readonly partial: boolean };
+/** One life of a run: what it cost, whether it was killed before it could write its end, and the visits it ended. */
+export type Life = { readonly usage: Usage; readonly partial: boolean; readonly ends: readonly VisitEnd[] };
 
 type RunEnd = Extract<JournalEntry, { type: "run_end" }>;
 
@@ -35,16 +37,22 @@ export class Visits {
 	/** The visit the last life picked up from, when it resumed an earlier one. */
 	readonly resumedFrom: string | undefined;
 
-	constructor(checked: CheckedFlow, journal: readonly JournalEntry[], events: readonly SubagentEvent[]) {
+	/** `elapsedMs`, when given, is how long this life has run: a life is running, and that is its time. */
+	constructor(checked: CheckedFlow, journal: readonly JournalEntry[], events: readonly SubagentEvent[], elapsedMs?: number) {
 		for (const entry of journal) {
 			if (entry.type === "visit_end") this.ends.set(entry.path, entry);
 			else if (entry.type === "map_items") this.frozen.set(entry.path, entry.items.length);
 			else if (entry.type === "copy_lost") for (const path of [...this.ends.keys()]) if (within(path, entry.path)) this.ends.delete(path);
 		}
 		const lives = livesOf(journal);
-		for (const life of lives) this.lives.push({ usage: life.runEnd?.usage ?? costOf(life.ends), partial: life.runEnd === undefined });
-		const live = events.some(isVisit);
-		if (live) this.lives.push({ usage: costOf(this.tell(events)), partial: false });
+		for (const life of lives) this.lives.push({ usage: life.runEnd?.usage ?? costOf(life.ends), partial: life.runEnd === undefined, ends: life.ends });
+		const live = elapsedMs !== undefined || events.some(isVisit);
+		if (live) {
+			const told = this.tell(events);
+			const usage = costOf(told);
+			// The visits it ended add up to less than its time while one runs, and to more once branches ran together.
+			this.lives.push({ usage: { ...usage, wallMs: elapsedMs ?? usage.wallMs }, partial: false, ends: told });
+		}
 		this.runEnd = live ? undefined : lives.at(-1)?.runEnd;
 		// The last life picked up where the journal before it left off.
 		const before = live ? journal : journal.slice(0, Math.max(0, journal.findLastIndex((entry) => entry.type === "life_start")));
@@ -67,14 +75,15 @@ export class Visits {
 		return [...this.ends.keys(), ...this.running].some((one) => within(one, path));
 	}
 
-	/** Every visit that ended inside `prefix`, as it last did. */
-	endedIn(prefix: string): VisitEnd[] {
-		return [...this.ends.values()].filter((end) => within(end.path, prefix) && !this.running.has(end.path));
+	/** What every life spent at or inside `path`: the outermost visits each one ended there, added up. */
+	spent(path: string): Usage {
+		const each = this.lives.map((life) => costOf(life.ends.filter((end) => within(end.path, path))));
+		return sumUsage(each, each.reduce((sum, one) => sum + one.wallMs, 0));
 	}
 
 	/** Every visit that ended, as it last did. */
 	get all(): VisitEnd[] {
-		return this.endedIn("");
+		return [...this.ends.values()].filter((end) => !this.running.has(end.path));
 	}
 
 	/** The subagents spawned for the visit `path`. */

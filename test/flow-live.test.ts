@@ -80,16 +80,16 @@ function atStart(events: readonly SubagentEvent[], path: string): SubagentEvent[
 	return events.slice(0, at + 1);
 }
 
-/** The frame of `flow` as text lines, wide enough to cut nothing. */
-function frame(flow: CheckedFlow, journal: readonly JournalEntry[], events: readonly SubagentEvent[]): string[] {
-	return showLive(livePlan(flow, journal, events), 400).split("\n");
+/** The frame of `flow` as text lines, wide enough to cut nothing; `elapsedMs` is this life's time, while it runs. */
+function frame(flow: CheckedFlow, journal: readonly JournalEntry[], events: readonly SubagentEvent[], elapsedMs?: number): string[] {
+	return showLive(livePlan(flow, journal, events, elapsedMs), 400).split("\n");
 }
 
 describe("the live view", () => {
 	test("before the first visit, is the plan", () => {
 		const flow = checked("  - id: plan\n    agent: planner\n  - id: work\n    map: [a]\n    do:\n      - id: code\n        agent: scout", { plan: "P.", code: "C." });
 		assert.deepEqual(frame(flow, [], []).slice(1), showPlan(planOf(flow)).split("\n").slice(1));
-		assert.equal(frame(flow, [], [])[0], "○ f · 0 visits · 0s · ↑0 ↓0");
+		assert.equal(frame(flow, [], [])[0], "○ f · 0 visits · 0s");
 	});
 
 	test("mid-run, expands what runs and folds what ended: iterations, items and branches", async () => {
@@ -156,6 +156,13 @@ describe("the live view", () => {
 		assert.deepEqual(frame(calling, [], atStart(events, "after")), ["● f · 3 visits · 0s · ↑0 ↓0", "✓ spec · 0s · ↑0 ↓0", "● after"]);
 	});
 
+	test("while a life runs, gives it the time the caller's clock says, not what its ended visits add up to", async () => {
+		const { events } = await recorded(BLOCKS, BLOCKS_ANSWERS);
+		const running = atStart(events, "deliver#2/work[2]/code");
+		assert.equal(frame(BLOCKS, [], running, 39_000)[0], "● f · 10 visits · 39s · ↑0 ↓0");
+		assert.equal(frame(BLOCKS, [], [], 2_000)[0], "● f · 0 visits · 2s");
+	});
+
 	test("once over, is one line per root node, and the journal alone draws the same frame", async () => {
 		const { journal, events } = await recorded(BLOCKS, BLOCKS_ANSWERS);
 		const last = ["✓ f · 20 visits · 0s · ↑0 ↓0", "✓ deliver · 2 iterations · 0s · ↑0 ↓0", "✓ after · synthesiser · 0s · ↑0 ↓0"];
@@ -219,6 +226,21 @@ describe("the live view", () => {
 				"    ● fix#2/audit",
 			]);
 			assert.equal(frame(LOOP, from, resumed.events)[0], "✓ f · 6 visits · 0s · ↑3k ↓300 · 2 lives (1 partial) · resumed from fix#2/work");
+		});
+
+		test("counts on each line what every life spent there, so the root lines add up to the summary", async () => {
+			const { resumed } = await killedAndResumed();
+			assert.deepEqual(frame(LOOP, resumed.journal, []), [
+				"✓ f · 6 visits · 0s · ↑3k ↓300 · 2 lives (1 partial) · resumed from fix#2/work",
+				"✓ plan · planner · 0s · ↑1k ↓100",
+				"✓ fix · 2 iterations · 0s · ↑2k ↓200",
+			]);
+		});
+
+		test("adds this life's time, by the caller's clock, to what the earlier lives took", async () => {
+			const { from, resumed } = await killedAndResumed();
+			const earlier = from.map((entry) => (entry.type === "visit_end" ? { ...entry, wallMs: 1000 } : entry));
+			assert.equal(frame(LOOP, earlier, atStart(resumed.events, "fix#2/audit"), 5000)[0], "● f · 4 visits · 8s · ↑3k ↓300 · 2 lives (1 partial) · resumed from fix#2/work");
 		});
 
 		test("tells the killed life from the next by its journal alone, each opening with its `life_start`", async () => {

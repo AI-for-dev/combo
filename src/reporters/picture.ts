@@ -20,6 +20,10 @@ export type ToolCall = {
 	name: string;
 	/** Its arguments, untouched: the expanded view formats them, we only keep them. */
 	args: unknown;
+	/** pi's id for the call, when it gave one. */
+	call?: string;
+	/** What pi said when the call came back an error: refused, or failed while it ran. */
+	error?: string;
 };
 
 /** Everything known about one subagent, at one instant. */
@@ -145,8 +149,14 @@ export function createRunPicture(): RunPicture {
 				snapshot.startedAt = event.status === "working" ? performance.now() : undefined;
 				break;
 			case "tool":
-				snapshot.tools.push({ name: event.name, args: event.args });
+				snapshot.tools.push({ name: event.name, args: event.args, ...(event.call !== undefined && { call: event.call }) });
 				break;
+			case "tool_error": {
+				// The call by its id; without one, the last of that name still standing.
+				const errored = snapshot.tools.findLast((one) => (event.call !== undefined ? one.call === event.call : one.name === event.name && one.error === undefined));
+				if (errored) errored.error = event.error;
+				break;
+			}
 			case "text":
 				snapshot.output += event.delta;
 				break;

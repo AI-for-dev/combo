@@ -2916,6 +2916,61 @@ Display specification - this is the "Claude Code" bar we are aiming at:
   user's key configuration must be respected.
 - Reuse `context.lastComponent` instead of rebuilding the tree every frame.
 
+### A figure on a row is one somebody measured, and a row fits its terminal
+
+Recapturing the tutorials in a real pi showed rows that said more than was
+known, or took more room than they had. What each one does now:
+
+- **The summary's time is the clock's, handed in.** It added up the visits
+  that had ended, so it read 20s at 39s elapsed and jumped when a long visit
+  ended. `livePlan` takes `elapsedMs`, this life's time by the caller's clock,
+  and still reads none of its own: the same arguments draw the same frame, and
+  the extension hands in `elapsedMs()` of the view at each paint.
+- **A line counts what every life spent there.** After a resume, a loop's
+  `visit_end` holds the work of the life that wrote it, and the root lines
+  did not add up to the summary. Each life keeps the visits it ended, and a
+  line adds, for every life, the outermost of them at or under its path. A
+  `copy_lost` or a visit run again forgets how it ended, never what it cost.
+- **No token figure before a turn has ended.** pi's counters are read when a
+  turn ends, so a subagent in its first turn read `↑0 ↓0` for all of it, which
+  looks measured. `showTokens` gives nothing while `turns` is `0`, and `↑0 ↓0`
+  after a turn, when the zero was read. It is one rule for the widget, the flow
+  rows, `formatUsage` and the summary line, and it replaced the list of node
+  kinds that had no tokens: a `check`, an `ask` or a `commit` runs no turn.
+- **No cost figure when none was reported.** The widget and the flow rows
+  already left a zero cost out; `formatUsage` printed `$0.0000`, which reads as
+  free. `showCost` leaves it out everywhere, and a table column, which cannot
+  leave a cell empty, says `not reported`.
+- **A refused file reads as a warning, and only it.** `/flows` notified the
+  whole listing as a warning as soon as one file was refused. It notifies at
+  `info` now, and colours each line itself, since pi colours a notification
+  whole: a refused entry and its faults in the warning colour, the rest as a
+  listing.
+- **The tool row names what the mode runs.** It named the first of `flow`,
+  `agent`, `steps` and `candidates` that was set, so a loop read `loop coder`
+  or `loop coder → reviewer` depending on whether the model had also passed
+  `agent`. `runsWho` reads the field the mode reads.
+- **A notification is fitted before pi draws it.** pi wraps a line where the
+  room runs out, and a path is one long word. Every refusal goes through the
+  fitting `/flows` already used, now `extension/notice.ts`: paths named from
+  the working directory, a cut before a path, and the `Error: ` or `Warning: `
+  pi writes before the first line counted. A hang that leaves fewer than 24
+  columns goes on four columns in, so a description at 80 columns is not a
+  word per line down the right of the terminal.
+- **A painted line is cut in columns, last.** A subagent's row under a deep
+  visit took two columns more than it had when its activity filled the room,
+  because the two spaces before an empty detail sat before a colour code,
+  where `trimEnd` cannot see them, and pi exited on `Rendered line exceeds
+  terminal width`. The parts are joined only when there is something to join,
+  and every line `paintFlow` gives is cut by `truncateToWidth`, which counts
+  what the terminal counts: colour codes, tabs and wide characters.
+- **A call that came back an error says so.** A call pi refused, `Tool write
+  not found`, was listed like one that ran. pi's `tool_execution_end` carries
+  `isError`, and `session.ts` reads it into a `tool_error` event with the first
+  line pi said; the call is drawn `✗ write notes.txt · Tool write not found`.
+  pi does not say whether a call was refused or ran and failed, so neither do
+  we: the words are pi's.
+
 ### One picture of the run, and readers that do not fold
 
 The TUI collector held the fold of the event stream - who spawned, under whom,

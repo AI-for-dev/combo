@@ -12,6 +12,7 @@
 import { homedir } from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import { truncateToWidth } from "@earendil-works/pi-tui";
 import {
 	currentActivity,
 	detailLine,
@@ -85,12 +86,15 @@ export function paintFlow(live: LivePlan, theme: WidgetTheme, width: number, pai
 			const marked = one.id === selected && standing !== "done";
 			const dot = marked ? theme.fg("accent", "▸") : theme.fg(statusColour(standing), statusIcon(standing));
 			const [id = "", activity = "", detail = ""] = fit([one.id, tidy(currentActivity(one), cwd), detailLine(one)], width - lead.length - 2);
-			return { text: `${lead}${dot} ${theme.fg(marked ? "accent" : "toolTitle", id)}  ${theme.fg("muted", activity)}  ${theme.fg("dim", detail)}`.trimEnd(), live: true };
+			// A part cut to nothing takes no separator: two spaces before an empty colour are two columns past the room.
+			const said = [theme.fg(marked ? "accent" : "toolTitle", id), ...(activity === "" ? [] : [theme.fg("muted", activity)]), ...(detail === "" ? [] : [theme.fg("dim", detail)])];
+			return { text: `${lead}${dot} ${said.join("  ")}`, live: true };
 		});
 		return [line, ...under];
 	});
 	const summary = theme.fg(colourOf(live.summary.state), showSummary(live, width));
-	return [summary, ...windowed(body, maxRows, theme)];
+	// Each piece is cut by its length; the terminal counts columns, and pi stops on a line one column too wide.
+	return [summary, ...windowed(body, maxRows, theme)].map((line) => truncateToWidth(line, width, "…"));
 }
 
 /**

@@ -9,8 +9,8 @@
 
 import type { SubagentStatus } from "../events.ts";
 import { firstLine, scalar, truncate } from "../text.ts";
-import { compact, formatUsage } from "../usage.ts";
-import type { RunSnapshot, SubagentSnapshot } from "./picture.ts";
+import { formatUsage, showCost, showTokens } from "../usage.ts";
+import type { RunSnapshot, SubagentSnapshot, ToolCall } from "./picture.ts";
 import { treeOrder } from "./tree.ts";
 
 /** How a subagent stands: its status, with a failure outranking whatever the status says. */
@@ -91,6 +91,16 @@ export function formatToolCall(name: string, args: unknown): string {
 }
 
 /**
+ * A call as a row lists it: {@link formatToolCall}, and when it came back an
+ * error, `✗` first and pi's words after, so a call pi refused never reads as
+ * one that ran: `✗ write notes.txt · Tool write not found`.
+ */
+export function callLine(call: ToolCall): string {
+	const shown = formatToolCall(call.name, call.args);
+	return call.error === undefined ? shown : `✗ ${shown} · ${call.error}`;
+}
+
+/**
  * What a subagent is doing *right now*, in a few words.
  *
  * The last tool call while it works; its verdict once it is done. This is the
@@ -102,7 +112,7 @@ export function currentActivity(snapshot: SubagentSnapshot): string {
 	if (snapshot.status === "done") return "done";
 
 	const last = snapshot.tools.at(-1);
-	if (last) return formatToolCall(last.name, last.args);
+	if (last) return callLine(last);
 	return snapshot.status === "working" ? "thinking…" : "waiting";
 }
 
@@ -172,14 +182,10 @@ export function elapsedMs(snapshot: SubagentSnapshot, now = performance.now()): 
 	return snapshot.usage.busyMs;
 }
 
-/** `provider/model · ↑12k ↓209 · 12.4s` */
+/** `provider/model · ↑12k ↓209 · 12.4s`, the tokens once its first turn has ended. */
 export function detailLine(snapshot: SubagentSnapshot, now?: number): string {
-	const parts: string[] = [];
-	if (snapshot.model) parts.push(snapshot.model);
-	parts.push(`↑${compact(snapshot.usage.input)} ↓${compact(snapshot.usage.output)}`);
-	parts.push(`${(elapsedMs(snapshot, now) / 1000).toFixed(1)}s`);
-	if (snapshot.usage.cost > 0) parts.push(`$${snapshot.usage.cost.toFixed(4)}`);
-	return parts.join(" · ");
+	const { model, usage } = snapshot;
+	return [...(model ? [model] : []), ...showTokens(usage), `${(elapsedMs(snapshot, now) / 1000).toFixed(1)}s`, ...showCost(usage)].join(" · ");
 }
 
 /** Plain text rows, for a caller with no theme - and for tests. */

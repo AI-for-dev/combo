@@ -148,6 +148,10 @@ export type ToolCall = {
 	name: string;
 	/** Its arguments, untouched: the expanded view formats them, we only keep them. */
 	args: unknown;
+	/** pi's id for the call, when it gave one. */
+	call?: string;
+	/** What pi said when the call came back an error: refused, or failed while it ran. */
+	error?: string;
 };
 ```
 

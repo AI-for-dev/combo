@@ -26,6 +26,7 @@ export {
 } from "./picture.ts";
 export { treeOrder } from "./tree.ts";
 export {
+	callLine,
 	currentActivity,
 	detailLine,
 	elapsedMs,

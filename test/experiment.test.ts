@@ -308,6 +308,13 @@ describe("experiment", () => {
 			assert.match(experimentTable(report)[2] as string, /↑200/);
 			assert.match(experimentTable(report)[2] as string, /\| \$0\.0200 \|$/, "the mean is a display derivative");
 		});
+
+		test("a model whose provider reported no cost says so, rather than `$0.0000`", async () => {
+			const fake = fakeSpawn(() => ({ usage: { input: 100 } }));
+			const report = await experiment({ models: ["a/one"], repetitions: 1, runsDir: tmpDir(), spawn: fake.spawn, run: runChain });
+			assert.match(experimentTable(report)[2] as string, /\| not reported \|$/);
+			assert.doesNotMatch(experimentTable(report)[2] as string, /\$/);
+		});
 	});
 
 	test("the caller's listener sees the events of every cell", async () => {

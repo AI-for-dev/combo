@@ -116,6 +116,7 @@ export {
 // Formatting a snapshot. Drawing it is the caller's - see the pi extension,
 // which is the only consumer of these today.
 export {
+	callLine,
 	currentActivity,
 	detailLine,
 	formatToolCall,
