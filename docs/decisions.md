@@ -3769,9 +3769,12 @@ billed, so the adapter reads it twice and subtracts, and nothing else does.
 `snapshotUsage` went into the adapter, which took the last import of pi's
 types out of `usage.ts`. `deltaUsage` stays where it was and public.
 
-The fakes did not change in the same step: they are pi-shaped, and the tests
-wrap them in `sessionPort()`, so every test that ran through the old port runs
-through the adapter now. `createDefaultSession` hands back the port, not pi's
+The fakes moved onto the port. The test fake and the dry run's scripted
+session now script a turn as it comes back, error and per-turn usage included,
+and no longer imitate pi's cumulative counters, event shapes or failing
+`stopReason`. The pi-shaped fake survives in `test/fixtures/pi-session.ts` for
+the two places that are about pi: the adapter's tests, which hold every trap
+above, and the mirror's, which forward pi's events. `createDefaultSession` hands back the port, not pi's
 session; a caller that wants pi's session builds it and wraps it in
 `sessionPort()`, which is public for that.
 

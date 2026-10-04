@@ -84,7 +84,7 @@ describe("/step", () => {
 
 	test("a failed flow says where, and that /run resume carries it on from the step's folder", async () => {
 		const { ctx, said } = fakeCtx();
-		const { deps: injected, entries } = deps({}, [[{ stopReason: "error", text: "" }]]);
+		const { deps: injected, entries } = deps({}, [[{ error: "boom", text: "" }]]);
 
 		const step = await runStep("explore where usage is measured", ctx, injected);
 

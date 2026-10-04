@@ -46,7 +46,7 @@ describe("a parallel", () => {
 	});
 
 	test("waits for every branch when one fails, and fails `child` from it", async () => {
-		const fake = flowSpawn({ scout: [[{ stopReason: "error" }]], reviewer: [[{ submit: { fine: true }, delayMs: 20 }]] });
+		const fake = flowSpawn({ scout: [[{ error: "boom" }]], reviewer: [[{ submit: { fine: true }, delayMs: 20 }]] });
 		const events: SubagentEvent[] = [];
 		const result = await runChecked(checked(BOTH, BOTH_SECTIONS), "x", { spawn: fake.spawn, onEvent: (event) => events.push(event) });
 		assert.deepEqual(!result.ok && [result.error, result.path], [{ kind: "provider", message: "boom" }, "both/left/look"]);
@@ -55,7 +55,7 @@ describe("a parallel", () => {
 	});
 
 	test("with `on-fail: continue`, ends `ok: true` and keeps its failed branch", async () => {
-		const fake = flowSpawn({ scout: [[{ stopReason: "error" }]], reviewer: [[{ submit: { fine: true } }]], synthesiser: [[{ text: "carried on" }]] });
+		const fake = flowSpawn({ scout: [[{ error: "boom" }]], reviewer: [[{ submit: { fine: true } }]], synthesiser: [[{ text: "carried on" }]] });
 		const flow = checked(`${BOTH}\n    on-fail: continue\n  - id: after\n    agent: synthesiser\n    reads: [both]`, { ...BOTH_SECTIONS, after: "After." });
 		const events: SubagentEvent[] = [];
 		const result = await runChecked(flow, "x", { spawn: fake.spawn, onEvent: (event) => events.push(event) });
@@ -64,14 +64,14 @@ describe("a parallel", () => {
 	});
 
 	test("with `fail-fast`, cuts the branches in flight, which end `cancelled`", async () => {
-		const fake = flowSpawn({ scout: [[{ stopReason: "error", delayMs: 10 }]], reviewer: [[{ delayMs: 5000 }]] });
+		const fake = flowSpawn({ scout: [[{ error: "boom", delayMs: 10 }]], reviewer: [[{ delayMs: 5000 }]] });
 		const events: SubagentEvent[] = [];
 		const started = performance.now();
 		const result = await runChecked(checked(`${BOTH}\n    fail-fast: true`, BOTH_SECTIONS), "x", { spawn: fake.spawn, onEvent: (event) => events.push(event) });
 		assert.ok(performance.now() - started < 2000, "the slow branch was really cut short");
 		assert.deepEqual(!result.ok && [result.error.kind, result.path], ["provider", "both/left/look"]);
 		assert.deepEqual(endOf(events, "both/right/judge").error, { kind: "cancelled", message: "cut by `fail-fast`: both/left/look failed" });
-		assert.ok(fake.created.every((session) => session.disposed));
+		assert.ok(fake.created.every((session) => session.closed));
 	});
 
 	test("gives each branch a memory scope of its own, closed when the branch ends", async () => {
@@ -82,7 +82,7 @@ describe("a parallel", () => {
 		const fake = flowSpawn({ scout: [[{ text: "1" }, { text: "2" }], [{ text: "3" }]] });
 		const result = await runChecked(flow, "x", { spawn: fake.spawn });
 		assert.ok(result.ok);
-		assert.deepEqual(fake.created.map((session) => [session.prompts.length, session.disposed]), [[2, true], [1, true]]);
+		assert.deepEqual(fake.created.map((session) => [session.prompts.length, session.closed]), [[2, true], [1, true]]);
 	});
 
 	test("stopped, ends `stopped` with every subagent closed", async () => {
@@ -92,7 +92,7 @@ describe("a parallel", () => {
 		setTimeout(() => stopping.all(), 20);
 		const result = await running;
 		assert.deepEqual(!result.ok && result.error.kind, "stopped");
-		assert.deepEqual(fake.created.map((session) => session.disposed), [true, true]);
+		assert.deepEqual(fake.created.map((session) => session.closed), [true, true]);
 	});
 });
 
@@ -113,10 +113,10 @@ describe("a map", () => {
 	test("runs its body once per item, numbered from 1, one at a time, and hands on a list in item order", async () => {
 		const fake = flowSpawn([[{ submit: { tasks: ["a", "b"] } }], [{ text: "did a" }], [{ text: "did b" }]]);
 		const events: SubagentEvent[] = [];
-		let disposedWhenSecondSpawned: boolean | undefined;
+		let closedWhenSecondSpawned: boolean | undefined;
 		const result = await runChecked(checked(WORK, WORK_SECTIONS), "x", {
 			spawn: async (agent, options) => {
-				if (fake.created.length === 2) disposedWhenSecondSpawned = fake.created[1]?.disposed;
+				if (fake.created.length === 2) closedWhenSecondSpawned = fake.created[1]?.closed;
 				return fake.spawn(agent, options);
 			},
 			onEvent: (event) => events.push(event),
@@ -127,7 +127,7 @@ describe("a map", () => {
 		]);
 		assert.deepEqual(ends(events), ["plan true", "work[1]/act true", "work[2]/act true", "work true"]);
 		assert.match(fake.created[2]?.prompts[0] ?? "", /^Act\.\n\n## item\n\nb\n/);
-		assert.equal(disposedWhenSecondSpawned, true, "`concurrency` defaults to 1");
+		assert.equal(closedWhenSecondSpawned, true, "`concurrency` defaults to 1");
 	});
 
 	test("runs `concurrency` items at once", async () => {
@@ -146,14 +146,14 @@ describe("a map", () => {
 	});
 
 	test("keeps a failed item beside the others, and fails from it", async () => {
-		const fake = flowSpawn([[{ submit: { tasks: ["a", "b"] } }], [{ stopReason: "error" }], [{ text: "did b" }]]);
+		const fake = flowSpawn([[{ submit: { tasks: ["a", "b"] } }], [{ error: "boom" }], [{ text: "did b" }]]);
 		const result = await runChecked(checked(WORK, WORK_SECTIONS), "x", { spawn: fake.spawn });
 		assert.deepEqual(!result.ok && [result.error.kind, result.path], ["provider", "work[1]/act"]);
 		assert.equal(fake.created.length, 3, "the second item still ran");
 	});
 
 	test("with `fail-fast`, skips the items not started, which end `cancelled` in its output", async () => {
-		const fake = flowSpawn([[{ submit: { tasks: ["a", "b", "c"] } }], [{ stopReason: "error" }]]);
+		const fake = flowSpawn([[{ submit: { tasks: ["a", "b", "c"] } }], [{ error: "boom" }]]);
 		const events: SubagentEvent[] = [];
 		const result = await runChecked(checked(`${WORK}\n    fail-fast: true\n    on-fail: continue`, WORK_SECTIONS), "x", { spawn: fake.spawn, onEvent: (event) => events.push(event) });
 		assert.ok(result.ok);
@@ -174,7 +174,7 @@ describe("a map", () => {
 			{ item: "a", ok: true, output: "a2" },
 			{ item: "b", ok: true, output: "b2" },
 		]);
-		assert.deepEqual(fake.created.map((session) => [session.prompts.length, session.disposed]), [[2, true], [2, true]]);
+		assert.deepEqual(fake.created.map((session) => [session.prompts.length, session.closed]), [[2, true], [2, true]]);
 	});
 
 	test("lets items running at once share an outer scope's subagent, one turn at a time", async () => {
@@ -182,6 +182,6 @@ describe("a map", () => {
 		const fake = flowSpawn([[{ text: "a", delayMs: 10 }, { text: "b", delayMs: 10 }]]);
 		const result = await runChecked(flow, "x", { spawn: fake.spawn });
 		assert.ok(result.ok, JSON.stringify(result));
-		assert.deepEqual([fake.created.length, fake.created[0]?.prompts.length, fake.created[0]?.disposed], [1, 2, true]);
+		assert.deepEqual([fake.created.length, fake.created[0]?.prompts.length, fake.created[0]?.closed], [1, 2, true]);
 	});
 });

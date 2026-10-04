@@ -1,74 +1,98 @@
 /**
  * A scriptable `SessionPort`. This is what makes the whole suite run offline.
  *
- * It reproduces the behaviours of pi that are easy to get wrong:
- * `getSessionStats()` is **cumulative**, and `messages` **grows** with every
- * turn, until a compaction rebuilds it shorter in the middle of one. A fake
- * that returned per-turn stats would hide the very bug the delta arithmetic
- * exists to prevent, and one that only ever grew would hide a turn that reads
- * its answer by position. Each message it adds ends with a `message_end`, as
- * pi's do; the summary a compaction writes does not.
+ * It plays turns as the port hands them back: each with its own messages, its
+ * answer, its error and what it cost, so a script says what one turn did and
+ * nothing adds it up. What pi does underneath, cumulative counters and
+ * compaction included, is `sessionPort()`'s, and `pi-session.ts` stands in for
+ * pi there. Its turn really ends when the signal fires: a fake that slept
+ * through an abort would let a broken timeout look like a working one.
  */
 
-import type { SessionStats } from "@earendil-works/pi-coding-agent";
 import type { Agent } from "../../src/agent.ts";
-import { sessionPort, type AgentMessage, type CreateSession, type CreateSessionOptions, type PiSession, type SessionEvent } from "../../src/session.ts";
+import type { AgentMessage, CreateSession, CreateSessionOptions, SessionPort, TurnControl } from "../../src/session.ts";
+import { emptyUsage } from "../../src/usage.ts";
 
 export type Turn = {
 	/** Assistant text for this turn. */
 	text?: string;
-	/** Tokens *added* by this turn - the fake accumulates them itself. */
+	/** Tokens this turn cost. */
 	tokens?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number };
 	cost?: number;
+	/** The context level the turn leaves. The last one given stands until another is. */
 	contextTokens?: number;
-	/** Makes `prompt()` reject. */
-	throws?: string;
-	/** Makes the turn end on a `stopReason` other than `stop`, without throwing: `length` is pi's output limit. */
-	stopReason?: "error" | "aborted" | "length";
-	/** Milliseconds spent in `prompt()`, to observe concurrency. */
+	/** Fails the turn with this error, as a session reports a turn that threw or ended on a failing `stopReason`. Its tokens still count. */
+	error?: string;
+	/** Milliseconds the turn takes, cut short by the signal. */
 	delayMs?: number;
-	/** Tool calls emitted during the turn. */
+	/** Tool calls streamed during the turn. */
 	tools?: { name: string; args?: unknown }[];
-	/** Compacts before the answer, as pi does mid-run: `messages` comes back shorter, a summary first. */
-	compacts?: boolean;
 };
 
-export type FakeSession = PiSession & {
+export type FakeSession = SessionPort & {
+	/** What each turn was asked, in order. */
 	readonly prompts: string[];
 	/** What was steered into it, in order. */
 	readonly steers: string[];
-	readonly disposed: boolean;
+	readonly closed: boolean;
+	/** How many turns the signal cut. */
 	readonly aborted: number;
 };
 
-/** Builds a session that replays `turns`, in order. */
+/** Builds a session that plays `turns`, in order. */
 export function fakeSession(turns: Turn[] = []): FakeSession {
-	const listeners = new Set<(event: SessionEvent) => void>();
-	const messages: AgentMessage[] = [];
+	const transcript: AgentMessage[] = [];
 	const prompts: string[] = [];
 	const steers: string[] = [];
-	let streaming = false;
-
-	const total = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
-	let contextTokens: number | undefined;
 	let index = 0;
-	let disposed = false;
+	let closed = false;
 	let aborted = 0;
-	let abortCurrent = false;
-	/** Resolves the in-flight delay, so `abort()` really cuts a turn short. */
-	let interrupt: (() => void) | undefined;
+	let contextTokens: number | undefined;
+	/** Adds a message to the turn in flight. Absent between turns. */
+	let inTurn: ((message: AgentMessage) => void) | undefined;
 
-	const emit = (event: SessionEvent) => {
-		for (const listener of listeners) listener(event);
-	};
-	const add = (message: AgentMessage) => {
-		messages.push(message);
-		emit({ type: "message_end", message });
-	};
+	async function ask(text: string, { signal, onStreamed }: TurnControl) {
+		prompts.push(text);
+		const turn: Turn = turns[index++] ?? {};
+		const messages: AgentMessage[] = [];
+		const add = (message: AgentMessage) => {
+			messages.push(message);
+			transcript.push(message);
+		};
+		const cut = () => aborted++;
+		signal.addEventListener("abort", cut, { once: true });
+		inTurn = add;
+		try {
+			add({ role: "user", content: text } as AgentMessage);
+			if (turn.delayMs) await sleep(turn.delayMs, signal);
+			for (const tool of turn.tools ?? []) onStreamed?.({ type: "tool", name: tool.name, args: tool.args });
+			if (turn.text) onStreamed?.({ type: "text", delta: turn.text });
+			add({ role: "assistant", content: [{ type: "text", text: turn.text ?? "" }] } as unknown as AgentMessage);
+		} finally {
+			inTurn = undefined;
+			signal.removeEventListener("abort", cut);
+		}
+		if (turn.contextTokens !== undefined) contextTokens = turn.contextTokens;
+		return {
+			messages,
+			text: turn.text ?? "",
+			error: signal.aborted ? "aborted" : turn.error,
+			usage: { ...emptyUsage(), ...turn.tokens, cost: turn.cost ?? 0, contextTokens },
+		};
+	}
 
-	const session: FakeSession = {
-		get messages() {
-			return messages;
+	return {
+		ask,
+		async steer(text) {
+			if (!inTurn) return "idle";
+			steers.push(text);
+			inTurn({ role: "user", content: text } as AgentMessage);
+			return "queued";
+		},
+		watch: () => () => undefined,
+		transcript: () => transcript,
+		close() {
+			closed = true;
 		},
 		get prompts() {
 			return prompts;
@@ -76,115 +100,26 @@ export function fakeSession(turns: Turn[] = []): FakeSession {
 		get steers() {
 			return steers;
 		},
-		get isStreaming() {
-			return streaming;
-		},
-
-		async steer(text) {
-			steers.push(text);
-			add({ role: "user", content: text } as AgentMessage);
-		},
-		get disposed() {
-			return disposed;
+		get closed() {
+			return closed;
 		},
 		get aborted() {
 			return aborted;
 		},
-
-		subscribe(listener) {
-			listeners.add(listener);
-			return () => listeners.delete(listener);
-		},
-
-		async prompt(text) {
-			prompts.push(text);
-			streaming = true;
-			try {
-				await runTurn(text);
-			} finally {
-				streaming = false;
-			}
-		},
-
-		getSessionStats(): SessionStats {
-			return {
-				sessionFile: undefined,
-				sessionId: "fake",
-				userMessages: prompts.length,
-				assistantMessages: prompts.length,
-				toolCalls: 0,
-				toolResults: 0,
-				totalMessages: messages.length,
-				tokens: { ...total, total: total.input + total.output },
-				cost: total.cost,
-				contextUsage: contextTokens === undefined ? undefined : { tokens: contextTokens, contextWindow: 200_000, percent: 0 },
-			};
-		},
-
-		async abort() {
-			aborted++;
-			abortCurrent = true;
-			interrupt?.();
-		},
-
-		dispose() {
-			disposed = true;
-			listeners.clear();
-		},
 	};
+}
 
-	/** One scripted turn. Apart from `prompt` so `isStreaming` brackets all of it. */
-	async function runTurn(text: string) {
-		const turn: Turn = turns[index++] ?? {};
-
-		add({ role: "user", content: text } as AgentMessage);
-
-		// A real `abort()` cuts the turn short. A fake that slept through it
-		// would let a broken timeout look like a working one.
-		if (turn.delayMs) {
-			await new Promise<void>((resolve) => {
-				const timer = setTimeout(resolve, turn.delayMs);
-				interrupt = () => {
-					clearTimeout(timer);
-					resolve();
-				};
-			});
-			interrupt = undefined;
-		}
-
-		for (const tool of turn.tools ?? []) {
-			emit({ type: "tool_execution_start", toolName: tool.name, args: tool.args });
-		}
-		if (turn.text) {
-			emit({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: turn.text } });
-		}
-
-		// Tokens are billed even when the turn goes on to fail.
-		total.input += turn.tokens?.input ?? 0;
-		total.output += turn.tokens?.output ?? 0;
-		total.cacheRead += turn.tokens?.cacheRead ?? 0;
-		total.cacheWrite += turn.tokens?.cacheWrite ?? 0;
-		total.cost += turn.cost ?? 0;
-		if (turn.contextTokens !== undefined) contextTokens = turn.contextTokens;
-
-		if (turn.throws) throw new Error(turn.throws);
-
-		if (turn.compacts) {
-			messages.splice(0, messages.length, { role: "compactionSummary", summary: "what came before" } as unknown as AgentMessage);
-		}
-
-		const stopReason = abortCurrent ? "aborted" : (turn.stopReason ?? "stop");
-		abortCurrent = false;
-		add({
-			role: "assistant",
-			content: [{ type: "text", text: turn.text ?? "" }],
-			stopReason,
-			errorMessage: stopReason === "error" ? "boom" : undefined,
-		} as unknown as AgentMessage);
-		emit({ type: "turn_end" });
-	}
-
-	return session;
+/** Waits `ms`, or until `signal` fires. */
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+	return new Promise((resolve) => {
+		const done = () => {
+			clearTimeout(timer);
+			signal.removeEventListener("abort", done);
+			resolve();
+		};
+		const timer = setTimeout(done, ms);
+		signal.addEventListener("abort", done, { once: true });
+	});
 }
 
 /** A `createSession` that hands out fakes and records them, in spawn order. */
@@ -199,7 +134,7 @@ export function fakeSessionFactory(turnsPerSpawn: Turn[][] | Turn[] = []) {
 		const turns = (isNested ? (turnsPerSpawn as Turn[][])[created.length] : (turnsPerSpawn as Turn[])) ?? [];
 		const session = fakeSession(turns);
 		created.push(session);
-		return sessionPort(session);
+		return session;
 	};
 
 	return { createSession, created, requested };

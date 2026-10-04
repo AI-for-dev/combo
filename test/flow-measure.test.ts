@@ -164,7 +164,7 @@ describe("a measured flow run", () => {
 		fs.writeFileSync(path.join(runDir, JOURNAL_FILE), journal.slice(0, cut).map((entry) => `${JSON.stringify(entry)}\n`).join(""));
 
 		// Life 2 fails at `last`; life 3 replays it.
-		for (const turns of [[[said("more again")], [said("down", { stopReason: "error" })]], [[said("last again")]]]) {
+		for (const turns of [[[said("more again")], [said("down", { error: "boom" })]], [[said("last again")]]]) {
 			const life = measuredRun({ dir: runDir, record: true, mainSession: main });
 			await resumeFlow(runDir, { ports: {}, somebodyThere: false, spawn: flowSpawn(turns).spawn, onEvent: life.onEvent });
 			life.finish();

@@ -76,7 +76,7 @@ describe("subagent, flow mode", () => {
 	});
 
 	test("a failed run gives the path /run resume takes, and where it would pick up", async () => {
-		const { run } = call({ flow: "two", task: "q" }, [answered("found"), [{ stopReason: "error", text: "" }]]);
+		const { run } = call({ flow: "two", task: "q" }, [answered("found"), [{ error: "boom", text: "" }]]);
 		assert.match((await run()).content[0]?.text ?? "", /^failed at answer: provider: .* · runs\/run-1 · \/run resume runs\/run-1 picks it up at answer$/);
 	});
 

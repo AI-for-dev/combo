@@ -55,10 +55,20 @@ network, no disk and no `~/.pi`.
 No network calls, ever. Workflows are tested with an injected `spawn`, which is
 why `spawn` is a parameter rather than a hard import inside the combinators.
 
-The fake session stands in for pi's `AgentSession`, and the tests wrap it in
-`sessionPort()`, the adapter a real session goes through. It reproduces the pi
-behaviours that are easy to get wrong, because otherwise the tests pass on broken
-code:
+Two fakes stand at the two sides of `sessionPort()`.
+
+`test/fixtures/fake-session.ts` is a `SessionPort`: a script says what each turn
+answered, how it failed and what it cost, and the fake hands that back as the
+turn. Subagents, workflows and flows are tested on it. Its turn genuinely
+**ends when the signal fires**: a fake that slept through its own abort made the
+timeout tests pass while the turn still ran for its full five seconds. Assert on
+elapsed time, not just on the error message: a correct label on a still-hanging
+turn is not a guard.
+
+`test/fixtures/pi-session.ts` stands in for pi's `AgentSession`, for the tests of
+the adapter (`test/session-port.test.ts`) and of the mirror, which forwards pi's
+events. It reproduces the pi behaviours that are easy to get wrong, because
+otherwise the tests pass on broken code:
 
 - `getSessionStats()` is **cumulative**. A fake returning per-turn stats would
   hide the very bug the delta arithmetic exists to prevent.
@@ -66,10 +76,7 @@ code:
   rebuilds it shorter, as pi does when it compacts mid-run. Every message it
   adds ends with a `message_end`, and the summary does not: a turn is read off
   those events, and a fake that only grew let a read by position pass.
-- `abort()` genuinely **cuts the in-flight turn short**. A fake that slept
-  through its own abort made the timeout tests pass while the turn still ran for
-  its full five seconds. Assert on elapsed time, not just on the error message:
-  a correct label on a still-hanging turn is not a guard.
+- `abort()` genuinely **cuts the in-flight turn short**, like the port fake.
 
 Every new workflow primitive arrives with a composition test, a failure test, a
 cancellation test, and a **lifetime test**.
