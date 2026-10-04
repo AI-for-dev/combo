@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.3.0](https://github.com/AI-for-dev/combo/compare/v0.2.0...v0.3.0) (2026-10-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* **extension:** select a subagent with shift+up/down, and rebind the run keys in keybindings.json ([#202](https://github.com/AI-for-dev/combo/issues/202))
+* **deps:** require pi 1.0, and drop the shims for older pi ([#197](https://github.com/AI-for-dev/combo/issues/197))
+
+### Features
+
+* **extension:** select a subagent with shift+up/down, and rebind the run keys in keybindings.json ([#202](https://github.com/AI-for-dev/combo/issues/202)) ([f3ac2a2](https://github.com/AI-for-dev/combo/commit/f3ac2a276cdcbaff91415a5126d7d4aaa22ef0cb))
+
+
+### Bug Fixes
+
+* **session:** give each subagent its own settings, with cache warming off ([#201](https://github.com/AI-for-dev/combo/issues/201)) ([0dd6741](https://github.com/AI-for-dev/combo/commit/0dd674116260aaea5ed4f1e4eed9fa27bd08aa3c))
+* **session:** read a subagent's shellPath from the user's settings only ([#203](https://github.com/AI-for-dev/combo/issues/203)) ([7d1755c](https://github.com/AI-for-dev/combo/commit/7d1755ccff1a2bdf97230ad6745ef3268713bc78))
+* **session:** refuse a model pi only accepts as a custom id ([#200](https://github.com/AI-for-dev/combo/issues/200)) ([67aaa53](https://github.com/AI-for-dev/combo/commit/67aaa538e4491a804a2b607e293554dde699c6a9))
+* **subagent:** read a turn off the messages pi ends, not by position ([#199](https://github.com/AI-for-dev/combo/issues/199)) ([6069358](https://github.com/AI-for-dev/combo/commit/60693585bd59ea034cc1128dd9a62e90189252de))
+
+
+### Build System
+
+* **deps:** require pi 1.0, and drop the shims for older pi ([#197](https://github.com/AI-for-dev/combo/issues/197)) ([419ee5c](https://github.com/AI-for-dev/combo/commit/419ee5c5d44e9db85d00c767856a17c2c4788e03))
+
 ## [0.2.0](https://github.com/AI-for-dev/combo/compare/v0.1.1...v0.2.0) (2026-09-27)
 
 
