@@ -166,6 +166,23 @@ describe("ask", () => {
 		assert.equal(result.error, "boom");
 	});
 
+	test("a turn that compacts mid-run still reads its own answer, and only its own messages", async () => {
+		// pi rebuilds `messages` when it compacts, shorter than where the turn began.
+		const { subagent } = await spawnWith([{ text: "one" }, { text: "two" }, { text: "three", compacts: true }]);
+		await subagent.ask("a");
+		await subagent.ask("b");
+
+		const result = await subagent.ask("c");
+
+		assert.equal(result.ok, true);
+		assert.equal(result.output, "three", "an empty answer read as a success is the bug");
+		assert.deepEqual(
+			result.messages.map((m) => (m as { role: string }).role),
+			["user", "assistant"],
+			"the summary pi wrote is not something this turn said",
+		);
+	});
+
 	test("a turn cut by the output limit is a failure, with or without text", async () => {
 		const { subagent } = await spawnWith([{ stopReason: "length" }, { text: "half an answ", stopReason: "length" }]);
 		for (const result of [await subagent.ask("a"), await subagent.ask("b")]) {

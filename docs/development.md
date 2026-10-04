@@ -59,7 +59,10 @@ otherwise the tests pass on broken code:
 
 - `getSessionStats()` is **cumulative**. A fake returning per-turn stats would
   hide the very bug the delta arithmetic exists to prevent.
-- `messages` **grows** with every turn.
+- `messages` **grows** with every turn, until a turn scripted with `compacts`
+  rebuilds it shorter, as pi does when it compacts mid-run. Every message it
+  adds ends with a `message_end`, and the summary does not: a turn is read off
+  those events, and a fake that only grew let a read by position pass.
 - `abort()` genuinely **cuts the in-flight turn short**. A fake that slept
   through its own abort made the timeout tests pass while the turn still ran for
   its full five seconds. Assert on elapsed time, not just on the error message:

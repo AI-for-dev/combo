@@ -167,7 +167,11 @@ export type SessionPort = {
 	exportToHtml?(outputPath?: string): Promise<string>;
 	/** Writes the current branch as replayable JSONL. **Before `dispose()`.** */
 	exportToJsonl?(outputPath?: string): string;
-	/** The transcript so far. It **grows** with every turn. */
+	/**
+	 * What the model is shown next. It grows with every turn, until pi compacts:
+	 * then it is rebuilt shorter, mid-run included, so a position read before a
+	 * turn means nothing after it. A turn's own messages come from {@link ended}.
+	 */
 	readonly messages: AgentMessage[];
 	/**
 	 * The model actually in use, once pi has resolved it.
