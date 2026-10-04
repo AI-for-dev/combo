@@ -77,7 +77,7 @@ reviewer was thinking:
     ○ deliver#1/tests · check .pi/checks/test.sh · timeout 10m · ≤ 20m
     ○ deliver#1/audit · agent auditor (.pi/agents/auditor.md) · reads input, work, tests, diff, deliver.ledger · verd…
 ○ report · agent synthesiser (.pi/agents/synthesiser.md) · reads input, diff, deliver.output.last.work, deliver.outpu…
-esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
+escape stops everything · shift+up/shift+down selects · ctrl+delete stops the selected one
 ```
 
 The reviewer's line has no tokens yet: they are read when its turn ends. The

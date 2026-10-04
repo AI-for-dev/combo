@@ -106,7 +106,7 @@ While it runs, a dot sits above the prompt:
 ```
 ● scout#1  read src/subagent.ts
   provider/model · 7.8s
-esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
+escape stops everything · shift+up/shift+down selects · ctrl+delete stops the selected one
 ```
 
 `●` while it works and the tool it is calling right now; a dimmed line

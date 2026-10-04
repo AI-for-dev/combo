@@ -87,7 +87,7 @@ describe("subagent, flow mode", () => {
 		assert.equal(cards.length, 1);
 		assert.match(cards[0] ?? "", /Go on\?/);
 		assert.match(behind[0] ?? "", /sure/, "the plan is still drawn behind the card");
-		assert.doesNotMatch(behind[0] ?? "", /esc stops everything/, "the card holds esc, and the widget does not offer it");
+		assert.doesNotMatch(behind[0] ?? "", /stops everything/, "the card holds esc, and the widget does not offer it");
 		assert.match(created[0]?.prompts[0] ?? "", /## sure\n\n```json\n\{\n\s*"yes": true\n\}/);
 		assert.match(output.content[0]?.text ?? "", /^Going on\.\n\nok · runs\/run-1$/);
 	});

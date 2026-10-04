@@ -36,7 +36,7 @@ Two consequences you have already seen and may not have read:
 ## Stop one
 
 `/run explore` puts three scouts on one question. While they work, the line
-under the plan says what the keys do. `ctrl+↑↓` move a `▸` through the
+under the plan says what the keys do. `shift+↑↓` move a `▸` through the
 subagents still working:
 
 ```
@@ -52,7 +52,7 @@ subagents still working:
     ● look[3]/find
       ● scout#3  read src/subagent.ts  provider/model · 13.4s
 ○ answer · agent synthesiser (.pi/agents/synthesiser.md) · reads input, look · retry 1 · timeout 30m by default · ≤ 2…
-esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
+escape stops everything · shift+up/shift+down selects · ctrl+delete stops the selected one
 ```
 
 `ctrl+del` stops the one it points at:
@@ -70,7 +70,7 @@ stop: scout#1 stopped - the other subagents are untouched
     ● look[3]/find
       ● scout#3  read src/subagent.ts  provider/model · 15.8s
 ○ answer · agent synthesiser (.pi/agents/synthesiser.md) · reads input, look · retry 1 · timeout 30m by default · ≤ 2…
-esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
+escape stops everything · shift+up/shift+down selects · ctrl+delete stops the selected one
 ```
 
 The stopped visit has a bill: its turn ended, by the stop, so pi's counters

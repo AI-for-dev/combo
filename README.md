@@ -173,7 +173,7 @@ coverage of what `--claim` names, or on the members voting the same way with
 While the subagents work, a dot per subagent sits above the prompt with its
 model, tokens and a clock counting up live; the tool row below holds the record.
 That list is also how they are called off: `esc` stops every one of them,
-`ctrl+↑↓` picks one and `ctrl+del` stops it, and `/stop scout#2` names it
+`shift+↑↓` picks one and `ctrl+del` stops it, and `/stop scout#2` names it
 outright. What ran up to that point is kept.
 
 Or walk the chain yourself, one command at a time, with this session kept out of

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, test } from "node:test";
-import { paintWidget } from "../extension/ui/run.ts";
+import { KeybindingsManager, setKeybindings, TUI_KEYBINDINGS, visibleWidth } from "@earendil-works/pi-tui";
+import { hint, paintWidget } from "../extension/ui/run.ts";
 import type { KeyUi } from "../extension/pi.ts";
 import { forgetRun, moveSelection, stopCommand, stoppable, watchRun, type LiveRun } from "../extension/commands/stop.ts";
 import { isAsking, whileAsking } from "../extension/ui/asking.ts";
@@ -74,8 +75,8 @@ function fakeKeyUi() {
 const notes: { message: string; type?: string }[] = [];
 const ctx = { ui: { notify: (message: string, type?: "info" | "warning" | "error") => void notes.push({ message, type }) } };
 const ESCAPE = "\x1b";
-const CTRL_DOWN = "\x1b[1;5B";
-const CTRL_UP = "\x1b[1;5A";
+const SHIFT_DOWN = "\x1b[1;2B";
+const SHIFT_UP = "\x1b[1;2A";
 const CTRL_DELETE = "\x1b[3;5~";
 
 /** Whatever a test left watching would act on the next one's keys. */
@@ -90,6 +91,7 @@ function open(subagents: SubagentSnapshot[], ui?: KeyUi) {
 afterEach(() => {
 	for (const run of opened.splice(0)) forgetRun(run);
 	notes.length = 0;
+	setKeybindings(new KeybindingsManager(TUI_KEYBINDINGS));
 });
 
 describe("stoppable", () => {
@@ -132,17 +134,17 @@ describe("the keys a live run listens to", () => {
 		assert.equal(isAsking(), false);
 	});
 
-	test("ctrl+↓ and ctrl+↑ walk the running subagents, and wrap", () => {
+	test("shift+↓ and shift+↑ walk the running subagents, and wrap", () => {
 		const keys = fakeKeyUi();
 		const fake = open([one("scout#1"), one("scout#2"), one("scout#3", "done")], keys.ui);
 
-		assert.equal(keys.press(CTRL_DOWN)?.consume, true, "a selection key is ours, so it never reaches the editor");
+		assert.equal(keys.press(SHIFT_DOWN)?.consume, true, "a selection key is ours, so it never reaches the editor");
 		assert.equal(fake.run.selected, "scout#1");
-		keys.press(CTRL_DOWN);
+		keys.press(SHIFT_DOWN);
 		assert.equal(fake.run.selected, "scout#2");
-		keys.press(CTRL_DOWN);
+		keys.press(SHIFT_DOWN);
 		assert.equal(fake.run.selected, "scout#1", "a finished subagent is skipped, and the list wraps");
-		keys.press(CTRL_UP);
+		keys.press(SHIFT_UP);
 		assert.equal(fake.run.selected, "scout#2");
 		assert.ok(fake.repaints >= 4, "a moved selection is drawn at once, not at the next tick");
 	});
@@ -153,7 +155,7 @@ describe("the keys a live run listens to", () => {
 		keys.ui.notify = (message) => void said.push(message);
 		const fake = open([one("scout#1"), one("scout#2")], keys.ui);
 
-		keys.press(CTRL_DOWN);
+		keys.press(SHIFT_DOWN);
 		assert.equal(keys.press(CTRL_DELETE)?.consume, true);
 
 		assert.deepEqual(fake.stopped, ["scout#1"]);
@@ -167,6 +169,26 @@ describe("the keys a live run listens to", () => {
 		assert.equal(keys.press("a"), undefined);
 		assert.equal(keys.press("\x1b[A"), undefined, "a plain arrow still belongs to the editor");
 		assert.equal(fake.run.selected, undefined);
+	});
+
+	test("the release a terminal reports after a press moves nothing", () => {
+		const keys = fakeKeyUi();
+		const fake = open([one("scout#1"), one("scout#2")], keys.ui);
+
+		keys.press("\x1b[1;2:1B");
+		keys.press("\x1b[1;2:3B");
+
+		assert.equal(fake.run.selected, "scout#1", "one press, one step");
+	});
+
+	test("a key rebound in pi's keybindings.json is the one listened to", () => {
+		setKeybindings(new KeybindingsManager(TUI_KEYBINDINGS, { "combo.subagent.next": "alt+j" }));
+		const keys = fakeKeyUi();
+		const fake = open([one("scout#1")], keys.ui);
+
+		assert.equal(keys.press(SHIFT_DOWN), undefined, "the default goes when an override replaces it");
+		assert.equal(keys.press("\x1bj")?.consume, true);
+		assert.equal(fake.run.selected, "scout#1");
 	});
 
 	test("nothing is listened to outside a run", () => {
@@ -187,7 +209,7 @@ describe("the keys a live run listens to", () => {
 		const second = open([one("writer#1")], keys.ui);
 
 		keys.press(ESCAPE);
-		keys.press(CTRL_DOWN);
+		keys.press(SHIFT_DOWN);
 
 		assert.equal(first.all, 1);
 		assert.equal(second.all, 1);
@@ -228,6 +250,16 @@ describe("/stop", () => {
 
 		assert.deepEqual(fake.stopped, []);
 		assert.match(said, /scout#1, scout#2/);
+	});
+
+	test("says the keys actually bound", () => {
+		setKeybindings(new KeybindingsManager(TUI_KEYBINDINGS, { "combo.subagent.previous": "alt+k", "combo.subagent.next": "alt+j", "combo.run.stop": "ctrl+x" }));
+		open([one("scout#1"), one("scout#2")]);
+
+		const said = stopCommand("", ctx);
+
+		assert.match(said, /alt\+k\/alt\+j picks one/);
+		assert.match(said, /ctrl\+x stops the run/);
 	});
 
 	test("an id names one directly, whichever run it belongs to", () => {
@@ -289,7 +321,21 @@ describe("the widget while a run can be stopped", () => {
 		const running = paintWidget(snapshotFrom([one("scout#1")]), plain);
 		const over = paintWidget(snapshotFrom([one("scout#1", "done")]), plain);
 
-		assert.match(running.at(-1) as string, /esc stops everything/);
-		assert.ok(!(over.at(-1) as string).includes("esc"), "a finished run leaves no advice above the prompt");
+		assert.equal(running.at(-1), "escape stops everything · shift+up/shift+down selects · ctrl+delete stops the selected one");
+		assert.ok(!(over.at(-1) as string).includes("escape"), "a finished run leaves no advice above the prompt");
+	});
+
+	test("the keys spelled out are the ones bound, and an unbound one is not offered", () => {
+		setKeybindings(new KeybindingsManager(TUI_KEYBINDINGS, { "combo.subagent.next": "alt+j", "combo.subagent.stop": [] }));
+
+		const running = paintWidget(snapshotFrom([one("scout#1")]), plain);
+
+		assert.equal(running.at(-1), "escape stops everything · shift+up/alt+j selects");
+	});
+
+	test("too narrow for one line, each key goes on its own, never cut from what it does", () => {
+		assert.equal(hint(true, plain, 90).length, 1);
+		assert.deepEqual(hint(true, plain, 40), ["escape stops everything", "shift+up/shift+down selects", "ctrl+delete stops the selected one"]);
+		for (const line of hint(true, plain, 12)) assert.ok(visibleWidth(line) <= 12, line);
 	});
 });

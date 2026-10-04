@@ -138,7 +138,7 @@ board. Coordination came out of work that could not be done.
 /swarm --members 3 --claim src/reporters/console.ts,src/reporters/silent.ts,src/reporters/record.ts --hold 1 describe each file you take, in two sentences, and post a result naming it
 ```
 
-The members appear above the prompt while they work, `ctrl+↑↓` walks them and
+The members appear above the prompt while they work, `shift+↑↓` walks them and
 `ctrl+del` stops the selected one, `esc` stops all of them. What comes back is a
 **step of the chain**, drawn in the transcript and kept out of the model's
 context: a board pasted into a session would turn the window into an

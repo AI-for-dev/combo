@@ -81,7 +81,7 @@ The flow's plan appears above the prompt at once, and fills as it goes:
     ● look[3]/find
       ● scout#3  read docs/tutorials/03-keep-the-session-out.md  provider/model · 19.1s
 ○ answer · agent synthesiser (.pi/agents/synthesiser.md) · reads input, look · retry 1 · timeout 30m by default · ≤ 2…
-esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
+escape stops everything · shift+up/shift+down selects · ctrl+delete stops the selected one
 ```
 
 `look[1]` has finished and folded to one line, with its tokens. The two scouts

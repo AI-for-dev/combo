@@ -157,7 +157,7 @@ and what a tree costs in [Measurements](measurements.md).
 | `/swarm [--members <n>] [--claim a,b] [--hold <n>] [--until agree] [--rounds <n>] [--agent <name>] [--model <pattern>] <goal>` | Several copies of one agent on one job, with a board between them. Finished by coverage of what `--claim` names, or by `--until agree` when they all vote the same. Drawn as a step of the chain, like `/step`. |
 | `/chain`, `/chain reset` | The steps walked so far; or drop them and start a new chain. |
 | `/quote [id]` | Put one step of the chain into the conversation, attributed. |
-| `/stop [<id>\|all]` | Stops the selected subagent, one named by id, or the whole run. `esc` and `ctrl+del` do the same from the keyboard. |
+| `/stop [<id>\|all]` | Stops the selected subagent, one named by id, or the whole run. [The keys](#the-keys-during-a-run) do the same from the keyboard. |
 | `/herdr [on\|off]` | Give every subagent its own herdr split for this session. `on` asks herdr first, and says so when the answer is no. Alone, it says where it stands; any other word is refused. |
 
 A question card is shown during a model's turn as well as during a command:
@@ -183,6 +183,50 @@ That is safe for a reason worth stating plainly: loading an extension already
 runs its code - pi's own documentation says so - so reading Markdown from the
 same directory adds no risk that installing it did not already accept. What
 matters is that it can never take a name away from you.
+
+### The keys during a run
+
+While a run is live, four keys act on it, and the line under the dots names
+the ones bound:
+
+| Id | Default | What it does |
+| --- | --- | --- |
+| `combo.run.stop` | `escape` | stops every subagent of the run |
+| `combo.subagent.previous` | `shift+up` | moves the `▸` to the previous subagent still working |
+| `combo.subagent.next` | `shift+down` | moves it to the next one |
+| `combo.subagent.stop` | `ctrl+delete` | stops the one it points at |
+
+You rebind them in pi's own `~/.pi/agent/keybindings.json`, beside pi's ids
+and in pi's key syntax, then run `/reload`:
+
+```json
+{
+  "combo.subagent.previous": "alt+k",
+  "combo.subagent.next": ["alt+j", "shift+down"],
+  "combo.subagent.stop": []
+}
+```
+
+A list binds several keys, and an empty list unbinds one, as it does for pi's
+own ids. A value that is not a key or a list of keys is ignored and the
+default stays. The stop key is passed on to pi rather than consumed, so pi's
+own `escape` interrupt still fires; the other three are consumed while a run
+lasts. `/hotkeys` does not list them: pi has no way yet for an extension to
+declare a keybinding, and combo reads these ids from the file pi loads. See
+[the decision](../decisions.md#selecting-a-subagent-with-shift).
+
+In fullscreen, pi's default TUI mode, pi takes `ctrl+↑↓` to jump between
+prompts in the transcript, before any extension sees them. To select with them
+anyway, leave pi's two actions only their other keys:
+
+```json
+{
+  "tui.altScreen.previousPrompt": "ctrl+shift+up",
+  "tui.altScreen.nextPrompt": "ctrl+shift+down",
+  "combo.subagent.previous": "ctrl+up",
+  "combo.subagent.next": "ctrl+down"
+}
+```
 
 ## Running a flow
 
@@ -230,7 +274,7 @@ it:
     ○ deliver#1/tests · check .pi/checks/test.sh · timeout 10m · ≤ 20m
     ○ deliver#1/audit · agent auditor (.pi/agents/auditor.md) · reads input, work, tests, diff, deliver.ledger · verd…
 ○ report · agent synthesiser (.pi/agents/synthesiser.md) · reads input, diff, deliver.output.last.work, deliver.outpu…
-esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
+escape stops everything · shift+up/shift+down selects · ctrl+delete stops the selected one
 ```
 
 A running subagent's line is its last call, its model, its tokens once a turn
@@ -239,7 +283,7 @@ calling `verdict`, and the call fills the room.
 
 The plan takes sixteen rows at most. Past that it is cut above and below what
 runs now, and each cut says how many lines it holds. The keys are those of any
-run: `esc` stops it, `ctrl+↑↓` and `ctrl+del` stop one subagent.
+run: `esc` stops it, `shift+↑↓` and `ctrl+del` stop one subagent.
 
 When the run ends, its answer lands in the conversation as a message that
 triggers no turn: the output of the flow's last root node, then one line on
@@ -381,6 +425,11 @@ handler is written against `CommandCtx`; pi hands it the whole
 that the whole has what the slice reads. There is no cast between pi and a
 command, so when pi changes shape the extension compiles red, and the fake a
 test builds stands in for exactly what the code asked of pi.
+
+pi's keybindings come in through `extension/keys.ts`, the only file that reads
+pi-tui's keybindings manager. It leans on behaviour pi does not document, so
+it is kept to that one file and falls back to its defaults on anything it does
+not expect. See [the keys during a run](#the-keys-during-a-run).
 
 The commands stand on one floor, in three files. `extension/deps.ts` is what a
 command reaches for: `CommandDeps` are the doubles a test puts in place, and

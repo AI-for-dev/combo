@@ -55,7 +55,7 @@ The dots draw the tree as it grows:
   ✓ scout#3  provider/model · ↑4.4k ↓1.1k · 7.0s
   ● scout#4  read src/reporters/herdr-probe.ts
     provider/model · 6.9s
-esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
+escape stops everything · shift+up/shift+down selects · ctrl+delete stops the selected one
 ```
 
 The explorer listed the directory, read its `index.ts`, `src/events.ts` and
@@ -146,7 +146,7 @@ again. That is the runaway turn [the meter](10-the-meter.md) exists to catch,
 and a refusal in words is what a model can act on.
 
 The children run on the terms of the call: its model, its deadline, its export
-directory, its signal. `esc` stops the whole tree, `ctrl+↑↓` walks it children
+directory, its signal. `esc` stops the whole tree, `shift+↑↓` walks it children
 included, and a delegated child is disposable whatever the parent's lifetime.
 An agent a flow runs is handed the tool the same way when its `tools:` names
 it, and its children's transcripts go in `<parent>.children/` beside its own.

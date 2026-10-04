@@ -31,6 +31,8 @@ import {
 	type SpawnFn,
 	type SubagentEvent,
 } from "../../src/index.ts";
+import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { showKeys } from "../keys.ts";
 import { isAsking } from "./asking.ts";
 import { planWidget } from "./flow.ts";
 import { watchEverything } from "./herdr-switch.ts";
@@ -142,7 +144,7 @@ export function liveRun(ui: RunUi | undefined, options: LiveRunOptions = {}): Li
 		const now = plan();
 		const selected = watched.selected;
 		if (now === undefined) return ui.setWidget(STATUS, paintWidget(picture.snapshot(), ui.theme, selected));
-		ui.setWidget(STATUS, planWidget(now, ui.theme, { snapshot: picture.snapshot(), selected }, () => hint(now.summary.state === "working", ui.theme)));
+		ui.setWidget(STATUS, planWidget(now, ui.theme, { snapshot: picture.snapshot(), selected }, (width) => hint(now.summary.state === "working", ui.theme, width)));
 	};
 	// The terminal reads the selection from here and writes it back: a run is
 	// what a key acts on, and it is the only thing that knows when it is over.
@@ -209,20 +211,32 @@ export function paintWidget(snapshot: RunSnapshot, theme: WidgetTheme, selected?
 }
 
 /**
- * {@link HINT}, while there is something left to stop and no question card
- * is up: a card holds `esc` and says what it means there, and a second line
- * saying otherwise would be read as well.
- */
-function hint(running: boolean, theme: WidgetTheme): string[] {
-	return running && !isAsking() ? [theme.fg("muted", HINT)] : [];
-}
-
-/**
- * What a reader can do about the run they are watching.
+ * What a reader can do about the run they are watching, while there is
+ * something left to stop and no question card is up: a card holds the stop
+ * key and says what it means there, and a second line saying otherwise would
+ * be read as well.
  *
  * Spelled out under the dots rather than left to a `--help`: a key nobody knows
  * about is a key nobody presses, and this one exists for the moment where the
  * run has gone wrong and reading documentation is the last thing on anyone's
- * mind. `esc` is pi's own interrupt, so it is not ours to rename.
+ * mind. The keys are the ones bound now, read at each paint, and one that is
+ * unbound is not offered.
+ *
+ * On one line, or one key a line when `width` is too narrow for it, as a
+ * card's help line does: a key is never cut from what it does. With no
+ * `width`, pi wraps the line itself.
  */
-const HINT = "esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one";
+export function hint(running: boolean, theme: WidgetTheme, width?: number): string[] {
+	if (!running || isAsking()) return [];
+	const select = [showKeys("combo.subagent.previous"), showKeys("combo.subagent.next")].filter(Boolean).join("/");
+	const keys = [
+		[showKeys("combo.run.stop"), "stops everything"],
+		[select, "selects"],
+		[showKeys("combo.subagent.stop"), "stops the selected one"],
+	]
+		.filter(([key]) => key)
+		.map(([key, what]) => `${key} ${what}`);
+	const line = keys.join(" · ");
+	const lines = width === undefined || visibleWidth(line) <= width ? [line] : keys.map((one) => truncateToWidth(one, width, "…"));
+	return lines.filter(Boolean).map((one) => theme.fg("muted", one));
+}

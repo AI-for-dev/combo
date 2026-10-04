@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { visibleWidth } from "@earendil-works/pi-tui";
 import { paintFlow, planWidget } from "../extension/ui/flow.ts";
+import { hint } from "../extension/ui/run.ts";
 import type { SubagentEvent } from "../src/events.ts";
 import { livePlan } from "../src/flow/index.ts";
 import { createRunPicture } from "../src/reporters/picture.ts";
@@ -67,7 +68,7 @@ describe("paintFlow", () => {
 			for (const line of painted(events, width, undefined, nested, coloured)) assert.ok(visibleWidth(line) <= width, `${width}: ${line}`);
 			const picture = createRunPicture();
 			for (const event of events) picture.reporter(event);
-			const widget = planWidget(livePlan(nested, [], events, 1_000), coloured, { snapshot: picture.snapshot() }, () => [])(undefined, coloured as never);
+			const widget = planWidget(livePlan(nested, [], events, 1_000), coloured, { snapshot: picture.snapshot() }, (room) => hint(true, coloured, room))(undefined, coloured as never);
 			for (const line of widget.render(width)) assert.ok(visibleWidth(line) <= width, `widget ${width}: ${line}`);
 		}
 	});
