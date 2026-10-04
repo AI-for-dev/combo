@@ -37,6 +37,10 @@ repository live in `.pi/agents/`, so ask for them explicitly:
 That is deliberate: project agents are repository-controlled content, so they are
 never loaded by default. See [Agents](agents.md).
 
+Only the model calls the tool. With pi's `codemode` tool turned on, a script
+sees every other tool but not this one, so it cannot start runs in a loop
+inside one model turn.
+
 The tool also runs a [flow](flows.md) by name, with `task` as its input:
 
 ```
