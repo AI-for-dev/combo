@@ -32,8 +32,9 @@ to use what these decisions produced.
    stream; unplug them all and the result is identical.
 5. **The pi API lives in one file.** `src/session.ts` is the only place that
    imports from `@earendil-works/pi-coding-agent`. Everything else talks to
-   `SessionPort`, a minimal subset of `AgentSession`. When pi moves, one file
-   moves - and tests inject a fake session with no network, no disk, no `~/.pi`.
+   `SessionPort`, which runs one turn and reads it, and `sessionPort()` adapts
+   `AgentSession` to it. When pi moves, one file moves - and tests inject a
+   fake session with no network, no disk, no `~/.pi`.
 6. **A subagent inherits nothing from the user's environment.** Its system
    prompt goes through our own `StaticResourceLoader`: no extensions, no
    skills, no context files. `DefaultResourceLoader` would re-read the disk on
@@ -3703,6 +3704,76 @@ and the two readings are asserted against that shape once, in
 The port itself did not grow a method. `createDefaultSession` hands back pi's
 `AgentSession` as it is, which satisfies the port structurally; a method of our
 own would have meant a wrapper proxying every member for the sake of one.
+**Reversed** by the next section: the wrapper now does the work.
+
+### The port is a turn
+
+`SessionPort` was a slice of `AgentSession`, and its callers spent their code
+turning pi's shape back into what they wanted. `subagent.ts` took
+`getSessionStats()` before and after each prompt and subtracted, subscribed to
+pi's raw events and parsed them back into text and tool calls, collected the
+turn's messages off `message_end`, bridged its signal to `abort()` and removed
+the listener again, and read the last message for a failing `stopReason`. The
+mirror checked `isStreaming` before every steer. Each fake had to reproduce
+all of it: a cumulative counter, pi's event and message shapes, an abort that
+cuts. A prototype of a second backend showed what that costs: half of its
+adapter rebuilt `AgentSession`'s getters around a backend that has none of
+them.
+
+The port now has the shape of what combo asks for:
+
+```typescript
+type SessionPort = {
+  readonly model?: string;                                  // provider/id
+  ask(text: string, options: TurnControl): Promise<Turn>;  // never rejects
+  steer(text: string): Promise<"queued" | "idle">;
+  watch(listener: (event: SessionEvent) => void): () => void;  // the mirror's
+  transcript(): readonly AgentMessage[];                    // the mirror's replay
+  exportToHtml?(outputPath: string): Promise<string>;
+  exportToJsonl?(outputPath: string): string;
+  close(): void;
+};
+type TurnControl = { signal: AbortSignal; onStreamed?: (event: Streamed) => void };
+type Turn = { messages: AgentMessage[]; text: string; error?: string; usage: Usage };
+```
+
+`sessionPort(session)` in `session.ts` is the adapter over pi, and every trap
+the turn used to handle moved into it with its comment: the abort bridge, the
+retry wait that leaves only the signal to say the turn was cut, the failing
+`stopReason`, the compaction that makes a turn's messages its events rather
+than a slice. A turn never rejects; it comes back with `error`. What stays in
+`subagent.ts` is combo's: refusing a turn a stopped subagent was asked, naming
+an abort `stopped` or a timeout, and adding time to the bill.
+
+`watch` and `transcript` hand out pi's own events and messages, because the
+pane draws them with pi's components, and that is the one place they are
+wanted raw. `transcript` stays synchronous: the wire replays it on attach, and
+a replay that awaited would let a live event overtake it. A refused turn keeps
+the context level where the last turn left it, which is what the session read
+then too.
+
+**The delta stays, inside `session.ts`.** The question was whether a turn's
+usage could be the sum of the usage on its own messages, which pi reports,
+with no counter to subtract. Measured on pi 1.0.2, a persistent session on
+`ilaas/qwen-3.6-35b-instruct`: the sum and the delta agreed to the token on a
+tool turn, a plain one, an aborted one and a 411k-token one. Then a compaction
+cost 5,904 tokens in and 767 out, `getSessionStats()` counted them, and no
+`message_end` carried them: pi bills the summary request to the compaction
+entry. pi compacts inside `prompt()`, before sending when the context is past
+its threshold and after an overflow, so a turn summed from its messages would
+drop that request. pi's own source names two more kinds the stats count and no
+message carries: a cache warm-up's `usage` entry, off for a subagent, and a
+branch summary. `getSessionStats()` is the one total that sees everything pi
+billed, so the adapter reads it twice and subtracts, and nothing else does.
+
+`snapshotUsage` went into the adapter, which took the last import of pi's
+types out of `usage.ts`. `deltaUsage` stays where it was and public.
+
+The fakes did not change in the same step: they are pi-shaped, and the tests
+wrap them in `sessionPort()`, so every test that ran through the old port runs
+through the adapter now. `createDefaultSession` hands back the port, not pi's
+session; a caller that wants pi's session builds it and wraps it in
+`sessionPort()`, which is public for that.
 
 ## The pi API: what you need to know
 

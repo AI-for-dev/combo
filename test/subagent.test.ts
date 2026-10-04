@@ -5,6 +5,7 @@ import { deadline } from "../src/deadline.ts";
 import { IN_THE_LANGUAGE_OF_THE_WORK } from "../src/language.ts";
 import { resetSubagentIds, type SubagentEvent } from "../src/events.ts";
 import { run } from "../src/run.ts";
+import { sessionPort } from "../src/session.ts";
 import { spawn } from "../src/subagent.ts";
 import { fakeSession, fakeSessionFactory, type Turn } from "./fixtures/fake-session.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
@@ -14,7 +15,7 @@ const scout = testAgent("scout");
 /** Spawns against a single scripted fake session. */
 async function spawnWith(turns: Turn[], options: Parameters<typeof spawn>[1] = {}) {
 	const session = fakeSession(turns);
-	const subagent = await spawn(scout, { ...options, createSession: async () => session });
+	const subagent = await spawn(scout, { ...options, createSession: async () => sessionPort(session) });
 	return { subagent, session };
 }
 
@@ -30,14 +31,14 @@ describe("spawn", () => {
 		const persistent = testAgent("reviewer", { lifetime: "workflow" });
 		const subagent = await spawn(persistent, {
 			lifetime: "task",
-			createSession: async () => fakeSession([]),
+			createSession: async () => sessionPort(fakeSession([])),
 		});
 		assert.equal(subagent.lifetime, "task");
 	});
 
 	test("the frontmatter beats the default when nothing is passed", async () => {
 		const persistent = testAgent("reviewer", { lifetime: "workflow" });
-		const subagent = await spawn(persistent, { createSession: async () => fakeSession([]) });
+		const subagent = await spawn(persistent, { createSession: async () => sessionPort(fakeSession([])) });
 		assert.equal(subagent.lifetime, "workflow");
 	});
 
@@ -46,7 +47,7 @@ describe("spawn", () => {
 		// children has to name their parent, and the parent is minted here.
 		let seen: string | undefined;
 		const subagent = await spawn(scout, {
-			createSession: async () => fakeSession([]),
+			createSession: async () => sessionPort(fakeSession([])),
 			customTools: (id) => {
 				seen = id;
 				return [];
@@ -62,7 +63,7 @@ describe("spawn", () => {
 			let seen: boolean | undefined;
 			await spawn(agent, {
 				...options,
-				createSession: async () => fakeSession([]),
+				createSession: async () => sessionPort(fakeSession([])),
 				onEvent: (event) => {
 					if (event.type === "spawn") seen = event.openInHerdr;
 				},
@@ -92,8 +93,8 @@ describe("spawn", () => {
 	});
 
 	test("ids are stable and per-agent", async () => {
-		const a = await spawn(scout, { createSession: async () => fakeSession([]) });
-		const b = await spawn(scout, { createSession: async () => fakeSession([]) });
+		const a = await spawn(scout, { createSession: async () => sessionPort(fakeSession([])) });
+		const b = await spawn(scout, { createSession: async () => sessionPort(fakeSession([])) });
 		assert.equal(a.id, "scout#1");
 		assert.equal(b.id, "scout#2");
 	});
@@ -379,7 +380,7 @@ describe("close", () => {
 		const closes: { ok: boolean; error?: string }[] = [];
 		const session = fakeSession([{ throws: "402 status code (no body)" }]);
 		const subagent = await spawn(scout, {
-			createSession: async () => session,
+			createSession: async () => sessionPort(session),
 			onEvent: (event) => {
 				if (event.type === "close") closes.push({ ok: event.result.ok, error: event.result.error });
 			},
@@ -396,7 +397,7 @@ describe("close", () => {
 		const closes: boolean[] = [];
 		const session = fakeSession([{ throws: "boom" }, { text: "recovered" }]);
 		const subagent = await spawn(testAgent("reviewer", { lifetime: "workflow" }), {
-			createSession: async () => session,
+			createSession: async () => sessionPort(session),
 			onEvent: (event) => {
 				if (event.type === "close") closes.push(event.result.ok);
 			},
@@ -412,7 +413,7 @@ describe("close", () => {
 	test("a subagent nobody asked anything closes green: nothing failed", async () => {
 		const closes: boolean[] = [];
 		const subagent = await spawn(scout, {
-			createSession: async () => fakeSession([]),
+			createSession: async () => sessionPort(fakeSession([])),
 			onEvent: (event) => {
 				if (event.type === "close") closes.push(event.result.ok);
 			},
@@ -428,7 +429,7 @@ describe("events", () => {
 		const events: string[] = [];
 		const session = fakeSession([{ text: "hello", tools: [{ name: "grep", args: { pattern: "x" } }] }]);
 		const subagent = await spawn(scout, {
-			createSession: async () => session,
+			createSession: async () => sessionPort(session),
 			onEvent: (event) => events.push(event.type),
 		});
 
@@ -444,7 +445,7 @@ describe("events", () => {
 		const names: string[] = [];
 		const session = fakeSession([{ text: "ok", tools: [{ name: "", args: { path: "src/index.ts" } }] }]);
 		const subagent = await spawn(scout, {
-			createSession: async () => session,
+			createSession: async () => sessionPort(session),
 			onEvent: (event) => void (event.type === "tool" && names.push(event.name)),
 		});
 
@@ -467,7 +468,7 @@ describe("events", () => {
 	test("a throwing reporter never breaks the turn", async () => {
 		const session = fakeSession([{ text: "ok" }]);
 		const subagent = await spawn(scout, {
-			createSession: async () => session,
+			createSession: async () => sessionPort(session),
 			onEvent: () => {
 				throw new Error("broken reporter");
 			},

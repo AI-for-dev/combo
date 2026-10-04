@@ -12,7 +12,7 @@
  * that is where a turn's answer is read.
  */
 
-import type { AgentMessage, CreateSessionOptions, SessionEvent, SessionPort, ToolDefinition } from "../../session.ts";
+import { sessionPort, type AgentMessage, type CreateSessionOptions, type PiSession, type SessionEvent, type SessionPort, type ToolDefinition } from "../../session.ts";
 
 /** What one scripted turn does: say a text, call one of its tools with `args`, or fail as `fail` says. */
 export type ScriptedTurn = { readonly say: string } | { readonly call: string; readonly args: unknown } | { readonly fail: "provider" | "timeout" | "schema" };
@@ -20,7 +20,7 @@ export type ScriptedTurn = { readonly say: string } | { readonly call: string; r
 /** A scripted session, told before each turn what that turn does and how to expire the deadline it runs under. */
 export type ScriptedSession = SessionPort & { stage(turn: ScriptedTurn, expire: () => void): void };
 
-type Stats = ReturnType<SessionPort["getSessionStats"]>;
+type Stats = ReturnType<PiSession["getSessionStats"]>;
 
 /** A session for a subagent spawned with `options`, answering whatever it is staged with. */
 export function scriptedSession(options: CreateSessionOptions): ScriptedSession {
@@ -64,7 +64,7 @@ export function scriptedSession(options: CreateSessionOptions): ScriptedSession 
 		return turn.fail === "provider" ? answer("", "error", "scripted provider failure") : answer("");
 	}
 
-	return {
+	const pi: PiSession = {
 		get messages() {
 			return messages;
 		},
@@ -72,9 +72,6 @@ export function scriptedSession(options: CreateSessionOptions): ScriptedSession 
 			return streaming;
 		},
 		model: options.model === undefined ? undefined : { id: options.model },
-		stage(turn, expire) {
-			staged = { turn, expire };
-		},
 		async prompt(text) {
 			add({ role: "user", content: text } as AgentMessage);
 			streaming = true;
@@ -89,7 +86,6 @@ export function scriptedSession(options: CreateSessionOptions): ScriptedSession 
 			return () => listeners.delete(listener);
 		},
 		getSessionStats: zero,
-		getContextUsage: () => undefined,
 		async abort() {
 			cut?.();
 		},
@@ -98,6 +94,11 @@ export function scriptedSession(options: CreateSessionOptions): ScriptedSession 
 			listeners.clear();
 		},
 	};
+	return Object.assign(sessionPort(pi), {
+		stage(turn: ScriptedTurn, expire: () => void) {
+			staged = { turn, expire };
+		},
+	});
 }
 
 /**

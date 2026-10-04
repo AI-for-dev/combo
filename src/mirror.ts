@@ -138,7 +138,7 @@ export function registerMirror(mirrored: Mirrored): () => void {
 		pending = undefined;
 	};
 
-	const offSession = mirrored.session.subscribe((event) => {
+	const offSession = mirrored.session.watch((event) => {
 		if (event.type === "message_update") {
 			pending = event;
 			if (!timer) {
@@ -198,11 +198,10 @@ const mirrors: Mirrors = {
 				return;
 			}
 			if (input.type === "steer" && typeof input.text === "string") {
-				if (!mirrored.session.isStreaming) {
+				if ((await mirrored.session.steer(input.text)) === "idle") {
 					reply({ type: "refused", reason: REFUSED_IDLE });
 					return;
 				}
-				await mirrored.session.steer(input.text);
 				mirrored.bus.emit({ type: "steer", id: mirrored.id, text: input.text });
 			}
 		} catch {

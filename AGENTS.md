@@ -30,8 +30,10 @@ no enums, no namespaces, no parameter properties.
 1. **In-process via the pi SDK** (`createAgentSession()`), never
    `spawn("pi", …)`. That is what makes lifetime possible.
 2. **The pi API lives in `src/session.ts` and nowhere else.** Everything else
-   talks to `SessionPort`, a minimal subset - which is what lets tests inject a
-   fake with no network, no disk and no `~/.pi`.
+   talks to `SessionPort`, shaped around a turn (`ask` gives back the turn's
+   messages, answer, error and usage), and `sessionPort()` is its adapter over
+   pi's `AgentSession`. That is what lets tests inject a fake with no network,
+   no disk and no `~/.pi`.
 3. **Agents and flows are data; our code decides what runs next.** An agent is
    Markdown + frontmatter, a flow is YAML + Markdown built from a closed set of
    nodes, and a workflow is TypeScript combinators, for what a file cannot say.
@@ -100,7 +102,8 @@ no enums, no namespaces, no parameter properties.
 8. **A failure is a `Result` with `ok: false`**, not a crash. `throw` only for
    programming errors (invalid configuration, unknown agent, closed subagent).
 9. **Nothing is estimated.** Tokens and cost come from pi (`getSessionStats()`
-   is cumulative → take the delta, clamp at 0); time is ours
+   is cumulative → `sessionPort()` takes the delta, clamped at 0; summing the
+   turn's messages misses a compaction's request); time is ours
    (`performance.now()`). A provider that reports nothing gives `0`, and we say
    so.
 10. **Reaching a cap is not success**: `loop` reports `converged` apart from
@@ -249,9 +252,10 @@ reachable by forgetting an argument.
 - **A compaction rebuilds `session.messages` shorter, mid-run included.** A
   position taken before `prompt()` means nothing after it: a turn read by
   `slice(start)` came back empty and `ok`. A turn's messages are the
-  `message_end` events it emitted (`ended()`); the summary emits none.
-- `session.prompt()` takes **no `AbortSignal`** - bridge it to `session.abort()`,
-  and remove the listener after the turn.
+  `message_end` events it emitted (`ended()`); the summary emits none, and its
+  request is billed to the compaction entry, so only `getSessionStats()` counts it.
+- `session.prompt()` takes **no `AbortSignal`** - `sessionPort()` bridges it to
+  `session.abort()`, and removes the listener after the turn.
 - A turn can **fail without throwing**: read the last assistant message's
   `stopReason`. `length` is one: the output limit cut the answer, often in
   its thinking with no text at all.
@@ -282,7 +286,7 @@ not a bibliography:
 | undo or contradict any design choice above | [docs/decisions.md](docs/decisions.md) - the full record, with the reversals and their reasons |
 | add or change a combinator | [docs/guide/workflows.md](docs/guide/workflows.md), then the neighbouring `src/workflows/*.ts` |
 | touch a lifetime, a `close()` or a pool | [docs/guide/lifetime.md](docs/guide/lifetime.md) |
-| write a test, or a fake | [docs/development.md](docs/development.md#tests) - the fake session is cumulative, its `messages` grow until it compacts, and its `abort()` really cuts the turn short |
+| write a test, or a fake | [docs/development.md](docs/development.md#tests) - the fake session is pi-shaped behind `sessionPort()`: cumulative, its `messages` grow until it compacts, and its `abort()` really cuts the turn short |
 | touch a reporter, the TUI or herdr | [docs/guide/display.md](docs/guide/display.md) |
 | touch `Usage`, or an export | [docs/guide/measurements.md](docs/guide/measurements.md), [docs/guide/export.md](docs/guide/export.md) |
 | change the extension, a command or a card | [docs/guide/extension.md](docs/guide/extension.md) |

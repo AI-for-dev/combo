@@ -1,47 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import type { SessionStats } from "@earendil-works/pi-coding-agent";
-import { accumulate, deltaUsage, emptyUsage, formatUsage, snapshotUsage, sumUsage, type Usage } from "../src/usage.ts";
-
-function stats(tokens: Partial<SessionStats["tokens"]>, cost = 0, contextTokens?: number): SessionStats {
-	const filled = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0, ...tokens };
-	return {
-		sessionFile: undefined,
-		sessionId: "s",
-		userMessages: 0,
-		assistantMessages: 0,
-		toolCalls: 0,
-		toolResults: 0,
-		totalMessages: 0,
-		tokens: filled,
-		cost,
-		contextUsage: contextTokens === undefined ? undefined : { tokens: contextTokens, contextWindow: 200_000, percent: 1 },
-	};
-}
+import { accumulate, deltaUsage, emptyUsage, formatUsage, sumUsage, type Usage } from "../src/usage.ts";
 
 function usage(partial: Partial<Usage>): Usage {
 	return { ...emptyUsage(), ...partial };
 }
 
-describe("snapshotUsage", () => {
-	test("reads pi's counters verbatim, and zeroes what is not reported", () => {
-		const snapshot = snapshotUsage(stats({ input: 120, output: 30 }, 0.004, 8_000));
-		assert.equal(snapshot.input, 120);
-		assert.equal(snapshot.output, 30);
-		assert.equal(snapshot.cacheRead, 0);
-		assert.equal(snapshot.cost, 0.004);
-		assert.equal(snapshot.contextTokens, 8_000);
-	});
-
-	test("leaves contextTokens undefined when pi does not report it", () => {
-		assert.equal(snapshotUsage(stats({})).contextTokens, undefined);
-	});
-});
-
 describe("deltaUsage", () => {
 	test("a turn is the difference between two cumulative snapshots", () => {
-		const before = snapshotUsage(stats({ input: 100, output: 20 }, 0.01));
-		const after = snapshotUsage(stats({ input: 260, output: 55 }, 0.03));
+		const before = usage({ input: 100, output: 20, cost: 0.01 });
+		const after = usage({ input: 260, output: 55, cost: 0.03 });
 
 		const turn = deltaUsage(before, after);
 		assert.equal(turn.input, 160);
@@ -50,8 +18,8 @@ describe("deltaUsage", () => {
 	});
 
 	test("counters never go negative: compaction can walk the totals backwards", () => {
-		const before = snapshotUsage(stats({ input: 5_000 }, 0.5));
-		const after = snapshotUsage(stats({ input: 800 }, 0.1));
+		const before = usage({ input: 5_000, cost: 0.5 });
+		const after = usage({ input: 800, cost: 0.1 });
 
 		const turn = deltaUsage(before, after);
 		assert.equal(turn.input, 0);

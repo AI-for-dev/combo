@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { shippedCatalogue } from "../../scripts/flow-docs.ts";
 import type { Agent } from "../../src/agent.ts";
 import { checkFlow, checkRun, runFlow, type CheckedFlow, type CheckedRun, type DryRun, type FlowCatalogue, type FlowResult, type RunFlowOptions, type RunStage, type VisitEnd } from "../../src/flow/index.ts";
-import type { CreateSession, CreateSessionOptions } from "../../src/session.ts";
+import { sessionPort, type CreateSession, type CreateSessionOptions } from "../../src/session.ts";
 import { spawn } from "../../src/subagent.ts";
 import type { SpawnFn } from "../../src/workflows/options.ts";
 import { callTool } from "./call-tool.ts";
@@ -119,7 +119,7 @@ export function flowSpawn(turnsPerSpawn: FlowTurn[][] | Record<string, FlowTurn[
 		session.exportToHtml = async (file = "session.html") => write(file, `<p>${agent.name}</p>`);
 		created.push(session);
 		requested.push({ agent, options });
-		return session;
+		return sessionPort(session);
 	};
 	return { spawn: (agent, options) => spawn(agent, { ...options, createSession }), created, requested };
 }

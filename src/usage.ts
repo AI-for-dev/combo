@@ -1,12 +1,11 @@
 /**
  * Measurements: time and tokens, per subagent.
  *
- * Nothing is estimated. Tokens and cost come from pi
- * (`session.getSessionStats()`); the only things we add are **time** - which
- * pi does not measure - and **attribution per subagent**.
+ * Nothing is estimated. Tokens and cost come from pi, read by the session
+ * (`src/session.ts`); the only things we add are **time** - which pi does not
+ * measure - and **attribution per subagent**.
  */
 
-import type { SessionStats } from "@earendil-works/pi-coding-agent";
 import { plural } from "./text.ts";
 
 /** Measurements of a subagent, or of a single turn of work. */
@@ -15,7 +14,7 @@ export type Usage = {
 	wallMs: number;
 	/** Time actually spent working: the sum of the `ask` calls. */
 	busyMs: number;
-	/** Completed `ask` calls. A turn is one `session.prompt()`, however many tools it ran. */
+	/** Completed `ask` calls. A turn is one prompt to the session, however many tools it ran. */
 	turns: number;
 
 	/** Input tokens, as pi reported them. `0` when the provider does not say. */
@@ -39,31 +38,8 @@ export function emptyUsage(): Usage {
 }
 
 /**
- * Snapshot of a session's token counters.
- *
- * Careful: `getSessionStats()` is **cumulative since the start of the
- * session**. A snapshot is therefore never the usage of a single turn; it is
- * {@link deltaUsage} that extracts one turn, between two snapshots.
- *
- * A field the provider does not report is `0`. We never estimate it by
- * counting characters.
- */
-export function snapshotUsage(stats: SessionStats): Usage {
-	return {
-		wallMs: 0,
-		busyMs: 0,
-		turns: 0,
-		input: stats.tokens.input ?? 0,
-		output: stats.tokens.output ?? 0,
-		cacheRead: stats.tokens.cacheRead ?? 0,
-		cacheWrite: stats.tokens.cacheWrite ?? 0,
-		cost: stats.cost ?? 0,
-		contextTokens: stats.contextUsage?.tokens ?? undefined,
-	};
-}
-
-/**
- * Usage of one turn: what `after` has more than `before`.
+ * Usage of one turn: what `after` has more than `before`, two readings of a
+ * session's cumulative counters.
  *
  * Counters are clamped at `0` - a compacted session can see its totals go
  * backwards, and a negative usage means nothing. `contextTokens` is not a
