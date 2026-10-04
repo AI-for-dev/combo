@@ -3990,6 +3990,32 @@ costs more than a lost run). The commands validate `--model` with
 `checkModel` reads pi's real model catalogue: only a run inside a real pi
 proves it end to end.
 
+### A model pi does not know is refused, even when pi would try it
+
+For a provider it knows and an id it does not list, `resolveCliModel` does not
+fail: it builds a custom model and only warns, `Model "nope-model" not found
+for provider "ilaas". Using custom model id.` Measured on pi 0.80.10 and 1.0.2
+alike: `/run explore x --model ilaas/nope-model` passed `checkModel`, spawned
+four subagents and ended `provider: 404 "Unknown model"`. A typo cost a run
+after all.
+
+So `resolvePattern` refuses a model that came back with a warning, in
+`checkModel` and at spawn alike. The message keeps pi's reason without its
+last sentence, which would claim the opposite of what happens, and says where
+a model is made known: `Model "nope-model" not found for provider "ilaas". Add
+it to pi's models.json to run it.` A pattern pi rejects outright shows pi's
+`error` (an unknown model, a bare id ambiguous across providers) rather than a
+message of our own.
+
+It reads pi's fields instead of comparing the model with the catalogue, and
+the custom model is the only warning `resolveCliModel` returns beside a model:
+it parses a `:thinking` suffix strictly. A partial match (`ilaas/qwen-3.6`)
+and a suffixed id (`qwen-3.6-35b-instruct:high`) still resolve, with no
+warning. If pi ever warns about something else beside a model, that is refused
+too, in pi's words: the safer side to err on. The tests run pi's real
+`resolveCliModel` over a catalogue held in memory, so they hold these cases to
+the pi that is installed.
+
 
 ## Experiments: comparing models on the same work
 

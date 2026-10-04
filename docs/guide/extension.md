@@ -199,6 +199,14 @@ types it: `--model`, the model every agent turn runs on, and `--timeout`, the
 bound of one turn (`90s`, `10m`, `1h`). Both may lead the line or end it, and
 an input written as one quoted string is the text inside the quotes.
 
+`--model` takes what pi's own `--model` takes: `provider/id`, a partial id, a
+`:thinking` suffix. It must name a model pi knows, and it is checked before
+anything is spawned. pi itself would send an id its provider does not list as
+a custom one; combo refuses it, `Model "nope-model" not found for provider
+"ilaas". Add it to pi's models.json to run it.`, because the provider usually
+answers 404 to every subagent. An entry in `models.json` is how a model the
+catalogue lacks is made known: pi's own `docs/models.md` says how.
+
 Every run gets `runs/<timestamp>/`, its [run directory](flows.md#the-run-directory):
 the snapshot, the journal, each subagent's transcript, this session's JSONL
 and the `usage.json` a [`measuredRun`](flows.md#measuring-a-run) writes there
