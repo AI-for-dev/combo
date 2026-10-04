@@ -17,6 +17,7 @@ import {
 	SessionManager,
 	type AgentSession,
 	type ContextUsage,
+	type ResolveCliModelResult,
 	type ResourceLoader,
 	type SessionStats,
 	type ToolDefinition,
@@ -370,10 +371,8 @@ export class StaticResourceLoader implements ResourceLoader {
 function resolveModel(agent: Agent, modelRuntime: ModelRuntime, pattern = agent.model) {
 	if (!pattern) return undefined;
 
-	const model = resolvePattern(pattern, modelRuntime);
-	if (!model) {
-		throw new Error(`No model found for agent "${agent.name}": "${pattern}"`);
-	}
+	const { model, refused } = resolvePattern(pattern, modelRuntime);
+	if (refused !== undefined) throw new Error(`No model for agent "${agent.name}": ${refused}`);
 	return model;
 }
 
@@ -387,18 +386,35 @@ function resolveModel(agent: Agent, modelRuntime: ModelRuntime, pattern = agent.
  * it end to end.
  */
 export async function checkModel(pattern: string): Promise<void> {
-	if (!resolvePattern(pattern, await ModelRuntime.create())) {
-		throw new Error(`No model found for "${pattern}"`);
-	}
+	const { refused } = resolvePattern(pattern, await ModelRuntime.create());
+	if (refused !== undefined) throw new Error(refused);
 }
 
+/** A model pi resolved, or why there is none. */
+export type ResolvedPattern =
+	| { model: NonNullable<ResolveCliModelResult["model"]>; refused?: undefined }
+	| { model?: undefined; refused: string };
+
 /**
- * One pattern against pi's model catalogue.
+ * One pattern against pi's model catalogue, refused unless it names a model pi
+ * knows.
  *
  * `resolveCliModel` takes `"anthropic/claude-sonnet-5"` as well as a partial
  * match, and splits off the provider itself: only when the prefix names a known
  * provider, so a model id that holds a slash of its own still resolves.
+ *
+ * For a known provider and an id it does not list, pi builds a custom model
+ * and says so in `warning`. That is the only warning it returns beside a model,
+ * since it parses a `:thinking` suffix strictly here. The provider then answers
+ * 404 on the first turn of every subagent, so the pattern is refused instead:
+ * a typo must not start a run.
  */
-function resolvePattern(pattern: string, modelRuntime: ModelRuntime) {
-	return resolveCliModel({ cliModel: pattern, modelRuntime }).model;
+export function resolvePattern(pattern: string, modelRuntime: ModelRuntime): ResolvedPattern {
+	const { model, warning, error } = resolveCliModel({ cliModel: pattern, modelRuntime });
+	if (!model) return { refused: error ?? `No model found for "${pattern}"` };
+	if (warning) {
+		const reason = warning.replace(/\s*Using custom model id\.$/, "");
+		return { refused: `${reason} Add it to pi's models.json to run it.` };
+	}
+	return { model };
 }

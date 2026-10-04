@@ -9,8 +9,8 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { formatSkillsForPrompt, type Skill } from "@earendil-works/pi-coding-agent";
-import { lastTurn, situate, StaticResourceLoader, streamed, type AgentMessage } from "../src/session.ts";
+import { formatSkillsForPrompt, type ModelRuntime, type Skill } from "@earendil-works/pi-coding-agent";
+import { lastTurn, resolvePattern, situate, StaticResourceLoader, streamed, type AgentMessage } from "../src/session.ts";
 
 /** A message in the shape pi keeps them, which is the shape under test here. */
 const message = (fields: Record<string, unknown>) => fields as unknown as AgentMessage;
@@ -87,6 +87,40 @@ describe("streamed", () => {
 
 	test("a tool pi could not name reads as ?, because its name arrives empty rather than absent", () => {
 		assert.deepEqual(streamed({ type: "tool_execution_start", toolName: "", args: 1 }), { type: "tool", name: "?", args: 1 });
+	});
+});
+
+describe("resolvePattern", () => {
+	// pi's own resolver over a catalogue held in memory: the two methods it
+	// reads, and none of `~/.pi`.
+	const catalogue = (...models: Array<[provider: string, id: string]>) =>
+		({
+			getModels: () => models.map(([provider, id]) => ({ provider, id, name: id })),
+			hasConfiguredAuth: () => false,
+		}) as unknown as ModelRuntime;
+	const runtime = catalogue(["ilaas", "qwen-3.6-35b-instruct"], ["ilaas", "gemma-4-31b"], ["local", "gemma-4-31b"]);
+	const resolved = (pattern: string) => resolvePattern(pattern, runtime).model?.id;
+
+	test("an exact, a partial and a suffixed pattern resolve to a model pi knows", () => {
+		assert.equal(resolved("ilaas/qwen-3.6-35b-instruct"), "qwen-3.6-35b-instruct");
+		assert.equal(resolved("ilaas/qwen-3.6"), "qwen-3.6-35b-instruct");
+		assert.equal(resolved("qwen-3.6-35b-instruct:high"), "qwen-3.6-35b-instruct");
+	});
+
+	test("an id pi would only send as a custom one is refused, with pi's reason and where to declare it", () => {
+		// pi accepts it with a warning, and the provider answers 404 on the
+		// first turn of every subagent.
+		const { model, refused } = resolvePattern("ilaas/nope-model", runtime);
+
+		assert.equal(model, undefined);
+		assert.match(refused ?? "", /^Model "nope-model" not found for provider "ilaas"\./);
+		assert.match(refused ?? "", /models\.json/);
+		assert.doesNotMatch(refused ?? "", /Using custom model id/, "it is not used, so it must not say so");
+	});
+
+	test("a pattern pi rejects is refused with pi's own words", () => {
+		assert.match(resolvePattern("nope/model", runtime).refused ?? "", /^Model "nope\/model" not found\./);
+		assert.match(resolvePattern("gemma-4-31b", runtime).refused ?? "", /ambiguous across providers: ilaas\/gemma-4-31b, local\/gemma-4-31b/);
 	});
 });
 
