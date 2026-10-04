@@ -49,7 +49,7 @@ which is the only way to check what stops a run:
 
     python3 scripts/drive-pi.py \\
         "/run explore where is the wall time measured||3||20" \\
-        "key:ctrl+down||2||4" "key:ctrl+delete||3||10" "key:escape||3||15"
+        "key:shift+down||2||4" "key:ctrl+delete||3||10" "key:escape||3||15"
 
 A run keeps repainting, so silence never comes while it works: give those steps
 a cap, and read what the frames say.
@@ -84,7 +84,17 @@ KEYS = {
     "down": b"\x1b[B",
     "ctrl+up": b"\x1b[1;5A",
     "ctrl+down": b"\x1b[1;5B",
+    "shift+up": b"\x1b[1;2A",
+    "shift+down": b"\x1b[1;2B",
+    # What a terminal speaking the kitty keyboard protocol sends under the flags
+    # pi asks for: the event type after the modifier, `1` a press, `3` its release.
+    "kitty:shift+up": b"\x1b[1;2:1A",
+    "kitty:shift+down": b"\x1b[1;2:1B",
+    "kitty:shift+down-release": b"\x1b[1;2:3B",
     "ctrl+delete": b"\x1b[3;5~",
+    # A legacy terminal sends ctrl+shift+f as plain ctrl+f; this is the CSI-u
+    # form, the one pi reads as fullscreen's transcript search.
+    "ctrl+shift+f": b"\x1b[102;6u",
 }
 
 # The widget's dimmed row, repainted four times a second while a subagent works.
@@ -177,6 +187,7 @@ def main() -> None:
     parser.add_argument("--idle", type=float, default=4.0, help="silence that means the command is done")
     parser.add_argument("--cap", type=float, default=60.0, help="wait no longer than this, whatever happens")
     parser.add_argument("--raw", action="store_true", help="keep the repaint frames")
+    parser.add_argument("--tui-mode", choices=["fullscreen", "regular"], help="pi's TUI mode; pi's own default when left out")
     parser.add_argument("--size", default="45x120", help="terminal the TUI draws for")
     args = parser.parse_args()
 
@@ -184,6 +195,8 @@ def main() -> None:
     # `-a` trusts the project's own files for this run: the alternative is a
     # dialog nobody is there to answer.
     argv = ["pi", "-a", "-e", args.extension, "--model", args.model]
+    if args.tui_mode:
+        argv += ["--tui-mode", args.tui_mode]
     pi = Pi(argv, args.cwd, Path(args.log), rows, cols)
 
     try:

@@ -61,7 +61,7 @@ Any other value is refused and nothing runs.
 | Key | What it does |
 | --- | --- |
 | `esc` | stops every subagent of the run |
-| `ctrl+↑` / `ctrl+↓` | selects one subagent in the list above the prompt |
+| `shift+↑` / `shift+↓` | selects one subagent in the list above the prompt |
 | `ctrl+del` | stops the selected one |
 
 See [Extension](../guide/extension.md#the-commands), [Walk a chain by

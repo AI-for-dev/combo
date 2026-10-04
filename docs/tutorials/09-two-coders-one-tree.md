@@ -76,7 +76,7 @@ The planner made two subtasks of that, and both pairs started at once:
             ● deliver#1/work[2]/pair#1/code
               ● coder#2  write title.js  provider/model · 21.5s
 … 4 lines below
-esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
+escape stops everything · shift+up/shift+down selects · ctrl+delete stops the selected one
 ```
 
 The plan takes sixteen rows at most, and the cuts say how many lines they

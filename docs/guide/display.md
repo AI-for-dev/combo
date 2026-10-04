@@ -365,8 +365,11 @@ The dots are also the list of what can be called off. Under them, while
 something is still running:
 
 ```
-esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
+escape stops everything · shift+up/shift+down selects · ctrl+delete stops the selected one
 ```
+
+These are the default keys, and the line names whichever are bound: see
+[the keys during a run](extension.md#the-keys-during-a-run) to change them.
 
 `esc` stops every subagent of the run. It is **not** intercepted: pi's own
 interrupt fires as well, so inside a model's turn the turn goes with the
@@ -382,7 +385,7 @@ is the run's stop, pressed on the card that holds it. The run's subagents are id
 while a question waits, so nothing is running that the key would have called
 off.
 
-`ctrl+↑` and `ctrl+↓` move a `▸` through the subagents that are still working -
+`shift+↑` and `shift+↓` move a `▸` through the subagents that are still working -
 delegated children included, in the order the widget draws them - and `ctrl+del`
 stops the one it points at. `/stop` does the same by name:
 

@@ -23,7 +23,7 @@ the two. Section 10 has what running it said.
 The pi extension is the `subagent` tool plus `/interview`, `/run` (a flow by
 name, `/run build` the unattended build, with `/run resume`), `/step`, `/chain`,
 `/quote`, `/agents`, `/flows`, `/herdr` and `/stop`. A run can be **called off while it runs**:
-`esc` stops every subagent of it, `ctrl+↑↓` walk the list above the prompt and
+`esc` stops every subagent of it, `shift+↑↓` walk the list above the prompt and
 `ctrl+del` stops the selected one. What comes back is in **the language the work
 was written in**, whatever language the definitions are.
 
@@ -88,7 +88,7 @@ pi -e extension
 /run explore how usage is measured
 /run resume                                 # after interrupting one
 /step explore how usage is measured         # then /step planner, /chain, /quote
-/run explore how usage is measured          # then ctrl+↑↓, ctrl+del, esc
+/run explore how usage is measured          # then shift+↑↓, ctrl+del, esc
 ```
 
 **The step entry has been looked at**, and it did not read at a glance. The
@@ -316,8 +316,8 @@ back through the transcript.
 
 ## 6. What stopping a run left open
 
-`esc`, `ctrl+↑↓`, `ctrl+del` and `/stop` work, and were checked against a real
-pi. Three things around them are known and unfinished:
+`esc`, `shift+↑↓`, `ctrl+del` and `/stop` work, and were checked against a real
+pi. Four things around them are known and unfinished:
 
 - **`/stop` cannot be typed while a command of ours is running.** pi processes
   no submission at all while one of its own slash commands is awaiting, so
@@ -330,7 +330,7 @@ pi. Three things around them are known and unfinished:
   the widget above the prompt listing the pipeline's three scouts. That is what
   `extension/stop.ts` says it does - the newest run is the one whose dots are on
   screen - and the older run is not lost, it reports through its own card.
-  `/stop <id>` reaches either; `ctrl+↑↓` walks the newest.
+  `/stop <id>` reaches either; `shift+↑↓` walks the newest.
 
   Getting there took four tries, and the method is the finding: a command typed
   after the model's turn has ended never overlaps. Type it while the turn is
@@ -338,6 +338,17 @@ pi. Three things around them are known and unfinished:
   meet.
 - **A refused turn is no longer counted.** Asking a stopped subagent returns
   without reaching the session, and `turns` stays where it was.
+- **The keys are read from pi through a door pi never documented.**
+  `extension/keys.ts` reads the `combo.*` ids from `getUserBindings()`, which
+  keeps every entry of `keybindings.json`. When pi lets an extension declare
+  keybinding definitions, declare the four ids there, read them with
+  `getKeys()`, and drop the reading: `/hotkeys` then lists them, and pi
+  reports their conflicts. Until then, a pi that stops keeping unknown ids
+  costs only the overrides; the defaults still work. Measured on 1.0.2:
+  `shift+↑↓` through `drive-pi.py` (xterm and kitty sequences, release
+  included) and tmux 3.6 (`send-keys S-Down`, with and without
+  `extended-keys`), in both TUI modes; an override and a malformed value
+  through `PI_CODING_AGENT_DIR`; `/reload` picking a changed file up.
 
 ## 7. What the language rule left open - answered
 
@@ -604,7 +615,7 @@ pi -e extension                # interactive, to actually see the TUI
 
 python3 scripts/drive-pi.py \
   "/run explore what does the ledger record||3||9" \
-  "key:ctrl+down||2||3" "key:ctrl+delete||3||8" "key:escape||5||30"
+  "key:shift+down||2||3" "key:ctrl+delete||3||8" "key:escape||5||30"
 ```
 
 `drive-pi.py` types into a real pi and prints the frames. A `key:<name>` step

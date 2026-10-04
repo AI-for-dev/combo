@@ -5006,3 +5006,56 @@ It is written in digits: `1.5`, `0x10` and `1e2` are all refused.
 The parser returns the refusal as `refused` and does not throw. Each command
 prefixes it with its own name and shows it through `refuse()`, as a warning,
 the same level as its other refusals of what was typed.
+
+## Selecting a subagent with shift+↑↓
+
+pi 1.0 runs its TUI fullscreen by default, and in fullscreen `ctrl+↑↓` jump
+between prompts in the transcript. That holds on every platform. pi's
+`docs/keybindings.md` says `ctrl+up` is bound only on Windows and WSL, but
+`dist/core/keybindings.js` binds `["ctrl+shift+up", "ctrl+up"]` everywhere
+else. The fullscreen screen registers its input listener when it is built,
+before any extension's, and consumes those keys, so the selection described
+under "Stopping a run" never moved: measured with `drive-pi.py`, `ctrl+down`
+marked `▸ scout#2` with `--tui-mode regular` and marked nothing in fullscreen.
+`esc` was checked the same way and has no such problem. With the transcript
+search open, pi's listener takes the first `esc` to close it and the run goes
+on. The next `esc` stops the run.
+
+**Selection moved to `shift+↑↓`.** pi binds them to nothing, in either mode,
+and its editor does nothing with them either: with a cursor in the middle of
+a line, `shift+up` and `shift+down` left it where it was. The other two keys
+keep their defaults.
+
+**The four keys are rebindable, through pi's own file.** A key that
+cannot be changed is a collision waiting for the next pi release. pi has no
+way for an extension to declare a keybinding, so `extension/keys.ts` names
+four ids under `combo.` and reads them from `getUserBindings()` of the manager
+pi-tui's `getKeybindings()` returns. pi keeps every entry of
+`keybindings.json` there, ids it does not know included, and `/reload`
+re-reads the file. **That is undocumented**, observed on pi 1.0.2, and it is
+the only place in the extension that relies on it. The fallback is silent and
+per id: no manager, no `getUserBindings`, or a value that is neither a key nor
+a list of keys, and that id keeps its default. A typo in a file must not cost
+anyone the key that stops a run. A combo file of its own was the other way,
+and it would have been a second place to bind keys, beside the one pi users
+already know.
+
+The hints name the keys bound now, read at each paint and written the way pi
+writes a key (`shift+up/shift+down`). A key that is unbound is not offered.
+In a flow's widget the line goes one key a line when the terminal is too
+narrow for it, as a card's help line does. `/stop`'s description names no
+key: it is written once, as the extension loads, and would go stale after a
+rebind.
+
+Key releases are ignored. pi asks a terminal for the kitty keyboard protocol
+with event types, so a terminal that speaks it reports a release after each
+press, and both reach an extension's input listener. pi-tui's `parseKey`
+reads a release as the key itself, so without the check a press and its
+release would move the `▸` twice.
+
+**What replaces this.** The issue drafted for pi asks for either docs that match
+the bindings, a way for an extension listener to run before the fullscreen
+screen's, or (point c) keybinding definitions an extension declares, which
+`keybindings.json` overrides and `/hotkeys` lists. With point c, the four ids
+are declared there, read with `getKeys()`, and `keys.ts` keeps only its
+defaults.

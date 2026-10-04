@@ -66,7 +66,7 @@ with what its subagent is doing:
     ○ deliver#1/tests · check .pi/checks/test.sh · timeout 10m · ≤ 20m
     ○ deliver#1/audit · agent auditor (.pi/agents/auditor.md) · reads input, work, tests, diff, deliver.ledger · verd…
 ○ report · agent synthesiser (.pi/agents/synthesiser.md) · reads input, diff, deliver.output.last.work, deliver.outpu…
-esc stops everything · ctrl+↑↓ selects · ctrl+del stops the selected one
+escape stops everything · shift+up/shift+down selects · ctrl+delete stops the selected one
 ```
 
 A subagent's line gives its tokens once its turn has ended, since that is when

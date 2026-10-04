@@ -7,20 +7,22 @@
  * already the unusual case - a command launched while a tool call works - and
  * the newest is the one whose dots are on screen.
  *
- * Escape is **listened to, never consumed**. pi binds it to `app.interrupt`,
- * which aborts the turn a tool call runs inside; swallowing it would leave the
- * model free to delegate again the moment the tool returned. During a command
- * pi's own handler finds no run to abort, and this is what stops the subagents
+ * The keys are `keys.ts`'s, rebindable in pi's `keybindings.json`; their
+ * defaults are named below. The stop key is **listened to, never consumed**.
+ * By default it is Escape, which pi binds to `app.interrupt`: that aborts the
+ * turn a tool call runs inside, and swallowing the key would leave the model
+ * free to delegate again the moment the tool returned. During a command pi's
+ * own handler finds no run to abort, and this is what stops the subagents
  * then. One key, one meaning, wherever it is pressed - with one exception, a
  * question card, which owns the key for as long as it is on screen; that is
  * `asking.ts`.
  */
 
 
-import { parseKey } from "@earendil-works/pi-tui";
 import type { StopSwitch, RunSnapshot } from "../../src/index.ts";
 import { treeOrder } from "../../src/index.ts";
 import { isAsking } from "../ui/index.ts";
+import { pressed, showKeys } from "../keys.ts";
 import type { KeyUi, PiApi, StopCtx } from "../pi.ts";
 
 /** A run that can still be stopped, as the terminal sees it. */
@@ -37,8 +39,10 @@ export type LiveRun = {
 
 /** Registers `/stop`. The key listener needs no registration: a run brings it. */
 export default function registerStopCommand(pi: PiApi) {
+	// No key named here: a description is written once, as the extension loads,
+	// and a key rebound after that would leave it saying the wrong one.
 	pi.registerCommand("stop", {
-		description: "Stop the selected subagent - `<id>` names one, `all` stops the run (esc does that too)",
+		description: "Stop the selected subagent - `<id>` names one, `all` stops the run",
 		handler: async (args, ctx: StopCtx) => {
 			stopCommand(args, ctx);
 		},
@@ -58,8 +62,8 @@ let terminal: KeyUi | undefined;
  * Watches a run for as long as it lasts.
  *
  * The listener is attached with the first run and dropped with the last: outside
- * a run this file reads no keys at all, which is what keeps Escape and ctrl+↑↓
- * behaving exactly as pi means them to.
+ * a run this file reads no keys at all, which is what keeps Escape behaving
+ * exactly as pi means it to.
  */
 export function watchRun(run: LiveRun, ui: KeyUi | undefined): void {
 	running.push(run);
@@ -86,11 +90,13 @@ export function currentRun(): LiveRun | undefined {
 }
 
 /**
- * Escape stops everything; ctrl+↑↓ walk the list; ctrl+del stops what they
+ * Escape stops everything; shift+↑↓ walk the list; ctrl+del stops what they
  * landed on.
  *
- * Those three are consumed, because they are ours for the length of a run and
- * bound to nothing in pi, whereas Escape belongs to pi and is merely overheard.
+ * The last three are consumed, because they are ours for the length of a run
+ * and bound to nothing in pi, whereas the stop key may be pi's and is merely
+ * overheard. A key is read when it is pressed, so a binding changed and
+ * reloaded applies to the next press.
  *
  * ctrl+del does what `/stop` does, and it exists because `/stop` cannot always
  * be typed: pi runs no submission while a slash command of its own is awaiting,
@@ -98,22 +104,23 @@ export function currentRun(): LiveRun | undefined {
  * either works.
  */
 function onKey(data: string): { consume?: boolean } | undefined {
-	switch (parseKey(data)) {
-		case "escape":
-			if (!isAsking()) stopEverything();
-			return undefined;
-		case "ctrl+up":
-			moveSelection(-1);
-			return { consume: true };
-		case "ctrl+down":
-			moveSelection(1);
-			return { consume: true };
-		case "ctrl+delete":
-			stopCommand("", { ui: terminal ?? {} });
-			return { consume: true };
-		default:
-			return undefined;
+	if (pressed(data, "combo.run.stop")) {
+		if (!isAsking()) stopEverything();
+		return undefined;
 	}
+	if (pressed(data, "combo.subagent.previous")) {
+		moveSelection(-1);
+		return { consume: true };
+	}
+	if (pressed(data, "combo.subagent.next")) {
+		moveSelection(1);
+		return { consume: true };
+	}
+	if (pressed(data, "combo.subagent.stop")) {
+		stopCommand("", { ui: terminal ?? {} });
+		return { consume: true };
+	}
+	return undefined;
 }
 
 /** Stops every live run. Returns how many were going. */
@@ -127,7 +134,7 @@ export function stopEverything(): number {
  * Moves the selection by `delta` among the subagents still working.
  *
  * It wraps, and it starts at the first one: with nothing selected the first
- * ctrl+↑ or ctrl+↓ lands somewhere rather than on nothing. A selection whose
+ * key lands somewhere rather than on nothing. A selection whose
  * subagent has finished in the meantime is treated as no selection - the row it
  * pointed at is no longer stoppable.
  */
@@ -161,7 +168,7 @@ export function stoppable(snapshot: RunSnapshot): string[] {
  * A command beside the keys because a key cannot name anything: this is how a
  * branch is called off by id rather than by pointing at it. It runs at once
  * while a tool call works - pi executes an extension command instead of queueing
- * it - and ctrl+del is what covers the rest.
+ * it - and the selected-subagent key covers the rest.
  */
 export function stopCommand(args: string, ctx: StopCtx): string {
 	const word = args.trim();
@@ -176,7 +183,11 @@ export function stopCommand(args: string, ctx: StopCtx): string {
 	const ids = stoppable(run.snapshot());
 	const target = word || run.selected || (ids.length === 1 ? ids[0] : undefined);
 	if (!target) {
-		return say(ctx, `stop: ctrl+↑/↓ picks one of ${ids.join(", ")}, \`/stop <id>\` names it, esc stops the run`, "warning");
+		// Only the keys that are bound: a way offered that does nothing is worse than none.
+		const select = [showKeys("combo.subagent.previous"), showKeys("combo.subagent.next")].filter(Boolean).join("/");
+		const stop = showKeys("combo.run.stop");
+		const ways = [select ? `${select} picks one of ${ids.join(", ")}, \`/stop <id>\` names it` : `\`/stop <id>\` names one of ${ids.join(", ")}`, ...(stop ? [`${stop} stops the run`] : [])];
+		return say(ctx, `stop: ${ways.join(", ")}`, "warning");
 	}
 
 	// Any live run, not only the current one: an id is unambiguous, and a user
