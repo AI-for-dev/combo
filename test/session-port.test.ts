@@ -40,6 +40,11 @@ describe("sessionPort", () => {
 		assert.deepEqual([second?.usage.wallMs, second?.usage.busyMs, second?.usage.turns], [0, 0, 0], "time is the caller's");
 	});
 
+	test("a turn's tool calls are what pi's count gained during it", async () => {
+		const [first, second] = await turnsOf([{ text: "one", tools: [{ name: "grep" }, { name: "read" }] }, { text: "two" }]);
+		assert.deepEqual([first?.usage.toolCalls, second?.usage.toolCalls], [2, 0], "the second turn called none, whatever the first did");
+	});
+
 	test("a field pi leaves out is 0, counters going backwards are 0, and an unknown context level is none", async () => {
 		const pi = fakePiSession([{ text: "done" }]);
 		const stats = (input: number, context: number | null) =>

@@ -26,6 +26,11 @@ describe("deltaUsage", () => {
 		assert.equal(turn.cost, 0);
 	});
 
+	test("tool calls are a counter like the tokens", () => {
+		assert.equal(deltaUsage(usage({ toolCalls: 4 }), usage({ toolCalls: 7 })).toolCalls, 3);
+		assert.equal(sumUsage([usage({ toolCalls: 2 }), usage({ toolCalls: 5 })], 0).toolCalls, 7);
+	});
+
 	test("contextTokens is a level, not a cumulative counter: the later one wins", () => {
 		const before = usage({ contextTokens: 30_000 });
 		const after = usage({ contextTokens: 12_000 });

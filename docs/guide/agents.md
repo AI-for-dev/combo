@@ -26,7 +26,8 @@ The Markdown body is the system prompt, used verbatim.
 | --- | --- | --- |
 | `name` | yes | How every caller refers to the agent. |
 | `description` | yes | One line on what it is for. Also what `route` and `orchestrate` read to decide who does the work. |
-| `tools` | no | Allowed tools. Absent means read-only: `read`, `grep`, `find`, `ls`. |
+| `tools` | no | Allowed tools. Absent means read-only: `read`, `grep`, `find`, `ls`. `tools: []` means none at all. |
+| `mustCallTool` | no | `true`: a turn that calls no tool fails. For an agent whose answer must rest on what it read - see below. |
 | `skills` | no | Skills it may load, by name. Absent means none - see below. |
 | `concurrency` | no | How many subagents it runs at once when it delegates. Only read for an agent that names `subagent`. |
 | `model` | no | A pattern such as `anthropic/claude-sonnet-5`. A caller's `model` argument beats it; absent everywhere means pi's default - see below. |
@@ -127,6 +128,40 @@ genuinely enforced by pi. A weak model will still *emit* calls to tools it does
 not have; those fail, and the model may retry them in a loop, which is an
 argument for `loop`'s `maxIterations` and for `timeoutMs`, not for widening the
 allowlist.
+
+## An agent that must read before it answers
+
+A weak model asked to find something sometimes answers without looking: prose,
+a `bash` block it never ran, "the directory does not exist". Nothing in the
+text tells that apart from an answer that read the files, but pi counts the
+tool calls of every turn. `mustCallTool: true` turns that count into a
+contract:
+
+```markdown
+---
+name: scout
+tools: read, grep, find, ls
+mustCallTool: true
+---
+```
+
+A turn of such an agent that called no tool fails, with `ok: false` and the
+error `called no tool (mustCallTool)`. In a flow that is the failure kind
+`no-tool`, which `retry:` covers, so the turn is asked again with the failure
+named. The displays and `usage.json` say `called no tool` of such an agent
+only. An agent that does not declare it is never failed for it and never
+flagged, since answering from what it was handed may be its whole job. Every
+subagent's `toolCalls` is still counted.
+
+Any tool counts, `submit` and `verdict` included. A definition that says
+`mustCallTool: true` with `tools: []` is refused, since none of its turns
+could succeed.
+
+The shipped `scout`, `explorer` and `auditor` declare it. A scout locates
+code, an explorer splits the reading across scouts, and an auditor is told
+that the reports it is handed are claims, not evidence. `reviewer` and
+`member` do not: a reviewer can judge the diff it is handed, and a swarm
+member may end a turn with nothing left to take.
 
 ## Tools combo brings
 

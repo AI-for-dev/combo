@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { createRunPicture } from "../src/reporters/picture.ts";
 import {
+	calledNoTool,
 	callLine,
 	currentActivity,
 	detailLine,
@@ -288,5 +289,31 @@ describe("summaryTable", () => {
 
 		assert.equal(lines.length, 2);
 		assert.ok(!lines.some((line) => line.includes("parallelism")), lines.join("\n"));
+	});
+});
+
+describe("an agent that must call a tool and called none", () => {
+	test("its row fails with the reason, and the summary table says it called no tool", () => {
+		const picture = replay(spawned("scout#1", undefined, undefined, true), closed("scout#1", false, { turns: 1, busyMs: 500 }));
+		const one = picture.snapshot().subagents[0]!;
+
+		assert.equal(calledNoTool(one), true);
+		assert.match(summaryTable(picture.snapshot(), 500)[0] as string, /^✗ scout#1 +1 turn 0\.5s ↑0 ↓0 {2}called no tool$/);
+	});
+
+	test("one call is enough to say nothing", () => {
+		const picture = replay(spawned("scout#1", undefined, undefined, true), closed("scout#1", true, { turns: 1, toolCalls: 1 }));
+		assert.equal(calledNoTool(picture.snapshot().subagents[0]!), false);
+	});
+
+	test("an agent that may answer from what it was handed is never said to have called none", () => {
+		const picture = replay(spawned("synthesiser#1"), closed("synthesiser#1", true, { turns: 1 }));
+		assert.equal(calledNoTool(picture.snapshot().subagents[0]!), false);
+		assert.doesNotMatch(summaryTable(picture.snapshot(), 0)[0] as string, /called no tool/);
+	});
+
+	test("nothing to say before a turn has ended", () => {
+		const picture = replay(spawned("scout#1", undefined, undefined, true), working("scout#1", "look"));
+		assert.equal(calledNoTool(picture.snapshot().subagents[0]!), false);
 	});
 });

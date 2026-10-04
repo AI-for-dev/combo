@@ -21,6 +21,7 @@ import path from "node:path";
 import type { RunSnapshot } from "../reporters/picture.ts";
 import type { Usage } from "../usage.ts";
 import { treeOrder } from "../reporters/tree.ts";
+import { calledNoTool } from "../reporters/tui.ts";
 import type { MainSession, SessionPort } from "../session.ts";
 
 /** What one subagent left on disk. Both paths are absent when nothing could be written. */
@@ -165,6 +166,8 @@ export type UsageReportEntry = {
 	task: string;
 	/** How many tools it called. The cheapest signal that a turn ran away. */
 	toolCalls: number;
+	/** Present when its definition says `mustCallTool: true` and it called no tool: why it failed. */
+	calledNoTool?: true;
 	/**
 	 * The subagent that had this one spawned. Absent on a root.
 	 *
@@ -280,6 +283,7 @@ export function usageReport(snapshot: RunSnapshot, wallMs: number, exports?: Ses
 			error: one.error,
 			task: one.task,
 			toolCalls: one.tools.length,
+			...(calledNoTool(one) && { calledNoTool: true as const }),
 			parentId: one.parentId,
 			usage: one.usage,
 		})),

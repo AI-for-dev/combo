@@ -7,7 +7,8 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { dryRunFlow, type DryRun } from "../src/flow/index.ts";
-import { checked, visited } from "./fixtures/flow.ts";
+import { CALLED_NO_TOOL_ERROR } from "../src/agent.ts";
+import { agent, checked, checkedIn, flowText, visited } from "./fixtures/flow.ts";
 
 const FLOW = checked(
 	`  - id: plan
@@ -54,6 +55,19 @@ describe("a dry run", () => {
 	test("ends as the flow ends when the script fails a node past its retries", async () => {
 		const run = await dryRunFlow(FLOW, "x", { plan: [{ fail: "schema" }, { fail: "provider" }] });
 		assert.deepEqual(!run.ok && "error" in run && [run.error, run.path], [{ kind: "provider", message: "scripted provider failure" }, "plan"]);
+	});
+
+	test("answers for a whole turn, reading included, and scripts a turn that called no tool as `no-tool`", async () => {
+		const strict = checkedIn("f", { f: flowText("  - id: look\n    agent: reader\n    retry: 1", { look: "Look." }) }, [{ ...agent("reader"), mustCallTool: true }]);
+		const read = await dryRunFlow(strict, "x", { look: "found" });
+		assert.deepEqual(read.ok && "output" in read && read.output, "found");
+		const idle = await dryRunFlow(strict, "x", { look: [{ fail: "no-tool" }, { fail: "no-tool" }] });
+		assert.deepEqual(!idle.ok && "error" in idle && idle.error, { kind: "no-tool", message: CALLED_NO_TOOL_ERROR });
+	});
+
+	test("refuses a scripted `no-tool` for an agent that does not have to call one", async () => {
+		const run = await dryRunFlow(checked("  - id: look\n    agent: scout", { look: "Look." }), "x", { look: { fail: "no-tool" } });
+		assert.ok(!run.ok && "faults" in run, JSON.stringify(run));
 	});
 
 	test("serves every attempt with one answer that is not a list", async () => {

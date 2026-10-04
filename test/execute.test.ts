@@ -479,9 +479,9 @@ describe("paintWidget", () => {
 			output: "",
 			parentId,
 			depth: parentId ? 1 : 0,
-			usage: { wallMs: 0, busyMs: 0, turns: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
+			usage: { wallMs: 0, busyMs: 0, turns: 0, toolCalls: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
 		});
-		const usage = { wallMs: 0, busyMs: 0, turns: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
+		const usage = { wallMs: 0, busyMs: 0, turns: 0, toolCalls: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
 
 		const painted = paintWidget(
 			{ subagents: [row("explorer#1"), row("scout#1", "explorer#1")], total: 2, done: 0, running: 2, failed: 0, usage },
@@ -505,14 +505,14 @@ describe("paintWidget", () => {
 						tools: [],
 						output: "",
 						depth: 0,
-						usage: { wallMs: 0, busyMs: 0, turns: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
+						usage: { wallMs: 0, busyMs: 0, turns: 0, toolCalls: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
 					},
 				],
 				total: 1,
 				done: 0,
 				running: 1,
 				failed: 0,
-				usage: { wallMs: 0, busyMs: 0, turns: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
+				usage: { wallMs: 0, busyMs: 0, turns: 0, toolCalls: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
 			},
 			{ fg: (colour, text) => `<${colour}>${text}` },
 		);

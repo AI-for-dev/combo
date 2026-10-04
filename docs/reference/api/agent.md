@@ -28,8 +28,17 @@ export type Agent = {
 	description: string;
 	/** Markdown body, used verbatim as the system prompt. */
 	systemPrompt: string;
-	/** Allowed tools. Absent means the read-only default is applied at spawn. */
+	/**
+	 * Allowed tools. Absent means the read-only default is applied at spawn;
+	 * an empty list means none at all.
+	 */
 	tools?: string[];
+	/**
+	 * Every turn must call at least one tool. A turn that answers without one
+	 * fails with {@link CALLED_NO_TOOL_ERROR}: for an agent whose job is to
+	 * read, an answer that read nothing is one that was not done.
+	 */
+	mustCallTool?: boolean;
 	/**
 	 * Skills this agent may load, by name - an allowlist, exactly like `tools`.
 	 *

@@ -823,8 +823,14 @@ even with text in it, since it is not the whole of one. One cut in the
 model's thinking has no text at all, and fails rather than reach the next
 node as an empty answer.
 
+A turn fails `no-tool` when its agent's definition says
+`mustCallTool: true` and the turn called no tool (see
+[Agents](agents.md#fields)). An agent that does not say so is never failed
+for it. A `submit` or a `verdict` is a tool call, so a typed or `verdict:`
+node meets it with its answer.
+
 `retry: n` gives an `agent` node `n` more attempts after a `provider`,
-`timeout` or `schema` failure, never after a stop or a cut. A retry asks the
+`timeout`, `schema` or `no-tool` failure, never after a stop or a cut. A retry asks the
 same subagent again with the failure named, except after a timeout, which
 starts a fresh subagent asked the whole turn, unless a `memory:` scope keeps
 it. Every attempt's tokens count.
@@ -888,7 +894,10 @@ written inside one. An answer is an output, the `verdict` call of a
 `verdict:` node (`{ approved, remarks?, resolved?, raised? }`), a check's
 `{ passed, report }`, a commit's `{ committed, sha?, branch }`, an ask's
 output, or a failure: `{ fail: "provider" | "timeout" | "schema" }` for an
-agent turn, `{ fail: "unavailable" | "timeout" }` for a check,
+agent turn, and `{ fail: "no-tool" }` too when its agent says
+`mustCallTool: true`. A text answer stands for the whole turn, reading
+included, so a dry run never fails `no-tool` on its own.
+`{ fail: "unavailable" | "timeout" }` is for a check,
 `{ fail: "unavailable" }` for a commit. An ask takes `{ fail: "nobody" }`,
 `{ fail: "timeout" }` when it has a `timeout:`, and `{ fail: "stopped" }`, the
 card declined, when it has no `enough:`. The first two take the node's own

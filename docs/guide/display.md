@@ -16,7 +16,7 @@ The core emits, reporters subscribe and only read.
 
 ```typescript
 type SubagentEvent =
-	| { type: "spawn";  id: string; agent: string; lifetime: Lifetime }
+	| { type: "spawn";  id: string; agent: string; lifetime: Lifetime; mustCallTool?: true }
 	| { type: "status"; id: string; status: "working" | "idle" | "blocked" | "done"; task?: string }
 	| { type: "text";   id: string; delta: string }
 	| { type: "tool";   id: string; name: string; args: unknown }
@@ -331,6 +331,14 @@ any more, so its numbers move up beside the tick and the line goes. A fan-out of
 three takes seven lines at its widest and shrinks as it finishes, rather than
 holding the terminal at its widest until the run ends. A failure keeps what the
 tick cannot say: `✗ coder#1  402 from the provider  provider/model · 3.1s`.
+
+An agent whose definition says `mustCallTool: true` fails a turn that
+called no tool, and its row says why:
+`✗ scout#1  called no tool (mustCallTool)  provider/model · 0.7s`. The
+summary table and the console reporter end its line with `called no tool`,
+and `usage.json` gives it `calledNoTool: true`. The `spawn` event carries
+`mustCallTool`, so a display knows which agents this is said of. Nothing is
+said of an agent that does not declare it, whatever its count.
 
 A subagent that was **delegated** sits under the one that asked for it, here and
 in the tool row alike:

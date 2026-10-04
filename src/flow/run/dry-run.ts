@@ -68,7 +68,9 @@ export async function dryRunFlow(checked: CheckedFlow, input: unknown, answers: 
 	const sessions = new Map<string, ScriptedSession>();
 	const scripted: SpawnFn = async (agent, spawnOptions) => {
 		let session: ScriptedSession | undefined;
-		const subagent = await spawn(agent, { ...spawnOptions, createSession: async (_agent, sessionOptions) => (session = scriptedSession(sessionOptions)) });
+		// A scripted answer stands for the whole turn, reading included: a text
+		// is a turn that did its work, and `{ fail: "no-tool" }` one that did not.
+		const subagent = await spawn({ ...agent, mustCallTool: undefined }, { ...spawnOptions, createSession: async (_agent, sessionOptions) => (session = scriptedSession(sessionOptions)) });
 		sessions.set(subagent.id, session as ScriptedSession);
 		return subagent;
 	};

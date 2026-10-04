@@ -7,7 +7,7 @@
  * own stop, the deadline this attempt was given, and otherwise the provider.
  */
 
-import type { Agent } from "../../agent.ts";
+import { CALLED_NO_TOOL_ERROR, type Agent } from "../../agent.ts";
 import { timedOutAfter } from "../../deadline.ts";
 import type { GitResult } from "../../git/index.ts";
 import type { Result } from "../../result.ts";
@@ -21,7 +21,7 @@ import { closingPart, composeTurn, retryTurn } from "./turn.ts";
 import type { Here } from "./walk.ts";
 
 /** The failures a `retry:` covers. A person's stop and a `fail-fast` cut are never retried. */
-const RETRIED: readonly ErrorKind[] = ["schema", "provider", "timeout"];
+const RETRIED: readonly ErrorKind[] = ["schema", "no-tool", "provider", "timeout"];
 
 /** One attempt about to be asked, as the run's deadline sees it: its visit, its node's address, its subagent. */
 export type Attempt = { readonly path: string; readonly at: string; readonly subagent: string; readonly ms: number };
@@ -122,6 +122,7 @@ function failed(run: AgentRun, cut: AbortSignal, id: string, result: Result, dea
 	if (cutShort !== undefined) return { ok: false, error: cutShort };
 	if (result.error === "stopped") return failure("stopped", `${id} was stopped`);
 	if (deadline.aborted) return failure("timeout", timedOutAfter(ms));
+	if (result.error === CALLED_NO_TOOL_ERROR) return failure("no-tool", result.error);
 	return failure("provider", result.error ?? "the turn failed");
 }
 

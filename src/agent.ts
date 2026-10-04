@@ -9,6 +9,7 @@
 import * as path from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import { BUILTIN_AGENTS_DIR } from "./builtin.ts";
+import { CALLED_NO_TOOL } from "./usage.ts";
 import { asBoolean, asCount, asList, asString, definitionDirs, readMarkdownDir, yamlError, type MarkdownFile } from "./markdown.ts";
 
 /** Directory name under `~/.pi/agent/` and under `.pi/`. */
@@ -52,8 +53,17 @@ export type Agent = {
 	description: string;
 	/** Markdown body, used verbatim as the system prompt. */
 	systemPrompt: string;
-	/** Allowed tools. Absent means the read-only default is applied at spawn. */
+	/**
+	 * Allowed tools. Absent means the read-only default is applied at spawn;
+	 * an empty list means none at all.
+	 */
 	tools?: string[];
+	/**
+	 * Every turn must call at least one tool. A turn that answers without one
+	 * fails with {@link CALLED_NO_TOOL_ERROR}: for an agent whose job is to
+	 * read, an answer that read nothing is one that was not done.
+	 */
+	mustCallTool?: boolean;
 	/**
 	 * Skills this agent may load, by name - an allowlist, exactly like `tools`.
 	 *
@@ -151,12 +161,16 @@ function agentFrom(frontmatter: Record<string, unknown>, body: string, filePath:
 		return `it has no ${missing}, which an agent needs`;
 	}
 
+	const tools = toolsFrom(frontmatter.tools);
+	const mustCallTool = asBoolean(frontmatter.mustCallTool);
+	if (mustCallTool && tools?.length === 0) return "it says `mustCallTool: true` and gives `tools: []`, so no turn of it could succeed";
 	const lifetime = asString(frontmatter.lifetime);
 	return {
 		name,
 		description,
 		systemPrompt: body.trim(),
-		tools: asList(frontmatter.tools),
+		tools,
+		mustCallTool,
 		skills: asList(frontmatter.skills),
 		model: asString(frontmatter.model),
 		lifetime: lifetime && (LIFETIMES as readonly string[]).includes(lifetime) ? (lifetime as Lifetime) : undefined,
@@ -166,6 +180,21 @@ function agentFrom(frontmatter: Record<string, unknown>, body: string, filePath:
 		filePath,
 	};
 }
+
+/**
+ * `tools:` as the file wrote it: `[]` is no tools at all, which a blank value
+ * is not. A blank one reads as saying nothing, like every other list here,
+ * and keeps the read-only default.
+ */
+function toolsFrom(value: unknown): string[] | undefined {
+	return Array.isArray(value) && value.length === 0 ? [] : asList(value);
+}
+
+/**
+ * The error of a turn that called no tool from an agent whose definition says
+ * `mustCallTool: true`. A flow reads it as the failure kind `no-tool`.
+ */
+export const CALLED_NO_TOOL_ERROR = `${CALLED_NO_TOOL} (mustCallTool)`;
 
 /**
  * Discovers the available agents.

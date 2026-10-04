@@ -5158,3 +5158,65 @@ screen's, or (point c) keybinding definitions an extension declares, which
 `keybindings.json` overrides and `/hotkeys` lists. With point c, the four ids
 are declared there, read with `getKeys()`, and `keys.ts` keeps only its
 defaults.
+
+## An agent can require a tool call, and `tools: []` means none
+
+On `ilaas/qwen-3.6-35b-instruct`, scouts asked where a subagent's wall time is
+measured answered without calling a single tool in 5 of 20 runs through
+`run()`, and the first scout of `/run explore` did so in 3 of 3. They wrote
+prose, pretend `bash` blocks, or "the directory does not exist", and combo
+reported each one `ok: true`. The synthesiser then built its answer on paths
+nobody had read.
+
+combo cannot judge a text, but whether a turn called a tool is a count pi
+keeps: `getSessionStats().toolCalls` counts the calls in the transcript,
+compacted ones included. `sessionPort()` takes the delta of that count over
+a turn, the same way it takes the tokens, so `Usage.toolCalls` is on every
+`Result`, sums in a fan-out and lands in `usage.json`, for every subagent.
+
+**The count alone did not settle anything.** Shown for every agent that had
+tools, it marked the synthesiser on every `/run explore` (9 runs of 9 called
+no tool), because every shipped definition names read tools and answering
+from what it was handed is the synthesiser's job. The same fact meant "did
+not do the work" for a scout and "did the work" for a synthesiser, and only
+the definition knows which. So the definition says it.
+
+**`mustCallTool: true`.** A turn of an agent that declares it and calls no
+tool fails: `ok: false`, the error `called no tool (mustCallTool)`. That is a
+failure in the sense invariant 8 already gives one, a turn that did not do
+what it was for, and it is decided by our code from pi's count, never from
+what the model wrote. In a flow it is the failure kind `no-tool`, and
+`retry:` covers it like `schema`: the turn is asked again with the failure
+named, and a fan-out's `on-fail: continue` shows the item as failed rather
+than handing its guess on. The name follows the frontmatter's own
+convention, camelCase like `openInHerdr`, and it names what is checked: a
+call. `readsFirst` was the other candidate, and it promised more than a
+count can hold, since any tool counts, `submit`, `verdict`, `board` and
+`subagent` included.
+
+The displays and `usage.json` say `called no tool` of a declaring agent
+only. Nothing is said of the others, whose count stays recorded. A dry run
+does not hold a scripted text answer to the key, since the script stands for
+the whole turn, reading included; `{ fail: "no-tool" }` scripts the failure,
+for an agent that declares it.
+
+**`tools: []` now means no tools.** An empty list used to fall back to the
+read-only default, so "no tools" could not be written. A blank `tools:` still
+reads as saying nothing and keeps the default, like every other list in a
+definition. This is a breaking change for a definition that wrote `tools: []`
+and relied on getting read tools. A definition with `mustCallTool: true` and
+`tools: []` is refused, since none of its turns could succeed.
+
+**Who declares it.** `scout` locates code, `explorer` splits its reading
+across scouts, and `auditor` is told that the reports it is handed are
+claims, not evidence: an answer from any of them that read nothing is one
+that was not done. `reviewer` does not, since it can judge the diff it is
+handed, and in `build` its `verdict` call would meet the key anyway. Nor
+does `member`: a swarm member may end a turn with nothing left to take, and
+failing that turn would stop a member that was right.
+
+No shipped agent's `tools:` changed. The synthesiser and the committer
+answer from what they are handed, and the synthesiser called no tool in any
+of the 9 `/run explore` runs measured. `tools: []` would make that a property
+of the file. It would also take away the reading the synthesiser's prompt
+allows when two reports disagree, so it is a separate decision.

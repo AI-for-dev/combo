@@ -118,8 +118,8 @@ export type Turn = TurnReading & {
 	/** The messages the turn added, in order: the prompt, each answer, each tool result, a steer once delivered. */
 	messages: AgentMessage[];
 	/**
-	 * What pi billed for the turn and the context it left. Time is the
-	 * caller's: `wallMs`, `busyMs` and `turns` are `0` here.
+	 * What pi billed for the turn, the tool calls it counted and the context
+	 * it left. Time is the caller's: `wallMs`, `busyMs` and `turns` are `0` here.
 	 */
 	usage: Usage;
 };
@@ -353,6 +353,7 @@ function readUsage(pi: PiSession): Usage {
 		const stats = pi.getSessionStats();
 		return {
 			...emptyUsage(),
+			toolCalls: stats.toolCalls ?? 0,
 			input: stats.tokens.input ?? 0,
 			output: stats.tokens.output ?? 0,
 			cacheRead: stats.tokens.cacheRead ?? 0,
@@ -368,7 +369,7 @@ function readUsage(pi: PiSession): Usage {
 /** Tools of an exploration agent: read, never write. This is the default. */
 export const READ_ONLY_TOOLS = ["read", "grep", "find", "ls"] as const;
 
-/** The tools an agent is spawned with: the ones it names, or {@link READ_ONLY_TOOLS}. */
+/** The tools an agent is spawned with: the ones it names, none for `tools: []`, or {@link READ_ONLY_TOOLS} when it names none. */
 export function toolsOf(agent: Agent): string[] {
 	return agent.tools ?? [...READ_ONLY_TOOLS];
 }

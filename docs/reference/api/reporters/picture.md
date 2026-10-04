@@ -120,6 +120,8 @@ export type SubagentSnapshot = {
 	depth: number;
 	/** `provider/id` as pi resolved it, when it could. */
 	model?: string;
+	/** Its definition says `mustCallTool: true`, from its `spawn`. */
+	mustCallTool?: true;
 	/** The subagent that had this one spawned. Absent on a root. */
 	parentId?: string;
 	/**

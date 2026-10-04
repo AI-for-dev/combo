@@ -270,6 +270,25 @@ describe("usage.json", () => {
 		assert.equal(coder?.error, "provider exploded");
 	});
 
+	test("says which subagent had to call a tool and called none, and counts every subagent's calls", () => {
+		const picture = createRunPicture();
+		const done = (id: string, toolCalls: number) =>
+			picture.reporter({ type: "close", id, result: { agent: id.split("#")[0] as string, output: "", messages: [], usage: { ...emptyUsage(), turns: 1, toolCalls }, ok: true } });
+		picture.reporter({ type: "spawn", id: "scout#1", agent: "scout", lifetime: "task", openInHerdr: false, mustCallTool: true, order: 1 });
+		picture.reporter({ type: "spawn", id: "scout#2", agent: "scout", lifetime: "task", openInHerdr: false, mustCallTool: true, order: 2 });
+		picture.reporter({ type: "spawn", id: "synthesiser#1", agent: "synthesiser", lifetime: "task", openInHerdr: false, order: 3 });
+		done("scout#1", 0);
+		done("scout#2", 3);
+		done("synthesiser#1", 0);
+
+		const [silent, reader, synthesiser] = usageReport(picture.snapshot(), 100).subagents;
+		assert.equal(silent?.calledNoTool, true);
+		assert.equal(reader?.calledNoTool, undefined);
+		assert.equal(reader?.usage.toolCalls, 3);
+		assert.equal(synthesiser?.calledNoTool, undefined, "it may answer from what it was handed");
+		assert.equal(synthesiser?.usage.toolCalls, 0, "and its count is still recorded");
+	});
+
 	/** An explorer, and the scout it had spawned - which failed. */
 	function tree() {
 		const picture = createRunPicture();

@@ -92,7 +92,7 @@ describe("loop", () => {
 		const coder = pair?.kind === "loop" ? pair.nodes[0] : undefined;
 		assert.deepEqual(coder?.kind === "agent" && coder.reads.map((read) => [read.address, showType(read.type)]), [
 			["item", "{ text: string }"],
-			["pair.previous.review", "{ ok: boolean, output?: { approved: boolean, remarks?: string }, error?: { kind: provider | timeout | schema | stopped | cancelled | condition | child | nobody | unavailable | empty-message | unconverged | too-many, message: string } }"],
+			["pair.previous.review", "{ ok: boolean, output?: { approved: boolean, remarks?: string }, error?: { kind: provider | timeout | schema | no-tool | stopped | cancelled | condition | child | nobody | unavailable | empty-message | unconverged | too-many, message: string } }"],
 			["pair.ledger", "[{ id: string, text: string }]"],
 		]);
 		const report = flow.nodes[2];

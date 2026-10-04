@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { after, describe, test } from "node:test";
-import { findAgent, loadAgents, loadAgentsFromDir, parseAgent } from "../src/agent.ts";
+import { findAgent, loadAgents, loadAgentsFromDir, parseAgent, readAgentFile } from "../src/agent.ts";
 import { BUILTIN_AGENTS_DIR } from "../src/builtin.ts";
 import { SUBMIT_TOOL } from "../src/flow/run/submit.ts";
 import { VERDICT_TOOL } from "../src/review/index.ts";
@@ -88,6 +88,26 @@ describe("parseAgent", () => {
 
 		const absent = parseAgent("---\nname: a\ndescription: d\nskills:  \n---\nbody", "/x/a.md", "user");
 		assert.equal(absent?.skills, undefined, "naming no skill must not become naming an empty one");
+	});
+
+	test("an empty list of tools is no tools at all, where an absent or blank key keeps the default", () => {
+		const none = parseAgent("---\nname: a\ndescription: d\ntools: []\n---\nbody", "/x/a.md", "user");
+		assert.deepEqual(none?.tools, []);
+		const absent = parseAgent("---\nname: a\ndescription: d\n---\nbody", "/x/a.md", "user");
+		assert.equal(absent?.tools, undefined);
+	});
+
+	test("reads mustCallTool, and leaves it absent unless the file says so", () => {
+		const must = parseAgent("---\nname: a\ndescription: d\nmustCallTool: true\n---\nbody", "/x/a.md", "user");
+		assert.equal(must?.mustCallTool, true);
+		const absent = parseAgent("---\nname: a\ndescription: d\n---\nbody", "/x/a.md", "user");
+		assert.equal(absent?.mustCallTool, undefined);
+	});
+
+	test("refuses mustCallTool on an agent given no tools: no turn of it could ever succeed", () => {
+		const read = readAgentFile({ name: "a", filePath: "/x/a.md", content: "---\nname: a\ndescription: d\ntools: []\nmustCallTool: true\n---\nbody" }, "user");
+		assert.ok("error" in read);
+		assert.match(read.error, /mustCallTool/);
 	});
 
 	test("rejects an unknown lifetime rather than passing it through", () => {

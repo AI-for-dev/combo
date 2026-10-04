@@ -85,6 +85,7 @@ export function fakeSpawn(
 			lifetime,
 			openInHerdr: options.openInHerdr ?? false,
 			order: counter,
+			...(agent.mustCallTool && { mustCallTool: true as const }),
 			parentId: options.parentId,
 		});
 		bus?.emit({ type: "status", id, status: "idle" });
@@ -133,7 +134,9 @@ export function fakeSpawn(
 						return result;
 					}
 
-					const usage: Usage = { ...emptyUsage(), turns: 1, ...answer.usage };
+					// One call by default, as an agent that read before it answered: a test
+					// about one that did not says `toolCalls: 0`.
+					const usage: Usage = { ...emptyUsage(), turns: 1, toolCalls: 1, ...answer.usage };
 					const ok = answer.ok ?? true;
 					const output = answer.output ?? `${agent.name}(${task})`;
 					// A failed turn keeps what it said, as the real one keeps its messages.

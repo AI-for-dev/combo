@@ -32,14 +32,14 @@ export function flowText(nodes: string, sections: Record<string, string> = {}, h
 	return `---\nname: ${name}\ndescription: d\n${head}\nnodes:\n${nodes}\n---\n${body}`;
 }
 
-/** A catalogue holding `flows`, each text under its name, and {@link AGENTS}. */
-export function catalogueOf(flows: Record<string, string>): FlowCatalogue {
-	return { flows: Object.entries(flows).map(([name, content]) => ({ name, filePath: `flows/${name}.md`, content, source: "project" as const })), agents: AGENTS, brokenAgents: [], cwd: "." };
+/** A catalogue holding `flows`, each text under its name, {@link AGENTS} and `more`. */
+export function catalogueOf(flows: Record<string, string>, more: readonly Agent[] = []): FlowCatalogue {
+	return { flows: Object.entries(flows).map(([name, content]) => ({ name, filePath: `flows/${name}.md`, content, source: "project" as const })), agents: [...AGENTS, ...more], brokenAgents: [], cwd: "." };
 }
 
-/** The flow `name` of {@link catalogueOf} `flows`, checked. */
-export function checkedIn(name: string, flows: Record<string, string>): CheckedFlow {
-	const result = checkFlow(name, catalogueOf(flows));
+/** The flow `name` of {@link catalogueOf} `flows` and `more` agents, checked. */
+export function checkedIn(name: string, flows: Record<string, string>, more: readonly Agent[] = []): CheckedFlow {
+	const result = checkFlow(name, catalogueOf(flows, more));
 	assert.ok(result.ok, JSON.stringify(!result.ok && result.faults, null, 1));
 	return result.flow;
 }

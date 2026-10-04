@@ -52,6 +52,8 @@ export type SubagentSnapshot = {
 	depth: number;
 	/** `provider/id` as pi resolved it, when it could. */
 	model?: string;
+	/** Its definition says `mustCallTool: true`, from its `spawn`. */
+	mustCallTool?: true;
 	/** The subagent that had this one spawned. Absent on a root. */
 	parentId?: string;
 	/**
@@ -129,6 +131,7 @@ export function createRunPicture(): RunPicture {
 				usage: emptyUsage(),
 				depth: parent ? parent.depth + 1 : 0,
 				model: event.model,
+				...(event.mustCallTool && { mustCallTool: true }),
 				parentId: event.parentId,
 			});
 			touch();

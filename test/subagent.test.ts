@@ -5,6 +5,7 @@ import { deadline } from "../src/deadline.ts";
 import { IN_THE_LANGUAGE_OF_THE_WORK } from "../src/language.ts";
 import { resetSubagentIds, type SubagentEvent } from "../src/events.ts";
 import { run } from "../src/run.ts";
+import { CALLED_NO_TOOL_ERROR } from "../src/agent.ts";
 import { spawn } from "../src/subagent.ts";
 import { fakeSession, fakeSessionFactory, type Turn } from "./fixtures/fake-session.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
@@ -107,6 +108,45 @@ describe("ask", () => {
 		assert.equal(result.ok, true);
 		assert.equal(result.output, "found it in src/auth.ts");
 		assert.equal(result.agent, "scout");
+	});
+
+	test("result.usage carries the tool calls of the turn, and subagent.usage their sum", async () => {
+		const { subagent } = await spawnWith([{ text: "one", tools: [{ name: "grep" }, { name: "read" }] }, { text: "two" }]);
+
+		assert.equal((await subagent.ask("a")).usage.toolCalls, 2);
+		assert.equal((await subagent.ask("b")).usage.toolCalls, 0, "the second turn called none, whatever the first did");
+		assert.equal(subagent.usage.toolCalls, 2);
+	});
+
+	test("an agent that must call a tool fails a turn that called none, and passes one that called any", async () => {
+		const must = testAgent("scout", { mustCallTool: true });
+		const subagent = await spawn(must, { createSession: async () => fakeSession([{ text: "it is in src/x.ts" }, { text: "found", tools: [{ name: "grep" }] }]) });
+
+		const idle = await subagent.ask("a");
+		assert.equal(idle.ok, false);
+		assert.equal(idle.error, CALLED_NO_TOOL_ERROR);
+		assert.equal(idle.usage.turns, 1, "the turn ran, and what it cost stays counted");
+		assert.equal((await subagent.ask("b")).ok, true);
+	});
+
+	test("an agent that does not declare it is never failed for calling no tool", async () => {
+		const { subagent } = await spawnWith([{ text: "from what I was handed" }]);
+		assert.equal((await subagent.ask("a")).ok, true);
+	});
+
+	test("a turn that failed on its own keeps its own error", async () => {
+		const subagent = await spawn(testAgent("scout", { mustCallTool: true }), { createSession: async () => fakeSession([{ error: "boom" }]) });
+		assert.equal((await subagent.ask("a")).error, "boom");
+	});
+
+	test("spawn says whether the agent must call a tool, and only when it must", async () => {
+		const events: SubagentEvent[] = [];
+		const session = fakeSession([]);
+		await spawn(testAgent("scout", { mustCallTool: true }), { createSession: async () => session, onEvent: (event) => void events.push(event) });
+		await spawn(testAgent("synthesiser"), { createSession: async () => session, onEvent: (event) => void events.push(event) });
+
+		const spawns = events.flatMap((event) => (event.type === "spawn" ? [event.mustCallTool] : []));
+		assert.deepEqual(spawns, [true, undefined]);
 	});
 
 	test("subagent.usage accumulates across turns", async () => {

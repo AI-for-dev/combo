@@ -10,6 +10,16 @@ Nothing is estimated. Tokens and cost come from pi, read by the session
 (`src/session.ts`); the only things we add are **time** - which pi does not
 measure - and **attribution per subagent**.
 
+## `CALLED_NO_TOOL`
+
+*const*
+
+```typescript
+export const CALLED_NO_TOOL = "called no tool";
+```
+
+What every display says of a turn that called no tool its agent had to call.
+
 ## `compact`
 
 *function*
@@ -87,6 +97,11 @@ export type Usage = {
 	busyMs: number;
 	/** Completed `ask` calls. A turn is one prompt to the session, however many tools it ran. */
 	turns: number;
+	/**
+	 * Tool calls the model made, as pi counts them in the transcript: every one
+	 * it asked for, refused or not. Never read from what the model wrote.
+	 */
+	toolCalls: number;
 
 	/** Input tokens, as pi reported them. `0` when the provider does not say. */
 	input: number;

@@ -70,6 +70,11 @@ export type SubagentEvent =
 			/** `provider/id` as pi resolved it. Absent when pi could not say. */
 			model?: string;
 			/**
+			 * Its definition says `mustCallTool: true`: a turn of it that called
+			 * no tool fails, and the displays say it called none.
+			 */
+			mustCallTool?: true;
+			/**
 			 * Where this subagent came in the launch, counting from 1.
 			 *
 			 * The event cannot be emitted until the session exists, because it

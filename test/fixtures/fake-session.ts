@@ -77,7 +77,7 @@ export function fakeSession(turns: Turn[] = []): FakeSession {
 			messages,
 			text: turn.text ?? "",
 			error: signal.aborted ? "aborted" : turn.error,
-			usage: { ...emptyUsage(), ...turn.tokens, cost: turn.cost ?? 0, contextTokens },
+			usage: { ...emptyUsage(), ...turn.tokens, toolCalls: turn.tools?.length ?? 0, cost: turn.cost ?? 0, contextTokens },
 		};
 	}
 

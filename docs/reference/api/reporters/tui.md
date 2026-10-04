@@ -11,6 +11,18 @@ draws them. Nothing here holds state - the picture is `picture.ts`, folded
 once for every reader - so a line is tested by calling the function that
 makes it, never by scraping a terminal.
 
+## `calledNoTool`
+
+*function*
+
+```typescript
+export function calledNoTool(snapshot: SubagentSnapshot): boolean { /* … */ }
+```
+
+Whether a subagent whose definition says `mustCallTool: true` has ended a
+turn and called no tool in its whole life. Said of nobody else: an agent
+that may answer from what it was handed calling none is no news.
+
 ## `callLine`
 
 *function*

@@ -16,6 +16,11 @@ export type Usage = {
 	busyMs: number;
 	/** Completed `ask` calls. A turn is one prompt to the session, however many tools it ran. */
 	turns: number;
+	/**
+	 * Tool calls the model made, as pi counts them in the transcript: every one
+	 * it asked for, refused or not. Never read from what the model wrote.
+	 */
+	toolCalls: number;
 
 	/** Input tokens, as pi reported them. `0` when the provider does not say. */
 	input: number;
@@ -34,7 +39,7 @@ export type Usage = {
 
 /** A zeroed `Usage`. The starting point of a freshly spawned subagent. */
 export function emptyUsage(): Usage {
-	return { wallMs: 0, busyMs: 0, turns: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
+	return { wallMs: 0, busyMs: 0, turns: 0, toolCalls: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
 }
 
 /**
@@ -50,6 +55,7 @@ export function deltaUsage(before: Usage, after: Usage): Usage {
 		wallMs: Math.max(0, after.wallMs - before.wallMs),
 		busyMs: Math.max(0, after.busyMs - before.busyMs),
 		turns: Math.max(0, after.turns - before.turns),
+		toolCalls: Math.max(0, after.toolCalls - before.toolCalls),
 		input: Math.max(0, after.input - before.input),
 		output: Math.max(0, after.output - before.output),
 		cacheRead: Math.max(0, after.cacheRead - before.cacheRead),
@@ -89,6 +95,7 @@ export function sumUsage(parts: readonly Usage[], wallMs: number): Usage {
 	for (const part of parts) {
 		total.busyMs += part.busyMs;
 		total.turns += part.turns;
+		total.toolCalls += part.toolCalls;
 		total.input += part.input;
 		total.output += part.output;
 		total.cacheRead += part.cacheRead;
@@ -97,6 +104,9 @@ export function sumUsage(parts: readonly Usage[], wallMs: number): Usage {
 	}
 	return total;
 }
+
+/** What every display says of a turn that called no tool its agent had to call. */
+export const CALLED_NO_TOOL = "called no tool";
 
 /**
  * Compact usage line: `3 turns 12.4s ↑12k ↓2.1k R8k $0.0412 ctx:34k`. The

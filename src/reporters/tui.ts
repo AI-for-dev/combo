@@ -9,7 +9,7 @@
 
 import type { SubagentStatus } from "../events.ts";
 import { firstLine, scalar, truncate } from "../text.ts";
-import { formatUsage, showCost, showTokens } from "../usage.ts";
+import { CALLED_NO_TOOL, formatUsage, showCost, showTokens } from "../usage.ts";
 import type { RunSnapshot, SubagentSnapshot, ToolCall } from "./picture.ts";
 import { treeOrder } from "./tree.ts";
 
@@ -25,6 +25,15 @@ export type Standing = SubagentStatus | "failed";
  */
 export function standingOf(snapshot: SubagentSnapshot): Standing {
 	return snapshot.ok === false ? "failed" : snapshot.status;
+}
+
+/**
+ * Whether a subagent whose definition says `mustCallTool: true` has ended a
+ * turn and called no tool in its whole life. Said of nobody else: an agent
+ * that may answer from what it was handed calling none is no news.
+ */
+export function calledNoTool(snapshot: SubagentSnapshot): boolean {
+	return snapshot.mustCallTool === true && snapshot.usage.turns > 0 && snapshot.usage.toolCalls === 0;
 }
 
 /** `●` while it lives, `✓` once it succeeded, `✗` once it failed. */
@@ -218,7 +227,8 @@ export function progressLine(snapshot: RunSnapshot): string {
  */
 export function summaryTable(snapshot: RunSnapshot, wallMs: number): string[] {
 	const lines = treeOrder(snapshot.subagents).map(
-		(one) => `${statusIcon(standingOf(one))} ${pad(`${"  ".repeat(one.depth)}${one.id}`, 16)} ${formatUsage(one.usage)}`,
+		(one) =>
+			`${statusIcon(standingOf(one))} ${pad(`${"  ".repeat(one.depth)}${one.id}`, 16)} ${formatUsage(one.usage)}${calledNoTool(one) ? `  ${CALLED_NO_TOOL}` : ""}`,
 	);
 	lines.push(`${pad("total", 18)} ${formatUsage({ ...snapshot.usage, wallMs })}`);
 	if (wallMs > 0 && snapshot.usage.busyMs > wallMs) {

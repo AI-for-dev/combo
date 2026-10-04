@@ -10,7 +10,7 @@
  */
 
 import path from "node:path";
-import { lifetimeOf, type Agent, type Lifetime } from "./agent.ts";
+import { CALLED_NO_TOOL_ERROR, lifetimeOf, type Agent, type Lifetime } from "./agent.ts";
 import { deadline, timedOut } from "./deadline.ts";
 import { busFor, nextSubagentId, type EventBus, type EventListener, type SubagentEvent } from "./events.ts";
 import { exportBaseName, exportSession, type SessionExport } from "./measure/index.ts";
@@ -255,6 +255,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 		openInHerdr,
 		order,
 		model,
+		...(agent.mustCallTool && { mustCallTool: true }),
 		parentId: options.parentId,
 		visit: options.visit,
 		home: options.home,
@@ -320,7 +321,9 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 			const turn: Usage = { ...said.usage, busyMs: performance.now() - startedAt, turns: reached ? 1 : 0 };
 			usage = accumulate(usage, turn);
 
-			let error = said.error;
+			// The one failure that is not pi's: a turn of an agent whose
+			// definition says it must call a tool, ended without one.
+			let error = said.error ?? (reached && agent.mustCallTool && turn.toolCalls === 0 ? CALLED_NO_TOOL_ERROR : undefined);
 
 			// All three look like an abort from pi's side. Say which one it was: a
 			// deadline that expired, a caller that changed its mind and a person who

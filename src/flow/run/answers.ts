@@ -46,11 +46,16 @@ export type Answers = Readonly<Record<string, unknown>>;
 
 /** How a scripted node can fail: what it can end with on its own, short of a cut; an ask, as its keys allow. */
 function failsOf(node: AnsweredNode): readonly string[] {
-	if (node.kind === "agent") return ["provider", "timeout", "schema"];
+	if (node.kind === "agent") return ["provider", "timeout", "schema", ...(mustCallTool(node) ? ["no-tool"] : [])];
 	if (node.kind === "check") return ["unavailable", "timeout"];
 	if (node.kind === "commit") return ["unavailable"];
 	if (node.kind === "flow") return ["child"];
 	return ["nobody", ...(node.timeoutMs === undefined ? [] : ["timeout"]), ...(node.enough === undefined ? ["stopped"] : [])];
+}
+
+/** Whether an agent the node may run must call a tool, so that a script may say it called none. */
+function mustCallTool(node: CheckedAgentNode): boolean {
+	return ("from" in node.agent ? [...node.agent.among.values()] : [node.agent]).some((agent) => agent.mustCallTool === true);
 }
 
 /** What each kind of node a script answers is asked to say, by name in a fault. */
