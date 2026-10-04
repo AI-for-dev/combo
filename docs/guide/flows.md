@@ -1022,8 +1022,11 @@ Each line is folded by the state of its visit:
 - A visit running now is expanded. A loop shows every iteration it has run,
   and the current one is open. A `map` shows every item and a `parallel`
   every branch, since they run together, each folded to one line once it
-  ended. A `parallel` line reads `1/2` until its join, and a `map` line
-  counts its items the same way. A running call expands its callee's plan
+  ended. An item or a branch whose last visit failed reads `✗` with that
+  failure, `on-fail: continue` or not, since that is how its block counts it
+  (`2 items · 1 failed`). A loop counts no failed iteration, so an iteration
+  that went on past a failure reads `✓`. A `parallel` line reads `1/2` until
+  its join, and a `map` line counts its items the same way. A running call expands its callee's plan
   under it.
 - A visit that ended is one line: why it failed, or the agent it ran, the
   case a `choice` took, a loop's iterations and whether it converged, the
