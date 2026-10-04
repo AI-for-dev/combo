@@ -17,7 +17,7 @@
 import type { SubagentEvent } from "../../events.ts";
 import type { Usage } from "../../usage.ts";
 import type { CheckedFlow, CheckedNode } from "../checked.ts";
-import type { JournalEntry } from "../run/index.ts";
+import type { JournalEntry, VisitEnd } from "../run/index.ts";
 import { outcome, stopsSequence } from "./outcome.ts";
 import { planOf, type PlanLine } from "./plan.ts";
 import { summaryOf, type LiveSummary } from "./summary.ts";
@@ -160,19 +160,29 @@ class Fold {
 	 */
 	private branch(kind: "branch" | "item" | "iteration", prefix: string, nodes: readonly CheckedNode[], plans: readonly PlanLine[], now: boolean, current = false): LiveLine {
 		const own = { kind, label: prefix, path: prefix, subagents: [], lines: [] };
-		const over = this.over(nodes, prefix);
+		const over = this.over(nodes, prefix, kind !== "iteration");
 		if (over !== undefined) return { ...own, state: over.ok ? "done" : "failed", facts: over.facts, usage: this.visits.spent(prefix) };
 		if (!current && !this.visits.touched(prefix)) return { ...own, state: "pending", facts: [] };
 		return { ...own, state: now ? "working" : "pending", facts: [], lines: this.sequence(nodes, plans, prefix, false) };
 	}
 
-	/** How the sequence `nodes` inside `prefix` ended, and the failure that ended it; nothing while it goes on or before it starts. */
-	over(nodes: readonly CheckedNode[], prefix: string): { readonly ok: boolean; readonly facts: string[] } | undefined {
+	/**
+	 * How the sequence `nodes` inside `prefix` ended, and the failure that
+	 * ended it; nothing while it goes on or before it starts. A `joined`
+	 * sequence, a `map` item or a `parallel` branch, also fails on a last
+	 * visit that failed under `on-fail: continue`, since that is how its block
+	 * counts it: `3 items · 1 failed`. A loop's iteration and the run itself
+	 * count no such thing, and go on.
+	 */
+	over(nodes: readonly CheckedNode[], prefix: string, joined = false): { readonly ok: boolean; readonly facts: string[] } | undefined {
+		let last: { readonly node: CheckedNode; readonly end: VisitEnd } | undefined;
 		for (const node of nodes) {
 			const end = this.visits.ended(prefix === "" ? node.id : `${prefix}/${node.id}`);
 			if (end === undefined) return undefined;
 			if (!end.ok && stopsSequence(node, end)) return { ok: false, facts: outcome(node, end) };
+			last = { node, end };
 		}
+		if (joined && last !== undefined && !last.end.ok) return { ok: false, facts: outcome(last.node, last.end) };
 		return { ok: true, facts: [] };
 	}
 }

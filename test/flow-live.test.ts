@@ -171,6 +171,21 @@ describe("the live view", () => {
 		assert.equal(showSummary(livePlan(BLOCKS, journal, []), 400), last[0]);
 	});
 
+	test("draws an item whose last visit failed as failed, `on-fail: continue` or not, as the map counts it", async () => {
+		const flow = checked("  - id: look\n    map: [a, b]\n    concurrency: 1\n    do:\n      - id: find\n        agent: scout\n        on-fail: continue", { find: "Find." });
+		const { journal, events } = await recorded(flow, { "look[1]/find": { fail: "provider" }, "look[2]/find": "found" });
+
+		const mid = frame(flow, [], atStart(events, "look[2]/find"));
+		assert.equal(mid[2], "  ✗ look[1] · provider: scripted provider failure · 0s · ↑0 ↓0");
+		assert.equal(frame(flow, journal, [])[1], "✓ look · 2 items · 1 failed · 0s · ↑0 ↓0");
+	});
+
+	test("an iteration that ended on an absorbed failure still reads as done: a loop counts no failed iteration", async () => {
+		const flow = checked("  - id: fix\n    loop: work.ok && false\n    max: 2\n    on-fail: continue\n    do:\n      - id: work\n        agent: scout\n        on-fail: continue", { work: "Work." });
+		const { events } = await recorded(flow, { "fix#1/work": { fail: "provider" }, "fix#2/work": "done" });
+		assert.equal(frame(flow, [], atStart(events, "fix#2/work"))[2], "  ✓ fix#1 · 0s · ↑0 ↓0");
+	});
+
 	test("gives a check, a commit and an ask their time and no token counts, since no model runs in them", async () => {
 		const flow = checked(
 			"  - id: sure\n    ask: \"Go on?\"\n    confirm: true\n  - id: tests\n    check: scripts/ok.sh\n  - id: after\n    agent: synthesiser\n  - id: save\n    commit: after",
