@@ -116,7 +116,7 @@ describe("mirror", () => {
 			const live = client.lines.slice(client.lines.indexOf(client.lines.find((l) => l.type === "status" && l.status === "working")!)).map((l) => l.type);
 			assert.deepEqual(
 				live,
-				["status", "tool_execution_start", "message_update", "turn_end", "usage", "status"],
+				["status", "message_end", "tool_execution_start", "message_update", "message_end", "turn_end", "usage", "status"],
 				"pi's own events, in the order they were emitted, with ours around them",
 			);
 		} finally {

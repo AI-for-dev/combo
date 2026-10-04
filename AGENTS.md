@@ -232,6 +232,10 @@ reachable by forgetting an argument.
 - **`ToolExecutionComponent` handed no definition draws a generic box.** pi's
   interactive mode finds its own tools' renderers by name and does not export
   that lookup, so `pane/renderers.ts` names them with `create*ToolDefinition`.
+- **A compaction rebuilds `session.messages` shorter, mid-run included.** A
+  position taken before `prompt()` means nothing after it: a turn read by
+  `slice(start)` came back empty and `ok`. A turn's messages are the
+  `message_end` events it emitted (`ended()`); the summary emits none.
 - `session.prompt()` takes **no `AbortSignal`** - bridge it to `session.abort()`,
   and remove the listener after the turn.
 - A turn can **fail without throwing**: read the last assistant message's
@@ -264,7 +268,7 @@ not a bibliography:
 | undo or contradict any design choice above | [docs/decisions.md](docs/decisions.md) - the full record, with the reversals and their reasons |
 | add or change a combinator | [docs/guide/workflows.md](docs/guide/workflows.md), then the neighbouring `src/workflows/*.ts` |
 | touch a lifetime, a `close()` or a pool | [docs/guide/lifetime.md](docs/guide/lifetime.md) |
-| write a test, or a fake | [docs/development.md](docs/development.md#tests) - the fake session is cumulative, its `messages` grow, and its `abort()` really cuts the turn short |
+| write a test, or a fake | [docs/development.md](docs/development.md#tests) - the fake session is cumulative, its `messages` grow until it compacts, and its `abort()` really cuts the turn short |
 | touch a reporter, the TUI or herdr | [docs/guide/display.md](docs/guide/display.md) |
 | touch `Usage`, or an export | [docs/guide/measurements.md](docs/guide/measurements.md), [docs/guide/export.md](docs/guide/export.md) |
 | change the extension, a command or a card | [docs/guide/extension.md](docs/guide/extension.md) |

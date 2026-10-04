@@ -1,10 +1,13 @@
 /**
  * A scriptable `SessionPort`. This is what makes the whole suite run offline.
  *
- * It reproduces the two behaviours of pi that are easy to get wrong:
+ * It reproduces the behaviours of pi that are easy to get wrong:
  * `getSessionStats()` is **cumulative**, and `messages` **grows** with every
- * turn. A fake that returned per-turn stats would hide the very bug the
- * delta arithmetic exists to prevent.
+ * turn, until a compaction rebuilds it shorter in the middle of one. A fake
+ * that returned per-turn stats would hide the very bug the delta arithmetic
+ * exists to prevent, and one that only ever grew would hide a turn that reads
+ * its answer by position. Each message it adds ends with a `message_end`, as
+ * pi's do; the summary a compaction writes does not.
  */
 
 import type { SessionStats } from "@earendil-works/pi-coding-agent";
@@ -26,6 +29,8 @@ export type Turn = {
 	delayMs?: number;
 	/** Tool calls emitted during the turn. */
 	tools?: { name: string; args?: unknown }[];
+	/** Compacts before the answer, as pi does mid-run: `messages` comes back shorter, a summary first. */
+	compacts?: boolean;
 };
 
 export type FakeSession = SessionPort & {
@@ -56,6 +61,10 @@ export function fakeSession(turns: Turn[] = []): FakeSession {
 	const emit = (event: SessionEvent) => {
 		for (const listener of listeners) listener(event);
 	};
+	const add = (message: AgentMessage) => {
+		messages.push(message);
+		emit({ type: "message_end", message });
+	};
 
 	const session: FakeSession = {
 		get messages() {
@@ -73,7 +82,7 @@ export function fakeSession(turns: Turn[] = []): FakeSession {
 
 		async steer(text) {
 			steers.push(text);
-			messages.push({ role: "user", content: text } as AgentMessage);
+			add({ role: "user", content: text } as AgentMessage);
 		},
 		get disposed() {
 			return disposed;
@@ -132,7 +141,7 @@ export function fakeSession(turns: Turn[] = []): FakeSession {
 	async function runTurn(text: string) {
 		const turn: Turn = turns[index++] ?? {};
 
-		messages.push({ role: "user", content: text } as AgentMessage);
+		add({ role: "user", content: text } as AgentMessage);
 
 		// A real `abort()` cuts the turn short. A fake that slept through it
 		// would let a broken timeout look like a working one.
@@ -164,9 +173,13 @@ export function fakeSession(turns: Turn[] = []): FakeSession {
 
 		if (turn.throws) throw new Error(turn.throws);
 
+		if (turn.compacts) {
+			messages.splice(0, messages.length, { role: "compactionSummary", summary: "what came before" } as unknown as AgentMessage);
+		}
+
 		const stopReason = abortCurrent ? "aborted" : (turn.stopReason ?? "stop");
 		abortCurrent = false;
-		messages.push({
+		add({
 			role: "assistant",
 			content: [{ type: "text", text: turn.text ?? "" }],
 			stopReason,

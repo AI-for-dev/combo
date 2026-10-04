@@ -8,7 +8,8 @@
  * and a verdict through the real `verdict` tool, a provider failure ends the
  * turn on a failing `stopReason`, a timeout expires the attempt's deadline and
  * waits for the abort it causes, and a schema failure is a turn that calls
- * nothing.
+ * nothing. Each message it adds ends with a `message_end`, as pi's do, since
+ * that is where a turn's answer is read.
  */
 
 import type { AgentMessage, CreateSessionOptions, SessionEvent, SessionPort, ToolDefinition } from "../../session.ts";
@@ -32,8 +33,12 @@ export function scriptedSession(options: CreateSessionOptions): ScriptedSession 
 	const emit = (event: SessionEvent) => {
 		for (const listener of listeners) listener(event);
 	};
+	const add = (message: AgentMessage) => {
+		messages.push(message);
+		emit({ type: "message_end", message });
+	};
 	const answer = (text: string, stopReason = "stop", errorMessage?: string) => {
-		messages.push({ role: "assistant", content: [{ type: "text", text }], stopReason, errorMessage } as unknown as AgentMessage);
+		add({ role: "assistant", content: [{ type: "text", text }], stopReason, errorMessage } as unknown as AgentMessage);
 		emit({ type: "turn_end" });
 	};
 
@@ -71,7 +76,7 @@ export function scriptedSession(options: CreateSessionOptions): ScriptedSession 
 			staged = { turn, expire };
 		},
 		async prompt(text) {
-			messages.push({ role: "user", content: text } as AgentMessage);
+			add({ role: "user", content: text } as AgentMessage);
 			streaming = true;
 			try {
 				await turn();
