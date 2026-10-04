@@ -4016,6 +4016,57 @@ too, in pi's words: the safer side to err on. The tests run pi's real
 `resolveCliModel` over a catalogue held in memory, so they hold these cases to
 the pi that is installed.
 
+### A subagent's settings are a named list, and it never warms a cache
+
+`createAgentSession` given no `settingsManager` builds one from
+`~/.pi/agent/settings.json` and the project's `.pi/settings.json`, and a
+subagent used to get exactly that: every setting the user had, against
+invariant 5. It cost little until pi 1.0 turned prompt-cache warming on by
+default. A warm-up is a request pi sends by itself before a cache entry expires,
+and pi records it as usage that `getSessionStats()` sums, so it lands in a
+turn's delta. Measured on a real pi with a model that declares a 20 s cache
+lifetime: one turn spent 25 s in a `bash` call, and 2 warm-ups came back in its
+usage (2919 input tokens, about 1400 of them warm-ups). With the user's
+`cacheWarming: "idle"`, the same persistent subagent sent 2 more during a 25 s
+wait between two `ask()` calls. The same run showed the user's
+`shellCommandPrefix` running in the subagent's shell.
+
+A subagent now gets `SettingsManager.inMemory(subagentSettings(...))`. The seed
+is pi's own reading of the user's files, global and project merged, cut down to
+`INHERITED_SETTINGS` in `src/session.ts`, with `cacheWarming: "off"`. That list
+is the exception list, and each entry is either the model ladder or a fact or a
+consent that a subagent breaks without:
+
+| Kept | Why |
+|---|---|
+| `defaultProvider`, `defaultModel`, `defaultThinkingLevel`, `modelThinkingLevels` | the last step of the model ladder above |
+| `shellPath` | a machine fact: pi looks for bash by itself, and where that fails (Windows with Git Bash outside Program Files and no `bash.exe` on `PATH`) the `bash` tool throws on every call |
+| `httpIdleTimeoutMs`, `retry.provider.timeoutMs`, `websocketConnectTimeoutMs` | a fact about the provider: each request carries its own timeout, so a user who raised it for a slow local model would see subagents cut at 300 s |
+| `enableInstallTelemetry` | a consent: a user who opted out would see subagents send attribution headers to OpenRouter, NVIDIA and Cloudflare |
+
+What stops being inherited is everything `createAgentSession` and
+`AgentSession` read besides those, and each now has pi's default:
+
+| Setting | What a subagent does now |
+|---|---|
+| `cacheWarming` | off, whatever the user chose |
+| `shellCommandPrefix` | none: a prefix sets up the user's own shell, aliases and variables, and a subagent's commands should not depend on it |
+| `compaction.*`, `branchSummary.*` | pi's reserve and keep sizes, even for a model with a small window |
+| `retry.enabled`, `retry.maxRetries`, `retry.baseDelayMs`, `retry.maxAgentDelayMs`, `retry.provider.maxRetries`, `retry.provider.maxRetryDelayMs` | pi's retry policy |
+| `transport`, `steeringMode`, `followUpMode`, `thinkingBudgets` | pi's defaults |
+| `images.autoResize`, `images.blockImages` | pi's defaults |
+
+`defaultTools`, `enabledModels` and `theme` are read too but change nothing
+here: combo always passes `tools`, never cycles a model, and a theme only
+colours an HTML export. `httpProxy` is not a session setting: the host pi
+applies it to the whole process. The in-memory manager also means that a
+`setModel` on a subagent's session can no longer write the user's default
+model back to their file.
+
+Measurements taken before this change include whatever warm-ups pi sent, and
+only for a model that declares a cache lifetime and where pi expected the
+warm-up to save at least $0.05.
+
 
 ## Experiments: comparing models on the same work
 

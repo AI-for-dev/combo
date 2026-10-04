@@ -9,8 +9,8 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { formatSkillsForPrompt, type ModelRuntime, type Skill } from "@earendil-works/pi-coding-agent";
-import { lastTurn, resolvePattern, situate, StaticResourceLoader, streamed, type AgentMessage } from "../src/session.ts";
+import { formatSkillsForPrompt, SettingsManager, type ModelRuntime, type Skill } from "@earendil-works/pi-coding-agent";
+import { lastTurn, resolvePattern, situate, StaticResourceLoader, streamed, subagentSettings, type AgentMessage } from "../src/session.ts";
 
 /** A message in the shape pi keeps them, which is the shape under test here. */
 const message = (fields: Record<string, unknown>) => fields as unknown as AgentMessage;
@@ -121,6 +121,60 @@ describe("resolvePattern", () => {
 	test("a pattern pi rejects is refused with pi's own words", () => {
 		assert.match(resolvePattern("nope/model", runtime).refused ?? "", /^Model "nope\/model" not found\./);
 		assert.match(resolvePattern("gemma-4-31b", runtime).refused ?? "", /ambiguous across providers: ilaas\/gemma-4-31b, local\/gemma-4-31b/);
+	});
+});
+
+describe("subagentSettings", () => {
+	// A user's settings with every named exception set, and a preference
+	// beside each one that must stay behind.
+	const user = {
+		defaultProvider: "ilaas",
+		defaultModel: "qwen",
+		defaultThinkingLevel: "low",
+		modelThinkingLevels: { "ilaas/qwen": "high" },
+		shellPath: "/opt/bash",
+		httpIdleTimeoutMs: 900_000,
+		websocketConnectTimeoutMs: 30_000,
+		retry: { enabled: false, maxRetries: 9, provider: { timeoutMs: 600_000, maxRetries: 4 } },
+		enableInstallTelemetry: false,
+		cacheWarming: "idle",
+		shellCommandPrefix: "source ~/.aliases",
+		compaction: { reserveTokens: 6000 },
+		transport: "websocket",
+	} as Parameters<typeof subagentSettings>[0];
+
+	test("takes the named exceptions, turns warming off, and leaves every preference behind", () => {
+		assert.deepEqual(subagentSettings(user), {
+			cacheWarming: "off",
+			defaultProvider: "ilaas",
+			defaultModel: "qwen",
+			defaultThinkingLevel: "low",
+			modelThinkingLevels: { "ilaas/qwen": "high" },
+			shellPath: "/opt/bash",
+			httpIdleTimeoutMs: 900_000,
+			websocketConnectTimeoutMs: 30_000,
+			retry: { provider: { timeoutMs: 600_000 } },
+			enableInstallTelemetry: false,
+		});
+	});
+
+	test("a user who set nothing gives a subagent pi's defaults, with warming off", () => {
+		assert.deepEqual(subagentSettings({}), { cacheWarming: "off" });
+	});
+
+	test("pi reads the seed back as the subagent's settings", () => {
+		const settings = SettingsManager.inMemory(subagentSettings(user));
+
+		assert.equal(settings.getCacheWarmingMode(), "off");
+		assert.equal(settings.getDefaultModel(), "qwen");
+		assert.equal(settings.getModelThinkingLevel("ilaas", "qwen"), "high");
+		assert.equal(settings.getShellPath(), "/opt/bash");
+		assert.equal(settings.getHttpIdleTimeoutMs(), 900_000);
+		assert.equal(settings.getProviderRetrySettings().timeoutMs, 600_000);
+		assert.equal(settings.getEnableInstallTelemetry(), false);
+		assert.equal(settings.getShellCommandPrefix(), undefined);
+		assert.equal(settings.getRetrySettings().maxRetries, SettingsManager.inMemory().getRetrySettings().maxRetries);
+		assert.deepEqual(settings.getCompactionSettings(), SettingsManager.inMemory().getCompactionSettings());
 	});
 });
 

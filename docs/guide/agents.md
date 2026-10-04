@@ -231,6 +231,23 @@ resource loader: no extensions, no context files, no project trust, and no skill
 the definition did not name. A subagent sees what its own file asks for, which
 is what makes a run reproducible.
 
+Your pi settings reach it through a short list, kept in `src/session.ts` and read
+the way pi reads them (`~/.pi/agent/settings.json`, then the project's
+`.pi/settings.json` on top):
+
+| Setting | Why a subagent takes it |
+|---|---|
+| `defaultProvider`, `defaultModel`, `defaultThinkingLevel`, `modelThinkingLevels` | the last step of the model ladder, [below](#the-model-yours-to-pin-not-ours) |
+| `shellPath` | where bash is on this machine; without it the `bash` tool fails where pi cannot find one |
+| `httpIdleTimeoutMs`, `retry.provider.timeoutMs`, `websocketConnectTimeoutMs` | how long your provider is given; a slow local model would be cut at pi's 5 minutes |
+| `enableInstallTelemetry` | you turned pi's attribution headers off, and a subagent respects that |
+
+Everything else stays at pi's default, whatever your file says: compaction,
+retries, transport, `shellCommandPrefix`, image handling. Prompt-cache warming
+is off for every subagent. A warm-up is a request pi sends by itself while a
+turn waits on a tool, or between two turns with `cacheWarming: "idle"`, and its
+tokens would be counted in the subagent's usage.
+
 Two lines are appended to it, and neither is inherited context. The first is
 **where it is**: the ground every tool call stands on, without which a model
 guesses. A real run showed the cost - a scout called `ls /Users/loic/gouarin/…`,
