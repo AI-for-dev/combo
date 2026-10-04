@@ -1,11 +1,10 @@
 /**
  * pi's own drawing for pi's own tools, named rather than guessed.
  *
- * `ToolExecutionComponent` draws a generic box of arguments when it is handed
- * no definition. Through 0.80 that fallback still recognised the built-in tools
- * by name and drew `grep /x/ in a.ts`; 0.86 draws the JSON. Naming the
- * definitions is what brings the line back, and what stops the pane depending
- * on a fallback that already moved once.
+ * `ToolExecutionComponent` handed no definition draws a generic box of
+ * `key=value` arguments: pi's interactive mode finds its own tools' renderers
+ * by name, but does not export that lookup. Naming the definitions is what
+ * draws `grep /x/ in a.ts` in the pane, as pi does in the session.
  */
 
 import {
@@ -14,6 +13,7 @@ import {
 	createFindToolDefinition,
 	createGrepToolDefinition,
 	createLsToolDefinition,
+	createPowerShellToolDefinition,
 	createReadToolDefinition,
 	createWriteToolDefinition,
 } from "@earendil-works/pi-coding-agent";
@@ -24,6 +24,7 @@ const DEFINITIONS = {
 	find: createFindToolDefinition,
 	grep: createGrepToolDefinition,
 	ls: createLsToolDefinition,
+	powershell: createPowerShellToolDefinition,
 	read: createReadToolDefinition,
 	write: createWriteToolDefinition,
 } as const;

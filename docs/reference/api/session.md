@@ -10,11 +10,7 @@ The rest of the library only talks to {@link SessionPort}, a tiny subset of
 `AgentSession`. Two consequences: when pi moves, only this file moves; and
 tests inject a fake session with no network, no disk and no `~/.pi`.
 
-That second promise is why this file also absorbs pi's version churn - see
-{@link buildModelOptions}. **Which pi matters is the one the code runs
-inside**, not the one in `node_modules`: an extension is loaded into pi's own
-process, so it resolves pi's own copy of the package. Homebrew ships 0.80.6
-and npm ships 0.80.10, and those two do not agree on how models are built.
+combo is written against pi 1.0 and later.
 
 ## `AgentMessage`
 
@@ -38,8 +34,9 @@ Checks that a model pattern resolves in this pi, without opening a session.
 
 For whoever takes a `--model` argument: `/interview` asks the user for
 minutes before the first spawn and `/build` runs unwatched, and a typo must
-cost a second, not a conversation or a run found stopped. It touches the real pi module, like {@link buildRegistry} -
-a fake cannot stand in for it, only a real pi run proves it end to end.
+cost a second, not a conversation or a run found stopped. It reads the real
+model catalogue, so a fake cannot stand in for it: only a real pi run proves
+it end to end.
 
 ## `createDefaultSession`
 
@@ -115,7 +112,7 @@ What the library reads of the parent pi session, the one a run is launched
 from: pi's `ctx.sessionManager` fits it as it is.
 
 The file's path alone is not enough. pi creates a session's file with its
-first assistant message, so a command typed first in a fresh pi runs in a
+first message, so a command typed first in a fresh pi runs in a
 session whose file does not exist yet, and `--no-session` never writes one.
 The header and the entries are in memory from the start, and the file is
 those and nothing else, one JSON object per line.
@@ -151,9 +148,11 @@ export type SessionPort = {
 	 * model is in. **Only while `isStreaming`**: measured, a steer queued on an
 	 * idle session is delivered with the next `prompt()` and answered in place
 	 * of it, which silently changes what a workflow reads back from its own
-	 * task. The mirror is the one caller, and it checks first.
+	 * task. The mirror is the one caller, and it checks first. What pi resolves
+	 * with, `"handled"` or `"queued"`, does not tell an idle session from a busy
+	 * one, so it is not read.
 	 */
-	steer(text: string): Promise<void>;
+	steer(text: string): Promise<unknown>;
 	/** Whether a turn is in flight - the one moment a steer is safe. */
 	readonly isStreaming: boolean;
 	/** Releases the session. An undisposed session leaks; measurements come first. */

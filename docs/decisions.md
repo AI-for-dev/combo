@@ -3706,35 +3706,42 @@ own would have meant a wrapper proxying every member for the sake of one.
 
 ## The pi API: what you need to know
 
-**Which pi matters is the one the code runs inside, not the one in
-`node_modules`.** An extension is loaded into pi's own process, so it resolves
-pi's own copy of the package. Homebrew ships `0.80.6`; npm is on `0.80.10`; and
-those two disagree on the model API - `0.80.7` replaced `AuthStorage` +
-`ModelRegistry` with a single `ModelRuntime`. A pi "patch" release can break the
-API.
+**combo needs pi 1.0 or later.** The extension refuses an older pi when it
+loads (`requirePi`, in `extension/pi.ts`), and `src/session.ts` speaks one model
+API: a `ModelRuntime`, with patterns resolved by `resolveCliModel`.
 
-`src/session.ts` therefore supports both, choosing by **presence of the export**
-rather than by version string: a version number can be patched or mis-set, a
-missing export cannot be faked. See `buildRegistry`, which is exported precisely
-so the choice is testable.
+**Reversed:** through 0.80.x combo ran on two pi generations at once. Homebrew
+shipped `0.80.6` and npm `0.80.10`, and `0.80.7` had replaced `AuthStorage` +
+`ModelRegistry` with a single `ModelRuntime`, so a pi "patch" release broke the
+API. `buildRegistry` chose between the two by the **presence of the export**
+rather than by version string, and `pane/tui.ts` did the same when 0.86 made
+`TUI` an interface and moved the inline class to `TuiMainScreen`. pi 1.0 has
+neither `AuthStorage` nor a `TUI` class, so both shims went: the session builds
+a `ModelRuntime`, and the pane constructs `TuiMainScreen` itself. Keeping them
+meant carrying a model API for a pi nobody tested against.
 
-**0.86 moved three more things, and the same rule answers all three.** `TUI` was
-the class pi-tui exported through 0.80.x; it is the interface now, and the
-implementations are `TuiMainScreen`, drawing inline where `TUI` drew, and
-`TuiAltScreen`. `pane/tui.ts` takes whichever is exported. `ResourceLoader` grew
-`getSystemPromptSource` and `getAppendSystemPromptSources`, which only pi's
-interactive mode calls: a subagent never noticed, and nothing but the typecheck
-did. And `ToolExecutionComponent`, handed no definition, stopped recognising
-pi's own tools by name, so the pane drew a box of JSON where it had drawn
-`grep /x/ in a.ts`. That third one is not adapted but removed:
-`pane/renderers.ts` names the definitions through `create*ToolDefinition`, which
-both versions export, because a fallback that has moved once is not a thing to
-lean on twice.
+`requirePi` reads a version string, which the presence rule was there to avoid.
+The rule answered a different question: which of two APIs this pi has. There is
+one API now, and the question is whether this pi is one combo was written
+against, which the version states directly. Without the check, a 0.80.6 host
+would load the extension and die at the first spawn on `undefined.create()`,
+the failure below. Peer dependencies stay at `*`, as pi's packaging
+documentation asks, so npm cannot carry the minimum: the check and the README
+do.
 
-Standing still is not free either. 0.80.10 pins an `undici` and a
-`brace-expansion` with advisories against them, and the newer pi is the only
-place they are fixed, so a lockfile left alone is a lockfile that starts failing
-`npm audit`.
+The pi an extension gets is the one it is loaded into, even loaded by path from
+a checkout (`pi -e extension`): measured with pi 0.80.10 and 1.0.2 as the host,
+the extension read the host's `VERSION` whatever `node_modules` held. The pane
+and the library run under plain Node, where `node_modules` decides.
+
+`ToolExecutionComponent`, handed no definition, draws a generic box of
+`key=value` arguments. pi's interactive mode finds its own tools' renderers by
+name but does not export that lookup, so `pane/renderers.ts` names the
+definitions through `create*ToolDefinition`, which is what draws
+`grep /x/ in a.ts` in the pane.
+
+Standing still was not free either. 0.80.10 pinned an `undici` and a
+`brace-expansion` with advisories against them, and only a newer pi fixed them.
 
 This is the failure mode to remember: 158 tests were green while the extension
 died on `undefined.create()` in a real pi, because every test injects a fake
@@ -3754,12 +3761,12 @@ lives):
 ```typescript
 import { ModelRuntime, SessionManager, createAgentSession } from "@earendil-works/pi-coding-agent";
 
-const modelRuntime = await ModelRuntime.create();   // replaces AuthStorage + ModelRegistry
+const modelRuntime = await ModelRuntime.create();
 
 const { session } = await createAgentSession({
   cwd,
   modelRuntime,
-  model: resolveCliModel({ cliProvider, cliModel, modelRuntime }).model,
+  model: resolveCliModel({ cliModel: pattern, modelRuntime }).model,
   tools: agent.tools,                       // ["read", "grep", "find", "ls"] …
   resourceLoader: new StaticResourceLoader(agent.systemPrompt),
   sessionManager: SessionManager.inMemory(cwd),
@@ -3979,9 +3986,9 @@ Three deliberate refusals, so nobody "fixes" them later:
 An unresolvable pattern still throws at spawn (a workflow on the wrong model
 costs more than a lost run). The commands validate `--model` with
 `checkModel()` **before** the interview, in the same early block as
-`checkPipelineAgents` - a typo costs a second, not a conversation. Like
-`buildRegistry`, `checkModel` touches the real pi module: only a run inside a
-real pi proves it end to end.
+`checkPipelineAgents` - a typo costs a second, not a conversation.
+`checkModel` reads pi's real model catalogue: only a run inside a real pi
+proves it end to end.
 
 
 ## Experiments: comparing models on the same work
@@ -4772,10 +4779,11 @@ cadences. Neither has happened, and rule 11 covers the rest.
 **The published name carries a scope** because `combo` was taken on npm in 2011.
 
 **The packages pi bundles are peer dependencies with a `*` range**, which is
-what pi's packaging documentation asks for, and the rule `buildRegistry` already
-obeys from the other side: an installed copy binds to the pi it is loaded into,
-never to a second one of its own. `@earendil-works/pi-tui` and `typebox` were
-imported and declared nowhere at all. In a clone they resolve by transitivity,
+what pi's packaging documentation asks for: an installed copy binds to the pi
+it is loaded into, never to a second one of its own. The oldest pi combo
+accepts is therefore checked when the extension loads, not declared here.
+`@earendil-works/pi-tui` and `typebox` were imported and declared nowhere at
+all. In a clone they resolve by transitivity,
 and an installed copy is exactly where that stops being true.
 
 ## The version comes from the commit titles

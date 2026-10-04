@@ -221,19 +221,17 @@ reachable by forgetting an argument.
 
 ## pi API traps, each paid for once
 
-- **The pi that matters is the one the extension runs inside**, not the one in
-  `node_modules`. Homebrew ships 0.80.6, npm 0.80.10, and 0.80.7 replaced
-  `AuthStorage` + `ModelRegistry` with `ModelRuntime`. `buildRegistry` chooses by
-  **presence of the export**, never by version string.
+- **combo needs pi 1.0 or later**, and the extension refuses an older one as it
+  loads (`requirePi`). The pi that matters is the one the extension is loaded
+  into: even loaded by path from a checkout, it receives the host's copy, not
+  `node_modules`. The pane and the library run under plain Node and resolve
+  `node_modules` like any import.
 - **A fake session cannot tell you that pi changed shape.** 158 green tests while
   the extension died on `undefined.create()` in a real pi. Anything that touches
   the real module has to be run against the real module.
-- **0.86 renamed the TUI class and stopped guessing tool renderers.** `TUI` is
-  an interface now; `TuiMainScreen` draws where it drew, and `pane/tui.ts`
-  chooses by presence. `ToolExecutionComponent` handed no definition no longer
-  recognises pi's own tools by name, so `pane/renderers.ts` names them with
-  `create*ToolDefinition`, which 0.80 and 0.86 both export. `ResourceLoader`
-  also grew two members that only pi's interactive mode ever calls.
+- **`ToolExecutionComponent` handed no definition draws a generic box.** pi's
+  interactive mode finds its own tools' renderers by name and does not export
+  that lookup, so `pane/renderers.ts` names them with `create*ToolDefinition`.
 - `session.prompt()` takes **no `AbortSignal`** - bridge it to `session.abort()`,
   and remove the listener after the turn.
 - A turn can **fail without throwing**: read the last assistant message's

@@ -16,7 +16,7 @@ import extension from "../extension/index.ts";
 import { RESULT_MESSAGE } from "../extension/commands/answer.ts";
 import { livePlan } from "../src/flow/index.ts";
 import { checked } from "./fixtures/flow.ts";
-import { sessionDoors, toolDeps, type PiApi } from "../extension/pi.ts";
+import { requirePi, sessionDoors, toolDeps, type PiApi } from "../extension/pi.ts";
 import { STEP_ENTRY } from "../extension/relay.ts";
 import { emptyUsage } from "../src/usage.ts";
 import type { SubagentSnapshot } from "../src/reporters/picture.ts";
@@ -113,6 +113,21 @@ describe("what the extension registers", () => {
 	test("a flow runs through /run, and /build is gone", () => {
 		assert.ok(commands.get("run")?.description, "/run must be a command");
 		assert.ok(!commands.has("build"), "`/run build` starts the shipped build");
+	});
+});
+
+describe("the pi it loads into", () => {
+	test("a pi older than 1.0 is refused, by its version", () => {
+		assert.throws(() => requirePi("0.80.6"), /needs pi 1\.0 or later, and found pi "0\.80\.6"/);
+		assert.throws(() => requirePi("0.99.2"), /found pi "0\.99\.2"/);
+	});
+
+	test("1.0 and later load", () => {
+		for (const version of ["1.0.0", "1.0.2", "2.3.1"]) assert.doesNotThrow(() => requirePi(version));
+	});
+
+	test("a version that does not read as one is refused rather than guessed", () => {
+		assert.throws(() => requirePi(""), /found pi ""/);
 	});
 });
 
