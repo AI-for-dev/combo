@@ -88,7 +88,7 @@ export function serve(socket: Socket, mirrors: Mirrors): void {
 		reply(mirrors.hello(mirrored));
 		// A pane opened late still shows the whole turn: the transcript first,
 		// then whatever happens next.
-		for (const message of mirrored.session.messages) reply({ type: "message", message });
+		for (const message of mirrored.session.transcript()) reply({ type: "message", message });
 	}
 }
 

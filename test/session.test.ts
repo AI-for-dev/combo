@@ -9,8 +9,9 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { formatSkillsForPrompt, SettingsManager, type ModelRuntime, type Skill } from "@earendil-works/pi-coding-agent";
-import { lastTurn, resolvePattern, situate, StaticResourceLoader, streamed, subagentSettings, type AgentMessage } from "../src/session.ts";
+import { formatSkillsForPrompt, SettingsManager, type ModelRuntime, type SessionStats, type Skill } from "@earendil-works/pi-coding-agent";
+import { lastTurn, resolvePattern, sessionPort, situate, StaticResourceLoader, streamed, subagentSettings, type AgentMessage } from "../src/session.ts";
+import { fakeSession } from "./fixtures/fake-session.ts";
 
 /** A message in the shape pi keeps them, which is the shape under test here. */
 const message = (fields: Record<string, unknown>) => fields as unknown as AgentMessage;
@@ -87,6 +88,33 @@ describe("streamed", () => {
 
 	test("a tool pi could not name reads as ?, because its name arrives empty rather than absent", () => {
 		assert.deepEqual(streamed({ type: "tool_execution_start", toolName: "", args: 1 }), { type: "tool", name: "?", args: 1 });
+	});
+});
+
+describe("sessionPort", () => {
+	/** pi's counters, as `getSessionStats()` returns them. */
+	const stats = (tokens: Partial<SessionStats["tokens"]>, cost: number, context: number | null): SessionStats =>
+		({ tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0, ...tokens }, cost, contextUsage: { tokens: context, contextWindow: 200_000, percent: null } }) as SessionStats;
+
+	test("a turn costs what pi's counters gained, a field pi leaves out is 0, and an unknown context level is none", async () => {
+		const pi = fakeSession([{ text: "done" }]);
+		const readings = [stats({ input: 100, cacheRead: 7 }, 0.01, 5_000), stats({ input: 260, output: undefined, cacheRead: 7 }, 0.03, null)];
+		pi.getSessionStats = () => readings.shift() as SessionStats;
+
+		const { usage } = await sessionPort(pi).ask("go", { signal: new AbortController().signal });
+
+		assert.deepEqual({ ...usage, cost: Math.round(usage.cost * 100) / 100 }, { wallMs: 0, busyMs: 0, turns: 0, input: 160, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0.02, contextTokens: undefined });
+	});
+
+	test("a provider whose counters throw costs nothing rather than the turn", async () => {
+		const pi = fakeSession([{ text: "done" }]);
+		pi.getSessionStats = () => {
+			throw new Error("no stats");
+		};
+
+		const turn = await sessionPort(pi).ask("go", { signal: new AbortController().signal });
+
+		assert.deepEqual([turn.text, turn.error, turn.usage.input], ["done", undefined, 0]);
 	});
 });
 

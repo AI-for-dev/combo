@@ -4,8 +4,9 @@ import { createConnection, type Socket } from "node:net";
 import { after, beforeEach, describe, test } from "node:test";
 import { createEventBus, resetSubagentIds, type SubagentEvent } from "../src/events.ts";
 import { mirrorSocket, registerMirror, REFUSED_IDLE } from "../src/mirror.ts";
-import type { SessionEvent, SessionPort } from "../src/session.ts";
+import { sessionPort, type SessionEvent, type SessionPort } from "../src/session.ts";
 import { spawn } from "../src/subagent.ts";
+import { emptyUsage } from "../src/usage.ts";
 import { fakeSession, type Turn } from "./fixtures/fake-session.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
 
@@ -84,7 +85,7 @@ function attach(id: string): Promise<Client> {
 
 async function spawnWith(turns: Turn[], onEvent?: (event: SubagentEvent) => void) {
 	const session = fakeSession(turns);
-	const subagent = await spawn(scout, { createSession: async () => session, onEvent });
+	const subagent = await spawn(scout, { createSession: async () => sessionPort(session), onEvent });
 	return { subagent, session };
 }
 
@@ -222,31 +223,28 @@ describe("mirror", () => {
 			for (const listener of listeners) listener(event);
 		};
 		const session: SessionPort = {
-			messages: [],
-			isStreaming: false,
-			async prompt() {
+			async ask() {
 				for (let i = 1; i <= 50; i++) {
 					emit({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: String(i) } });
 				}
 				emit({ type: "tool_execution_start", toolName: "read", args: {} });
 				emit({ type: "turn_end" });
+				return { messages: [], text: "", usage: emptyUsage() };
 			},
-			subscribe(listener) {
+			watch(listener) {
 				listeners.add(listener);
 				return () => listeners.delete(listener);
 			},
-			getSessionStats: () => ({ tokens: {}, cost: 0 }) as never,
-			getContextUsage: () => undefined,
-			async abort() {},
-			async steer() {},
-			dispose() {},
+			transcript: () => [],
+			steer: async () => "idle",
+			close() {},
 		};
 		const bus = createEventBus();
 		const unregister = registerMirror({ id: "burst#1", agent: "burst", cwd: "/", session, bus, stop() {} });
 		try {
 			const client = await attach("burst#1");
 			await client.next((line) => line.type === "attached");
-			await session.prompt("go");
+			await session.ask("go", { signal: new AbortController().signal });
 			await client.next((line) => line.type === "turn_end");
 
 			const types = client.lines.map((line) => line.type).filter((type) => type !== "attached");

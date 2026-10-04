@@ -57,7 +57,7 @@ when a tool needs to know who holds it.
 export type WorkflowOptions = {
 	/** Absent, each agent's frontmatter decides, then `"task"`. Persistence is asked for, never assumed. */
 	lifetime?: Lifetime;
-	/** Propagated down to every `session.prompt()`, and closes open sessions. */
+	/** Propagated down to every turn of every session, and closes open sessions. */
 	signal?: AbortSignal;
 	/**
 	 * Deadline **per turn**, not for the whole workflow. No default.

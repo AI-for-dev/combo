@@ -17,18 +17,8 @@ import { exportBaseName, exportSession, type SessionExport } from "./measure/ind
 import { inTheLanguageOfTheWork } from "./language.ts";
 import { registerMirror } from "./mirror.ts";
 import { failed, succeeded, type Result } from "./result.ts";
-import {
-	createDefaultSession,
-	ended,
-	lastTurn,
-	modelLabel,
-	streamed,
-	type AgentMessage,
-	type CreateSession,
-	type SessionPort,
-	type ToolDefinition,
-} from "./session.ts";
-import { accumulate, deltaUsage, emptyUsage, snapshotUsage, type Usage } from "./usage.ts";
+import { createDefaultSession, type CreateSession, type ToolDefinition, type Turn } from "./session.ts";
+import { accumulate, emptyUsage, type Usage } from "./usage.ts";
 
 /**
  * Tools built once the subagent's id is known.
@@ -130,8 +120,7 @@ export type SpawnOptions = {
 /** What governs one turn: how it can be stopped, and when it must be. */
 export type AskOptions = {
 	/**
-	 * Cancels this turn. pi's `prompt()` takes no signal, so we bridge it to
-	 * `session.abort()`.
+	 * Cancels this turn.
 	 *
 	 * The turn fails with `"aborted"`, unless the signal's reason is a
 	 * `TimeoutError`, as `AbortSignal.timeout` gives: then it is a deadline,
@@ -142,7 +131,7 @@ export type AskOptions = {
 	 * Deadline for this turn, in milliseconds. No default: an `ask` waits
 	 * forever unless you say otherwise.
 	 *
-	 * This matters more than it looks. One `ask` is one `session.prompt()`, and
+	 * This matters more than it looks. One `ask` is one turn of the session, and
 	 * pi's agent loop is a `while (true)` that runs as long as the model keeps
 	 * requesting tools - there is no step cap in pi. A model that hallucinates a
 	 * tool name, gets "unknown tool" back and asks again will loop until
@@ -218,7 +207,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 		customTools: toolsOffered(options.customTools, id),
 	});
 
-	const model = modelLabel(session);
+	const model = session.model;
 	// Monotonic clock: `Date.now()` jumps when the system clock is adjusted,
 	// and a duration must never go backwards.
 	const spawnedAt = performance.now();
@@ -254,20 +243,8 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 	 * already follows the same rule turn by turn.
 	 */
 	let lastError: string | undefined;
-	/** What the last turn answered, for the close: `messages` may have been compacted since. */
+	/** What the last turn answered, for the close: the transcript may have been compacted since. */
 	let lastOutput = "";
-	/** The messages of the turn in flight, as pi ends them. Absent between turns. */
-	let turnMessages: AgentMessage[] | undefined;
-
-	// Streaming events are forwarded as they arrive - never buffered until the
-	// end of the turn, otherwise the TUI would show an opaque spinner.
-	const unsubscribe = session.subscribe((event) => {
-		const message = ended(event);
-		if (message) turnMessages?.push(message);
-		const seen = streamed(event);
-		if (seen?.type === "text") bus.emit({ type: "text", id, delta: seen.delta });
-		else if (seen !== undefined) bus.emit({ ...seen, id });
-	});
 
 	const openInHerdr = options.openInHerdr ?? agent.openInHerdr ?? false;
 	bus.emit({
@@ -303,9 +280,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 			if (asking) throw new Error(`Subagent ${id} is already working: ask() calls must be serialised`);
 			asking = true;
 
-			const before = readUsage(session);
 			const startedAt = performance.now();
-			turnMessages = [];
 
 			// One signal to watch, whether it comes from this subagent's own stop
 			// switch, from the caller, or from the deadline. The timeout is created
@@ -313,57 +288,39 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 			const timeout = askOptions.timeoutMs ? deadline(askOptions.timeoutMs) : undefined;
 			const signal = combineSignals(stopper.signal, askOptions.signal, timeout);
 
-			// A signal that has *already* aborted never fires again, so a listener
-			// added now would never run: the turn has to be refused outright, or a
-			// stopped subagent would go on to do a whole turn of work.
-			let error: string | undefined = signal.aborted ? "aborted" : undefined;
-
-			// The listener is removed in the `finally`: a signal shared across
-			// several `ask` calls would otherwise accumulate listeners.
-			const onAbort = () => void session.abort();
-			signal.addEventListener("abort", onAbort, { once: true });
+			// A signal that has *already* aborted never fires again: the turn has
+			// to be refused outright, or a stopped subagent would go on to do a
+			// whole turn of work.
+			const reached = !signal.aborted;
 
 			bus.emit({ type: "status", id, status: "working", task });
 
-			let reached = false;
+			let said: Turn;
 			try {
-				if (!error) {
-					reached = true;
-					// The language rule closes the turn as well as standing behind it:
-					// what a combinator frames the work with is English, and it arrives
-					// in this very message. See `src/language.ts`.
-					await session.prompt(inTheLanguageOfTheWork(task));
-					// pi drops a failed request from the conversation before it waits
-					// to retry it. Cut during that wait, the turn returns quietly and
-					// ends on the last good message, so only the signal still says the
-					// turn never finished.
-					if (signal.aborted) error = "aborted";
-				}
-			} catch (cause) {
-				error = cause instanceof Error ? cause.message : String(cause);
+				// The language rule closes the turn as well as standing behind it:
+				// what a combinator frames the work with is English, and it arrives
+				// in this very message. See `src/language.ts`. Streamed events are
+				// forwarded as they arrive - never buffered until the end of the
+				// turn, otherwise the TUI would show an opaque spinner.
+				said = reached
+					? await session.ask(inTheLanguageOfTheWork(task), {
+							signal,
+							onStreamed: (seen) => bus.emit(seen.type === "text" ? { type: "text", id, delta: seen.delta } : { ...seen, id }),
+						})
+					: refused(usage);
 			} finally {
-				signal.removeEventListener("abort", onAbort);
 				asking = false;
 			}
 
-			const busyMs = performance.now() - startedAt;
-			const turn = deltaUsage(before, readUsage(session));
-			turn.busyMs = busyMs;
 			// Even a failed turn counts: a subagent that died after 12k tokens did
 			// spend 12k tokens. A **refused** one does not: a subagent stopped
 			// before this call never reached the session, so there was no request,
 			// no answer and nothing to count. Reporting it as a turn is the one
 			// kind of number invariant 9 forbids - one nobody measured.
-			turn.turns = reached ? 1 : 0;
-
+			const turn: Usage = { ...said.usage, busyMs: performance.now() - startedAt, turns: reached ? 1 : 0 };
 			usage = accumulate(usage, turn);
 
-			const messages = turnMessages ?? [];
-			turnMessages = undefined;
-			// A turn can also fail without throwing: pi reports it through the
-			// last assistant message, and the session's reader says so.
-			const said = lastTurn(messages);
-			error ??= said.error;
+			let error = said.error;
 
 			// All three look like an abort from pi's side. Say which one it was: a
 			// deadline that expired, a caller that changed its mind and a person who
@@ -373,7 +330,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 			if (error && stopper.signal.aborted) error = "stopped";
 			else if (error) error = timedOut(signal) ?? error;
 
-			const result: Result = error ? failed(agent.name, error, turn, messages) : succeeded(agent.name, said.text, turn, messages);
+			const result: Result = error ? failed(agent.name, error, turn, said.messages) : succeeded(agent.name, said.text, turn, said.messages);
 
 			lastError = error;
 			lastOutput = said.text;
@@ -400,11 +357,8 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 			if (options.exportDir) await subagent.export(options.exportDir);
 			closed = true;
 
-			// Stats and context are read *before* dispose(): afterwards the
-			// session is gone and the numbers with it.
 			const finalUsage = { ...usage, wallMs: performance.now() - spawnedAt };
-			unsubscribe();
-			session.dispose();
+			session.close();
 
 			bus.emit({ type: "status", id, status: "done" });
 			bus.emit({
@@ -435,13 +389,12 @@ function combineSignals(first: AbortSignal, ...rest: (AbortSignal | undefined)[]
 	return AbortSignal.any([first, ...present]);
 }
 
-/** Reads the session counters. Never lets a broken provider bring a turn down. */
-function readUsage(session: SessionPort): Usage {
-	try {
-		return snapshotUsage(session.getSessionStats());
-	} catch {
-		return emptyUsage();
-	}
+/**
+ * The turn a subagent stopped before it began does not take: no request, no
+ * messages, nothing billed. The context is where the last turn left it.
+ */
+function refused(usage: Usage): Turn {
+	return { messages: [], text: "", error: "aborted", usage: { ...emptyUsage(), contextTokens: usage.contextTokens } };
 }
 
 export type { SubagentEvent };

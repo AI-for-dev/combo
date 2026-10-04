@@ -20,8 +20,7 @@ hidden anywhere.
 ```typescript
 export type AskOptions = {
 	/**
-	 * Cancels this turn. pi's `prompt()` takes no signal, so we bridge it to
-	 * `session.abort()`.
+	 * Cancels this turn.
 	 *
 	 * The turn fails with `"aborted"`, unless the signal's reason is a
 	 * `TimeoutError`, as `AbortSignal.timeout` gives: then it is a deadline,
@@ -32,7 +31,7 @@ export type AskOptions = {
 	 * Deadline for this turn, in milliseconds. No default: an `ask` waits
 	 * forever unless you say otherwise.
 	 *
-	 * This matters more than it looks. One `ask` is one `session.prompt()`, and
+	 * This matters more than it looks. One `ask` is one turn of the session, and
 	 * pi's agent loop is a `while (true)` that runs as long as the model keeps
 	 * requesting tools - there is no step cap in pi. A model that hallucinates a
 	 * tool name, gets "unknown tool" back and asks again will loop until

@@ -28,9 +28,9 @@ result.usage;     // this turn only
 
 ## Where the numbers come from
 
-- `session.getSessionStats()` is the source of truth for tokens and cost.
-- `session.getContextUsage()` gives context occupancy, worth showing for a
-  persistent agent.
+- pi's `getSessionStats()` is the source of truth for tokens and cost, and for
+  the context occupancy worth showing for a persistent agent. `src/session.ts`
+  reads it around each turn and hands the turn's share back with the turn.
 - Time is measured around each turn: `busyMs` is the sum of the `ask` calls,
   `wallMs` runs from spawn to close.
 
@@ -42,7 +42,9 @@ On a `"task"` subagent the two times are nearly equal. On a `"workflow"` one, th
 - **`getSessionStats()` is cumulative over the session.** A turn's usage is
   therefore the *difference* between two snapshots, taken before and after the
   turn. That is what gives both a cumulative `subagent.usage` and a per-turn
-  `result.usage` without ever recounting a token.
+  `result.usage` without ever recounting a token. Adding up the usage of the
+  turn's own messages would not do: it agrees on an ordinary turn, but a
+  compaction's summary request emits no message, and pi compacts inside a turn.
 - **Counters are clamped at zero.** Compaction can walk the totals backwards, and
   a negative usage means nothing.
 - **A fan-out aggregates, it does not average**: total tokens, total cost,

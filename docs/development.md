@@ -45,17 +45,20 @@ every door, by design. The generated reference follows the file that declares a
 symbol, so a module's pages land under its directory.
 
 **The pi API lives in one file.** `src/session.ts` is the only place that imports
-from the pi package. Everything else talks to `SessionPort`, a minimal subset of
-a session, which is what lets tests inject a fake with no network, no disk and no
-`~/.pi`.
+from the pi package. Everything else talks to `SessionPort`, which runs one turn
+and gives back what the turn said, how it ended and what it cost. `sessionPort()`
+adapts pi's `AgentSession` to it, which is what lets tests inject a fake with no
+network, no disk and no `~/.pi`.
 
 ## Tests
 
 No network calls, ever. Workflows are tested with an injected `spawn`, which is
 why `spawn` is a parameter rather than a hard import inside the combinators.
 
-The fake session reproduces the pi behaviours that are easy to get wrong, because
-otherwise the tests pass on broken code:
+The fake session stands in for pi's `AgentSession`, and the tests wrap it in
+`sessionPort()`, the adapter a real session goes through. It reproduces the pi
+behaviours that are easy to get wrong, because otherwise the tests pass on broken
+code:
 
 - `getSessionStats()` is **cumulative**. A fake returning per-turn stats would
   hide the very bug the delta arithmetic exists to prevent.

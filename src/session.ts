@@ -1,9 +1,10 @@
 /**
  * The whole pi API lives here, and nowhere else.
  *
- * The rest of the library only talks to {@link SessionPort}, a tiny subset of
- * `AgentSession`. Two consequences: when pi moves, only this file moves; and
- * tests inject a fake session with no network, no disk and no `~/.pi`.
+ * The rest of the library only talks to {@link SessionPort}, one turn at a
+ * time, and {@link sessionPort} is the adapter over pi's `AgentSession`. Two
+ * consequences: when pi moves, only this file moves; and tests inject a fake
+ * session with no network, no disk and no `~/.pi`.
  *
  * combo is written against pi 1.0 and later.
  */
@@ -18,7 +19,6 @@ import {
 	SessionManager,
 	SettingsManager,
 	type AgentSession,
-	type ContextUsage,
 	type ResolveCliModelResult,
 	type ResourceLoader,
 	type SessionStats,
@@ -27,6 +27,7 @@ import {
 import type { Agent } from "./agent.ts";
 import { answerInTheirLanguage } from "./language.ts";
 import { resolveSkills, type Skill } from "./skills.ts";
+import { deltaUsage, emptyUsage, type Usage } from "./usage.ts";
 
 /** Alias to pi's message type, without depending on a transitive package. */
 export type AgentMessage = AgentSession["messages"][number];
@@ -44,58 +45,113 @@ export type { ToolDefinition };
 export const defineTool = piDefineTool;
 
 /**
- * What the library consumes from a pi session - nothing more.
+ * What combo needs of a session: one turn at a time, read for it.
  *
- * `AgentSession` satisfies this type structurally: no adapter to write, and a
- * fake session fits in fifty lines.
+ * Shaped by combo's callers rather than by pi's `AgentSession`. A turn comes
+ * back with its own messages, its answer, why it failed and what it cost, so
+ * nothing outside this file subtracts counters, parses pi's events or bridges
+ * a signal to an abort. {@link sessionPort} builds one over pi's session; a
+ * test or a dry run writes its own.
  */
 export type SessionPort = {
-	/** One turn. Returns when the model stops asking for tools; see `timeoutMs`. */
-	prompt(text: string): Promise<void>;
-	/** Every event of the turn. Returns the unsubscribe function. */
-	subscribe(listener: (event: SessionEvent) => void): () => void;
-	/** **Cumulative** over the session: a turn's usage is the difference of two snapshots. */
-	getSessionStats(): SessionStats;
-	/** How full the context is - what a persistent subagent has to be watched on. */
-	getContextUsage(): ContextUsage | undefined;
-	/** Cuts the in-flight turn short. `prompt()` takes no signal, so this is the bridge. */
-	abort(): Promise<void>;
+	/**
+	 * `provider/id` as pi resolved it, absent when it could not say.
+	 *
+	 * Read, never set: an agent declares a *pattern* (`"anthropic/claude-sonnet-5"`,
+	 * or nothing at all), and only the session knows what that became.
+	 */
+	readonly model?: string;
+	/**
+	 * Runs one turn, until the model stops asking for tools or the signal
+	 * fires. Never rejects: a turn that throws, is cut short or ends on a
+	 * failing `stopReason` comes back with `error` set, and with what it cost.
+	 */
+	ask(text: string, options: TurnControl): Promise<Turn>;
 	/**
 	 * Queues a word for the turn in flight, delivered after the tool call the
-	 * model is in. **Only while `isStreaming`**: measured, a steer queued on an
-	 * idle session is delivered with the next `prompt()` and answered in place
-	 * of it, which silently changes what a workflow reads back from its own
-	 * task. The mirror is the one caller, and it checks first. What pi resolves
-	 * with, `"handled"` or `"queued"`, does not tell an idle session from a busy
-	 * one, so it is not read.
+	 * model is in, or answers `"idle"` and queues nothing when no turn is in
+	 * flight. Measured: a steer queued on an idle pi session is delivered with
+	 * the next prompt and answered in place of it, which silently changes what
+	 * a workflow reads back from its own task.
 	 */
-	steer(text: string): Promise<unknown>;
-	/** Whether a turn is in flight - the one moment a steer is safe. */
-	readonly isStreaming: boolean;
-	/** Releases the session. An undisposed session leaks; measurements come first. */
-	dispose(): void;
+	steer(text: string): Promise<"queued" | "idle">;
 	/**
-	 * Writes the session as a readable HTML page. **Before `dispose()`.**
+	 * pi's own events, as pi emits them, for the whole life of the session.
+	 * The mirror's: a pane draws them with pi's own components, so they are not
+	 * read here. Returns the unsubscribe function.
+	 */
+	watch(listener: (event: SessionEvent) => void): () => void;
+	/**
+	 * What the model is shown next. It grows with every turn, until pi compacts:
+	 * then it is rebuilt shorter, mid-run included, so a turn's own messages are
+	 * {@link Turn.messages}, never a slice of this.
+	 */
+	transcript(): readonly AgentMessage[];
+	/**
+	 * Writes the session as a readable HTML page. **Before `close()`.**
 	 *
 	 * Optional because it is not always available: pi refuses to export an
 	 * in-memory session ("Cannot export in-memory session to HTML"), which is
 	 * exactly what a subagent gets unless it was spawned with a `sessionDir`.
 	 */
+	exportToHtml?(outputPath: string): Promise<string>;
+	/** Writes the current branch as replayable JSONL. **Before `close()`.** */
+	exportToJsonl?(outputPath: string): string;
+	/** Releases the session. An unreleased session leaks; exports come first. */
+	close(): void;
+};
+
+/** What governs one turn of a {@link SessionPort}. */
+export type TurnControl = {
+	/**
+	 * Cuts the turn short. Not yet aborted when the turn starts: refusing a
+	 * turn that was stopped before it began is the caller's call, since no
+	 * request was made.
+	 */
+	signal: AbortSignal;
+	/** Each event of the turn a listener has a use for, already read. */
+	onStreamed?: (event: Streamed) => void;
+};
+
+/** One turn, as the session read it. */
+export type Turn = TurnReading & {
+	/** The messages the turn added, in order: the prompt, each answer, each tool result, a steer once delivered. */
+	messages: AgentMessage[];
+	/**
+	 * What pi billed for the turn and the context it left. Time is the
+	 * caller's: `wallMs`, `busyMs` and `turns` are `0` here.
+	 */
+	usage: Usage;
+};
+
+/**
+ * The part of pi's `AgentSession` that {@link sessionPort} reads.
+ *
+ * `AgentSession` satisfies it structurally, and so does a test's pi-shaped
+ * double, which is how the adapter is tested without pi.
+ */
+export type PiSession = {
+	/** One turn. Resolves when the model stops asking for tools, or once `abort()` cut it. */
+	prompt(text: string): Promise<void>;
+	/** Every event, the turn's and any other. Returns the unsubscribe function. */
+	subscribe(listener: (event: SessionEvent) => void): () => void;
+	/** **Cumulative** over the session, compactions and failed attempts included. */
+	getSessionStats(): SessionStats;
+	/** `prompt()` takes no signal, so this is the bridge. */
+	abort(): Promise<void>;
+	/** What pi resolves with, `"handled"` or `"queued"`, does not tell an idle session from a busy one, so it is not read. */
+	steer(text: string): Promise<unknown>;
+	/** Whether a turn is in flight - the one moment a steer is safe. */
+	readonly isStreaming: boolean;
+	/** Releases the session; stats and exports are read before it. */
+	dispose(): void;
+	/** pi's HTML export. It refuses an in-memory session. */
 	exportToHtml?(outputPath?: string): Promise<string>;
-	/** Writes the current branch as replayable JSONL. **Before `dispose()`.** */
+	/** pi's JSONL export of the current branch. */
 	exportToJsonl?(outputPath?: string): string;
-	/**
-	 * What the model is shown next. It grows with every turn, until pi compacts:
-	 * then it is rebuilt shorter, mid-run included, so a position read before a
-	 * turn means nothing after it. A turn's own messages come from {@link ended}.
-	 */
+	/** The transcript the model is shown next, rebuilt shorter by a compaction. */
 	readonly messages: AgentMessage[];
-	/**
-	 * The model actually in use, once pi has resolved it.
-	 *
-	 * Read, never set: an agent declares a *pattern* (`"anthropic/claude-sonnet-5"`,
-	 * or nothing at all), and only the session knows what that became.
-	 */
+	/** The model pi resolved, once it has. */
 	readonly model?: { provider?: string; id?: string };
 };
 
@@ -111,15 +167,9 @@ export type SessionPort = {
  */
 export type MainSession = Pick<SessionManager, "getSessionFile" | "getHeader" | "getEntries">;
 
-/** `provider/id`, or `undefined` when pi has not resolved a model. */
-export function modelLabel(session: SessionPort): string | undefined {
-	const model = session.model;
-	if (!model?.id) return undefined;
-	return model.provider ? `${model.provider}/${model.id}` : model.id;
-}
-
 /**
- * The session events we listen to.
+ * pi's session events, as far as we read them: the adapter here, and the
+ * mirror's pane, which draws them with pi's own components.
  *
  * Deliberately loose on `type`: pi emits many more, and we ignore them. This
  * type describes what we know how to read, not what pi can produce.
@@ -148,7 +198,7 @@ export type Streamed =
  *
  * The casts are here because they cannot be anywhere else: the union above
  * keeps a `{ type: string }` member so that pi's own listener type satisfies
- * the port, and that member is what stops `event.type === …` from narrowing.
+ * {@link PiSession}, and that member is what stops `event.type === …` from narrowing.
  * A call pi cannot name arrives with an **empty** name rather than none, so
  * `??` never fires and the name would read as nothing at all - `|| "?"`.
  */
@@ -225,6 +275,96 @@ export function lastTurn(messages: readonly AgentMessage[]): TurnReading {
 	return { text: "" };
 }
 
+/**
+ * A {@link SessionPort} over pi's session.
+ *
+ * A turn's usage is the difference of `getSessionStats()` around the prompt,
+ * not the sum of the turn's own messages. Measured on pi 1.0.2, the two agree
+ * on every turn, aborted ones included, but a compaction's summary request is
+ * billed to the compaction entry and emits no message, and pi compacts inside
+ * `prompt()`. Only the stats see everything pi billed.
+ */
+export function sessionPort(pi: PiSession): SessionPort {
+	return {
+		model: modelLabel(pi.model),
+
+		async ask(text, { signal, onStreamed }) {
+			const before = readUsage(pi);
+			const messages: AgentMessage[] = [];
+			const unsubscribe = pi.subscribe((event) => {
+				const message = ended(event);
+				if (message) messages.push(message);
+				const seen = onStreamed && streamed(event);
+				if (seen) onStreamed(seen);
+			});
+			// Removed in the `finally`: a signal shared across several turns would
+			// otherwise accumulate listeners.
+			const onAbort = () => void pi.abort();
+			signal.addEventListener("abort", onAbort, { once: true });
+			let error: string | undefined;
+			try {
+				await pi.prompt(text);
+				// pi drops a failed request from the conversation before it waits
+				// to retry it. Cut during that wait, the turn returns quietly and
+				// ends on the last good message, so only the signal still says the
+				// turn never finished.
+				if (signal.aborted) error = "aborted";
+			} catch (cause) {
+				error = cause instanceof Error ? cause.message : String(cause);
+			} finally {
+				signal.removeEventListener("abort", onAbort);
+				unsubscribe();
+			}
+			// A turn can also fail without throwing: pi reports it through the
+			// last assistant message.
+			const said = lastTurn(messages);
+			return { messages, text: said.text, error: error ?? said.error, usage: deltaUsage(before, readUsage(pi)) };
+		},
+
+		async steer(text) {
+			if (!pi.isStreaming) return "idle";
+			await pi.steer(text);
+			return "queued";
+		},
+
+		watch: (listener) => pi.subscribe(listener),
+		transcript: () => pi.messages,
+		exportToHtml: pi.exportToHtml && ((outputPath) => pi.exportToHtml!(outputPath)),
+		exportToJsonl: pi.exportToJsonl && ((outputPath) => pi.exportToJsonl!(outputPath)),
+		close: () => pi.dispose(),
+	};
+}
+
+/** `provider/id`, or `undefined` when pi has not resolved a model. */
+function modelLabel(model: PiSession["model"]): string | undefined {
+	if (!model?.id) return undefined;
+	return model.provider ? `${model.provider}/${model.id}` : model.id;
+}
+
+/**
+ * The session's counters, never letting a broken provider bring a turn down.
+ *
+ * A field the provider does not report is `0`; nothing is estimated from
+ * characters. `contextTokens` is a level, so a `null` from pi (unknown since
+ * the last compaction) is no reading at all.
+ */
+function readUsage(pi: PiSession): Usage {
+	try {
+		const stats = pi.getSessionStats();
+		return {
+			...emptyUsage(),
+			input: stats.tokens.input ?? 0,
+			output: stats.tokens.output ?? 0,
+			cacheRead: stats.tokens.cacheRead ?? 0,
+			cacheWrite: stats.tokens.cacheWrite ?? 0,
+			cost: stats.cost ?? 0,
+			contextTokens: stats.contextUsage?.tokens ?? undefined,
+		};
+	} catch {
+		return emptyUsage();
+	}
+}
+
 /** Tools of an exploration agent: read, never write. This is the default. */
 export const READ_ONLY_TOOLS = ["read", "grep", "find", "ls"] as const;
 
@@ -295,7 +435,7 @@ export const createDefaultSession: CreateSession = async (agent, options) => {
 		settingsManager: SettingsManager.inMemory(subagentSettings(SettingsManager.create(cwd, getAgentDir()))),
 	});
 
-	return session;
+	return sessionPort(session);
 };
 
 /** pi's settings, as `settings.json` writes them. */

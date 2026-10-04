@@ -312,16 +312,22 @@ export {
 
 export {
 	checkModel,
-	// The default factory, and the two types `SpawnOptions.createSession` is
-	// written in: wrapping it is how a caller reaches pi's session themselves.
+	// The default factory, the types `SpawnOptions.createSession` is written
+	// in, and the adapter a caller wraps pi's session in when it builds its own.
 	createDefaultSession,
 	READ_ONLY_TOOLS,
+	sessionPort,
 	situate,
 	StaticResourceLoader,
 	type AgentMessage,
 	type CreateSession,
 	type CreateSessionOptions,
 	type MainSession,
+	type PiSession,
+	type SessionEvent,
 	type SessionPort,
+	type Streamed,
 	type ToolDefinition,
+	type Turn,
+	type TurnControl,
 } from "./session.ts";

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { beforeEach, test } from "node:test";
 import { resetSubagentIds } from "../src/events.ts";
-import type { AgentMessage } from "../src/session.ts";
+import { sessionPort, type AgentMessage } from "../src/session.ts";
 import { spawn } from "../src/subagent.ts";
 import { fakeSession } from "./fixtures/fake-session.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
@@ -26,7 +26,7 @@ function cutWhileRetrying() {
 
 test("a deadline that fires while pi waits to retry fails the turn", async () => {
 	const session = cutWhileRetrying();
-	const subagent = await spawn(testAgent("scout"), { createSession: async () => session });
+	const subagent = await spawn(testAgent("scout"), { createSession: async () => sessionPort(session) });
 
 	const result = await subagent.ask("a", { timeoutMs: 20 });
 
@@ -37,7 +37,7 @@ test("a deadline that fires while pi waits to retry fails the turn", async () =>
 
 test("a stop that lands while pi waits to retry fails the turn", async () => {
 	const session = cutWhileRetrying();
-	const subagent = await spawn(testAgent("scout"), { createSession: async () => session });
+	const subagent = await spawn(testAgent("scout"), { createSession: async () => sessionPort(session) });
 
 	const pending = subagent.ask("a");
 	setTimeout(() => subagent.stop(), 10);

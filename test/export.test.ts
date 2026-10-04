@@ -25,7 +25,7 @@ import {
 	writeUsageReport,
 } from "../src/measure/export.ts";
 import { createRunPicture } from "../src/reporters/picture.ts";
-import type { SessionPort } from "../src/session.ts";
+import { sessionPort, type SessionPort } from "../src/session.ts";
 import { spawn } from "../src/subagent.ts";
 import { emptyUsage } from "../src/usage.ts";
 import { fakeSession } from "./fixtures/fake-session.ts";
@@ -47,7 +47,7 @@ afterEach(() => {
 /** A session that exports like pi's does: both formats, real files. */
 function exportableSession(): SessionPort {
 	const session = fakeSession([{ text: "done" }]);
-	return Object.assign(session, {
+	return sessionPort(Object.assign(session, {
 		exportToJsonl(outputPath?: string) {
 			const file = outputPath ?? "session.jsonl";
 			fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -60,13 +60,13 @@ function exportableSession(): SessionPort {
 			fs.writeFileSync(file, "<html></html>");
 			return file;
 		},
-	});
+	}));
 }
 
 /** What pi actually does with a session that was never written to disk. */
 function inMemorySession(): SessionPort {
 	const session = fakeSession([{ text: "done" }]);
-	return Object.assign(session, {
+	return sessionPort(Object.assign(session, {
 		exportToJsonl(outputPath?: string) {
 			const file = outputPath ?? "session.jsonl";
 			fs.writeFileSync(file, '{"type":"session"}\n');
@@ -75,7 +75,7 @@ function inMemorySession(): SessionPort {
 		async exportToHtml(): Promise<string> {
 			throw new Error("Cannot export in-memory session to HTML");
 		},
-	});
+	}));
 }
 
 describe("createRunDir", () => {
@@ -181,7 +181,7 @@ describe("exportSession", () => {
 
 	test("a session with no export methods at all is reported, not thrown", async () => {
 		const dir = tmpDir();
-		const result = await exportSession(fakeSession(), dir, "scout#1");
+		const result = await exportSession(sessionPort(fakeSession()), dir, "scout#1");
 
 		assert.equal(result.html, undefined);
 		assert.equal(result.jsonl, undefined);

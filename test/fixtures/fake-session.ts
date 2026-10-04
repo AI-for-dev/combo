@@ -12,7 +12,7 @@
 
 import type { SessionStats } from "@earendil-works/pi-coding-agent";
 import type { Agent } from "../../src/agent.ts";
-import type { AgentMessage, CreateSession, CreateSessionOptions, SessionEvent, SessionPort } from "../../src/session.ts";
+import { sessionPort, type AgentMessage, type CreateSession, type CreateSessionOptions, type PiSession, type SessionEvent } from "../../src/session.ts";
 
 export type Turn = {
 	/** Assistant text for this turn. */
@@ -33,7 +33,7 @@ export type Turn = {
 	compacts?: boolean;
 };
 
-export type FakeSession = SessionPort & {
+export type FakeSession = PiSession & {
 	readonly prompts: string[];
 	/** What was steered into it, in order. */
 	readonly steers: string[];
@@ -121,10 +121,6 @@ export function fakeSession(turns: Turn[] = []): FakeSession {
 			};
 		},
 
-		getContextUsage() {
-			return this.getSessionStats().contextUsage;
-		},
-
 		async abort() {
 			aborted++;
 			abortCurrent = true;
@@ -203,7 +199,7 @@ export function fakeSessionFactory(turnsPerSpawn: Turn[][] | Turn[] = []) {
 		const turns = (isNested ? (turnsPerSpawn as Turn[][])[created.length] : (turnsPerSpawn as Turn[])) ?? [];
 		const session = fakeSession(turns);
 		created.push(session);
-		return session;
+		return sessionPort(session);
 	};
 
 	return { createSession, created, requested };

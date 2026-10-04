@@ -6,9 +6,9 @@ Source: [`src/usage.ts`](https://github.com/AI-for-dev/combo/blob/main/src/usage
 
 Measurements: time and tokens, per subagent.
 
-Nothing is estimated. Tokens and cost come from pi
-(`session.getSessionStats()`); the only things we add are **time** - which
-pi does not measure - and **attribution per subagent**.
+Nothing is estimated. Tokens and cost come from pi, read by the session
+(`src/session.ts`); the only things we add are **time** - which pi does not
+measure - and **attribution per subagent**.
 
 ## `compact`
 
@@ -28,7 +28,8 @@ export function compact(n: number): string { /* … */ }
 export function deltaUsage(before: Usage, after: Usage): Usage { /* … */ }
 ```
 
-Usage of one turn: what `after` has more than `before`.
+Usage of one turn: what `after` has more than `before`, two readings of a
+session's cumulative counters.
 
 Counters are clamped at `0` - a compacted session can see its totals go
 backwards, and a negative usage means nothing. `contextTokens` is not a
@@ -84,7 +85,7 @@ export type Usage = {
 	wallMs: number;
 	/** Time actually spent working: the sum of the `ask` calls. */
 	busyMs: number;
-	/** Completed `ask` calls. A turn is one `session.prompt()`, however many tools it ran. */
+	/** Completed `ask` calls. A turn is one prompt to the session, however many tools it ran. */
 	turns: number;
 
 	/** Input tokens, as pi reported them. `0` when the provider does not say. */
