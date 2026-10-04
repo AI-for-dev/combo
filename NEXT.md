@@ -693,16 +693,11 @@ Notes that save time:
   anyway - a page missing from a `toctree`, a relative link resolving to nothing
   - so a change to `docs/` is never unguarded, but only the real build answers
   whether it renders.
-- **`pi -e extension` from this repository does not exercise the installed pi.**
-  Measured on 2026-09-17 with the CLI at 0.85.1: an extension loaded by a path
-  inside this checkout resolved `@earendil-works/pi-coding-agent` to
-  `node_modules`, that is 0.80.10, and reported so itself. Node resolves from the
-  file's real path, and the documented install is a symlink back into the
-  checkout, so the symlink does not change it either. Running the extension in a
-  real pi is still the only way to catch a shape change, but it catches the shape
-  of whatever `npm install` put in `node_modules`. To exercise another pi, build
-  a scratch directory whose own `node_modules/@earendil-works/pi-coding-agent`
-  points at the pi you mean, copy the case into it, and import nothing from this
-  repository. This narrows the `AGENTS.md` note that says the pi that matters is
-  the one the extension runs inside; that wording deserves revisiting in
-  whichever PR next touches `buildRegistry`.
+- **`pi -e extension` exercises the pi you launch, not `node_modules`.**
+  Measured on 2026-10-04 with npm-installed pi 0.80.10 and 1.0.2 as the host:
+  an extension loaded by a path whose `node_modules` held the other version
+  read the host's `VERSION` both times. An earlier measurement, on 2026-09-17
+  with the CLI at 0.85.1, found the checkout's `node_modules` instead; what
+  separates the two was not looked into. To exercise another pi, launch that pi:
+  `PATH=<dir holding its bin/pi>:$PATH python3 scripts/drive-pi.py …` does it,
+  and is how `requirePi` was seen refusing 0.80.10 at startup.

@@ -15,6 +15,19 @@ import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-c
 import type { MainSession } from "../src/index.ts";
 import type { StepDeps } from "./deps.ts";
 
+/**
+ * Refuses a pi older than 1.0, the first one combo is written against.
+ *
+ * Thrown while the extension loads, so pi names the reason at startup. An older
+ * pi would otherwise load the extension and fail at the first spawn, on a
+ * member its model API does not have, with a message about neither.
+ */
+export function requirePi(version: string): void {
+	if (!(Number.parseInt(version, 10) >= 1)) {
+		throw new Error(`combo needs pi 1.0 or later, and found pi "${version}".`);
+	}
+}
+
 /** How pi runs: `"tui"`, `"rpc"`, `"json"` or `"print"`. */
 type Mode = ExtensionContext["mode"];
 

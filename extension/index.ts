@@ -15,6 +15,7 @@ import {
 	getAgentDir,
 	getMarkdownTheme,
 	keyHint,
+	VERSION,
 	type Theme,
 } from "@earendil-works/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
@@ -47,7 +48,7 @@ import {
 } from "./commands/index.ts";
 import { executeSubagent, type Details } from "./execute.ts";
 import { inferMode, runsWho, Schema, type Params } from "./params.ts";
-import { toolDeps, type PiApi } from "./pi.ts";
+import { requirePi, toolDeps, type PiApi } from "./pi.ts";
 import { PlanFrame } from "./ui/index.ts";
 import { STEP_ENTRY, type StepEntry } from "./relay.ts";
 
@@ -55,6 +56,7 @@ import { STEP_ENTRY, type StepEntry } from "./relay.ts";
 const COLLAPSED_TOOLS = 3;
 
 export default function (pi: PiApi) {
+	requirePi(VERSION);
 	registerInterviewCommand(pi);
 	registerHerdrCommand(pi);
 	registerRunCommand(pi);

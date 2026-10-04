@@ -338,19 +338,13 @@ its own rather than being cut from what it does.
 
 ## Which pi it runs against
 
-An extension is loaded into pi's own process, so it resolves **pi's** copy of the
-package, not this repository's `node_modules`. The version that matters is the pi
-you launched.
+The extension needs pi 1.0 or later. An older pi refuses it at startup, with a
+message naming the version it found.
 
-Homebrew ships 0.80.6, npm is on 0.80.10, and those two disagree on the model
-API: 0.80.7 replaced `AuthStorage` and `ModelRegistry` with a single
-`ModelRuntime`. A pi patch release can break the API.
+The extension runs against the pi you launched, whether it was installed with
+`pi install` or loaded by path from a clone with `pi -e extension`.
 
-The library therefore chooses by **presence of the export** rather than by
-version string. A version number can be patched or mis-set; a missing export
-cannot be faked.
-
-This is the failure mode worth remembering: the whole suite was green while the
+One failure is worth remembering: the whole suite was green while the
 extension died on `undefined.create()` inside a real pi, because every test
 injects a fake session and none of them touches pi's real module. **A fake
 session cannot tell you the package it stands in for has changed shape.**

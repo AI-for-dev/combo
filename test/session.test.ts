@@ -1,73 +1,21 @@
 /**
- * The one thing the fake-session tests structurally cannot reach.
+ * What `src/session.ts` reads of pi, held against the shapes pi gives it.
  *
- * Everything else here injects a `SessionPort` and never touches pi's real
- * module. That is what let a genuine bug through: `ModelRuntime` does not exist
- * in pi 0.80.6, so the extension - which runs inside pi's own process and
- * therefore resolves pi's own copy - died on `undefined.create()` while 158
- * tests stayed green.
+ * Everything else injects a `SessionPort` and never touches pi's real module,
+ * so a fake that drifts from pi would go unnoticed there: the loader, the
+ * prompt and the readers of a transcript and of an event are checked here,
+ * against pi's own types and helpers.
  */
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { formatSkillsForPrompt, type Skill } from "@earendil-works/pi-coding-agent";
-import { buildRegistry, lastTurn, situate, StaticResourceLoader, streamed, type AgentMessage, type PiModule } from "../src/session.ts";
+import { lastTurn, situate, StaticResourceLoader, streamed, type AgentMessage } from "../src/session.ts";
 
 /** A message in the shape pi keeps them, which is the shape under test here. */
 const message = (fields: Record<string, unknown>) => fields as unknown as AgentMessage;
 const assistant = (text: string, stopReason = "stop", errorMessage?: string) =>
 	message({ role: "assistant", content: [{ type: "text", text }], stopReason, errorMessage });
-
-/** pi 0.80.7 and later: one ModelRuntime. */
-const modern: PiModule = {
-	ModelRuntime: { create: async () => ({ kind: "runtime" }) },
-};
-
-/** pi 0.80.6 and earlier: AuthStorage feeding a ModelRegistry. */
-const legacy: PiModule = {
-	AuthStorage: { create: () => ({ kind: "auth" }) },
-	ModelRegistry: { create: (authStorage: unknown) => ({ kind: "registry", authStorage }) },
-};
-
-describe("buildRegistry", () => {
-	test("uses ModelRuntime when pi exposes it", async () => {
-		const registry = await buildRegistry(modern);
-
-		assert.deepEqual(registry, { modelRuntime: { kind: "runtime" } });
-		assert.ok(!("modelRegistry" in registry), "the two APIs must not be mixed");
-	});
-
-	test("falls back to AuthStorage + ModelRegistry on older pi", async () => {
-		const registry = await buildRegistry(legacy);
-
-		assert.deepEqual(registry, {
-			authStorage: { kind: "auth" },
-			modelRegistry: { kind: "registry", authStorage: { kind: "auth" } },
-		});
-		assert.ok(!("modelRuntime" in registry));
-	});
-
-	test("prefers ModelRuntime when a pi somehow exposes both", async () => {
-		const registry = await buildRegistry({ ...modern, ...legacy });
-		assert.ok("modelRuntime" in registry, "the newer API wins");
-	});
-
-	test("detects by presence, not by a version string", async () => {
-		// A ModelRuntime export that is not callable is not a ModelRuntime.
-		const broken = { ModelRuntime: {}, ...legacy } as PiModule;
-		const registry = await buildRegistry(broken);
-		assert.ok("modelRegistry" in registry, "an unusable export must not win the detection");
-	});
-
-	test("an unknown pi fails loudly, naming what it lacks", async () => {
-		await assert.rejects(() => buildRegistry({}), /Unsupported pi version/);
-		await assert.rejects(() => buildRegistry({}), /ModelRuntime nor AuthStorage/);
-	});
-
-	test("a half-present legacy API is not enough", async () => {
-		await assert.rejects(() => buildRegistry({ AuthStorage: legacy.AuthStorage }), /Unsupported pi version/);
-	});
-});
 
 describe("StaticResourceLoader", () => {
 	const skill: Skill = {

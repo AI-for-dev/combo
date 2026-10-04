@@ -264,6 +264,6 @@ by name, and publishing happens on a fresh checkout in CI where neither exists.
 - The three packages pi bundles - `@earendil-works/pi-coding-agent`,
   `@earendil-works/pi-tui` and `typebox` - are **peer dependencies** with a `*`
   range, which is what pi's packaging documentation asks for. An installed copy
-  must bind to the pi it is loaded into, not to a second one of its own: that is
-  the same trap as `buildRegistry` choosing by the presence of an export.
+  must bind to the pi it is loaded into, not to a second one of its own. The
+  oldest pi accepted, 1.0, is checked when the extension loads (`requirePi`).
 - Before adding a layer of configuration, ask whether a function call would do.

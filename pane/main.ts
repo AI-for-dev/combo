@@ -9,9 +9,8 @@
  */
 
 import { getAgentDir, initTheme, SettingsManager } from "@earendil-works/pi-coding-agent";
-import { ProcessTerminal } from "@earendil-works/pi-tui";
+import { ProcessTerminal, TuiMainScreen } from "@earendil-works/pi-tui";
 import { attachTo } from "./client.ts";
-import { createTui } from "./tui.ts";
 import { createScreen, type Screen } from "./screen.ts";
 
 const args = process.argv.slice(2);
@@ -30,7 +29,8 @@ try {
 	initTheme();
 }
 
-const ui = createTui(new ProcessTerminal());
+// Inline, in the terminal's scrollback, rather than taking the whole screen.
+const ui = new TuiMainScreen(new ProcessTerminal());
 let screen: Screen | undefined;
 
 const leave = () => {

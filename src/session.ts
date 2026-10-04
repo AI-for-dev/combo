@@ -5,17 +5,14 @@
  * `AgentSession`. Two consequences: when pi moves, only this file moves; and
  * tests inject a fake session with no network, no disk and no `~/.pi`.
  *
- * That second promise is why this file also absorbs pi's version churn - see
- * {@link buildModelOptions}. **Which pi matters is the one the code runs
- * inside**, not the one in `node_modules`: an extension is loaded into pi's own
- * process, so it resolves pi's own copy of the package. Homebrew ships 0.80.6
- * and npm ships 0.80.10, and those two do not agree on how models are built.
+ * combo is written against pi 1.0 and later.
  */
 
 import {
 	createAgentSession,
 	createExtensionRuntime,
 	defineTool as piDefineTool,
+	ModelRuntime,
 	resolveCliModel,
 	SessionManager,
 	type AgentSession,
@@ -65,9 +62,11 @@ export type SessionPort = {
 	 * model is in. **Only while `isStreaming`**: measured, a steer queued on an
 	 * idle session is delivered with the next `prompt()` and answered in place
 	 * of it, which silently changes what a workflow reads back from its own
-	 * task. The mirror is the one caller, and it checks first.
+	 * task. The mirror is the one caller, and it checks first. What pi resolves
+	 * with, `"handled"` or `"queued"`, does not tell an idle session from a busy
+	 * one, so it is not read.
 	 */
-	steer(text: string): Promise<void>;
+	steer(text: string): Promise<unknown>;
 	/** Whether a turn is in flight - the one moment a steer is safe. */
 	readonly isStreaming: boolean;
 	/** Releases the session. An undisposed session leaks; measurements come first. */
@@ -98,7 +97,7 @@ export type SessionPort = {
  * from: pi's `ctx.sessionManager` fits it as it is.
  *
  * The file's path alone is not enough. pi creates a session's file with its
- * first assistant message, so a command typed first in a fresh pi runs in a
+ * first message, so a command typed first in a fresh pi runs in a
  * session whose file does not exist yet, and `--no-session` never writes one.
  * The header and the entries are in memory from the start, and the file is
  * those and nothing else, one JSON object per line.
@@ -255,10 +254,12 @@ export type CreateSession = (agent: Agent, options: CreateSessionOptions) => Pro
 export const createDefaultSession: CreateSession = async (agent, options) => {
 	const cwd = options.cwd ?? process.cwd();
 	const tools = toolsOf(agent);
+	const modelRuntime = await ModelRuntime.create();
 
 	const { session } = await createAgentSession({
 		cwd,
-		...(await buildModelOptions(agent, options.model)),
+		modelRuntime,
+		model: resolveModel(agent, modelRuntime, options.model),
 		tools,
 		customTools: options.customTools,
 		// Its own prompt, then the two standing facts it cannot work without:
@@ -341,57 +342,6 @@ export class StaticResourceLoader implements ResourceLoader {
 	async reload() {}
 }
 
-/** The model-related options of `createAgentSession`, for whichever pi we found. */
-type ModelOptions = Record<string, unknown>;
-
-/**
- * Builds the model wiring, for either pi generation.
- *
- * pi renamed this surface between two *patch* releases: up to 0.80.6 it is
- * `AuthStorage` + `ModelRegistry`, from 0.80.7 it is a single `ModelRuntime`.
- * Homebrew still ships 0.80.6 while npm is on 0.80.10, so both are live, and an
- * extension gets whichever version of pi it was loaded into - our own
- * `node_modules` has no say in it.
- *
- * Detection is by presence, not by version string: a version number can be
- * patched, a missing export cannot be faked.
- */
-async function buildModelOptions(agent: Agent, pattern?: string): Promise<ModelOptions> {
-	const pi = (await import("@earendil-works/pi-coding-agent")) as unknown as PiModule;
-	const registry = await buildRegistry(pi);
-	return { ...registry, model: resolveModel(agent, registry, pattern) };
-}
-
-/** The two shapes of pi's model API we know how to build. */
-export type PiModule = {
-	ModelRuntime?: { create(): Promise<unknown> };
-	AuthStorage?: { create(): unknown };
-	ModelRegistry?: { create(authStorage: unknown): unknown };
-};
-
-/**
- * Picks the model API this pi actually exposes.
- *
- * Detection is by **presence of the export**, never by version string: a
- * version number can be patched or mis-set, a missing export cannot be faked.
- * Exported so the choice is testable - it is the one thing our fake-session
- * tests structurally cannot reach, and it is exactly where a real bug hid.
- */
-export async function buildRegistry(pi: PiModule): Promise<Record<string, unknown>> {
-	// 0.80.7 and later.
-	if (typeof pi.ModelRuntime?.create === "function") {
-		return { modelRuntime: await pi.ModelRuntime.create() };
-	}
-	// 0.80.6 and earlier.
-	if (typeof pi.AuthStorage?.create === "function" && typeof pi.ModelRegistry?.create === "function") {
-		const authStorage = pi.AuthStorage.create();
-		return { authStorage, modelRegistry: pi.ModelRegistry.create(authStorage) };
-	}
-	throw new Error(
-		"Unsupported pi version: neither ModelRuntime nor AuthStorage/ModelRegistry is exported. combo supports 0.80.x.",
-	);
-}
-
 /**
  * Resolves a model pattern into a pi model, or `undefined` with no pattern.
  *
@@ -399,10 +349,10 @@ export async function buildRegistry(pi: PiModule): Promise<Record<string, unknow
  * chosen by `spawn()`. A pattern that resolves to nothing throws: better to
  * fail at spawn than to run a whole workflow on the wrong model.
  */
-function resolveModel(agent: Agent, registry: Record<string, unknown>, pattern = agent.model) {
+function resolveModel(agent: Agent, modelRuntime: ModelRuntime, pattern = agent.model) {
 	if (!pattern) return undefined;
 
-	const model = resolvePattern(pattern, registry);
+	const model = resolvePattern(pattern, modelRuntime);
 	if (!model) {
 		throw new Error(`No model found for agent "${agent.name}": "${pattern}"`);
 	}
@@ -414,30 +364,23 @@ function resolveModel(agent: Agent, registry: Record<string, unknown>, pattern =
  *
  * For whoever takes a `--model` argument: `/interview` asks the user for
  * minutes before the first spawn and `/build` runs unwatched, and a typo must
- * cost a second, not a conversation or a run found stopped. It touches the real pi module, like {@link buildRegistry} -
- * a fake cannot stand in for it, only a real pi run proves it end to end.
+ * cost a second, not a conversation or a run found stopped. It reads the real
+ * model catalogue, so a fake cannot stand in for it: only a real pi run proves
+ * it end to end.
  */
 export async function checkModel(pattern: string): Promise<void> {
-	const pi = (await import("@earendil-works/pi-coding-agent")) as unknown as PiModule;
-	const registry = await buildRegistry(pi);
-	if (!resolvePattern(pattern, registry)) {
+	if (!resolvePattern(pattern, await ModelRuntime.create())) {
 		throw new Error(`No model found for "${pattern}"`);
 	}
 }
 
 /**
- * One pattern against whichever registry this pi exposes.
+ * One pattern against pi's model catalogue.
  *
- * `resolveCliModel` accepts `"anthropic/claude-sonnet-5"` as well as partial
- * matches, and takes whichever of the two registries this pi understands.
+ * `resolveCliModel` takes `"anthropic/claude-sonnet-5"` as well as a partial
+ * match, and splits off the provider itself: only when the prefix names a known
+ * provider, so a model id that holds a slash of its own still resolves.
  */
-function resolvePattern(pattern: string, registry: Record<string, unknown>): unknown {
-	const [provider, ...rest] = pattern.split("/");
-	const hasProvider = rest.length > 0;
-	const resolved = (resolveCliModel as unknown as (options: Record<string, unknown>) => { model?: unknown })({
-		cliProvider: hasProvider ? provider : undefined,
-		cliModel: hasProvider ? rest.join("/") : pattern,
-		...registry,
-	});
-	return resolved.model;
+function resolvePattern(pattern: string, modelRuntime: ModelRuntime) {
+	return resolveCliModel({ cliModel: pattern, modelRuntime }).model;
 }
