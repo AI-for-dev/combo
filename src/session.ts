@@ -81,7 +81,11 @@ export type SessionPort = {
 	exportToHtml?(outputPath?: string): Promise<string>;
 	/** Writes the current branch as replayable JSONL. **Before `dispose()`.** */
 	exportToJsonl?(outputPath?: string): string;
-	/** The transcript so far. It **grows** with every turn. */
+	/**
+	 * What the model is shown next. It grows with every turn, until pi compacts:
+	 * then it is rebuilt shorter, mid-run included, so a position read before a
+	 * turn means nothing after it. A turn's own messages come from {@link ended}.
+	 */
 	readonly messages: AgentMessage[];
 	/**
 	 * The model actually in use, once pi has resolved it.
@@ -121,6 +125,7 @@ export type SessionEvent =
 	| { type: "message_update"; assistantMessageEvent: { type: string; delta?: string } }
 	| { type: "tool_execution_start"; toolCallId?: string; toolName: string; args: unknown }
 	| { type: "tool_execution_end"; toolCallId?: string; toolName: string; result?: { content?: readonly { type: string; text?: string }[] }; isError?: boolean }
+	| { type: "message_end"; message: AgentMessage }
 	| { type: "turn_end" }
 	| { type: string };
 
@@ -164,6 +169,19 @@ export function streamed(event: SessionEvent): Streamed | undefined {
 		return { type: "tool_error", name: end.toolName?.trim() || "?", error, ...(end.toolCallId && { call: end.toolCallId }) };
 	}
 	return undefined;
+}
+
+/**
+ * The message pi has just added to the transcript, or nothing for any other
+ * event.
+ *
+ * Every message a turn adds ends with one: the prompt, each answer, each tool
+ * result, a steer once it is delivered. The summary a compaction writes in
+ * their place does not, so a turn read off these is what it said, whatever
+ * `messages` was rebuilt into meanwhile.
+ */
+export function ended(event: SessionEvent): AgentMessage | undefined {
+	return event.type === "message_end" ? (event as { message?: AgentMessage }).message : undefined;
 }
 
 /** What the last turn of a transcript said, and how it ended. */

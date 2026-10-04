@@ -19,9 +19,11 @@ import { registerMirror } from "./mirror.ts";
 import { failed, succeeded, type Result } from "./result.ts";
 import {
 	createDefaultSession,
+	ended,
 	lastTurn,
 	modelLabel,
 	streamed,
+	type AgentMessage,
 	type CreateSession,
 	type SessionPort,
 	type ToolDefinition,
@@ -252,10 +254,16 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 	 * already follows the same rule turn by turn.
 	 */
 	let lastError: string | undefined;
+	/** What the last turn answered, for the close: `messages` may have been compacted since. */
+	let lastOutput = "";
+	/** The messages of the turn in flight, as pi ends them. Absent between turns. */
+	let turnMessages: AgentMessage[] | undefined;
 
 	// Streaming events are forwarded as they arrive - never buffered until the
 	// end of the turn, otherwise the TUI would show an opaque spinner.
 	const unsubscribe = session.subscribe((event) => {
+		const message = ended(event);
+		if (message) turnMessages?.push(message);
 		const seen = streamed(event);
 		if (seen?.type === "text") bus.emit({ type: "text", id, delta: seen.delta });
 		else if (seen !== undefined) bus.emit({ ...seen, id });
@@ -297,7 +305,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 
 			const before = readUsage(session);
 			const startedAt = performance.now();
-			const startIndex = session.messages.length;
+			turnMessages = [];
 
 			// One signal to watch, whether it comes from this subagent's own stop
 			// switch, from the caller, or from the deadline. The timeout is created
@@ -350,7 +358,8 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 
 			usage = accumulate(usage, turn);
 
-			const messages = session.messages.slice(startIndex);
+			const messages = turnMessages ?? [];
+			turnMessages = undefined;
 			// A turn can also fail without throwing: pi reports it through the
 			// last assistant message, and the session's reader says so.
 			const said = lastTurn(messages);
@@ -367,6 +376,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 			const result: Result = error ? failed(agent.name, error, turn, messages) : succeeded(agent.name, said.text, turn, messages);
 
 			lastError = error;
+			lastOutput = said.text;
 			bus.emit({ type: "usage", id, usage: turn });
 			bus.emit({ type: "status", id, status: error ? "blocked" : "idle" });
 			return result;
@@ -403,7 +413,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 				// Over the subagent's whole life, and without the messages: what a
 				// reader wants of a close is the outcome and the bill, and the
 				// transcript is the export's.
-				result: lastError ? failed(agent.name, lastError, finalUsage) : succeeded(agent.name, lastTurn(session.messages).text, finalUsage),
+				result: lastError ? failed(agent.name, lastError, finalUsage) : succeeded(agent.name, lastOutput, finalUsage),
 			});
 			unregister();
 		},
