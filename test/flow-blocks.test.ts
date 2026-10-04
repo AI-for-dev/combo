@@ -55,7 +55,7 @@ describe("map", () => {
 		const [look, answer] = flow.nodes;
 		assert.equal(look?.kind, "map");
 		assert.deepEqual((look as CheckedMapNode).over, { items: ["where is it", "how is it tested"] });
-		assert.equal(answer?.kind === "agent" && showType(answer.reads[0]?.type ?? { kind: "text" }), "[{ item: string, ok: boolean, output?: text, error?: { kind: provider | timeout | schema | stopped | cancelled | condition | child | nobody | unavailable | empty-message | unconverged | too-many, message: string } }]");
+		assert.equal(answer?.kind === "agent" && showType(answer.reads[0]?.type ?? { kind: "text" }), "[{ item: string, ok: boolean, output?: text, error?: { kind: provider | timeout | schema | no-tool | stopped | cancelled | condition | child | nobody | unavailable | empty-message | unconverged | too-many, message: string } }]");
 	});
 
 	test("`map-from:` reads a list, bound by `max:`, and `item` is its element", () => {

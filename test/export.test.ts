@@ -201,7 +201,7 @@ describe("usage.json", () => {
 		const picture = createRunPicture();
 		const feed = picture.reporter;
 
-		feed({ type: "spawn", id: "scout#1", agent: "scout", lifetime: "task", openInHerdr: false, toolset: [], order: 1, model: "local/qwen" });
+		feed({ type: "spawn", id: "scout#1", agent: "scout", lifetime: "task", openInHerdr: false, order: 1, model: "local/qwen" });
 		feed({ type: "status", id: "scout#1", status: "working", task: "find it" });
 		feed({ type: "tool", id: "scout#1", name: "grep", args: { pattern: "x" } });
 		feed({ type: "usage", id: "scout#1", usage: { ...emptyUsage(), turns: 1, busyMs: 600, input: 1_000, output: 100, cost: 0.01 } });
@@ -217,7 +217,7 @@ describe("usage.json", () => {
 			},
 		});
 
-		feed({ type: "spawn", id: "coder#1", agent: "coder", lifetime: "workflow", openInHerdr: false, toolset: [], order: 1 });
+		feed({ type: "spawn", id: "coder#1", agent: "coder", lifetime: "workflow", openInHerdr: false, order: 1 });
 		feed({ type: "status", id: "coder#1", status: "working", task: "write it" });
 		feed({
 			type: "close",
@@ -270,19 +270,23 @@ describe("usage.json", () => {
 		assert.equal(coder?.error, "provider exploded");
 	});
 
-	test("says plainly which subagent had tools and answered without calling one", () => {
+	test("says which subagent had to call a tool and called none, and counts every subagent's calls", () => {
 		const picture = createRunPicture();
 		const done = (id: string, toolCalls: number) =>
-			picture.reporter({ type: "close", id, result: { agent: "scout", output: "", messages: [], usage: { ...emptyUsage(), turns: 1, toolCalls }, ok: true } });
-		picture.reporter({ type: "spawn", id: "scout#1", agent: "scout", lifetime: "task", openInHerdr: false, toolset: ["read"], order: 1 });
-		picture.reporter({ type: "spawn", id: "scout#2", agent: "scout", lifetime: "task", openInHerdr: false, toolset: ["read"], order: 2 });
+			picture.reporter({ type: "close", id, result: { agent: id.split("#")[0] as string, output: "", messages: [], usage: { ...emptyUsage(), turns: 1, toolCalls }, ok: true } });
+		picture.reporter({ type: "spawn", id: "scout#1", agent: "scout", lifetime: "task", openInHerdr: false, mustCallTool: true, order: 1 });
+		picture.reporter({ type: "spawn", id: "scout#2", agent: "scout", lifetime: "task", openInHerdr: false, mustCallTool: true, order: 2 });
+		picture.reporter({ type: "spawn", id: "synthesiser#1", agent: "synthesiser", lifetime: "task", openInHerdr: false, order: 3 });
 		done("scout#1", 0);
 		done("scout#2", 3);
+		done("synthesiser#1", 0);
 
-		const [silent, reader] = usageReport(picture.snapshot(), 100).subagents;
+		const [silent, reader, synthesiser] = usageReport(picture.snapshot(), 100).subagents;
 		assert.equal(silent?.calledNoTool, true);
 		assert.equal(reader?.calledNoTool, undefined);
 		assert.equal(reader?.usage.toolCalls, 3);
+		assert.equal(synthesiser?.calledNoTool, undefined, "it may answer from what it was handed");
+		assert.equal(synthesiser?.usage.toolCalls, 0, "and its count is still recorded");
 	});
 
 	/** An explorer, and the scout it had spawned - which failed. */
@@ -291,8 +295,8 @@ describe("usage.json", () => {
 		const feed = picture.reporter;
 		const spent = (busyMs: number, input: number) => ({ ...emptyUsage(), turns: 1, busyMs, input });
 
-		feed({ type: "spawn", id: "explorer#1", agent: "explorer", lifetime: "task", openInHerdr: false, toolset: [], order: 1 });
-		feed({ type: "spawn", id: "scout#1", agent: "scout", lifetime: "task", openInHerdr: false, toolset: [], order: 2, parentId: "explorer#1" });
+		feed({ type: "spawn", id: "explorer#1", agent: "explorer", lifetime: "task", openInHerdr: false, order: 1 });
+		feed({ type: "spawn", id: "scout#1", agent: "scout", lifetime: "task", openInHerdr: false, order: 2, parentId: "explorer#1" });
 		feed({
 			type: "close",
 			id: "scout#1",
@@ -326,13 +330,13 @@ describe("usage.json", () => {
 
 	test("a provider that reports nothing gives zero at every level, never an estimate", () => {
 		const picture = createRunPicture();
-		picture.reporter({ type: "spawn", id: "explorer#1", agent: "explorer", lifetime: "task", openInHerdr: false, toolset: [], order: 1 });
+		picture.reporter({ type: "spawn", id: "explorer#1", agent: "explorer", lifetime: "task", openInHerdr: false, order: 1 });
 		picture.reporter({
 			type: "spawn",
 			id: "scout#1",
 			agent: "scout",
 			lifetime: "task",
-			openInHerdr: false, toolset: [],
+			openInHerdr: false,
 			order: 2,
 			parentId: "explorer#1",
 		});

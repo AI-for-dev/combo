@@ -66,10 +66,10 @@ On a `"task"` subagent the two times are nearly equal. On a `"workflow"` one, th
   that a line gives none, and after it `↑0 ↓0` is a zero pi reported.
 - **Tool calls are pi's count too.** `getSessionStats().toolCalls` counts the
   calls in the transcript, compacted ones included, so the session takes a
-  turn's `toolCalls` as a delta like its tokens. When a subagent that was given tools ends a turn
-  having called none of them, every display says `called no tool`
-  (`calledNoTool(usage, toolset)`). That is a fact, not a verdict: `ok` stays
-  as it was.
+  turn's `toolCalls` as a delta like its tokens. It is recorded for every
+  subagent. An agent whose definition says `mustCallTool: true` fails a turn
+  that called none, and the displays say `called no tool` of it; see
+  [Agents](agents.md#an-agent-that-must-read-before-it-answers).
 - **`input` counts every request, not every turn.** pi sends the whole prompt on
   each round trip, so one turn of a hundred tool calls sends a 14k context a
   hundred times and the counter reads millions. That number is right; the turn

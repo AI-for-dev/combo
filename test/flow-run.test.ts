@@ -6,11 +6,13 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
+import { CALLED_NO_TOOL_ERROR } from "../src/agent.ts";
 import { createEventBus, type SubagentEvent } from "../src/events.ts";
 import { NO_JOURNAL } from "../src/flow/run/journal.ts";
 import { Run } from "../src/flow/run/walk.ts";
 import { IN_THE_LANGUAGE_OF_THE_WORK } from "../src/language.ts";
 import { stopSwitch } from "../src/stop.ts";
+import type { SpawnFn } from "../src/workflows/options.ts";
 import { checked, flowSpawn, runChecked } from "./fixtures/flow.ts";
 
 const CLOSING = "Answer by calling `submit` with the value asked for above: the call is your answer, and text you write beside it is not read.";
@@ -185,6 +187,28 @@ describe("`retry:`", () => {
 		const result = await runChecked(flow, "x", { spawn: fake.spawn });
 		assert.deepEqual(!result.ok && [result.error, result.path], [{ kind: "provider", message: "the answer reached the output limit" }, "look"]);
 		assert.equal(fake.created.length, 1, "the next node never started");
+	});
+
+	test("covers a turn that called no tool when its agent must call one, as the failure `no-tool`", async () => {
+		const flow = checked("  - id: look\n    agent: scout\n    retry: 1", { look: "Look." });
+		const fake = flowSpawn([[{ text: "it must be in src/" }, { text: "found", tools: [{ name: "grep" }] }]]);
+		const strict: SpawnFn = (agent, options) => fake.spawn({ ...agent, mustCallTool: true }, options);
+		const result = await runChecked(flow, "x", { spawn: strict });
+		assert.deepEqual(result.ok && result.output, "found");
+		assert.equal(fake.created[0]?.prompts[1], `Your last answer failed (no-tool: ${CALLED_NO_TOOL_ERROR}). Do the same task again.\n\n${IN_THE_LANGUAGE_OF_THE_WORK}`);
+	});
+
+	test("without one, a turn that called no tool its agent must call fails its node", async () => {
+		const flow = checked("  - id: look\n    agent: scout", { look: "Look." });
+		const fake = flowSpawn([[{ text: "it must be in src/" }]]);
+		const result = await runChecked(flow, "x", { spawn: (agent, options) => fake.spawn({ ...agent, mustCallTool: true }, options) });
+		assert.deepEqual(!result.ok && result.error, { kind: "no-tool", message: CALLED_NO_TOOL_ERROR });
+	});
+
+	test("an agent that does not declare it answers without a tool and the node holds", async () => {
+		const flow = checked("  - id: look\n    agent: scout", { look: "Look." });
+		const result = await runChecked(flow, "x", { spawn: flowSpawn([[{ text: "from what I was handed" }]]).spawn });
+		assert.ok(result.ok);
 	});
 
 	test("is spent: a node with none left fails", async () => {

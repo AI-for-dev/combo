@@ -9,7 +9,7 @@ import type { EventListener } from "../events.ts";
 import { CALLED_NO_TOOL, formatUsage } from "../usage.ts";
 import { createRunPicture } from "./picture.ts";
 import { trafficLine } from "./traffic.ts";
-import { answeredWithoutTools, statusIcon } from "./tui.ts";
+import { calledNoTool, statusIcon } from "./tui.ts";
 
 /** How much the console reporter says, and where it says it. */
 export type ConsoleReporterOptions = {
@@ -29,7 +29,7 @@ export function consoleReporter(options: ConsoleReporterOptions = {}): EventList
 	const indent = (id: string) => "  ".repeat(picture.of(id)?.depth ?? 0);
 	const noTool = (id: string) => {
 		const one = picture.of(id);
-		return one && answeredWithoutTools(one) ? `  ${CALLED_NO_TOOL}` : "";
+		return one && calledNoTool(one) ? `  ${CALLED_NO_TOOL}` : "";
 	};
 
 	return (event) => {

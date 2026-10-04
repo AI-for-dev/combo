@@ -22,6 +22,7 @@ export const ERROR_KINDS = [
 	"provider",
 	"timeout",
 	"schema",
+	"no-tool",
 	"stopped",
 	"cancelled",
 	"condition",

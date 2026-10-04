@@ -95,12 +95,12 @@ describe("the live view", () => {
 	test("mid-run, expands what runs and folds what ended: iterations, items and branches", async () => {
 		const { events } = await recorded(BLOCKS, BLOCKS_ANSWERS);
 		assert.deepEqual(frame(BLOCKS, [], atStart(events, "deliver#2/work[2]/code")), [
-			"● f · 10 visits · 5 called no tool · 0s · ↑0 ↓0",
+			"● f · 10 visits · 0s · ↑0 ↓0",
 			"● deliver · #2 of 2",
-			"  ✓ deliver#1 · 4 called no tool · 0s · ↑0 ↓0",
+			"  ✓ deliver#1 · 0s · ↑0 ↓0",
 			"  ● deliver#2",
 			"    ● deliver#2/work · 1/2",
-			"      ✓ deliver#2/work[1] · 1 called no tool · 0s · ↑0 ↓0",
+			"      ✓ deliver#2/work[1] · 0s · ↑0 ↓0",
 			"      ● deliver#2/work[2]",
 			"        ● deliver#2/work[2]/code",
 			"    ○ deliver#2/both · parallel · ≤ 2 turns · ≤ 1h + a person's answer",
@@ -135,8 +135,8 @@ describe("the live view", () => {
 	test("folds a choice's cases before it decides, and the ones it did not take after", async () => {
 		const { events } = await recorded(BLOCKS, BLOCKS_ANSWERS);
 		assert.deepEqual(frame(BLOCKS, [], atStart(events, "deliver#1/gate/fine")).slice(3, 9), [
-			"    ✓ deliver#1/work · 2 items · 2 called no tool · 0s · ↑0 ↓0",
-			"    ✓ deliver#1/both · 2 branches · 1 called no tool · 0s · ↑0 ↓0",
+			"    ✓ deliver#1/work · 2 items · 0s · ↑0 ↓0",
+			"    ✓ deliver#1/both · 2 branches · 0s · ↑0 ↓0",
 			"    ● deliver#1/gate",
 			"      ● case 1 · when both.output.left.ok",
 			"        ● deliver#1/gate/fine",
@@ -153,31 +153,22 @@ describe("the live view", () => {
 			"  ● spec/look",
 			"  ○ spec/more · agent scout (agents/scout.md) · timeout 30m by default · ≤ 1 turn · ≤ 30m",
 		]);
-		assert.deepEqual(frame(calling, [], atStart(events, "after")), ["● f · 3 visits · 2 called no tool · 0s · ↑0 ↓0", "✓ spec · 2 called no tool · 0s · ↑0 ↓0", "● after"]);
+		assert.deepEqual(frame(calling, [], atStart(events, "after")), ["● f · 3 visits · 0s · ↑0 ↓0", "✓ spec · 0s · ↑0 ↓0", "● after"]);
 	});
 
 	test("while a life runs, gives it the time the caller's clock says, not what its ended visits add up to", async () => {
 		const { events } = await recorded(BLOCKS, BLOCKS_ANSWERS);
 		const running = atStart(events, "deliver#2/work[2]/code");
-		assert.equal(frame(BLOCKS, [], running, 39_000)[0], "● f · 10 visits · 5 called no tool · 39s · ↑0 ↓0");
+		assert.equal(frame(BLOCKS, [], running, 39_000)[0], "● f · 10 visits · 39s · ↑0 ↓0");
 		assert.equal(frame(BLOCKS, [], [], 2_000)[0], "● f · 0 visits · 2s");
 	});
 
 	test("once over, is one line per root node, and the journal alone draws the same frame", async () => {
 		const { journal, events } = await recorded(BLOCKS, BLOCKS_ANSWERS);
-		const last = ["✓ f · 20 visits · 9 called no tool · 0s · ↑0 ↓0", "✓ deliver · 2 iterations · 8 called no tool · 0s · ↑0 ↓0", "✓ after · synthesiser · called no tool · 0s · ↑0 ↓0"];
+		const last = ["✓ f · 20 visits · 0s · ↑0 ↓0", "✓ deliver · 2 iterations · 0s · ↑0 ↓0", "✓ after · synthesiser · 0s · ↑0 ↓0"];
 		assert.deepEqual(frame(BLOCKS, [], events), last);
 		assert.deepEqual(frame(BLOCKS, journal, []), last);
 		assert.equal(showSummary(livePlan(BLOCKS, journal, []), 400), last[0]);
-	});
-
-	test("says which agent visits called no tool their agent had, and counts them in the summary", async () => {
-		const { journal } = await recorded(BLOCKS, BLOCKS_ANSWERS);
-		const silent = (node: string) => journal.filter((entry) => entry.type === "visit_end" && entry.node === node).map((end) => end.type === "visit_end" && end.calledNoTool === true);
-
-		assert.deepEqual(silent("deliver/work/code"), [true, true, true, true], "a scripted text answer reads nothing");
-		assert.deepEqual(silent("deliver/audit"), [false, false], "a verdict is given through a tool, and that call counts");
-		assert.match(frame(BLOCKS, journal, [])[0] as string, /^✓ f · 20 visits · 9 called no tool · /);
 	});
 
 	test("gives a check, a commit and an ask their time and no token counts, since no model runs in them", async () => {
@@ -186,7 +177,7 @@ describe("the live view", () => {
 			{ after: "After." },
 		);
 		const { events } = await recorded(flow, { sure: { yes: true }, tests: { passed: true, report: "" }, save: { committed: true, sha: "abc", branch: "combo/x" }, after: "done" });
-		assert.deepEqual(frame(flow, [], events).slice(1), ["✓ sure · 0s", "✓ tests · 0s", "✓ after · synthesiser · called no tool · 0s · ↑0 ↓0", "✓ save · 0s"]);
+		assert.deepEqual(frame(flow, [], events).slice(1), ["✓ sure · 0s", "✓ tests · 0s", "✓ after · synthesiser · 0s · ↑0 ↓0", "✓ save · 0s"]);
 	});
 
 	test("counts every failed visit, absorbed ones included, names a loop that did not converge, and marks what was never reached", async () => {
@@ -220,42 +211,42 @@ describe("the live view", () => {
 
 		test("draws what the killed life ended like any ended visit, and what it left open as not run yet", async () => {
 			const { from } = await killedAndResumed();
-			assert.deepEqual(frame(LOOP, from, []), ["○ f · 3 visits · 2 called no tool · 0s · ↑3k ↓300", "✓ plan · planner · called no tool · 0s · ↑1k ↓100", "○ fix · #1 of 3", "  ✓ fix#1 · 1 called no tool · 0s · ↑2k ↓200"]);
+			assert.deepEqual(frame(LOOP, from, []), ["○ f · 3 visits · 0s · ↑3k ↓300", "✓ plan · planner · 0s · ↑1k ↓100", "○ fix · #1 of 3", "  ✓ fix#1 · 0s · ↑2k ↓200"]);
 		});
 
 		test("says in its summary how many lives it had, which were partial, where it picked up, and what they all cost", async () => {
 			const { from, resumed } = await killedAndResumed();
 			assert.deepEqual(frame(LOOP, from, atStart(resumed.events, "fix#2/audit")), [
-				"● f · 4 visits · 3 called no tool · 0s · ↑3k ↓300 · 2 lives (1 partial) · resumed from fix#2/work",
-				"✓ plan · planner · called no tool · 0s · ↑1k ↓100",
+				"● f · 4 visits · 0s · ↑3k ↓300 · 2 lives (1 partial) · resumed from fix#2/work",
+				"✓ plan · planner · 0s · ↑1k ↓100",
 				"● fix · #2 of 3",
-				"  ✓ fix#1 · 1 called no tool · 0s · ↑2k ↓200",
+				"  ✓ fix#1 · 0s · ↑2k ↓200",
 				"  ● fix#2",
-				"    ✓ fix#2/work · scout · called no tool · 0s · ↑0 ↓0",
+				"    ✓ fix#2/work · scout · 0s · ↑0 ↓0",
 				"    ● fix#2/audit",
 			]);
-			assert.equal(frame(LOOP, from, resumed.events)[0], "✓ f · 6 visits · 3 called no tool · 0s · ↑3k ↓300 · 2 lives (1 partial) · resumed from fix#2/work");
+			assert.equal(frame(LOOP, from, resumed.events)[0], "✓ f · 6 visits · 0s · ↑3k ↓300 · 2 lives (1 partial) · resumed from fix#2/work");
 		});
 
 		test("counts on each line what every life spent there, so the root lines add up to the summary", async () => {
 			const { resumed } = await killedAndResumed();
 			assert.deepEqual(frame(LOOP, resumed.journal, []), [
-				"✓ f · 6 visits · 3 called no tool · 0s · ↑3k ↓300 · 2 lives (1 partial) · resumed from fix#2/work",
-				"✓ plan · planner · called no tool · 0s · ↑1k ↓100",
-				"✓ fix · 2 iterations · 2 called no tool · 0s · ↑2k ↓200",
+				"✓ f · 6 visits · 0s · ↑3k ↓300 · 2 lives (1 partial) · resumed from fix#2/work",
+				"✓ plan · planner · 0s · ↑1k ↓100",
+				"✓ fix · 2 iterations · 0s · ↑2k ↓200",
 			]);
 		});
 
 		test("adds this life's time, by the caller's clock, to what the earlier lives took", async () => {
 			const { from, resumed } = await killedAndResumed();
 			const earlier = from.map((entry) => (entry.type === "visit_end" ? { ...entry, wallMs: 1000 } : entry));
-			assert.equal(frame(LOOP, earlier, atStart(resumed.events, "fix#2/audit"), 5000)[0], "● f · 4 visits · 3 called no tool · 8s · ↑3k ↓300 · 2 lives (1 partial) · resumed from fix#2/work");
+			assert.equal(frame(LOOP, earlier, atStart(resumed.events, "fix#2/audit"), 5000)[0], "● f · 4 visits · 8s · ↑3k ↓300 · 2 lives (1 partial) · resumed from fix#2/work");
 		});
 
 		test("tells the killed life from the next by its journal alone, each opening with its `life_start`", async () => {
 			const { resumed } = await killedAndResumed();
-			assert.equal(frame(LOOP, resumed.journal, [])[0], "✓ f · 6 visits · 3 called no tool · 0s · ↑3k ↓300 · 2 lives (1 partial) · resumed from fix#2/work");
-			assert.equal(frame(LOOP, resumed.journal.slice(0, -1), [])[0], "✓ f · 6 visits · 3 called no tool · 0s · ↑3k ↓300 · 2 lives (2 partial) · resumed from fix#2/work");
+			assert.equal(frame(LOOP, resumed.journal, [])[0], "✓ f · 6 visits · 0s · ↑3k ↓300 · 2 lives (1 partial) · resumed from fix#2/work");
+			assert.equal(frame(LOOP, resumed.journal.slice(0, -1), [])[0], "✓ f · 6 visits · 0s · ↑3k ↓300 · 2 lives (2 partial) · resumed from fix#2/work");
 		});
 	});
 

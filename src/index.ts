@@ -38,7 +38,7 @@ export { run, type RunOptions } from "./run.ts";
 export { spawn, type AskOptions, type CustomToolsFor, type SpawnOptions, type Subagent } from "./subagent.ts";
 export { stopSwitch, type StopSwitch, type StopSwitchOptions } from "./stop.ts";
 export { failed, joinOutputs, succeeded, type JoinOptions, type Result, type WorkflowResult } from "./result.ts";
-export { CALLED_NO_TOOL, calledNoTool, compact, deltaUsage, emptyUsage, formatUsage, sumUsage, type Usage } from "./usage.ts";
+export { CALLED_NO_TOOL, compact, deltaUsage, emptyUsage, formatUsage, sumUsage, type Usage } from "./usage.ts";
 
 // ── The combinators, and the options every one of them shares ────────────────
 
@@ -116,7 +116,7 @@ export {
 // Formatting a snapshot. Drawing it is the caller's - see the pi extension,
 // which is the only consumer of these today.
 export {
-	answeredWithoutTools,
+	calledNoTool,
 	callLine,
 	currentActivity,
 	detailLine,

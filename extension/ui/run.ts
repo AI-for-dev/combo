@@ -203,7 +203,7 @@ export function paintWidget(snapshot: RunSnapshot, theme: WidgetTheme, selected?
 		// The id carries the weight; the activity is deliberately quiet, and the
 		// numbers of a finished subagent are quieter still - they sit where its
 		// second line used to be, on the same line.
-		const said = [row.activity && theme.fg(row.warn ? "warning" : "muted", row.activity), row.detail && theme.fg("dim", row.detail)].filter(Boolean);
+		const said = [row.activity && theme.fg("muted", row.activity), row.detail && theme.fg("dim", row.detail)].filter(Boolean);
 		return [`${indent}${dot} ${id}`, ...said].join("  ");
 	});
 

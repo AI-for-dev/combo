@@ -105,18 +105,7 @@ export function sumUsage(parts: readonly Usage[], wallMs: number): Usage {
 	return total;
 }
 
-/**
- * Whether a subagent that had tools answered without calling any.
- *
- * A fact read off pi's counters, not a verdict: the turn may still be right,
- * and combo cannot judge its text. Nothing to say before a turn has ended,
- * nor of an agent given no tools at all, which has no other way to answer.
- */
-export function calledNoTool(usage: Usage, toolset: readonly string[] | undefined): boolean {
-	return (toolset?.length ?? 0) > 0 && usage.turns > 0 && usage.toolCalls === 0;
-}
-
-/** The words for {@link calledNoTool}, the same wherever a display says it. */
+/** What every display says of a turn that called no tool its agent had to call. */
 export const CALLED_NO_TOOL = "called no tool";
 
 /**

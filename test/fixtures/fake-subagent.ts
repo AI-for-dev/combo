@@ -9,7 +9,7 @@
 import { lifetimeOf, type Agent } from "../../src/agent.ts";
 import { emptyUsage, type Usage } from "../../src/usage.ts";
 import { failed, succeeded, type Result } from "../../src/result.ts";
-import { toolsOf, type ToolDefinition } from "../../src/session.ts";
+import type { ToolDefinition } from "../../src/session.ts";
 import type { SpawnFn } from "../../src/workflows/options.ts";
 import { toolsOffered, type AskOptions, type SpawnOptions, type Subagent } from "../../src/subagent.ts";
 
@@ -85,7 +85,7 @@ export function fakeSpawn(
 			lifetime,
 			openInHerdr: options.openInHerdr ?? false,
 			order: counter,
-			toolset: toolsOf(agent),
+			...(agent.mustCallTool && { mustCallTool: true as const }),
 			parentId: options.parentId,
 		});
 		bus?.emit({ type: "status", id, status: "idle" });

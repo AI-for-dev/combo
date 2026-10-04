@@ -492,14 +492,6 @@ describe("paintWidget", () => {
 		assert.match(painted[2] as string, /^ {2}● scout#1/);
 	});
 
-	test("a finished subagent that called no tool it had is drawn as a warning", () => {
-		const usage = { wallMs: 0, busyMs: 0, turns: 1, toolCalls: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
-		const one = { id: "scout#1", agent: "scout", lifetime: "task", status: "done" as const, ok: true, task: "x", tools: [], output: "", depth: 0, toolset: ["read"], usage };
-		const painted = paintWidget({ subagents: [one], total: 1, done: 1, running: 0, failed: 0, usage }, { fg: (colour, text) => `<${colour}>${text}` });
-
-		assert.match(painted[0] as string, /<warning>called no tool/);
-	});
-
 	test("colours nothing that widgetRows did not lay out", () => {
 		const painted = paintWidget(
 			{

@@ -61,7 +61,7 @@ async function record(): Promise<{ method: string; params: Record<string, unknow
 
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-check-"));
 	const report = createHerdrReporterWith(send, { dir, all: true, pane: "w1:p1" });
-	report({ type: "spawn", id: "member#1", agent: "member", order: 1, lifetime: "workflow", openInHerdr: true, toolset: ["read"] });
+	report({ type: "spawn", id: "member#1", agent: "member", order: 1, lifetime: "workflow", openInHerdr: true });
 	report({ type: "status", id: "member#1", status: "working", task: "describe one file" });
 	report({ type: "tool", id: "member#1", name: "read", args: { path: "src/reporters/console.ts" } });
 	report({ type: "text", id: "member#1", delta: "it prints what happens" });

@@ -7,15 +7,17 @@
  * path a real one would. A typed value goes through the real `submit` tool
  * and a verdict through the real `verdict` tool, a provider failure is a turn
  * that comes back with an error, a timeout expires the attempt's deadline and
- * waits for the signal it fires, and a schema failure is a turn that calls
- * nothing.
+ * waits for the signal it fires, a schema failure is a turn that calls
+ * nothing, and `no-tool` is the failure of a turn that called no tool its
+ * agent had to call.
  */
 
 import type { AgentMessage, CreateSessionOptions, SessionPort, ToolDefinition, Turn } from "../../session.ts";
+import { CALLED_NO_TOOL_ERROR } from "../../agent.ts";
 import { emptyUsage } from "../../usage.ts";
 
 /** What one scripted turn does: say a text, call one of its tools with `args`, or fail as `fail` says. */
-export type ScriptedTurn = { readonly say: string } | { readonly call: string; readonly args: unknown } | { readonly fail: "provider" | "timeout" | "schema" };
+export type ScriptedTurn = { readonly say: string } | { readonly call: string; readonly args: unknown } | { readonly fail: "provider" | "timeout" | "schema" | "no-tool" };
 
 /** A scripted session, told before each turn what that turn does and how to expire the deadline it runs under. */
 export type ScriptedSession = SessionPort & { stage(turn: ScriptedTurn, expire: () => void): void };
@@ -58,6 +60,7 @@ export function scriptedSession(options: CreateSessionOptions): ScriptedSession 
 				await fired;
 				return answer("", "aborted");
 			}
+			if (turn.fail === "no-tool") return answer("", CALLED_NO_TOOL_ERROR);
 			return turn.fail === "provider" ? answer("", "scripted provider failure") : answer("");
 		},
 		steer: async () => "idle",

@@ -823,8 +823,14 @@ even with text in it, since it is not the whole of one. One cut in the
 model's thinking has no text at all, and fails rather than reach the next
 node as an empty answer.
 
+A turn fails `no-tool` when its agent's definition says
+`mustCallTool: true` and the turn called no tool (see
+[Agents](agents.md#fields)). An agent that does not say so is never failed
+for it. A `submit` or a `verdict` is a tool call, so a typed or `verdict:`
+node meets it with its answer.
+
 `retry: n` gives an `agent` node `n` more attempts after a `provider`,
-`timeout` or `schema` failure, never after a stop or a cut. A retry asks the
+`timeout`, `schema` or `no-tool` failure, never after a stop or a cut. A retry asks the
 same subagent again with the failure named, except after a timeout, which
 starts a fresh subagent asked the whole turn, unless a `memory:` scope keeps
 it. Every attempt's tokens count.
@@ -853,15 +859,12 @@ scope's. Nodes sharing a subagent declare the same `output:`, since its
 
 The run reports `visit_start { path, node, kind }`, `node` being the address
 through the calls (`spec/interview/ask_next`), and
-`visit_end { path, node, kind, ok, output?, error?, case?, converged?, agent?, subagent?, model?, calledNoTool?, wallMs, usage }`
+`visit_end { path, node, kind, ok, output?, error?, case?, converged?, agent?, subagent?, model?, wallMs, usage }`
 on the same stream as its subagents, and each subagent's `spawn` event
 carries the `visit` it was spawned for and the `transcript` it will write.
 `subagent` is the id an `agent` visit ran on. `usage` is the delta of pi's
 counters over the visit, every attempt and nested visit included: a
-delegate's turns are its own session's, not the visit's. `calledNoTool` marks
-an `agent` visit whose agent had tools and called none in any attempt. A
-`submit` or a `verdict` is a tool call, so a node that answers through one is
-never marked.
+delegate's turns are its own session's, not the visit's.
 
 ### A dry run
 
@@ -891,7 +894,10 @@ written inside one. An answer is an output, the `verdict` call of a
 `verdict:` node (`{ approved, remarks?, resolved?, raised? }`), a check's
 `{ passed, report }`, a commit's `{ committed, sha?, branch }`, an ask's
 output, or a failure: `{ fail: "provider" | "timeout" | "schema" }` for an
-agent turn, `{ fail: "unavailable" | "timeout" }` for a check,
+agent turn, and `{ fail: "no-tool" }` too when its agent says
+`mustCallTool: true`. A text answer stands for the whole turn, reading
+included, so a dry run never fails `no-tool` on its own.
+`{ fail: "unavailable" | "timeout" }` is for a check,
 `{ fail: "unavailable" }` for a commit. An ask takes `{ fail: "nobody" }`,
 `{ fail: "timeout" }` when it has a `timeout:`, and `{ fail: "stopped" }`, the
 card declined, when it has no `enough:`. The first two take the node's own
@@ -1063,11 +1069,7 @@ as its second iteration starts its second item:
 ```
 
 The summary counts every visit that ended, as it last ended, and every one
-that failed, those `on-fail: continue` absorbed included. It also counts the
-agent visits that ended without calling a tool their agent had
-(`2 called no tool`). Each of their lines says `called no tool`, and a line
-that folds visits under it, an item, an iteration or a `map`, counts the ones
-it holds, so the scout behind the summary's count can be found. It names each loop
+that failed, those `on-fail: continue` absorbed included. It names each loop
 that hit its cap or gave up (`fix not converged`) and adds up what every
 life cost, so the root lines add up to it. While a life runs, its time is
 the `elapsedMs` it was given, not the visits it has ended so far. Past the first life it says how many there were, how many were

@@ -4,21 +4,20 @@
  */
 
 import { plural } from "../../text.ts";
-import { CALLED_NO_TOOL } from "../../usage.ts";
 import type { CheckedNode } from "../checked.ts";
 import type { VisitEnd } from "../run/index.ts";
 
 /**
  * What the one line of an ended visit says: why it failed, or the agent that
- * ran it and whether it called no tool it had, the case a `choice` took, the
- * iterations of a loop and whether it converged, how many items or branches a
- * block joined and how many of them failed under `on-fail: continue`.
+ * ran it, the case a `choice` took, the iterations of a loop and whether it
+ * converged, how many items or branches a block joined and how many of them
+ * failed under `on-fail: continue`.
  */
 export function outcome(node: CheckedNode, end: VisitEnd): string[] {
 	if (!end.ok) return end.error === undefined ? [] : [`${end.error.kind}: ${end.error.message}`];
 	switch (node.kind) {
 		case "agent":
-			return [...(end.agent === undefined ? [] : [end.agent]), ...(end.calledNoTool ? [CALLED_NO_TOOL] : [])];
+			return end.agent === undefined ? [] : [end.agent];
 		case "choice":
 			return end.case === undefined ? [] : [end.case === "default" ? "default" : `case ${end.case}`];
 		case "loop": {

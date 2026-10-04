@@ -7,22 +7,21 @@
  * own stop, the deadline this attempt was given, and otherwise the provider.
  */
 
-import type { Agent } from "../../agent.ts";
+import { CALLED_NO_TOOL_ERROR, type Agent } from "../../agent.ts";
 import { timedOutAfter } from "../../deadline.ts";
 import type { GitResult } from "../../git/index.ts";
 import type { Result } from "../../result.ts";
 import type { Ledger } from "../../review/index.ts";
-import { toolsOf } from "../../session.ts";
-import { calledNoTool, emptyUsage, sumUsage, type Usage } from "../../usage.ts";
+import { emptyUsage, sumUsage, type Usage } from "../../usage.ts";
 import type { CheckedAgentNode, ErrorKind } from "../checked.ts";
-import { failure, interruption, type Ended, type Visited } from "./ended.ts";
+import { failure, interruption, type Ended } from "./ended.ts";
 import type { Held } from "./frames.ts";
 import { withDiff } from "./reads.ts";
 import { closingPart, composeTurn, retryTurn } from "./turn.ts";
 import type { Here } from "./walk.ts";
 
 /** The failures a `retry:` covers. A person's stop and a `fail-fast` cut are never retried. */
-const RETRIED: readonly ErrorKind[] = ["schema", "provider", "timeout"];
+const RETRIED: readonly ErrorKind[] = ["schema", "no-tool", "provider", "timeout"];
 
 /** One attempt about to be asked, as the run's deadline sees it: its visit, its node's address, its subagent. */
 export type Attempt = { readonly path: string; readonly at: string; readonly subagent: string; readonly ms: number };
@@ -42,7 +41,7 @@ export type AgentRun = {
 };
 
 /** How an agent visit ended, with what it cost and who ran it. */
-export type AgentVisit = Pick<Visited, "ended" | "usage" | "agent" | "subagent" | "model" | "calledNoTool">;
+export type AgentVisit = { readonly ended: Ended; readonly usage: Usage; readonly agent?: string; readonly subagent?: string; readonly model?: string };
 
 /** One visit's asking: its node and path, where it stands, and the ledger a `verdict:` node writes to. */
 type Asking = { readonly run: AgentRun; readonly node: CheckedAgentNode; readonly path: string; readonly here: Here; readonly ledger?: Ledger };
@@ -91,9 +90,7 @@ async function attempts(asking: Asking, first: Held, renew?: () => Promise<Held>
 		parts.push(usage);
 		if (ended.ok || attempt >= node.retry || !RETRIED.includes(ended.error.kind)) {
 			const { subagent } = held;
-			const usage = sumUsage(parts, performance.now() - started);
-			const silent = calledNoTool(usage, toolsOf(subagent.agent));
-			return { ended, usage, agent: subagent.agent.name, subagent: subagent.id, model: subagent.model, ...(silent && { calledNoTool: true as const }) };
+			return { ended, usage: sumUsage(parts, performance.now() - started), agent: subagent.agent.name, subagent: subagent.id, model: subagent.model };
 		}
 		if (ended.error.kind === "timeout" && renew !== undefined) {
 			held = await renew();
@@ -125,6 +122,7 @@ function failed(run: AgentRun, cut: AbortSignal, id: string, result: Result, dea
 	if (cutShort !== undefined) return { ok: false, error: cutShort };
 	if (result.error === "stopped") return failure("stopped", `${id} was stopped`);
 	if (deadline.aborted) return failure("timeout", timedOutAfter(ms));
+	if (result.error === CALLED_NO_TOOL_ERROR) return failure("no-tool", result.error);
 	return failure("provider", result.error ?? "the turn failed");
 }
 

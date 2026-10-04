@@ -70,7 +70,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`subagent`](subagent.md) | A subagent: a live session, a memory, a state. | 5 |
 | [`text`](text.md) | Reading what a model wrote, and cutting what it is handed: shortening text, and finding the structure in it. | 5 |
 | [`tool`](tool.md) | The constant parts of a tool combo defines: whether an agent asked for it, and the two shapes of answer a model reads. | 3 |
-| [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 8 |
+| [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 7 |
 | [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 4 |
 | [`workflows/chain`](workflows/chain.md) | `chain`: 1 → 1 → 1. The output of step *n* is the input of step *n+1*. | 2 |
 | [`workflows/concurrent`](workflows/concurrent.md) | Running several things at once, but not all of them: a subtask is a session, and N sessions opening together is the bill nobody meant to pay. | 1 |

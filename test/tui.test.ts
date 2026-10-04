@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { createRunPicture } from "../src/reporters/picture.ts";
 import {
-	answeredWithoutTools,
+	calledNoTool,
 	callLine,
 	currentActivity,
 	detailLine,
@@ -292,44 +292,28 @@ describe("summaryTable", () => {
 	});
 });
 
-describe("an agent that had tools and called none", () => {
-	const READ = ["read", "grep", "find", "ls"];
-
-	test("its finished row says so where the tick would stand alone, flagged for a warning colour", () => {
-		const picture = replay(spawned("scout#1", undefined, undefined, READ), closed("scout#1", true, { turns: 1, busyMs: 500 }));
+describe("an agent that must call a tool and called none", () => {
+	test("its row fails with the reason, and the summary table says it called no tool", () => {
+		const picture = replay(spawned("scout#1", undefined, undefined, true), closed("scout#1", false, { turns: 1, busyMs: 500 }));
 		const one = picture.snapshot().subagents[0]!;
 
-		assert.equal(answeredWithoutTools(one), true);
-		assert.equal(currentActivity(one), "called no tool");
-		assert.deepEqual(widgetLines(picture.snapshot()), ["✓ scout#1  called no tool  ↑0 ↓0 · 0.5s"]);
-		const [row] = widgetRows(picture.snapshot());
-		assert.equal(row?.kind === "activity" && row.warn, true);
-		assert.match(summaryTable(picture.snapshot(), 500)[0] as string, /^✓ scout#1 +1 turn 0\.5s ↑0 ↓0 {2}called no tool$/);
+		assert.equal(calledNoTool(one), true);
+		assert.match(summaryTable(picture.snapshot(), 500)[0] as string, /^✗ scout#1 +1 turn 0\.5s ↑0 ↓0 {2}called no tool$/);
 	});
 
 	test("one call is enough to say nothing", () => {
-		const picture = replay(spawned("scout#1", undefined, undefined, READ), closed("scout#1", true, { turns: 1, toolCalls: 1 }));
-		assert.equal(answeredWithoutTools(picture.snapshot().subagents[0]!), false);
-		assert.doesNotMatch(widgetLines(picture.snapshot())[0] as string, /called no tool/);
+		const picture = replay(spawned("scout#1", undefined, undefined, true), closed("scout#1", true, { turns: 1, toolCalls: 1 }));
+		assert.equal(calledNoTool(picture.snapshot().subagents[0]!), false);
 	});
 
-	test("an agent given no tools had no other way to answer", () => {
-		const picture = replay(spawned("scout#1"), closed("scout#1", true, { turns: 1 }));
-		assert.equal(answeredWithoutTools(picture.snapshot().subagents[0]!), false);
+	test("an agent that may answer from what it was handed is never said to have called none", () => {
+		const picture = replay(spawned("synthesiser#1"), closed("synthesiser#1", true, { turns: 1 }));
+		assert.equal(calledNoTool(picture.snapshot().subagents[0]!), false);
+		assert.doesNotMatch(summaryTable(picture.snapshot(), 0)[0] as string, /called no tool/);
 	});
 
-	test("a failure says more than this does", () => {
-		const picture = replay(spawned("scout#1", undefined, undefined, READ), closed("scout#1", false, { turns: 1 }));
-		assert.equal(answeredWithoutTools(picture.snapshot().subagents[0]!), false);
-		assert.equal(currentActivity(picture.snapshot().subagents[0]!), "it broke");
-	});
-
-	test("a turn under way may call one yet", () => {
-		const picture = replay(
-			spawned("scout#1", undefined, undefined, READ),
-			{ type: "usage", id: "scout#1", usage: { ...emptyUsage(), turns: 1 } },
-			working("scout#1", "again"),
-		);
-		assert.equal(answeredWithoutTools(picture.snapshot().subagents[0]!), false);
+	test("nothing to say before a turn has ended", () => {
+		const picture = replay(spawned("scout#1", undefined, undefined, true), working("scout#1", "look"));
+		assert.equal(calledNoTool(picture.snapshot().subagents[0]!), false);
 	});
 });

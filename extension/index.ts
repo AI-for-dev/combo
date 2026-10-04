@@ -20,8 +20,6 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
 import {
-	answeredWithoutTools,
-	CALLED_NO_TOOL,
 	callLine,
 	formatUsage,
 	MAX_DEPTH,
@@ -217,7 +215,6 @@ function renderCollapsed(details: Details, theme: Theme): Container {
 		let line = `${indent}${drawnIcon(one, theme)} ${theme.fg("toolTitle", theme.bold(one.id))}`;
 		if (one.task) line += ` ${theme.fg("dim", truncate(one.task, 50))}`;
 		if (one.error) line += ` ${theme.fg("error", truncate(one.error, 40))}`;
-		else if (answeredWithoutTools(one)) line += ` ${theme.fg("warning", CALLED_NO_TOOL)}`;
 		container.addChild(new Text(line, 0, 0));
 
 		const shown = one.tools.slice(-COLLAPSED_TOOLS);

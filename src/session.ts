@@ -369,7 +369,7 @@ function readUsage(pi: PiSession): Usage {
 /** Tools of an exploration agent: read, never write. This is the default. */
 export const READ_ONLY_TOOLS = ["read", "grep", "find", "ls"] as const;
 
-/** The tools an agent is spawned with: the ones it names, or {@link READ_ONLY_TOOLS}. */
+/** The tools an agent is spawned with: the ones it names, none for `tools: []`, or {@link READ_ONLY_TOOLS} when it names none. */
 export function toolsOf(agent: Agent): string[] {
 	return agent.tools ?? [...READ_ONLY_TOOLS];
 }

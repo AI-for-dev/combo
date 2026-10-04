@@ -3,6 +3,7 @@ name: explorer
 description: Answers a question about a large codebase by splitting the reading across scouts
 tools: read, grep, find, ls, subagent
 lifetime: task
+mustCallTool: true
 concurrency: 3
 ---
 

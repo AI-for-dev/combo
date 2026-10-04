@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { accumulate, calledNoTool, deltaUsage, emptyUsage, formatUsage, sumUsage, type Usage } from "../src/usage.ts";
+import { accumulate, deltaUsage, emptyUsage, formatUsage, sumUsage, type Usage } from "../src/usage.ts";
 
 function usage(partial: Partial<Usage>): Usage {
 	return { ...emptyUsage(), ...partial };
@@ -130,26 +130,5 @@ describe("formatUsage", () => {
 		const line = formatUsage(usage({ turns: 1, busyMs: 1_000, input: 500, cacheRead: 8_000, contextTokens: 34_000 }));
 		assert.match(line, /R8k/);
 		assert.match(line, /ctx:34k/);
-	});
-});
-
-describe("calledNoTool", () => {
-	const tools = ["read", "grep"];
-
-	test("an agent with tools that ended a turn without calling one", () => {
-		assert.equal(calledNoTool(usage({ turns: 1 }), tools), true);
-	});
-
-	test("never before a turn has ended: no count was read yet", () => {
-		assert.equal(calledNoTool(usage({}), tools), false);
-	});
-
-	test("never once a call was made", () => {
-		assert.equal(calledNoTool(usage({ turns: 2, toolCalls: 1 }), tools), false);
-	});
-
-	test("never for an agent given no tools, nor for one whose tools nobody said", () => {
-		assert.equal(calledNoTool(usage({ turns: 1 }), []), false);
-		assert.equal(calledNoTool(usage({ turns: 1 }), undefined), false);
 	});
 });
