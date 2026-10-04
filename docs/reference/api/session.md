@@ -53,7 +53,9 @@ Creates a real, isolated pi session for an agent.
 The system prompt goes through a {@link StaticResourceLoader}: the subagent
 inherits neither the user's extensions, nor their context files, nor any
 skill it did not name. It only sees what its own definition gives it - which
-is what makes it reproducible.
+is what makes it reproducible. Its settings are held in memory and seeded by
+{@link subagentSettings}, so pi's settings files reach it only through the
+keys that function names.
 
 ## `CreateSession`
 

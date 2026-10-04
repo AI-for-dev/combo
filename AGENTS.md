@@ -54,6 +54,16 @@ no enums, no namespaces, no parameter properties.
    nothing gets nothing. What an agent can do stays readable in its own file,
    which is the part of this rule that was ever load-bearing.
 
+   **pi's settings are the same rule** (an in-memory `SettingsManager` seeded by
+   `subagentSettings()`, never pi's own). A subagent takes only `INHERITED_SETTINGS` in
+   `src/session.ts`: the model ladder's last step (`defaultProvider`,
+   `defaultModel`, `defaultThinkingLevel`, `modelThinkingLevels`), and the
+   machine facts or consents it breaks without (`shellPath`,
+   `httpIdleTimeoutMs`, `retry.provider.timeoutMs`,
+   `websocketConnectTimeoutMs`, `enableInstallTelemetry`). Everything else,
+   `shellCommandPrefix` and compaction included, is pi's default, and cache
+   warming is off: a warm-up is usage nobody's turn asked for.
+
    **The model is an explicit knob at every level, and the nearest override
    wins**: `SpawnOptions.model` / `WorkflowOptions.model` (also the tool's
    `model` param and `--model` on `/run`, `/step`, `/swarm` and

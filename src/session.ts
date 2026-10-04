@@ -12,9 +12,11 @@ import {
 	createAgentSession,
 	createExtensionRuntime,
 	defineTool as piDefineTool,
+	getAgentDir,
 	ModelRuntime,
 	resolveCliModel,
 	SessionManager,
+	SettingsManager,
 	type AgentSession,
 	type ContextUsage,
 	type ResolveCliModelResult,
@@ -268,7 +270,9 @@ export type CreateSession = (agent: Agent, options: CreateSessionOptions) => Pro
  * The system prompt goes through a {@link StaticResourceLoader}: the subagent
  * inherits neither the user's extensions, nor their context files, nor any
  * skill it did not name. It only sees what its own definition gives it - which
- * is what makes it reproducible.
+ * is what makes it reproducible. Its settings are held in memory and seeded by
+ * {@link subagentSettings}, so pi's settings files reach it only through the
+ * keys that function names.
  */
 export const createDefaultSession: CreateSession = async (agent, options) => {
 	const cwd = options.cwd ?? process.cwd();
@@ -288,10 +292,62 @@ export const createDefaultSession: CreateSession = async (agent, options) => {
 			resolveSkills(agent, cwd, tools),
 		),
 		sessionManager: options.sessionDir ? SessionManager.create(cwd, options.sessionDir) : SessionManager.inMemory(cwd),
+		settingsManager: SettingsManager.inMemory(subagentSettings(SettingsManager.create(cwd, getAgentDir()).getSettings())),
 	});
 
 	return session;
 };
+
+/** pi's settings, as `settings.json` writes them. */
+type Settings = ReturnType<SettingsManager["getSettings"]>;
+
+/**
+ * The settings a subagent takes from the user's, and the only ones.
+ *
+ * The first four are the last step of the model ladder (invariant 5). The rest
+ * are facts about the machine, or a consent: where bash is, how long a slow
+ * provider is given before a request is cut, and whether the user turned
+ * pi's telemetry headers off. A subagent without them breaks, or does what its
+ * user refused. Everything else is a preference (`shellCommandPrefix`,
+ * compaction, retries, transport...) and stays at pi's default.
+ */
+const INHERITED_SETTINGS = [
+	"defaultProvider",
+	"defaultModel",
+	"defaultThinkingLevel",
+	"modelThinkingLevels",
+	"shellPath",
+	"httpIdleTimeoutMs",
+	"websocketConnectTimeoutMs",
+	"retry.provider.timeoutMs",
+	"enableInstallTelemetry",
+] as const;
+
+/**
+ * A subagent's settings, built from the user's: the keys of
+ * {@link INHERITED_SETTINGS}, and cache warming off.
+ *
+ * Warming is off because a warm-up is a request pi sends on its own and counts
+ * in `getSessionStats()`, so it would land in a turn's usage: while a subagent
+ * waits on a long tool call, and, with `cacheWarming: "idle"`, between two
+ * `ask()` calls of a persistent one. It is not seeded from the user's, because
+ * whether a subagent warms is combo's decision.
+ *
+ * `user` is what pi reads, global and project merged, project winning.
+ */
+export function subagentSettings(user: Settings): Settings {
+	const seeded: Record<string, unknown> = { cacheWarming: "off" };
+	for (const path of INHERITED_SETTINGS) {
+		const keys = path.split(".");
+		const value = keys.reduce<unknown>((at, key) => (at as Record<string, unknown> | undefined)?.[key], user);
+		if (value === undefined) continue;
+		const leaf = keys.pop() as string;
+		let at = seeded;
+		for (const key of keys) at = (at[key] ??= {}) as Record<string, unknown>;
+		at[leaf] = value;
+	}
+	return seeded as Settings;
+}
 
 /**
  * The agent's prompt, plus the one fact it cannot do its job without: where it is.
