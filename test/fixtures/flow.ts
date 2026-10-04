@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { shippedCatalogue } from "../../scripts/flow-docs.ts";
 import type { Agent } from "../../src/agent.ts";
 import { checkFlow, checkRun, runFlow, type CheckedFlow, type CheckedRun, type DryRun, type FlowCatalogue, type FlowResult, type RunFlowOptions, type RunStage, type VisitEnd } from "../../src/flow/index.ts";
-import { sessionPort, type CreateSession, type CreateSessionOptions } from "../../src/session.ts";
+import type { CreateSession, CreateSessionOptions } from "../../src/session.ts";
 import { spawn } from "../../src/subagent.ts";
 import type { SpawnFn } from "../../src/workflows/options.ts";
 import { callTool } from "./call-tool.ts";
@@ -105,21 +105,21 @@ export function flowSpawn(turnsPerSpawn: FlowTurn[][] | Record<string, FlowTurn[
 	const createSession: CreateSession = async (agent, options) => {
 		const turns = (Array.isArray(turnsPerSpawn) ? turnsPerSpawn[created.length] : turnsPerSpawn[agent.name]?.[requested.filter((one) => one.agent.name === agent.name).length]) ?? [];
 		const session = fakeSession(turns);
-		const prompt = session.prompt.bind(session);
+		const ask = session.ask.bind(session);
 		let index = 0;
-		session.prompt = async (text) => {
+		session.ask = async (text, control) => {
 			const turn = turns[index++];
 			for (const name of ["submit", "verdict", "subagent"] as const) {
 				const tool = options.customTools?.find((one) => one.name === name);
 				if (turn?.[name] !== undefined && tool !== undefined) await callTool(tool, turn[name]);
 			}
-			await prompt(text);
+			return ask(text, control);
 		};
-		session.exportToJsonl = (file = "session.jsonl") => write(file, session.prompts.map((one) => `${JSON.stringify(one)}\n`).join(""));
-		session.exportToHtml = async (file = "session.html") => write(file, `<p>${agent.name}</p>`);
+		session.exportToJsonl = (file) => write(file, session.prompts.map((one) => `${JSON.stringify(one)}\n`).join(""));
+		session.exportToHtml = async (file) => write(file, `<p>${agent.name}</p>`);
 		created.push(session);
 		requested.push({ agent, options });
-		return sessionPort(session);
+		return session;
 	};
 	return { spawn: (agent, options) => spawn(agent, { ...options, createSession }), created, requested };
 }

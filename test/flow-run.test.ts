@@ -140,7 +140,7 @@ describe("a failure", () => {
 
 	test("travels up through every enclosing node, the flow naming the visit it started at", async () => {
 		const flow = checked(`${FAILING}\n  - id: after\n    agent: synthesiser`, { look: "Look.", after: "After." });
-		const fake = flowSpawn([[{ stopReason: "error" }]]);
+		const fake = flowSpawn([[{ error: "boom" }]]);
 		const events: SubagentEvent[] = [];
 		const result = await runChecked(flow, "x", { spawn: fake.spawn, onEvent: (event) => events.push(event) });
 		assert.deepEqual(!result.ok && [result.error, result.path], [{ kind: "provider", message: "boom" }, "gate/look"]);
@@ -151,7 +151,7 @@ describe("a failure", () => {
 
 	test("stops at `on-fail: continue`, and a read of the failed node is its error as JSON", async () => {
 		const flow = checked(`${FAILING}\n    on-fail: continue\n  - id: after\n    agent: synthesiser\n    reads: [gate]`, { look: "Look.", after: "After." });
-		const fake = flowSpawn([[{ stopReason: "error" }], [{ text: "carried on" }]]);
+		const fake = flowSpawn([[{ error: "boom" }], [{ text: "carried on" }]]);
 		const result = await runChecked(flow, "x", { spawn: fake.spawn });
 		assert.deepEqual(result.ok && result.output, "carried on");
 		const failed = { ok: false, error: { kind: "child", message: "gate/look: provider: boom" } };
@@ -162,7 +162,7 @@ describe("a failure", () => {
 describe("`retry:`", () => {
 	test("resumes the same subagent with the failure named, and counts every attempt's tokens", async () => {
 		const flow = checked("  - id: look\n    agent: scout\n    retry: 1", { look: "Look." });
-		const fake = flowSpawn([[{ stopReason: "error", tokens: { input: 100 } }, { text: "found", tokens: { input: 30 } }]]);
+		const fake = flowSpawn([[{ error: "boom", tokens: { input: 100 } }, { text: "found", tokens: { input: 30 } }]]);
 		const result = await runChecked(flow, "x", { spawn: fake.spawn });
 		assert.deepEqual(result.ok && result.output, "found");
 		assert.equal(fake.created.length, 1);
@@ -172,7 +172,7 @@ describe("`retry:`", () => {
 
 	test("covers a turn cut by the output limit, which is a provider failure and not an empty answer", async () => {
 		const flow = checked("  - id: look\n    agent: scout\n    retry: 1\n  - id: after\n    agent: synthesiser\n    reads: [look]", { look: "Look.", after: "After." });
-		const fake = flowSpawn([[{ stopReason: "length" }, { text: "found" }], [{ text: "read it" }]]);
+		const fake = flowSpawn([[{ error: "the answer reached the output limit" }, { text: "found" }], [{ text: "read it" }]]);
 		const result = await runChecked(flow, "x", { spawn: fake.spawn });
 		assert.deepEqual(result.ok && result.output, "read it");
 		assert.equal(fake.created[0]?.prompts[1], `Your last answer failed (provider: the answer reached the output limit). Do the same task again.\n\n${IN_THE_LANGUAGE_OF_THE_WORK}`);
@@ -181,7 +181,7 @@ describe("`retry:`", () => {
 
 	test("without one, a turn cut by the output limit fails its node rather than hand the next one nothing", async () => {
 		const flow = checked("  - id: look\n    agent: scout\n  - id: after\n    agent: synthesiser\n    reads: [look]", { look: "Look.", after: "After." });
-		const fake = flowSpawn([[{ stopReason: "length" }], [{ text: "read nothing" }]]);
+		const fake = flowSpawn([[{ error: "the answer reached the output limit" }], [{ text: "read nothing" }]]);
 		const result = await runChecked(flow, "x", { spawn: fake.spawn });
 		assert.deepEqual(!result.ok && [result.error, result.path], [{ kind: "provider", message: "the answer reached the output limit" }, "look"]);
 		assert.equal(fake.created.length, 1, "the next node never started");
@@ -189,7 +189,7 @@ describe("`retry:`", () => {
 
 	test("is spent: a node with none left fails", async () => {
 		const flow = checked("  - id: look\n    agent: scout\n    retry: 1", { look: "Look." });
-		const result = await runChecked(flow, "x", { spawn: flowSpawn([[{ stopReason: "error" }, { stopReason: "error" }]]).spawn });
+		const result = await runChecked(flow, "x", { spawn: flowSpawn([[{ error: "boom" }, { error: "boom" }]]).spawn });
 		assert.deepEqual(!result.ok && result.error.kind, "provider");
 	});
 });
@@ -208,7 +208,7 @@ describe("`timeout:`", () => {
 		const fake = flowSpawn([[{ delayMs: 5000 }], [{ text: "found" }]]);
 		const result = await runChecked(flow, "x", { spawn: fake.spawn, timeoutMs: 50 });
 		assert.deepEqual(result.ok && result.output, "found");
-		assert.deepEqual(fake.created.map((session) => session.disposed), [true, true]);
+		assert.deepEqual(fake.created.map((session) => session.closed), [true, true]);
 		assert.equal(fake.created[1]?.prompts[0], `Look.\n\n${IN_THE_LANGUAGE_OF_THE_WORK}`);
 	});
 
@@ -273,21 +273,21 @@ describe("memory scopes", () => {
 		await runChecked(flow, "x", { spawn: fake.spawn });
 		assert.equal(fake.created.length, 1);
 		assert.deepEqual(fake.created[0]?.prompts.map((prompt) => prompt.split("\n")[0]), ["Ask.", "Brief."]);
-		assert.equal(fake.created[0]?.disposed, true);
+		assert.equal(fake.created[0]?.closed, true);
 	});
 
 	test("with no `memory:`, each visit has a fresh subagent, closed when the visit ends", async () => {
 		const flow = checked("  - id: ask\n    agent: reviewer\n  - id: brief\n    agent: reviewer", { ask: "Ask.", brief: "Brief." });
 		const fake = flowSpawn([[{ text: "asked" }], [{ text: "briefed" }]]);
-		let disposedWhenSecondSpawned: boolean | undefined;
+		let closedWhenSecondSpawned: boolean | undefined;
 		await runChecked(flow, "x", {
 			spawn: async (agent, options) => {
-				if (fake.created.length === 1) disposedWhenSecondSpawned = fake.created[0]?.disposed;
+				if (fake.created.length === 1) closedWhenSecondSpawned = fake.created[0]?.closed;
 				return fake.spawn(agent, options);
 			},
 		});
 		assert.equal(fake.created.length, 2);
-		assert.equal(disposedWhenSecondSpawned, true);
+		assert.equal(closedWhenSecondSpawned, true);
 	});
 
 	test("a structural node's scope closes when its visit ends, a failure and a stop included", async () => {
@@ -295,17 +295,17 @@ describe("memory scopes", () => {
 			`  - id: gate\n    choice:\n      - when: "true"\n        do:\n          - id: one\n            agent: scout\n            memory: gate\n          - id: two\n            agent: scout\n            memory: gate\n    default: []\n    on-fail: continue\n  - id: after\n    agent: synthesiser`,
 			{ one: "One.", two: "Two.", after: "After." },
 		);
-		const fake = flowSpawn([[{ text: "one" }, { stopReason: "error" }], [{ text: "after" }]]);
-		let disposedWhenAfterSpawned: boolean | undefined;
+		const fake = flowSpawn([[{ text: "one" }, { error: "boom" }], [{ text: "after" }]]);
+		let closedWhenAfterSpawned: boolean | undefined;
 		const result = await runChecked(flow, "x", {
 			spawn: async (agent, options) => {
-				if (agent.name === "synthesiser") disposedWhenAfterSpawned = fake.created[0]?.disposed;
+				if (agent.name === "synthesiser") closedWhenAfterSpawned = fake.created[0]?.closed;
 				return fake.spawn(agent, options);
 			},
 		});
 		assert.ok(result.ok);
 		assert.equal(fake.created[0]?.prompts.length, 2, "both nodes resumed one subagent");
-		assert.equal(disposedWhenAfterSpawned, true);
+		assert.equal(closedWhenAfterSpawned, true);
 
 		const hanging = flowSpawn([[{ delayMs: 5000 }]]);
 		const switcher = stopSwitch({ spawn: hanging.spawn });
@@ -313,7 +313,7 @@ describe("memory scopes", () => {
 		setTimeout(() => switcher.all(), 20);
 		const stopped = await running;
 		assert.deepEqual(!stopped.ok && stopped.error.kind, "stopped");
-		assert.equal(hanging.created[0]?.disposed, true);
+		assert.equal(hanging.created[0]?.closed, true);
 	});
 });
 

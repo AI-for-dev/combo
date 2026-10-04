@@ -7,7 +7,7 @@ import { mirrorSocket, registerMirror, REFUSED_IDLE } from "../src/mirror.ts";
 import { sessionPort, type SessionEvent, type SessionPort } from "../src/session.ts";
 import { spawn } from "../src/subagent.ts";
 import { emptyUsage } from "../src/usage.ts";
-import { fakeSession, type Turn } from "./fixtures/fake-session.ts";
+import { fakePiSession, type PiTurn } from "./fixtures/pi-session.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
 
 const scout = testAgent("scout");
@@ -83,8 +83,9 @@ function attach(id: string): Promise<Client> {
 	});
 }
 
-async function spawnWith(turns: Turn[], onEvent?: (event: SubagentEvent) => void) {
-	const session = fakeSession(turns);
+async function spawnWith(turns: PiTurn[], onEvent?: (event: SubagentEvent) => void) {
+	// pi-shaped behind the adapter: the mirror forwards pi's own events.
+	const session = fakePiSession(turns);
 	const subagent = await spawn(scout, { createSession: async () => sessionPort(session), onEvent });
 	return { subagent, session };
 }

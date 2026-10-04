@@ -286,7 +286,7 @@ not a bibliography:
 | undo or contradict any design choice above | [docs/decisions.md](docs/decisions.md) - the full record, with the reversals and their reasons |
 | add or change a combinator | [docs/guide/workflows.md](docs/guide/workflows.md), then the neighbouring `src/workflows/*.ts` |
 | touch a lifetime, a `close()` or a pool | [docs/guide/lifetime.md](docs/guide/lifetime.md) |
-| write a test, or a fake | [docs/development.md](docs/development.md#tests) - the fake session is pi-shaped behind `sessionPort()`: cumulative, its `messages` grow until it compacts, and its `abort()` really cuts the turn short |
+| write a test, or a fake | [docs/development.md](docs/development.md#tests) - the fake session plays turns and its signal really cuts one short; pi's quirks (cumulative stats, compaction) are the pi-shaped fake's, behind `sessionPort()` |
 | touch a reporter, the TUI or herdr | [docs/guide/display.md](docs/guide/display.md) |
 | touch `Usage`, or an export | [docs/guide/measurements.md](docs/guide/measurements.md), [docs/guide/export.md](docs/guide/export.md) |
 | change the extension, a command or a card | [docs/guide/extension.md](docs/guide/extension.md) |
