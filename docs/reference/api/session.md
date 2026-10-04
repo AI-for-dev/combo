@@ -336,8 +336,8 @@ export type Turn = TurnReading & {
 	/** The messages the turn added, in order: the prompt, each answer, each tool result, a steer once delivered. */
 	messages: AgentMessage[];
 	/**
-	 * What pi billed for the turn and the context it left. Time is the
-	 * caller's: `wallMs`, `busyMs` and `turns` are `0` here.
+	 * What pi billed for the turn, the tool calls it counted and the context
+	 * it left. Time is the caller's: `wallMs`, `busyMs` and `turns` are `0` here.
 	 */
 	usage: Usage;
 };

@@ -33,6 +33,11 @@ export type SubagentEvent =
 			/** `provider/id` as pi resolved it. Absent when pi could not say. */
 			model?: string;
 			/**
+			 * The tools it was given: its `tools:`, or the read-only default.
+			 * What tells a turn that called none from an agent that had none to call.
+			 */
+			toolset: readonly string[];
+			/**
 			 * Where this subagent came in the launch, counting from 1.
 			 *
 			 * The event cannot be emitted until the session exists, because it
@@ -174,6 +179,8 @@ export type VisitEvent =
 			subagent?: string;
 			/** The model its subagent ran on, as pi resolved it. */
 			model?: string;
+			/** An `agent` visit whose agent had tools and, over every attempt, called none. A fact, apart from `ok`. */
+			calledNoTool?: true;
 			wallMs: number;
 			/** Every attempt's tokens, and every nested visit's: the delta of pi's cumulative stats. */
 			usage: Usage;

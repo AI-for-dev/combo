@@ -11,6 +11,18 @@ draws them. Nothing here holds state - the picture is `picture.ts`, folded
 once for every reader - so a line is tested by calling the function that
 makes it, never by scraping a terminal.
 
+## `answeredWithoutTools`
+
+*function*
+
+```typescript
+export function answeredWithoutTools(snapshot: SubagentSnapshot): boolean { /* … */ }
+```
+
+Whether a subagent stands answered without a tool it had: its last turn
+over and not failed, and no call in its whole life. A failure says more
+than this does, and a turn under way may call one yet.
+
 ## `callLine`
 
 *function*
@@ -135,6 +147,8 @@ export type WidgetRow =
 			status: Standing;
 			id: string;
 			activity: string;
+			/** The activity is {@link answeredWithoutTools}: a caller draws it as a warning. */
+			warn?: true;
 			/** Model, tokens and time, when they belong on this line rather than under it. */
 			detail?: string;
 			depth: number;

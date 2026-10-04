@@ -91,6 +91,11 @@ export class Visits {
 		return this.spawned.get(path) ?? [];
 	}
 
+	/** How many `agent` visits at or inside `path` ended `ok` without calling a tool their agent had. */
+	calledNoTool(path: string): number {
+		return this.all.filter((end) => end.ok && end.calledNoTool && within(end.path, path)).length;
+	}
+
 	/** How many items the `map` visit `path` froze, when a journal says. */
 	items(path: string): number | undefined {
 		return this.frozen.get(path);

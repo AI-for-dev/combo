@@ -109,6 +109,24 @@ describe("ask", () => {
 		assert.equal(result.agent, "scout");
 	});
 
+	test("result.usage carries the tool calls of the turn, and subagent.usage their sum", async () => {
+		const { subagent } = await spawnWith([{ text: "one", tools: [{ name: "grep" }, { name: "read" }] }, { text: "two" }]);
+
+		assert.equal((await subagent.ask("a")).usage.toolCalls, 2);
+		assert.equal((await subagent.ask("b")).usage.toolCalls, 0, "the second turn called none, whatever the first did");
+		assert.equal(subagent.usage.toolCalls, 2);
+	});
+
+	test("spawn says which tools the subagent was given, the read-only default included", async () => {
+		const events: SubagentEvent[] = [];
+		const session = fakeSession([]);
+		await spawn(testAgent("committer", { tools: undefined }), { createSession: async () => session, onEvent: (event) => void events.push(event) });
+		await spawn(testAgent("debater", { tools: ["board"] }), { createSession: async () => session, onEvent: (event) => void events.push(event) });
+
+		const toolsets = events.flatMap((event) => (event.type === "spawn" ? [event.toolset] : []));
+		assert.deepEqual(toolsets, [["read", "grep", "find", "ls"], ["board"]]);
+	});
+
 	test("subagent.usage accumulates across turns", async () => {
 		const { subagent } = await spawnWith([
 			{ tokens: { input: 100 }, cost: 0.01 },

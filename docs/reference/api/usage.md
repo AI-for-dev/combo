@@ -10,6 +10,30 @@ Nothing is estimated. Tokens and cost come from pi, read by the session
 (`src/session.ts`); the only things we add are **time** - which pi does not
 measure - and **attribution per subagent**.
 
+## `CALLED_NO_TOOL`
+
+*const*
+
+```typescript
+export const CALLED_NO_TOOL = "called no tool";
+```
+
+The words for {@link calledNoTool}, the same wherever a display says it.
+
+## `calledNoTool`
+
+*function*
+
+```typescript
+export function calledNoTool(usage: Usage, toolset: readonly string[] | undefined): boolean { /* … */ }
+```
+
+Whether a subagent that had tools answered without calling any.
+
+A fact read off pi's counters, not a verdict: the turn may still be right,
+and combo cannot judge its text. Nothing to say before a turn has ended,
+nor of an agent given no tools at all, which has no other way to answer.
+
 ## `compact`
 
 *function*
@@ -87,6 +111,11 @@ export type Usage = {
 	busyMs: number;
 	/** Completed `ask` calls. A turn is one prompt to the session, however many tools it ran. */
 	turns: number;
+	/**
+	 * Tool calls the model made, as pi counts them in the transcript: every one
+	 * it asked for, refused or not. Never read from what the model wrote.
+	 */
+	toolCalls: number;
 
 	/** Input tokens, as pi reported them. `0` when the provider does not say. */
 	input: number;

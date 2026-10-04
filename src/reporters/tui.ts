@@ -9,7 +9,7 @@
 
 import type { SubagentStatus } from "../events.ts";
 import { firstLine, scalar, truncate } from "../text.ts";
-import { formatUsage, showCost, showTokens } from "../usage.ts";
+import { CALLED_NO_TOOL, calledNoTool, formatUsage, showCost, showTokens } from "../usage.ts";
 import type { RunSnapshot, SubagentSnapshot, ToolCall } from "./picture.ts";
 import { treeOrder } from "./tree.ts";
 
@@ -25,6 +25,15 @@ export type Standing = SubagentStatus | "failed";
  */
 export function standingOf(snapshot: SubagentSnapshot): Standing {
 	return snapshot.ok === false ? "failed" : snapshot.status;
+}
+
+/**
+ * Whether a subagent stands answered without a tool it had: its last turn
+ * over and not failed, and no call in its whole life. A failure says more
+ * than this does, and a turn under way may call one yet.
+ */
+export function answeredWithoutTools(snapshot: SubagentSnapshot): boolean {
+	return snapshot.ok !== false && snapshot.status !== "working" && calledNoTool(snapshot.usage, snapshot.toolset);
 }
 
 /** `●` while it lives, `✓` once it succeeded, `✗` once it failed. */
@@ -109,6 +118,7 @@ export function callLine(call: ToolCall): string {
  */
 export function currentActivity(snapshot: SubagentSnapshot): string {
 	if (snapshot.ok === false) return snapshot.error ? truncate(snapshot.error, 48) : "failed";
+	if (answeredWithoutTools(snapshot)) return CALLED_NO_TOOL;
 	if (snapshot.status === "done") return "done";
 
 	const last = snapshot.tools.at(-1);
@@ -136,6 +146,8 @@ export type WidgetRow =
 			status: Standing;
 			id: string;
 			activity: string;
+			/** The activity is {@link answeredWithoutTools}: a caller draws it as a warning. */
+			warn?: true;
 			/** Model, tokens and time, when they belong on this line rather than under it. */
 			detail?: string;
 			depth: number;
@@ -156,13 +168,15 @@ export function widgetRows(snapshot: RunSnapshot): WidgetRow[] {
 		const standing = standingOf(one);
 		const failed = standing === "failed";
 		const over = failed || standing === "done";
+		const warn = answeredWithoutTools(one);
 		rows.push({
 			kind: "activity",
 			icon: statusIcon(standing),
 			status: standing,
 			id: one.id,
-			// A tick already says "done"; an error says something the tick cannot.
-			activity: over && !failed ? "" : currentActivity(one),
+			// A tick already says "done"; an error, or no tool called, says something the tick cannot.
+			activity: over && !failed && !warn ? "" : currentActivity(one),
+			...(warn ? { warn: true as const } : {}),
 			...(over ? { detail: detailLine(one) } : {}),
 			depth: one.depth,
 		});
@@ -218,7 +232,8 @@ export function progressLine(snapshot: RunSnapshot): string {
  */
 export function summaryTable(snapshot: RunSnapshot, wallMs: number): string[] {
 	const lines = treeOrder(snapshot.subagents).map(
-		(one) => `${statusIcon(standingOf(one))} ${pad(`${"  ".repeat(one.depth)}${one.id}`, 16)} ${formatUsage(one.usage)}`,
+		(one) =>
+			`${statusIcon(standingOf(one))} ${pad(`${"  ".repeat(one.depth)}${one.id}`, 16)} ${formatUsage(one.usage)}${answeredWithoutTools(one) ? `  ${CALLED_NO_TOOL}` : ""}`,
 	);
 	lines.push(`${pad("total", 18)} ${formatUsage({ ...snapshot.usage, wallMs })}`);
 	if (wallMs > 0 && snapshot.usage.busyMs > wallMs) {

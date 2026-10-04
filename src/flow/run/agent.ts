@@ -12,9 +12,10 @@ import { timedOutAfter } from "../../deadline.ts";
 import type { GitResult } from "../../git/index.ts";
 import type { Result } from "../../result.ts";
 import type { Ledger } from "../../review/index.ts";
-import { emptyUsage, sumUsage, type Usage } from "../../usage.ts";
+import { toolsOf } from "../../session.ts";
+import { calledNoTool, emptyUsage, sumUsage, type Usage } from "../../usage.ts";
 import type { CheckedAgentNode, ErrorKind } from "../checked.ts";
-import { failure, interruption, type Ended } from "./ended.ts";
+import { failure, interruption, type Ended, type Visited } from "./ended.ts";
 import type { Held } from "./frames.ts";
 import { withDiff } from "./reads.ts";
 import { closingPart, composeTurn, retryTurn } from "./turn.ts";
@@ -41,7 +42,7 @@ export type AgentRun = {
 };
 
 /** How an agent visit ended, with what it cost and who ran it. */
-export type AgentVisit = { readonly ended: Ended; readonly usage: Usage; readonly agent?: string; readonly subagent?: string; readonly model?: string };
+export type AgentVisit = Pick<Visited, "ended" | "usage" | "agent" | "subagent" | "model" | "calledNoTool">;
 
 /** One visit's asking: its node and path, where it stands, and the ledger a `verdict:` node writes to. */
 type Asking = { readonly run: AgentRun; readonly node: CheckedAgentNode; readonly path: string; readonly here: Here; readonly ledger?: Ledger };
@@ -90,7 +91,9 @@ async function attempts(asking: Asking, first: Held, renew?: () => Promise<Held>
 		parts.push(usage);
 		if (ended.ok || attempt >= node.retry || !RETRIED.includes(ended.error.kind)) {
 			const { subagent } = held;
-			return { ended, usage: sumUsage(parts, performance.now() - started), agent: subagent.agent.name, subagent: subagent.id, model: subagent.model };
+			const usage = sumUsage(parts, performance.now() - started);
+			const silent = calledNoTool(usage, toolsOf(subagent.agent));
+			return { ended, usage, agent: subagent.agent.name, subagent: subagent.id, model: subagent.model, ...(silent && { calledNoTool: true as const }) };
 		}
 		if (ended.error.kind === "timeout" && renew !== undefined) {
 			held = await renew();

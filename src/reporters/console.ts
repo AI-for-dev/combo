@@ -6,10 +6,10 @@
  */
 
 import type { EventListener } from "../events.ts";
-import { formatUsage } from "../usage.ts";
+import { CALLED_NO_TOOL, formatUsage } from "../usage.ts";
 import { createRunPicture } from "./picture.ts";
 import { trafficLine } from "./traffic.ts";
-import { statusIcon } from "./tui.ts";
+import { answeredWithoutTools, statusIcon } from "./tui.ts";
 
 /** How much the console reporter says, and where it says it. */
 export type ConsoleReporterOptions = {
@@ -27,6 +27,10 @@ export function consoleReporter(options: ConsoleReporterOptions = {}): EventList
 	// to know, and it is read from there.
 	const picture = createRunPicture();
 	const indent = (id: string) => "  ".repeat(picture.of(id)?.depth ?? 0);
+	const noTool = (id: string) => {
+		const one = picture.of(id);
+		return one && answeredWithoutTools(one) ? `  ${CALLED_NO_TOOL}` : "";
+	};
 
 	return (event) => {
 		picture.reporter(event);
@@ -56,7 +60,7 @@ export function consoleReporter(options: ConsoleReporterOptions = {}): EventList
 				write(`${indent(event.id)}   ${event.id}  ${formatUsage(event.usage)}`);
 				break;
 			case "close":
-				write(`${indent(event.id)}${statusIcon(event.result.ok ? "done" : "failed")} ${event.id}  ${formatUsage(event.result.usage)}`);
+				write(`${indent(event.id)}${statusIcon(event.result.ok ? "done" : "failed")} ${event.id}  ${formatUsage(event.result.usage)}${noTool(event.id)}`);
 				break;
 			case "status":
 				break;

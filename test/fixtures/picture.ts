@@ -12,8 +12,8 @@ let launch = 0;
 /** The `spawn` member of the event union, so a test can spread one and change a field. */
 export type SpawnEvent = Extract<SubagentEvent, { type: "spawn" }>;
 
-/** A `spawn`, numbered in the order this file asked for them. */
-export const spawned = (id: string, parentId?: string, model?: string): SpawnEvent => ({
+/** A `spawn`, numbered in the order this file asked for them. No tools unless given: a fact a test says it relies on. */
+export const spawned = (id: string, parentId?: string, model?: string, toolset: readonly string[] = []): SpawnEvent => ({
 	type: "spawn",
 	id,
 	agent: id.split("#")[0] as string,
@@ -22,6 +22,7 @@ export const spawned = (id: string, parentId?: string, model?: string): SpawnEve
 	openInHerdr: false,
 	parentId,
 	model,
+	toolset,
 });
 
 /** The `status` that carries the task: what the core emits when a turn starts. */

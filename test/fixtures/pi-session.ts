@@ -49,7 +49,7 @@ export function fakePiSession(turns: PiTurn[] = []): FakePiSession {
 	const steers: string[] = [];
 	let streaming = false;
 
-	const total = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
+	const total = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, toolCalls: 0 };
 	let contextTokens: number | undefined;
 	let index = 0;
 	let disposed = false;
@@ -112,10 +112,10 @@ export function fakePiSession(turns: PiTurn[] = []): FakePiSession {
 				sessionId: "fake",
 				userMessages: prompts.length,
 				assistantMessages: prompts.length,
-				toolCalls: 0,
+				toolCalls: total.toolCalls,
 				toolResults: 0,
 				totalMessages: messages.length,
-				tokens: { ...total, total: total.input + total.output },
+				tokens: { input: total.input, output: total.output, cacheRead: total.cacheRead, cacheWrite: total.cacheWrite, total: total.input + total.output },
 				cost: total.cost,
 				contextUsage: contextTokens === undefined ? undefined : { tokens: contextTokens, contextWindow: 200_000, percent: 0 },
 			};
@@ -154,6 +154,8 @@ export function fakePiSession(turns: PiTurn[] = []): FakePiSession {
 
 		for (const tool of turn.tools ?? []) {
 			emit({ type: "tool_execution_start", toolName: tool.name, args: tool.args });
+			// pi counts the calls its transcript holds, compacted ones included.
+			total.toolCalls++;
 		}
 		if (turn.text) {
 			emit({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: turn.text } });

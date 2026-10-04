@@ -14,6 +14,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { truncateToWidth } from "@earendil-works/pi-tui";
 import {
+	answeredWithoutTools,
 	currentActivity,
 	detailLine,
 	liveRows,
@@ -87,7 +88,7 @@ export function paintFlow(live: LivePlan, theme: WidgetTheme, width: number, pai
 			const dot = marked ? theme.fg("accent", "▸") : theme.fg(statusColour(standing), statusIcon(standing));
 			const [id = "", activity = "", detail = ""] = fit([one.id, tidy(currentActivity(one), cwd), detailLine(one)], width - lead.length - 2);
 			// A part cut to nothing takes no separator: two spaces before an empty colour are two columns past the room.
-			const said = [theme.fg(marked ? "accent" : "toolTitle", id), ...(activity === "" ? [] : [theme.fg("muted", activity)]), ...(detail === "" ? [] : [theme.fg("dim", detail)])];
+			const said = [theme.fg(marked ? "accent" : "toolTitle", id), ...(activity === "" ? [] : [theme.fg(answeredWithoutTools(one) ? "warning" : "muted", activity)]), ...(detail === "" ? [] : [theme.fg("dim", detail)])];
 			return { text: `${lead}${dot} ${said.join("  ")}`, live: true };
 		});
 		return [line, ...under];

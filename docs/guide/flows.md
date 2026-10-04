@@ -853,12 +853,15 @@ scope's. Nodes sharing a subagent declare the same `output:`, since its
 
 The run reports `visit_start { path, node, kind }`, `node` being the address
 through the calls (`spec/interview/ask_next`), and
-`visit_end { path, node, kind, ok, output?, error?, case?, converged?, agent?, subagent?, model?, wallMs, usage }`
+`visit_end { path, node, kind, ok, output?, error?, case?, converged?, agent?, subagent?, model?, calledNoTool?, wallMs, usage }`
 on the same stream as its subagents, and each subagent's `spawn` event
 carries the `visit` it was spawned for and the `transcript` it will write.
 `subagent` is the id an `agent` visit ran on. `usage` is the delta of pi's
 counters over the visit, every attempt and nested visit included: a
-delegate's turns are its own session's, not the visit's.
+delegate's turns are its own session's, not the visit's. `calledNoTool` marks
+an `agent` visit whose agent had tools and called none in any attempt. A
+`submit` or a `verdict` is a tool call, so a node that answers through one is
+never marked.
 
 ### A dry run
 
@@ -1060,7 +1063,11 @@ as its second iteration starts its second item:
 ```
 
 The summary counts every visit that ended, as it last ended, and every one
-that failed, those `on-fail: continue` absorbed included. It names each loop
+that failed, those `on-fail: continue` absorbed included. It also counts the
+agent visits that ended without calling a tool their agent had
+(`2 called no tool`). Each of their lines says `called no tool`, and a line
+that folds visits under it, an item, an iteration or a `map`, counts the ones
+it holds, so the scout behind the summary's count can be found. It names each loop
 that hit its cap or gave up (`fix not converged`) and adds up what every
 life cost, so the root lines add up to it. While a life runs, its time is
 the `elapsedMs` it was given, not the visits it has ended so far. Past the first life it says how many there were, how many were

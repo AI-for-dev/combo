@@ -16,7 +16,7 @@ The core emits, reporters subscribe and only read.
 
 ```typescript
 type SubagentEvent =
-	| { type: "spawn";  id: string; agent: string; lifetime: Lifetime }
+	| { type: "spawn";  id: string; agent: string; lifetime: Lifetime; toolset: readonly string[] }
 	| { type: "status"; id: string; status: "working" | "idle" | "blocked" | "done"; task?: string }
 	| { type: "text";   id: string; delta: string }
 	| { type: "tool";   id: string; name: string; args: unknown }
@@ -331,6 +331,17 @@ any more, so its numbers move up beside the tick and the line goes. A fan-out of
 three takes seven lines at its widest and shrinks as it finishes, rather than
 holding the terminal at its widest until the run ends. A failure keeps what the
 tick cannot say: `✗ coder#1  402 from the provider  provider/model · 3.1s`.
+
+A subagent that had tools and **answered without calling one** says so where
+the tick would otherwise stand alone, in the warning colour:
+`✓ scout#1  called no tool  provider/model · ↑3k ↓120 · 0.7s`. The summary
+table, the tool row and the console reporter end its line with the same
+words, and `usage.json` gives it `calledNoTool: true`. It stays a tick. Whether
+the turn is right is not something combo can read off its text, but whether
+it called anything is a count pi keeps. The `spawn` event carries the
+`toolset` the subagent was given, so an agent given none, which had no other
+way to answer, is never marked. A failure is not marked either, since its
+error says more.
 
 A subagent that was **delegated** sits under the one that asked for it, here and
 in the tool row alike:

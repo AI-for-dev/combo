@@ -60,7 +60,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`reporters/record`](reporters/record.md) | The event stream, on disk: one JSON object per line, in the order it happened. | 1 |
 | [`reporters/silent`](reporters/silent.md) | The no-op reporter. | 1 |
 | [`reporters/tree`](reporters/tree.md) | A run as a tree: a delegated subagent drawn under the one that asked for it. | 1 |
-| [`reporters/tui`](reporters/tui.md) | Formatting for the pi TUI, with no pi-tui in sight. | 11 |
+| [`reporters/tui`](reporters/tui.md) | Formatting for the pi TUI, with no pi-tui in sight. | 12 |
 | [`result`](result.md) | `Result`: the single contract shared by everything else. | 6 |
 | [`review/ledger`](review/ledger.md) | What is left to do, as a list nobody can lose track of. | 2 |
 | [`run`](run.md) | `run()`: the disposable form. Spawn, ask, close. | 2 |
@@ -70,7 +70,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`subagent`](subagent.md) | A subagent: a live session, a memory, a state. | 5 |
 | [`text`](text.md) | Reading what a model wrote, and cutting what it is handed: shortening text, and finding the structure in it. | 5 |
 | [`tool`](tool.md) | The constant parts of a tool combo defines: whether an agent asked for it, and the two shapes of answer a model reads. | 3 |
-| [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 6 |
+| [`usage`](usage.md) | Measurements: time and tokens, per subagent. | 8 |
 | [`verify`](verify.md) | Running the code, rather than asking two agents whether they like it. | 4 |
 | [`workflows/chain`](workflows/chain.md) | `chain`: 1 → 1 → 1. The output of step *n* is the input of step *n+1*. | 2 |
 | [`workflows/concurrent`](workflows/concurrent.md) | Running several things at once, but not all of them: a subtask is a session, and N sessions opening together is the bill nobody meant to pay. | 1 |

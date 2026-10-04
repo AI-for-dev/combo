@@ -15,7 +15,7 @@
  */
 
 import type { SubagentEvent } from "../../events.ts";
-import type { Usage } from "../../usage.ts";
+import { CALLED_NO_TOOL, type Usage } from "../../usage.ts";
 import type { CheckedFlow, CheckedNode } from "../checked.ts";
 import type { JournalEntry } from "../run/index.ts";
 import { outcome, stopsSequence } from "./outcome.ts";
@@ -95,7 +95,8 @@ class Fold {
 			const end = this.visits.ended(path);
 			if (end !== undefined) {
 				stopped = !end.ok && stopsSequence(node, end);
-				return { ...line(plan, path, end.ok ? "done" : "failed", outcome(node, end)), usage: this.visits.spent(path), subagents: this.visits.subagents(path) };
+				const facts = [...outcome(node, end), ...(node.kind === "agent" ? [] : this.silent(path))];
+				return { ...line(plan, path, end.ok ? "done" : "failed", facts), usage: this.visits.spent(path), subagents: this.visits.subagents(path) };
 			}
 			// A visit begun and not ended is open: running now, or cut short by a kill.
 			if (this.visits.live(path) || this.visits.touched(path)) return this.open(node, plan, path);
@@ -161,9 +162,15 @@ class Fold {
 	private branch(kind: "branch" | "item" | "iteration", prefix: string, nodes: readonly CheckedNode[], plans: readonly PlanLine[], now: boolean, current = false): LiveLine {
 		const own = { kind, label: prefix, path: prefix, subagents: [], lines: [] };
 		const over = this.over(nodes, prefix);
-		if (over !== undefined) return { ...own, state: over.ok ? "done" : "failed", facts: over.facts, usage: this.visits.spent(prefix) };
+		if (over !== undefined) return { ...own, state: over.ok ? "done" : "failed", facts: [...over.facts, ...this.silent(prefix)], usage: this.visits.spent(prefix) };
 		if (!current && !this.visits.touched(prefix)) return { ...own, state: "pending", facts: [] };
 		return { ...own, state: now ? "working" : "pending", facts: [], lines: this.sequence(nodes, plans, prefix, false) };
+	}
+
+	/** `2 called no tool`, for the agent visits a folded line holds that did; nothing when none did. */
+	private silent(path: string): string[] {
+		const count = this.visits.calledNoTool(path);
+		return count > 0 ? [`${count} ${CALLED_NO_TOOL}`] : [];
 	}
 
 	/** How the sequence `nodes` inside `prefix` ended, and the failure that ended it; nothing while it goes on or before it starts. */

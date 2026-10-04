@@ -14,6 +14,8 @@ export type LiveSummary = {
 	readonly visits: number;
 	/** Of those, the ones that ended `ok: false`, those `on-fail: continue` absorbed included. */
 	readonly failed: number;
+	/** Of those, the agent visits that ended `ok` without calling a tool their agent had. */
+	readonly calledNoTool: number;
 	/** The visit path of each loop that hit its cap or gave up. */
 	readonly unconverged: readonly string[];
 	/** What every life cost, added up: `wallMs` is their time. */
@@ -37,6 +39,7 @@ export function summaryOf(visits: Visits, root: { readonly ok: boolean } | undef
 		state: over !== undefined ? (over.ok ? "done" : "failed") : lives.at(-1)?.partial === false ? "working" : "pending",
 		visits: ends.length,
 		failed: ends.filter((end) => !end.ok).length,
+		calledNoTool: visits.calledNoTool(""),
 		unconverged: unconverged.map((end) => end.path),
 		usage: sumUsage(
 			lives.map((life) => life.usage),

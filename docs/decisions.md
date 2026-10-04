@@ -5158,3 +5158,47 @@ screen's, or (point c) keybinding definitions an extension declares, which
 `keybindings.json` overrides and `/hotkeys` lists. With point c, the four ids
 are declared there, read with `getKeys()`, and `keys.ts` keeps only its
 defaults.
+
+## An answer that called no tool is shown, not judged
+
+On `ilaas/qwen-3.6-35b-instruct`, scouts asked where a subagent's wall time is
+measured answered without calling a single tool in 5 of 20 runs through
+`run()`, and the first scout of `/run explore` did so in 3 of 3. They wrote
+prose, pretend `bash` blocks, or "the directory does not exist", and combo
+reported each one `ok: true`. The finished `/run` frame said nothing about it,
+and the synthesiser built its answer on paths nobody had read.
+
+combo cannot judge a text, but whether a turn called a tool is a count pi
+keeps: `getSessionStats().toolCalls` counts the calls in the transcript,
+compacted ones included. `sessionPort()` takes the delta of that count over
+a turn, the same way it takes the tokens, so `Usage.toolCalls` travels on `Result.usage`, sums in a fan-out
+and lands in `usage.json`. The `spawn` event now carries the `toolset` the
+subagent was given (its `tools:`, or the read-only default), because "called
+no tool" only means something for an agent that had one to call. An agent
+given none is never marked.
+
+Every display says it in the same three words, `called no tool`: the widget
+row, in the warning colour, where the tick would otherwise stand alone; the
+summary table; the tool row; the console reporter; `usage.json`
+(`calledNoTool: true`); a flow's `agent` line and its summary
+(`2 called no tool`), from the `calledNoTool` its `visit_end` carries. The
+tick stays a tick and `ok` stays `true`.
+
+Some limits, kept on purpose:
+
+- A `submit` or `verdict` call is a tool call. A typed node or a verdict that
+  read nothing and answered through its tool is not marked.
+- A flow visit is marked only when none of its attempts called a tool.
+- A dry run's text answers are marked. A script reads nothing either, and the
+  frame says so.
+- Every shipped agent names read tools, the synthesiser, the router and the
+  committer included, so their usual answers from what they were handed are
+  marked too. In `/run explore` the synthesiser is marked on every run.
+
+**What this does not decide.** Turning such a turn into `ok: false`,
+retrying it, or letting a definition declare that its agent must read before
+it answers all change what `ok` means (invariant 8) or what a definition
+says, and none of them was taken here. The last of the four limits above is
+the argument for a declaration: the fact is the same for a scout that
+invented a path and a synthesiser that did its job, and only the agent's
+definition knows which one it is.

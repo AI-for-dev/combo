@@ -145,6 +145,11 @@ export type UsageReportEntry = {
 	/** How many tools it called. The cheapest signal that a turn ran away. */
 	toolCalls: number;
 	/**
+	 * Present when it was given tools and answered without calling one. A
+	 * fact read off pi's counters, like `toolCalls`; it leaves `ok` as it is.
+	 */
+	calledNoTool?: true;
+	/**
 	 * The subagent that had this one spawned. Absent on a root.
 	 *
 	 * The list stays **flat** and carries the link, rather than nesting: the

@@ -198,7 +198,7 @@ export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, Commit
 		const visit = await this.dispatch(node, path, here);
 		const wallMs = performance.now() - started;
 		const usage = { ...visit.usage, wallMs };
-		const { ended, agent, subagent, model } = visit;
+		const { ended, agent, subagent, model, calledNoTool } = visit;
 		const end: VisitEnd = {
 			type: "visit_end",
 			path,
@@ -209,6 +209,7 @@ export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, Commit
 			...(agent !== undefined && { agent }),
 			...(subagent !== undefined && { subagent }),
 			...(model !== undefined && { model }),
+			...(calledNoTool && { calledNoTool }),
 			wallMs,
 			usage,
 		};

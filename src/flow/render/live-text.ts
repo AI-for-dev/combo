@@ -11,7 +11,7 @@
 import { showDuration } from "../../duration.ts";
 import { statusIcon } from "../../reporters/tui.ts";
 import { plural } from "../../text.ts";
-import { showCost, showTokens, type Usage } from "../../usage.ts";
+import { CALLED_NO_TOOL, showCost, showTokens, type Usage } from "../../usage.ts";
 import { showBound } from "../bounds.ts";
 import type { LiveLine, LivePlan, LiveState } from "./live.ts";
 import type { LiveSummary } from "./summary.ts";
@@ -60,11 +60,12 @@ export function showSummary(live: LivePlan, width: number): string {
 }
 
 function summaryText(flow: string, summary: LiveSummary): string {
-	const { state, visits, failed, unconverged, usage, lives, partial, resumedFrom } = summary;
+	const { state, visits, failed, calledNoTool, unconverged, usage, lives, partial, resumedFrom } = summary;
 	return `${glyph(state)} ${[
 		flow,
 		plural(visits, "visit"),
 		...(failed > 0 ? [`${failed} failed`] : []),
+		...(calledNoTool > 0 ? [`${calledNoTool} ${CALLED_NO_TOOL}`] : []),
 		...unconverged.map((path) => `${path} not converged`),
 		cost(usage),
 		...(lives > 1 ? [`${lives} lives${partial > 0 ? ` (${partial} partial)` : ""}`] : []),

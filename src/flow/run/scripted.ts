@@ -35,11 +35,13 @@ export function scriptedSession(options: CreateSessionOptions): ScriptedSession 
 			const { turn, expire } = staged;
 			staged = undefined;
 			const messages: AgentMessage[] = [{ role: "user", content: text } as AgentMessage];
-			// A script spends nothing, and says so the way a provider reporting nothing does.
-			const answer = (said: string, error?: string): Turn => {
+			// A script spends nothing, and says so the way a provider reporting
+			// nothing does. Its calls are counted as pi counts a model's, so a
+			// scripted text answer reads as one that called no tool, as it is.
+			const answer = (said: string, error?: string, toolCalls = 0): Turn => {
 				messages.push({ role: "assistant", content: [{ type: "text", text: said }] } as unknown as AgentMessage);
 				transcript.push(...messages);
-				return { messages, text: said, error, usage: emptyUsage() };
+				return { messages, text: said, error, usage: { ...emptyUsage(), toolCalls } };
 			};
 			if ("say" in turn) {
 				onStreamed?.({ type: "text", delta: turn.say });
@@ -48,7 +50,7 @@ export function scriptedSession(options: CreateSessionOptions): ScriptedSession 
 			if ("call" in turn) {
 				onStreamed?.({ type: "tool", name: turn.call, args: turn.args });
 				await call(options.customTools?.find((tool) => tool.name === turn.call), turn.call, turn.args);
-				return answer("");
+				return answer("", undefined, 1);
 			}
 			if (turn.fail === "timeout") {
 				const fired = new Promise<void>((resolve) => signal.addEventListener("abort", () => resolve(), { once: true }));

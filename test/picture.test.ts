@@ -27,7 +27,7 @@ describe("createRunPicture", () => {
 			agent: id.split("#")[0] as string,
 			order,
 			lifetime: "task",
-			openInHerdr: false,
+			openInHerdr: false, toolset: [],
 		});
 		const picture = replay(late("scout#2", 2), late("scout#1", 1), late("scout#3", 3));
 

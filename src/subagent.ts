@@ -17,7 +17,7 @@ import { exportBaseName, exportSession, type SessionExport } from "./measure/ind
 import { inTheLanguageOfTheWork } from "./language.ts";
 import { registerMirror } from "./mirror.ts";
 import { failed, succeeded, type Result } from "./result.ts";
-import { createDefaultSession, type CreateSession, type ToolDefinition, type Turn } from "./session.ts";
+import { createDefaultSession, toolsOf, type CreateSession, type ToolDefinition, type Turn } from "./session.ts";
 import { accumulate, emptyUsage, type Usage } from "./usage.ts";
 
 /**
@@ -255,6 +255,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 		openInHerdr,
 		order,
 		model,
+		toolset: toolsOf(agent),
 		parentId: options.parentId,
 		visit: options.visit,
 		home: options.home,

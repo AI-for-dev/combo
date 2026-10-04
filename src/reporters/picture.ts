@@ -52,6 +52,11 @@ export type SubagentSnapshot = {
 	depth: number;
 	/** `provider/id` as pi resolved it, when it could. */
 	model?: string;
+	/**
+	 * The tools it was given, from its `spawn`. Absent from a picture saved
+	 * before the spawn carried it, which then never says it called no tool.
+	 */
+	toolset?: readonly string[];
 	/** The subagent that had this one spawned. Absent on a root. */
 	parentId?: string;
 	/**
@@ -129,6 +134,7 @@ export function createRunPicture(): RunPicture {
 				usage: emptyUsage(),
 				depth: parent ? parent.depth + 1 : 0,
 				model: event.model,
+				toolset: event.toolset,
 				parentId: event.parentId,
 			});
 			touch();
