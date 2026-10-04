@@ -57,10 +57,12 @@ no enums, no namespaces, no parameter properties.
    **pi's settings are the same rule** (an in-memory `SettingsManager` seeded by
    `subagentSettings()`, never pi's own). A subagent takes only `INHERITED_SETTINGS` in
    `src/session.ts`: the model ladder's last step (`defaultProvider`,
-   `defaultModel`, `defaultThinkingLevel`, `modelThinkingLevels`), and the
-   machine facts or consents it breaks without (`shellPath`,
-   `httpIdleTimeoutMs`, `retry.provider.timeoutMs`,
-   `websocketConnectTimeoutMs`, `enableInstallTelemetry`). Everything else,
+   `defaultModel`, `defaultThinkingLevel`, `modelThinkingLevels`), global and
+   project merged as pi reads them, and the machine facts or consents it breaks
+   without (`shellPath`, `httpIdleTimeoutMs`, `retry.provider.timeoutMs`,
+   `websocketConnectTimeoutMs`, `enableInstallTelemetry`), from the user's
+   global settings only: a repository's `.pi/settings.json` that could set
+   `shellPath` would choose the binary every subagent's `bash` runs. Everything else,
    `shellCommandPrefix` and compaction included, is pi's default, and cache
    warming is off: a warm-up is usage nobody's turn asked for.
 

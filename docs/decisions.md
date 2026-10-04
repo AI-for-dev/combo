@@ -4067,6 +4067,31 @@ Measurements taken before this change include whatever warm-ups pi sent, and
 only for a model that declares a cache lifetime and where pi expected the
 warm-up to save at least $0.05.
 
+**Reversed in part: a machine fact comes from the user's file alone.** The seed
+first came from pi's merged reading, so the repository's `.pi/settings.json`
+won for every key on the list, and pi trusts a project by default. A cloned
+repository was enough to choose the binary every subagent's `bash` runs.
+Reproduced on a real pi: a scratch repository whose `.pi/settings.json` set
+`shellPath` to a wrapper script, and a subagent with `tools: ["bash"]` spawned
+in it ran its command through that wrapper. `shellPath` is a fact about the
+user's machine, which a repository cannot know, so the table above was already
+saying where it belongs.
+
+`INHERITED_SETTINGS` now names a layer for each key, and `subagentSettings`
+reads them from pi's `SettingsManager` with `getSettings()` and
+`getGlobalSettings()`:
+
+| Key | Layer | Why |
+|---|---|---|
+| `defaultProvider`, `defaultModel`, `defaultThinkingLevel`, `modelThinkingLevels` | global and project merged, project winning | which model works on a repository can be the repository's call, as it is for pi itself, and the user's keys still decide whether it can run |
+| `shellPath` | global | where bash is on this machine |
+| `httpIdleTimeoutMs`, `retry.provider.timeoutMs`, `websocketConnectTimeoutMs` | global | how slow the user's provider is, a fact about their setup, and a repository could set it low enough to cut every request |
+| `enableInstallTelemetry` | global | a consent is the user's to give, and a repository setting it to `true` would override an opt-out |
+
+The same reproduction after the change: the repository's wrapper no longer
+runs, and a `shellPath` in the user's own settings still reaches the
+subagent's `bash`.
+
 
 ## Experiments: comparing models on the same work
 
