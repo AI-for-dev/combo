@@ -27,7 +27,8 @@ describe("resolved", () => {
 		// for an option nobody set; spread over a default, that would win.
 		const deps = resolved({ runDir: undefined, loadAgents: undefined });
 
-		assert.equal(typeof deps.runDir(), "string");
+		// Not called: the real one creates a run directory under the working directory.
+		assert.equal(typeof deps.runDir, "function");
 		assert.equal(deps.loadAgents, loadAgents);
 	});
 
