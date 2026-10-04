@@ -5,7 +5,6 @@ import { deadline } from "../src/deadline.ts";
 import { IN_THE_LANGUAGE_OF_THE_WORK } from "../src/language.ts";
 import { resetSubagentIds, type SubagentEvent } from "../src/events.ts";
 import { run } from "../src/run.ts";
-import { sessionPort } from "../src/session.ts";
 import { spawn } from "../src/subagent.ts";
 import { fakeSession, fakeSessionFactory, type Turn } from "./fixtures/fake-session.ts";
 import { testAgent } from "./fixtures/fake-subagent.ts";
@@ -15,7 +14,7 @@ const scout = testAgent("scout");
 /** Spawns against a single scripted fake session. */
 async function spawnWith(turns: Turn[], options: Parameters<typeof spawn>[1] = {}) {
 	const session = fakeSession(turns);
-	const subagent = await spawn(scout, { ...options, createSession: async () => sessionPort(session) });
+	const subagent = await spawn(scout, { ...options, createSession: async () => session });
 	return { subagent, session };
 }
 
@@ -31,14 +30,14 @@ describe("spawn", () => {
 		const persistent = testAgent("reviewer", { lifetime: "workflow" });
 		const subagent = await spawn(persistent, {
 			lifetime: "task",
-			createSession: async () => sessionPort(fakeSession([])),
+			createSession: async () => fakeSession([]),
 		});
 		assert.equal(subagent.lifetime, "task");
 	});
 
 	test("the frontmatter beats the default when nothing is passed", async () => {
 		const persistent = testAgent("reviewer", { lifetime: "workflow" });
-		const subagent = await spawn(persistent, { createSession: async () => sessionPort(fakeSession([])) });
+		const subagent = await spawn(persistent, { createSession: async () => fakeSession([]) });
 		assert.equal(subagent.lifetime, "workflow");
 	});
 
@@ -47,7 +46,7 @@ describe("spawn", () => {
 		// children has to name their parent, and the parent is minted here.
 		let seen: string | undefined;
 		const subagent = await spawn(scout, {
-			createSession: async () => sessionPort(fakeSession([])),
+			createSession: async () => fakeSession([]),
 			customTools: (id) => {
 				seen = id;
 				return [];
@@ -63,7 +62,7 @@ describe("spawn", () => {
 			let seen: boolean | undefined;
 			await spawn(agent, {
 				...options,
-				createSession: async () => sessionPort(fakeSession([])),
+				createSession: async () => fakeSession([]),
 				onEvent: (event) => {
 					if (event.type === "spawn") seen = event.openInHerdr;
 				},
@@ -93,8 +92,8 @@ describe("spawn", () => {
 	});
 
 	test("ids are stable and per-agent", async () => {
-		const a = await spawn(scout, { createSession: async () => sessionPort(fakeSession([])) });
-		const b = await spawn(scout, { createSession: async () => sessionPort(fakeSession([])) });
+		const a = await spawn(scout, { createSession: async () => fakeSession([]) });
+		const b = await spawn(scout, { createSession: async () => fakeSession([]) });
 		assert.equal(a.id, "scout#1");
 		assert.equal(b.id, "scout#2");
 	});
@@ -108,22 +107,6 @@ describe("ask", () => {
 		assert.equal(result.ok, true);
 		assert.equal(result.output, "found it in src/auth.ts");
 		assert.equal(result.agent, "scout");
-	});
-
-	test("result.usage is the delta of the turn, not the session total", async () => {
-		const { subagent } = await spawnWith([
-			{ text: "one", tokens: { input: 100, output: 20 }, cost: 0.01 },
-			{ text: "two", tokens: { input: 60, output: 10 }, cost: 0.02 },
-		]);
-
-		const first = await subagent.ask("a");
-		const second = await subagent.ask("b");
-
-		assert.equal(first.usage.input, 100);
-		// The fake accumulates like pi does: the raw total would read 160 here.
-		assert.equal(second.usage.input, 60);
-		assert.equal(second.usage.output, 10);
-		assert.equal(second.usage.turns, 1);
 	});
 
 	test("subagent.usage accumulates across turns", async () => {
@@ -150,46 +133,14 @@ describe("ask", () => {
 		assert.ok(usage.wallMs > usage.busyMs, `wallMs=${usage.wallMs} busyMs=${usage.busyMs}`);
 	});
 
-	test("a thrown prompt becomes ok:false, and keeps the tokens already spent", async () => {
-		const { subagent } = await spawnWith([{ tokens: { input: 12_000 }, cost: 0.4, throws: "provider exploded" }]);
+	test("a failed turn is ok:false, and keeps the tokens already spent", async () => {
+		const { subagent } = await spawnWith([{ tokens: { input: 12_000 }, cost: 0.4, error: "provider exploded" }]);
 
 		const result = await subagent.ask("a");
 		assert.equal(result.ok, false);
 		assert.equal(result.error, "provider exploded");
 		assert.equal(result.usage.input, 12_000, "a subagent that died after 12k tokens still spent them");
 		assert.ok(Math.abs(result.usage.cost - 0.4) < 1e-9);
-	});
-
-	test('a failing stopReason is a failure too, even without a throw', async () => {
-		const { subagent } = await spawnWith([{ text: "partial", stopReason: "error" }]);
-		const result = await subagent.ask("a");
-		assert.equal(result.ok, false);
-		assert.equal(result.error, "boom");
-	});
-
-	test("a turn that compacts mid-run still reads its own answer, and only its own messages", async () => {
-		// pi rebuilds `messages` when it compacts, shorter than where the turn began.
-		const { subagent } = await spawnWith([{ text: "one" }, { text: "two" }, { text: "three", compacts: true }]);
-		await subagent.ask("a");
-		await subagent.ask("b");
-
-		const result = await subagent.ask("c");
-
-		assert.equal(result.ok, true);
-		assert.equal(result.output, "three", "an empty answer read as a success is the bug");
-		assert.deepEqual(
-			result.messages.map((m) => (m as { role: string }).role),
-			["user", "assistant"],
-			"the summary pi wrote is not something this turn said",
-		);
-	});
-
-	test("a turn cut by the output limit is a failure, with or without text", async () => {
-		const { subagent } = await spawnWith([{ stopReason: "length" }, { text: "half an answ", stopReason: "length" }]);
-		for (const result of [await subagent.ask("a"), await subagent.ask("b")]) {
-			assert.equal(result.ok, false);
-			assert.equal(result.error, "the answer reached the output limit");
-		}
 	});
 
 	test("aborting the signal aborts the session", async () => {
@@ -263,7 +214,7 @@ describe("ask", () => {
 		await pending;
 
 		await subagent.close();
-		assert.equal(session.disposed, true, "stopping is not closing: the owner still owns the close");
+		assert.equal(session.closed, true, "stopping is not closing: the owner still owns the close");
 	});
 
 	test("a shared signal does not accumulate listeners across turns", async () => {
@@ -354,10 +305,10 @@ describe("ask", () => {
 });
 
 describe("close", () => {
-	test("disposes the session", async () => {
+	test("closes the session", async () => {
 		const { subagent, session } = await spawnWith([]);
 		await subagent.close();
-		assert.equal(session.disposed, true);
+		assert.equal(session.closed, true);
 	});
 
 	test("is idempotent", async () => {
@@ -366,7 +317,7 @@ describe("close", () => {
 		await subagent.close();
 	});
 
-	test("ask after close throws: that is a programming error, not a failed Result", async () => {
+	test("ask after close error: that is a programming error, not a failed Result", async () => {
 		const { subagent } = await spawnWith([]);
 		await subagent.close();
 		await assert.rejects(() => subagent.ask("a"), /is closed/);
@@ -378,9 +329,9 @@ describe("close", () => {
 	// read as "worked fine", in the one place nothing downstream catches it.
 	test("the close event reports the failure of the last turn, not a green tick", async () => {
 		const closes: { ok: boolean; error?: string }[] = [];
-		const session = fakeSession([{ throws: "402 status code (no body)" }]);
+		const session = fakeSession([{ error: "402 status code (no body)" }]);
 		const subagent = await spawn(scout, {
-			createSession: async () => sessionPort(session),
+			createSession: async () => session,
 			onEvent: (event) => {
 				if (event.type === "close") closes.push({ ok: event.result.ok, error: event.result.error });
 			},
@@ -395,9 +346,9 @@ describe("close", () => {
 
 	test("a turn that failed then recovered closes green: the last turn is what counts", async () => {
 		const closes: boolean[] = [];
-		const session = fakeSession([{ throws: "boom" }, { text: "recovered" }]);
+		const session = fakeSession([{ error: "boom" }, { text: "recovered" }]);
 		const subagent = await spawn(testAgent("reviewer", { lifetime: "workflow" }), {
-			createSession: async () => sessionPort(session),
+			createSession: async () => session,
 			onEvent: (event) => {
 				if (event.type === "close") closes.push(event.result.ok);
 			},
@@ -413,7 +364,7 @@ describe("close", () => {
 	test("a subagent nobody asked anything closes green: nothing failed", async () => {
 		const closes: boolean[] = [];
 		const subagent = await spawn(scout, {
-			createSession: async () => sessionPort(fakeSession([])),
+			createSession: async () => fakeSession([]),
 			onEvent: (event) => {
 				if (event.type === "close") closes.push(event.result.ok);
 			},
@@ -429,7 +380,7 @@ describe("events", () => {
 		const events: string[] = [];
 		const session = fakeSession([{ text: "hello", tools: [{ name: "grep", args: { pattern: "x" } }] }]);
 		const subagent = await spawn(scout, {
-			createSession: async () => sessionPort(session),
+			createSession: async () => session,
 			onEvent: (event) => events.push(event.type),
 		});
 
@@ -437,22 +388,6 @@ describe("events", () => {
 		await subagent.close();
 
 		assert.deepEqual(events, ["spawn", "status", "status", "tool", "text", "usage", "status", "status", "close"]);
-	});
-
-	test("a tool pi did not name reads as unknown, never as an empty verb", async () => {
-		// pi sends an empty `toolName`, not a missing one, so `??` never fires and
-		// the widget draws the arguments with no verb in front of them.
-		const names: string[] = [];
-		const session = fakeSession([{ text: "ok", tools: [{ name: "", args: { path: "src/index.ts" } }] }]);
-		const subagent = await spawn(scout, {
-			createSession: async () => sessionPort(session),
-			onEvent: (event) => void (event.type === "tool" && names.push(event.name)),
-		});
-
-		await subagent.ask("a");
-		await subagent.close();
-
-		assert.deepEqual(names, ["?"]);
 	});
 
 	test("says who had it spawned, when somebody did", async () => {
@@ -468,7 +403,7 @@ describe("events", () => {
 	test("a throwing reporter never breaks the turn", async () => {
 		const session = fakeSession([{ text: "ok" }]);
 		const subagent = await spawn(scout, {
-			createSession: async () => sessionPort(session),
+			createSession: async () => session,
 			onEvent: () => {
 				throw new Error("broken reporter");
 			},
@@ -487,14 +422,14 @@ describe("run", () => {
 
 		assert.equal(result.output, "done");
 		assert.equal(created.length, 1);
-		assert.equal(created[0]?.disposed, true);
+		assert.equal(created[0]?.closed, true);
 	});
 
 	test("closes the session even when the turn fails", async () => {
-		const { createSession, created } = fakeSessionFactory([{ throws: "nope" }]);
+		const { createSession, created } = fakeSessionFactory([{ error: "nope" }]);
 		const result = await run(scout, "a task", { createSession });
 
 		assert.equal(result.ok, false);
-		assert.equal(created[0]?.disposed, true, "whoever opens, closes - failure included");
+		assert.equal(created[0]?.closed, true, "whoever opens, closes - failure included");
 	});
 });

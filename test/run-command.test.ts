@@ -100,7 +100,7 @@ describe("/run", () => {
 
 	test("a failed run says where it failed and what a resume would do; /run resume carries it on from there", async () => {
 		const cwd = plainDirectory();
-		const failed = await run("two q", cwd, [answered("found"), [{ stopReason: "error", text: "" }]]);
+		const failed = await run("two q", cwd, [answered("found"), [{ error: "boom", text: "" }]]);
 		assert.equal(failed.result?.ok, false);
 		assert.match((failed.sent[0] as Sent).content, /failed at answer: provider: .* · runs\/run-1 · \/run resume runs\/run-1 picks it up at answer$/);
 

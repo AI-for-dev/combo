@@ -185,7 +185,7 @@ describe("loop", () => {
 
 			assert.deepEqual(lifetimes, ["workflow", "workflow"]);
 			assert.equal(created.length, 2);
-			assert.ok(created.every((session) => session.disposed));
+			assert.ok(created.every((session) => session.closed));
 		});
 
 		test("the same scenario spawns a different number of subagents per lifetime", async () => {

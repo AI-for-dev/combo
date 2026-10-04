@@ -79,7 +79,7 @@ describe("a loop", () => {
 	});
 
 	test("ends at once on a body node that fails, its condition never read", async () => {
-		const fake = flowSpawn({ scout: [[{ stopReason: "error" }]] });
+		const fake = flowSpawn({ scout: [[{ error: "boom" }]] });
 		const result = await runChecked(review(), "x", { spawn: fake.spawn });
 		assert.deepEqual(!result.ok && [result.error.kind, result.path], ["provider", "review#1/code"]);
 		assert.equal(fake.created.length, 1);
@@ -114,7 +114,7 @@ describe("a loop", () => {
 		const result = await runChecked(review("", code), "x", { spawn: fake.spawn });
 		assert.ok(result.ok);
 		const scout = fake.created[0];
-		assert.deepEqual([scout?.prompts.length, scout?.disposed], [2, true]);
+		assert.deepEqual([scout?.prompts.length, scout?.closed], [2, true]);
 
 		const hanging = flowSpawn({ scout: [[{ text: "v1" }, { delayMs: 5000 }]], reviewer: [judged(false)] });
 		const switcher = stopSwitch({ spawn: hanging.spawn });
@@ -122,7 +122,7 @@ describe("a loop", () => {
 		setTimeout(() => switcher.all(), 30);
 		const stopped = await running;
 		assert.deepEqual(!stopped.ok && [stopped.error.kind, stopped.path], ["stopped", "review#2/code"]);
-		assert.ok(hanging.created.every((session) => session.disposed));
+		assert.ok(hanging.created.every((session) => session.closed));
 	});
 });
 
