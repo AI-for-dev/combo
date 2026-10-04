@@ -141,6 +141,12 @@ describe("the registered tool", () => {
 	test("runs one call at a time, so two flows never put up a card or a plan at once", () => {
 		assert.equal(tool.executionMode, "sequential");
 	});
+
+	test("is the model's to call, never a script's", () => {
+		// A codemode script could otherwise call it in a loop and start any
+		// number of runs inside one model turn.
+		assert.equal(tool.exposure, "model-only");
+	});
 });
 
 describe("renderCall", () => {

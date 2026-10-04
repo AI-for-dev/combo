@@ -2440,6 +2440,14 @@ linear pipeline any more.
   `executionMode: "sequential"`, pi's own knob, rather than a queue of our
   own. pi then runs every call of that message in order, other tools
   included; a model that wants subagents side by side has `parallel`.
+- **A codemode script cannot call the tool.** pi 1.0's `codemode` lets the
+  model write a script that calls the session's tools, and with the default
+  exposure that included `subagent`: measured in a real pi with codemode on, a
+  script saw `"subagent" in tools` as `true`. A loop in one script could then
+  start any number of runs inside one model turn, past the one-call rule above
+  and with none of the tool's rows drawn. The tool says `exposure:
+  "model-only"`, pi's term for a tool that orchestrates others: declared to the
+  model, never callable from another tool.
 - **The widget stops offering `esc` while a card is up.** The first frame of
   a card mid-turn read `esc stops everything` right above `esc That's
   enough`, and the card holds the key. The hint comes back when the card goes.

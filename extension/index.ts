@@ -144,6 +144,10 @@ export default function (pi: PiApi) {
 		// would each put theirs up. pi then runs the whole batch in order, the
 		// price of a model that could have used `parallel` instead.
 		executionMode: "sequential",
+		// Declared to the model, never callable from another tool. A codemode
+		// script could otherwise start runs in a loop inside one model turn, past
+		// the one-call-at-a-time rule above and out of sight of the tool's rows.
+		exposure: "model-only",
 
 		// The body lives in `execute.ts`, where every dependency is injectable
 		// and therefore testable; this only hands pi's context over.
