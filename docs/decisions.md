@@ -1947,9 +1947,13 @@ which a resume reads back (below); nothing of the extension uses them yet.
   unplugging every reporter leaves it the same. Each append is synchronous:
   the fact is on disk before the run goes on, and two branches never
   interleave a line.
-- **A visit's entry is its `visit_end`, written before it is told.** One
-  object goes to the journal, then to the event stream, so a reader folding
-  the two never sees an event the journal lacks.
+- **A visit's entries are its `visit_start` and its `visit_end`, each written
+  before it is told.** One object goes to the journal, then to the event
+  stream, so a reader folding the two never sees an event the journal lacks.
+  The start is there for a reader holding the file alone, such as a harness
+  following a `/run` from outside the process: without it, that reader can
+  name the last visit to end but not the one running. Every reader that
+  restores a run folds the ends and skips the starts.
 - **Only the last line can be torn.** Whatever follows the last newline is
   ignored. Any other line that is not an entry throws: that file was not
   written by a run, and guessing past it would resume a different run.

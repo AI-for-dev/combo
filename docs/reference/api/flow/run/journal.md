@@ -21,6 +21,7 @@ longer changes, so branches running together only ever add a line.
 export type JournalEntry =
 	/** A life of the run began: its first start, or a resume. Written before anything else it does. */
 	| { readonly type: "life_start"; readonly startedAt: string }
+	| VisitStart
 	| VisitEnd
 	/** The `carry` the iteration `path`, `review#2`, reads. */
 	| { readonly type: "carry"; readonly path: string; readonly value: unknown }
@@ -65,3 +66,13 @@ export type VisitEnd = Extract<VisitEvent, { type: "visit_end" }>;
 ```
 
 A visit that ended: its `visit_end`, written down.
+
+## `VisitStart`
+
+*type*
+
+```typescript
+export type VisitStart = Extract<VisitEvent, { type: "visit_start" }>;
+```
+
+A visit that started: its `visit_start`, written down, so a reader of the file alone knows what is running.

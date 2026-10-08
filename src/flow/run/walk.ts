@@ -30,7 +30,7 @@ import { visitCommit, type CommitOutcome, type CommittingRun } from "./commit.ts
 import type { Copies } from "./copies.ts";
 import { interruption, under, type Ended, type Visited, type Walked } from "./ended.ts";
 import type { Frames, Held } from "./frames.ts";
-import type { Journal, VisitEnd } from "./journal.ts";
+import type { Journal, VisitEnd, VisitStart } from "./journal.ts";
 import { visitLoop } from "./loop.ts";
 import { SUBMIT_TOOL, submitTool } from "./submit.ts";
 import type { Replay } from "./replay.ts";
@@ -185,7 +185,7 @@ export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, Commit
 	}
 
 	/**
-	 * One visit, between its `visit_start` and its `visit_end`, which is
+	 * One visit, between its `visit_start` and its `visit_end`, each
 	 * written down before it is told; or, on a resume, how it ended before,
 	 * neither told nor written again.
 	 */
@@ -193,7 +193,9 @@ export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, Commit
 		const kept = this.replay?.ended(path);
 		if (kept !== undefined) return { ended: kept, usage: emptyUsage(), ...(!kept.ok && { failed: { path, error: kept.error } }) };
 		const { bus } = this.walk;
-		bus.emit({ type: "visit_start", path, node: this.address(node.at), kind: node.kind });
+		const start: VisitStart = { type: "visit_start", path, node: this.address(node.at), kind: node.kind, ...named(node) };
+		this.journal.append(start);
+		bus.emit(start);
 		const started = performance.now();
 		const visit = await this.dispatch(node, path, here);
 		const wallMs = performance.now() - started;
@@ -249,6 +251,11 @@ export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, Commit
 	private addressed<T extends CheckedNode>(node: T): T {
 		return this.prefix === "" ? node : { ...node, at: this.address(node.at) };
 	}
+}
+
+/** The agent `node` names, when it is an `agent` node not picking one with `agent-from:`. */
+function named(node: CheckedNode): { agent?: string } {
+	return node.kind === "agent" && !("from" in node.agent) ? { agent: node.agent.name } : {};
 }
 
 /** What a `visit_end` says of how `node` ended: its output, the case a `choice` ran, whether a `loop` converged; or why it failed. */

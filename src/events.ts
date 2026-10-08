@@ -146,8 +146,8 @@ export type SubagentEvent =
  * A flow's runner entering and leaving one visit of a node.
  *
  * They carry no subagent id: a visit is a node's, and a `choice` has no
- * subagent at all. A `visit_end` is also what the journal writes down, so a
- * reader folds the journal and the stream alike.
+ * subagent at all. Both are also what the journal writes down, so a reader
+ * folds the journal and the stream alike.
  */
 export type VisitEvent =
 	| {
@@ -157,6 +157,8 @@ export type VisitEvent =
 			/** The node's address, without iterations: `deliver/work/code`. */
 			node: string;
 			kind: CheckedNode["kind"];
+			/** The agent an `agent` visit runs, when its node names one; one `agent-from:` picks is named on the `visit_end`. */
+			agent?: string;
 	  }
 	| {
 			type: "visit_end";
