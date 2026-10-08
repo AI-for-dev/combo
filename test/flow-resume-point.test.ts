@@ -69,7 +69,16 @@ describe("a resume after a kill", () => {
 		);
 		assert.deepEqual(point.ok && point.from, "fix#2/work");
 		// The carry of `fix#2` and the plan are not written again; `o1` is closed in the restored ledger.
-		assert.deepEqual(added(resumed, from), ["visit_end fix#2/work", "obligation_closed fix", "visit_end fix#2/audit", "visit_end fix", "run_end"]);
+		assert.deepEqual(added(resumed, from), [
+			"visit_start fix",
+			"visit_start fix#2/work",
+			"visit_end fix#2/work",
+			"visit_start fix#2/audit",
+			"obligation_closed fix",
+			"visit_end fix#2/audit",
+			"visit_end fix",
+			"run_end",
+		]);
 		assert.deepEqual(resumed.ok && resumed.output, whole.ok && whole.output);
 	});
 
@@ -77,7 +86,7 @@ describe("a resume after a kill", () => {
 		const flow = checked("  - id: plan\n    agent: planner\n    output: { todo: [string] }\n  - id: work\n    map-from: plan.output.todo\n    max: 3\n    concurrency: 1\n    do:\n      - id: code\n        agent: scout", { plan: "Plan.", code: "Code." });
 		const { from, point, resumed } = await killedAndResumed(flow, { plan: { todo: ["a", "b"] }, "work/code": "done" }, "work[2]/code", { "work/code": "done" });
 		assert.deepEqual(point.ok && point.from, "work[2]/code");
-		assert.deepEqual(added(resumed, from), ["visit_end work[2]/code", "visit_end work", "run_end"]);
+		assert.deepEqual(added(resumed, from), ["visit_start work", "visit_start work[2]/code", "visit_end work[2]/code", "visit_end work", "run_end"]);
 	});
 
 	test("after a parallel, keeps every branch that ended, the last one included", async () => {
@@ -85,7 +94,7 @@ describe("a resume after a kill", () => {
 		const flow = checked(`  - id: both\n    parallel:\n${branch("a")}${branch("b")}  - id: after\n    agent: synthesiser`, { wa: "A.", wb: "B.", after: "After." });
 		const { from, point, resumed } = await killedAndResumed(flow, { "both/a/wa": "a", "both/b/wb": "b", after: "done" }, "after", { after: "done" });
 		assert.deepEqual(point.ok && point.from, "after");
-		assert.deepEqual(added(resumed, from), ["visit_end after", "run_end"]);
+		assert.deepEqual(added(resumed, from), ["visit_start after", "visit_end after", "run_end"]);
 	});
 
 	test("inside a sub-flow, runs the callee's visits that did not end, and what follows the call", async () => {
@@ -93,13 +102,13 @@ describe("a resume after a kill", () => {
 		const flow = checkedIn("f", { f: flowText("  - id: spec\n    flow: g\n    input: input\n  - id: after\n    agent: synthesiser", { after: "After." }), g });
 		const { from, point, resumed } = await killedAndResumed(flow, { "spec/first": "one", "spec/second": "two", after: "done" }, "spec/second", { "spec/second": "two", after: "done" });
 		assert.deepEqual(point.ok && point.from, "spec/second");
-		assert.deepEqual(added(resumed, from), ["visit_end spec/second", "visit_end spec", "visit_end after", "run_end"]);
+		assert.deepEqual(added(resumed, from), ["visit_start spec", "visit_start spec/second", "visit_end spec/second", "visit_end spec", "visit_start after", "visit_end after", "run_end"]);
 	});
 
 	test("never asks an answered question again, and keeps a failure `on-fail: continue` read on", async () => {
 		const flow = checked('  - id: pick\n    ask: "Ship it?"\n    options: [Yes, No]\n  - id: look\n    agent: scout\n    on-fail: continue\n  - id: after\n    agent: synthesiser', { look: "Look.", after: "After." });
 		const { from, resumed } = await killedAndResumed(flow, { pick: { answered: true, answer: "Yes" }, look: { fail: "provider" }, after: "done" }, "after", { after: "done" });
-		assert.deepEqual(added(resumed, from), ["visit_end after", "run_end"]);
+		assert.deepEqual(added(resumed, from), ["visit_start after", "visit_end after", "run_end"]);
 	});
 });
 
@@ -117,7 +126,7 @@ describe("a resume of a failed run", () => {
 		assert.deepEqual(point.ok && point.from, "fix#2/work");
 		const resumed = await dryRunFlow(LOOPING, "x", { "fix#2/work": "w2", "fix#2/judge": { done: true } }, { from });
 		assert.ok(resumed.ok, JSON.stringify(resumed));
-		assert.deepEqual(added(resumed, from), ["visit_end fix#2/work", "visit_end fix#2/judge", "visit_end fix", "run_end"]);
+		assert.deepEqual(added(resumed, from), ["visit_start fix", "visit_start fix#2/work", "visit_end fix#2/work", "visit_start fix#2/judge", "visit_end fix#2/judge", "visit_end fix", "run_end"]);
 	});
 
 	test("asks again a question declined with the stop key", async () => {
@@ -126,7 +135,7 @@ describe("a resume of a failed run", () => {
 		const from = journalOf(stopped);
 		const resumed = await dryRunFlow(flow, "x", { pick: { answered: true, answer: "No" }, look: "seen" }, { from });
 		assert.ok(resumed.ok, JSON.stringify(resumed));
-		assert.deepEqual(added(resumed, from), ["visit_end pick", "visit_end look", "run_end"]);
+		assert.deepEqual(added(resumed, from), ["visit_start pick", "visit_end pick", "visit_start look", "visit_end look", "run_end"]);
 	});
 
 	test("is refused when the flow decided the failure, when the run ended well, and for another flow's journal", async () => {

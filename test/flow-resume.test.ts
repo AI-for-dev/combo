@@ -123,9 +123,12 @@ describe("a resume", () => {
 			.slice(kept.length)
 			.map((entry) => `${entry.type} ${"path" in entry ? entry.path : ""}`.trim());
 		assert.equal(facts.shift(), "life_start");
+		const started = facts.filter((fact) => fact.startsWith("visit_start "));
+		assert.deepEqual(started.sort(), ["visit_start both", "visit_start both/a/wa", "visit_start both/b/wb"]);
+		const told = facts.filter((fact) => !started.includes(fact));
 		// `b` runs again in the copy it had, so only `a` opens one; the branches run together, in either order.
-		assert.deepEqual(facts.slice(0, 4).sort(), ["copy_lost both/a", "copy_opened both/a", "visit_end both/a/wa", "visit_end both/b/wb"]);
-		assert.deepEqual(facts.slice(4), ["copy_landed both/a", "copy_landed both/b", "visit_end both", "run_end"]);
+		assert.deepEqual(told.slice(0, 4).sort(), ["copy_lost both/a", "copy_opened both/a", "visit_end both/a/wa", "visit_end both/b/wb"]);
+		assert.deepEqual(told.slice(4), ["copy_landed both/a", "copy_landed both/b", "visit_end both", "run_end"]);
 		assert.deepEqual([fs.readFileSync(path.join(cwd, "a.txt"), "utf-8"), fs.readFileSync(path.join(cwd, "b.txt"), "utf-8")], ["a\n", "b\n"]);
 		assert.equal(git(cwd, "worktree", "list", "--porcelain").split("\n").filter((line) => line.startsWith("worktree ")).length, 1);
 	});

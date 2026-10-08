@@ -33,7 +33,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`flow/run/answers`](flow/run/answers.md) | A dry run's script: the answers that stand in for each agent turn, each check's script run, each commit and each question, checked against the flow before the first one is taken. | 2 |
 | [`flow/run/dry-run`](flow/run/dry-run.md) | `dryRunFlow`: `runFlow` itself, with every agent turn, every check, every commit and every question answered by a script. | 3 |
 | [`flow/run/flow`](flow/run/flow.md) | `runFlow`: a checked run walked from its first node to its last. | 3 |
-| [`flow/run/journal`](flow/run/journal.md) | The journal of a run: one JSON line per fact, appended when it happens and never rewritten, which is what a resume and the live view read back. | 3 |
+| [`flow/run/journal`](flow/run/journal.md) | The journal of a run: one JSON line per fact, appended when it happens and never rewritten, which is what a resume and the live view read back. | 4 |
 | [`flow/run/resume-point`](flow/run/resume-point.md) | `resumePoint`: where a run picks up from its journal, or why it may not. | 2 |
 | [`flow/run/resume`](flow/run/resume.md) | `resumeFlow`: a run carried on from its run directory, as deep as its journal goes. | 5 |
 | [`flow/run/snapshot`](flow/run/snapshot.md) | The snapshot of a run: what its validation read, kept in its run directory at the first start with the input and the settings, so that a resume runs the flow the run started with, whatever the disk says by then. | 3 |

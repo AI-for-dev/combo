@@ -20,7 +20,10 @@ import type { FlowError } from "../checked.ts";
 export const JOURNAL_FILE = "journal.jsonl";
 
 /** Every kind of fact the journal holds, as its entries' `type`. */
-export const ENTRY_TYPES = ["life_start", "visit_end", "carry", "map_items", "obligation_raised", "obligation_closed", "copy_opened", "copy_landed", "copy_lost", "branch_opened", "run_end"] as const;
+export const ENTRY_TYPES = ["life_start", "visit_start", "visit_end", "carry", "map_items", "obligation_raised", "obligation_closed", "copy_opened", "copy_landed", "copy_lost", "branch_opened", "run_end"] as const;
+
+/** A visit that started: its `visit_start`, written down, so a reader of the file alone knows what is running. */
+export type VisitStart = Extract<VisitEvent, { type: "visit_start" }>;
 
 /** A visit that ended: its `visit_end`, written down. */
 export type VisitEnd = Extract<VisitEvent, { type: "visit_end" }>;
@@ -29,6 +32,7 @@ export type VisitEnd = Extract<VisitEvent, { type: "visit_end" }>;
 export type JournalEntry =
 	/** A life of the run began: its first start, or a resume. Written before anything else it does. */
 	| { readonly type: "life_start"; readonly startedAt: string }
+	| VisitStart
 	| VisitEnd
 	/** The `carry` the iteration `path`, `review#2`, reads. */
 	| { readonly type: "carry"; readonly path: string; readonly value: unknown }

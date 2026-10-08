@@ -26,7 +26,7 @@ type SubagentEvent =
 	| { type: "steer";  id: string; text: string }
 	| { type: "usage";  id: string; usage: Usage }
 	| { type: "close";  id: string; result: Result }
-	| { type: "visit_start"; path: string; node: string; kind: string }
+	| { type: "visit_start"; path: string; node: string; kind: string; agent?: string }
 	| { type: "visit_end";   path: string; ok: boolean; wallMs: number; usage: Usage /* ... */ };
 ```
 

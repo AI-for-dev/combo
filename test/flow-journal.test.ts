@@ -27,6 +27,7 @@ const facts = (journal: readonly JournalEntry[]) => journal.map((entry) => ("pat
 describe("the journal", () => {
 	const ENTRIES: JournalEntry[] = [
 		{ type: "life_start", startedAt: "2026-09-23T10:00:00.000Z" },
+		{ type: "visit_start", path: "fix#1/code", node: "fix/code", kind: "agent", agent: "scout" },
 		{ type: "visit_end", path: "fix#1/code", node: "fix/code", kind: "agent", ok: true, output: "done", agent: "scout", model: "p/m", wallMs: 3, usage: emptyUsage() },
 		{ type: "carry", path: "fix#2", value: ["b"] },
 		{ type: "map_items", path: "fix#1/work", items: ["a", "b"] },
@@ -92,23 +93,32 @@ describe("a dry run's journal", () => {
 		assert.ok(run.ok && "journal" in run, JSON.stringify(run));
 		assert.deepEqual(facts(run.journal), [
 			"life_start",
+			"visit_start plan",
 			"visit_end plan",
+			"visit_start fix",
 			"carry fix#1",
+			"visit_start fix#1/work",
 			"map_items fix#1/work",
+			"visit_start fix#1/work[1]/code",
 			"visit_end fix#1/work[1]/code",
 			"visit_end fix#1/work",
+			"visit_start fix#1/audit",
 			"obligation_raised fix",
 			"visit_end fix#1/audit",
 			"carry fix#2",
+			"visit_start fix#2/work",
 			"map_items fix#2/work",
+			"visit_start fix#2/work[1]/code",
 			"visit_end fix#2/work[1]/code",
 			"visit_end fix#2/work",
+			"visit_start fix#2/audit",
 			"obligation_closed fix",
 			"visit_end fix#2/audit",
 			"visit_end fix",
 			"run_end",
 		]);
-		assert.deepEqual(run.journal[2], { type: "carry", path: "fix#1", value: ["a"] });
+		assert.deepEqual(run.journal[1], { type: "visit_start", path: "plan", node: "plan", kind: "agent", agent: "planner" });
+		assert.deepEqual(run.journal[4], { type: "carry", path: "fix#1", value: ["a"] });
 		assert.deepEqual(run.journal.at(-1), { type: "run_end", ok: true, output: run.output, usage: run.usage });
 	});
 
@@ -127,7 +137,7 @@ describe("a dry run's journal", () => {
 });
 
 describe("a run given a run directory", () => {
-	test("appends each fact to its journal, a visit's being the `visit_end` it told", async () => {
+	test("appends each fact to its journal, a visit's being the `visit_start` and `visit_end` it told", async () => {
 		const cwd = repository({ ".pi/checks/a.sh": "echo a > a.txt", ".pi/checks/b.sh": "echo b > b.txt" });
 		const branch = (name: string) => `      ${name}:\n        - id: w${name}\n          check: .pi/checks/${name}.sh\n`;
 		const flow = checked(`  - id: m\n    agent: scout\n  - id: both\n    copies: true\n    parallel:\n${branch("a")}${branch("b")}  - id: c\n    commit: m`, { m: "Write the message." });
@@ -137,14 +147,16 @@ describe("a run given a run directory", () => {
 		const result = await runFlow(run, "x", { spawn: flowSpawn([[{ text: "Add a and b" }]]).spawn, runDir, onEvent: (event) => events.push(event) });
 		assert.ok(result.ok, JSON.stringify(result));
 		const journal = readJournal(runDir);
-		assert.deepEqual(
-			journal.filter((entry) => entry.type === "visit_end"),
-			events.filter((event) => event.type === "visit_end"),
-		);
+		for (const type of ["visit_start", "visit_end"]) {
+			assert.deepEqual(
+				journal.filter((entry) => entry.type === type),
+				events.filter((event) => event.type === type),
+			);
+		}
 		const opened = journal.filter((entry) => entry.type === "copy_opened");
 		assert.deepEqual(opened.map((entry) => [entry.path, typeof entry.dir, typeof entry.branch, typeof entry.base]).sort(), [["both/a", "string", "string", "string"], ["both/b", "string", "string", "string"]]);
 		assert.deepEqual(journal.filter((entry) => entry.type === "copy_landed"), [{ type: "copy_landed", path: "both/a", landed: true }, { type: "copy_landed", path: "both/b", landed: true }]);
-		assert.deepEqual(facts(journal).slice(-4), ["visit_end both", "branch_opened", "visit_end c", "run_end"]);
+		assert.deepEqual(facts(journal).slice(-5), ["visit_end both", "visit_start c", "branch_opened", "visit_end c", "run_end"]);
 		assert.deepEqual(journal.find((entry) => entry.type === "branch_opened"), { type: "branch_opened", branch: "combo/x" });
 	});
 

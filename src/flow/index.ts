@@ -91,6 +91,7 @@ export {
 	type Settings,
 	type Snapshot,
 	type VisitEnd,
+	type VisitStart,
 } from "./run/index.ts";
 export type { NamedAgent, Sources } from "./sources.ts";
 export { QUESTION, readSchema, type ReadSchema, type SchemaProblem } from "./schema.ts";

@@ -114,6 +114,9 @@ export class Replay {
 				// How the run ended is its last life's end, and this one has none yet.
 				this.last = undefined;
 				return undefined;
+			case "visit_start":
+				// A visit that started and never ended runs again, whole: only its end restores anything.
+				return undefined;
 			case "visit_end": {
 				const found = nodeAt(flow.nodes, entry.path);
 				if ("code" in found) return entry.path;

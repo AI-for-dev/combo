@@ -220,6 +220,7 @@ export {
 	type Settings,
 	type Snapshot,
 	type VisitEnd,
+	type VisitStart,
 } from "./flow/index.ts";
 // Drawing one: its worst case, its plan, its diagram, and its plan filled as a run goes.
 export {

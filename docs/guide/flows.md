@@ -629,6 +629,7 @@ cannot be resumed.
 | `type` | Written when | Holds |
 | --- | --- | --- |
 | `life_start` | a life of the run began, its first start or a resume, before anything else it wrote | `startedAt` |
+| `visit_start` | a visit started | the `visit_start` event itself, written before it is told, so a reader of the file alone sees which visit is running |
 | `visit_end` | a visit ended | the `visit_end` event itself, written before it is told |
 | `carry` | a loop computed the `carry` of an iteration | `path` of that iteration (`fix#2`), `value` |
 | `map_items` | a `map` starts | `path`, the `items` it runs over |
@@ -857,8 +858,9 @@ visit at a time, so branches running together wait for each other on an outer
 scope's. Nodes sharing a subagent declare the same `output:`, since its
 `submit` tool is fixed when it is spawned.
 
-The run reports `visit_start { path, node, kind }`, `node` being the address
-through the calls (`spec/interview/ask_next`), and
+The run reports `visit_start { path, node, kind, agent? }`, `node` being the
+address through the calls (`spec/interview/ask_next`) and `agent` the agent an
+`agent` node names (one `agent-from:` picks is known on the `visit_end` only), and
 `visit_end { path, node, kind, ok, output?, error?, case?, converged?, agent?, subagent?, model?, wallMs, usage }`
 on the same stream as its subagents, and each subagent's `spawn` event
 carries the `visit` it was spawned for and the `transcript` it will write.
