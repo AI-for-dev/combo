@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.4.0](https://github.com/AI-for-dev/combo/compare/v0.3.0...v0.4.0) (2026-10-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* **agent:** let an agent require a tool call, and let tools: [] mean none ([#206](https://github.com/AI-for-dev/combo/issues/206))
+* **session:** shape SessionPort around a turn ([#205](https://github.com/AI-for-dev/combo/issues/205))
+
+### Features
+
+* **agent:** let an agent require a tool call, and let tools: [] mean none ([#206](https://github.com/AI-for-dev/combo/issues/206)) ([4e26d9e](https://github.com/AI-for-dev/combo/commit/4e26d9e126bce94b1ea067751f849029142047dc))
+* **flow:** journal each visit_start, so a reader of the file sees what runs ([#212](https://github.com/AI-for-dev/combo/issues/212)) ([7d9289e](https://github.com/AI-for-dev/combo/commit/7d9289ea76c741cb4f0489d6b71ac93e5e0247eb))
+
+
+### Bug Fixes
+
+* **extension:** keep the subagent tool out of codemode scripts ([#210](https://github.com/AI-for-dev/combo/issues/210)) ([5053677](https://github.com/AI-for-dev/combo/commit/505367757845920cc02e535f9ed6cc27989ebc2d))
+* **flow:** draw a map item whose last visit failed as failed ([#211](https://github.com/AI-for-dev/combo/issues/211)) ([7cb8409](https://github.com/AI-for-dev/combo/commit/7cb840923e3f53880a523215ac3000453e5f03c9))
+
+
+### Code Refactoring
+
+* **session:** shape SessionPort around a turn ([#205](https://github.com/AI-for-dev/combo/issues/205)) ([1b9632c](https://github.com/AI-for-dev/combo/commit/1b9632cdb7d44af32706173336230c52d7b329da))
+
+
+### Tests
+
+* **command:** stop a test from leaving a run directory in the repository ([#208](https://github.com/AI-for-dev/combo/issues/208)) ([1786110](https://github.com/AI-for-dev/combo/commit/1786110ee32584fa7d7b9e5aa514a2f73d822dc2))
+* **session:** script the fakes as turns of the port ([#209](https://github.com/AI-for-dev/combo/issues/209)) ([21aa3c9](https://github.com/AI-for-dev/combo/commit/21aa3c9640e944ff45db3529818333889cb2c83a))
+
 ## [0.3.0](https://github.com/AI-for-dev/combo/compare/v0.2.0...v0.3.0) (2026-10-04)
 
 
