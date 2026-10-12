@@ -3950,7 +3950,11 @@ You review the code produced and return at most 5 remarks…
   hides one in `~/.pi/agent/agents/`, the call warns, in pi and in the text
   the model reads, and names the scope that runs the other: the user's own
   definition was written on purpose too. Hiding a built-in one says nothing,
-  since replacing the shipped agents is what `.pi/agents/` is for.
+  since replacing the shipped agents is what `.pi/agents/` is for. A flow,
+  `/run` and `/step` warn the same way, from the agents a flow names through
+  its calls (`sources.agents`): they load all three sources too, and one
+  warning in the tool alone would leave the same choice silent everywhere
+  else.
 - **An empty agent list is almost always a scope problem, not a typo**, so
   `findAgent` says so. Given the old "Loaded agents: none", a model concluded the
   repository had no agent definitions at all and started offering to write some.

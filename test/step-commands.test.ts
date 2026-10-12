@@ -132,6 +132,19 @@ describe("/step", () => {
 		assert.equal(agentAsks[0]?.task, "three steps at most");
 	});
 
+	test("warns before it runs when the repository's agent it names hides one of the user's", async () => {
+		const { ctx, notes } = fakeCtx();
+		const planner = testAgent("planner", { source: "project", filePath: join(ctx.cwd, ".pi", "agents", "planner.md") });
+		const user = testAgent("planner", { filePath: "/home/you/.pi/agent/agents/planner.md" });
+		const { deps: injected, agentAsks } = deps({ loadAgents: (options) => (options?.scope === "user" ? [user] : [planner, ...agents.filter((one) => one.name !== "planner")]) });
+
+		await runStep("planner three steps at most", ctx, injected);
+
+		assert.equal(agentAsks.length, 1);
+		const warning = '"planner" runs from .pi/agents/planner.md; /home/you/.pi/agent/agents/planner.md defines another "planner", which scope "user" runs.';
+		assert.deepEqual(notes.filter((note) => note.type === "warning"), [{ message: warning, type: "warning" }]);
+	});
+
 	test("an instruction keeps its lines as typed, the name alone is a word", async () => {
 		const { ctx } = fakeCtx();
 		const { deps: injected, agentAsks } = deps();

@@ -36,7 +36,9 @@ runs the repository's definition:
 ```
 
 When the repository's agent hides one of yours, the call still runs it, and a
-warning names the other file, for you and for the model:
+warning names the other file, for you and for the model. The same goes for
+the agents a flow runs, and for `/run` and `/step`, which warn before they
+start:
 
 ```
 "coder" runs from .pi/agents/coder.md; /home/you/.pi/agent/agents/coder.md defines another "coder", which scope "user" runs.

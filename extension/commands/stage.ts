@@ -19,7 +19,7 @@ import { loadFlows, watched } from "../command.ts";
 import type { Deps } from "../deps.ts";
 import type { CommandCtx } from "../pi.ts";
 import { asText, failure, resumeHint, shown } from "./answer.ts";
-import { launch, launchable, notLaunched } from "./launch.ts";
+import { agentsOf, launch, launchable, notLaunched } from "./launch.ts";
 
 /** What a step turned out to name, checked to run here. Resolved before anything is spawned. */
 export type Target = { kind: "flow"; run: CheckedRun } | { kind: "agent"; agent: Agent };
@@ -69,6 +69,11 @@ export async function resolveTarget(name: string, forceAgent: boolean, ctx: Comm
 	if (!flow.ok) throw new Error(notLaunched("step", name, flow, ctx.cwd));
 	if (agent) ctx.ui.notify(`step: \`${name}\` is both a flow and an agent - running the flow, --agent runs the other`, "info");
 	return { kind: "flow", run: flow.run };
+}
+
+/** Every agent `target` runs. */
+export function agentsIn(target: Target): Agent[] {
+	return target.kind === "flow" ? agentsOf(target.run.flow) : [target.agent];
 }
 
 /**

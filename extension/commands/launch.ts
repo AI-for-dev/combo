@@ -14,6 +14,7 @@ import {
 	checkRun,
 	gitPort,
 	runFlow,
+	type Agent,
 	type CheckedFlow,
 	type CheckedRun,
 	type Fault,
@@ -43,6 +44,11 @@ export async function launchable(name: string, catalogue: FlowCatalogue, ctx: La
 	if (!flow.ok) return { ok: false, stage: "flow", faults: flow.faults };
 	const staged = await checkRun(flow.flow, { cwd: ctx.cwd, ports: portsOf(ctx), somebodyThere: somebodyThere(ctx) });
 	return staged.ok ? staged : { ok: false, stage: "run", faults: staged.faults };
+}
+
+/** Every agent `flow` runs, those of the flows it calls included. */
+export function agentsOf(flow: CheckedFlow): Agent[] {
+	return flow.sources.agents.map(({ agent }) => agent);
 }
 
 /**

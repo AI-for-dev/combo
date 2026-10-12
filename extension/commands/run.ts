@@ -31,7 +31,8 @@ import { parseFlags } from "../flags.ts";
 import { sessionDoors, somebodyThere, type CommandCtx, type PiApi } from "../pi.ts";
 import { answer, shown } from "./answer.ts";
 import { showFlows } from "./flows.ts";
-import { launch, launchable, notLaunched, portsOf, refusal, underPlan, type Launched } from "./launch.ts";
+import { warnShadows } from "../scope.ts";
+import { agentsOf, launch, launchable, notLaunched, portsOf, refusal, underPlan, type Launched } from "./launch.ts";
 
 /** What `/run` is given on the line besides the flow and its input. */
 type Settings = { readonly model?: string; readonly timeoutMs?: number };
@@ -73,6 +74,7 @@ export async function runCommand(args: string, ctx: CommandCtx, injected: Messag
 async function start(name: string, input: string, settings: Settings, ctx: CommandCtx, deps: Deps, doors: MessageDeps): Promise<FlowResult | undefined> {
 	const flow = await launchable(name, loadFlows(ctx, deps), ctx);
 	if (!flow.ok) return refuse(ctx, notLaunched("run", name, flow, ctx.cwd), "error");
+	warnShadows(agentsOf(flow.run.flow), ctx, deps.loadAgents);
 	if (input === "") {
 		// A flow with nothing to work on spawns agents that read a blank
 		// request and answer about nothing, which costs real tokens to discover.

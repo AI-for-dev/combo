@@ -13,11 +13,11 @@
  * answer read as a right one.
  */
 
-import { createRunDir, loadFlowCatalogue, progressLine } from "../src/index.ts";
-import { flowAnswer, launch, launchable, notLaunched } from "./commands/index.ts";
+import { createRunDir, loadAgents, loadFlowCatalogue, progressLine } from "../src/index.ts";
+import { agentsOf, flowAnswer, launch, launchable, notLaunched } from "./commands/index.ts";
 import type { Details, ExecuteDeps, ToolOutput } from "./execute.ts";
 import { FLOW_FIELDS, type Params } from "./params.ts";
-import { DEFAULT_SCOPE } from "./scope.ts";
+import { DEFAULT_SCOPE, warned, warnShadows } from "./scope.ts";
 
 /** What `flow` mode takes: `flow`, what it reads beside it, and `mode` when it says `flow`. */
 const TAKEN: readonly (keyof Params)[] = ["mode", "flow", ...FLOW_FIELDS];
@@ -38,9 +38,11 @@ export async function executeFlow(params: Params, deps: ExecuteDeps): Promise<To
 	if (!task?.trim()) throw new Error(`subagent: say what \`${name}\` should work on, in \`task\``);
 
 	const ctx = { cwd: deps.cwd ?? process.cwd(), mode: deps.mode, ui: deps.ui, signal: deps.signal };
-	const catalogue = (deps.loadFlowCatalogue ?? loadFlowCatalogue)({ cwd: ctx.cwd, scope: params.scope ?? DEFAULT_SCOPE, builtin: true });
+	const scope = params.scope ?? DEFAULT_SCOPE;
+	const catalogue = (deps.loadFlowCatalogue ?? loadFlowCatalogue)({ cwd: ctx.cwd, scope, builtin: true });
 	const flow = await launchable(name, catalogue, ctx);
 	if (!flow.ok) throw new Error(notLaunched("subagent", name, flow, ctx.cwd));
+	const warning = scope === "both" ? warnShadows(agentsOf(flow.run.flow), ctx, deps.loadAgents ?? loadAgents) : undefined;
 
 	const runDir = (deps.runDir ?? createRunDir)();
 	const result = await launch(ctx, deps, flow.run, task, {
@@ -56,5 +58,5 @@ export async function executeFlow(params: Params, deps: ExecuteDeps): Promise<To
 	});
 	const { output, end, live } = flowAnswer(ctx, flow.run.flow, runDir, result);
 	const details: Details = { mode: "flow", subagents: [], wallMs: result.usage.wallMs, runDir, live, end };
-	return { content: [{ type: "text", text: [output.trim(), end].filter(Boolean).join("\n\n") }], details };
+	return { content: [{ type: "text", text: warned([output.trim(), end].filter(Boolean).join("\n\n"), warning) }], details };
 }
