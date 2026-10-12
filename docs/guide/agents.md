@@ -71,7 +71,7 @@ loadAgents({ scope: "both", builtin: true });
 It is off by default for scripts on purpose: asking for "the user's agents" must
 not hand you ours as well.
 
-**Project agents are never loaded by default**, and that is a security boundary
+**`loadAgents()` never loads project agents by default**, and that is a security boundary
 rather than a preference: `.pi/agents/` is repository-controlled content, so its
 instructions are third-party instructions. Asking for them is one word; getting
 them by surprise is not acceptable.
@@ -98,8 +98,6 @@ user · /home/you/.pi/agent/agents
 builtin · /repo/agents
   coder        Implements a change, and applies review remarks across iterations
   reviewer     Reviews code and returns at most five actionable remarks
-
-A project agent needs scope "project" or "both" from the subagent tool. /run and /step load all three.
 ```
 
 Grouped by where each definition came from, most specific first, because that is

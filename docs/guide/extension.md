@@ -27,15 +27,24 @@ field's description in the schema ends with the modes that read it, so a model
 knows which fields a mode will ignore. The
 [cheatsheet](../reference/cheatsheet.md#the-subagent-tool) has the table.
 
-Agents come from `~/.pi/agent/agents/` by default. The demo agents of this
-repository live in `.pi/agents/`, so ask for them explicitly:
+Agents come from the repository's `.pi/agents/`, from `~/.pi/agent/agents/`
+and from the package, like `/run` and `/step`. A name defined in several places
+runs the repository's definition:
 
 ```
-> use subagent with scope "project" and agent "scout" to find the auth code
+> use subagent with agent "scout" to find the auth code
 ```
 
-That is deliberate: project agents are repository-controlled content, so they are
-never loaded by default. See [Agents](agents.md).
+When the repository's agent hides one of yours, the call still runs it, and a
+warning names the other file, for you and for the model:
+
+```
+"coder" runs from .pi/agents/coder.md; /home/you/.pi/agent/agents/coder.md defines another "coder", which scope "user" runs.
+```
+
+`scope: "user"` leaves the repository's agents out, and `scope: "project"`
+loads only them. A repository's agents are its committers' instructions: read
+a clone's `.pi/agents/` before you run anything in it. See [Agents](agents.md).
 
 Only the model calls the tool. With pi's `codemode` tool turned on, a script
 sees every other tool but not this one, so it cannot start runs in a loop
@@ -70,7 +79,7 @@ Error: subagent: `flow` runs a flow as its file describes it, and takes only `ta
 ```
 
 The flows come from the same places as the agents: the package's own and
-`~/.pi/agent/flows/`, and `.pi/flows/` with `scope: "project"` or `"both"`.
+`~/.pi/agent/flows/`, and `.pi/flows/` unless `scope` is `"user"`.
 
 `/interview` writes its transcript into a `runs/<timestamp>/` folder of its own.
 That folder is made **before** the first question rather than after the last,

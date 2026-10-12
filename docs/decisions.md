@@ -3936,11 +3936,21 @@ You review the code produced and return at most 5 remarks…
 - `lifetime` and `openInHerdr` in the frontmatter are only **defaults**: an
   explicit call always wins. Declaring `openInHerdr: true` on an agent is often
   what you want - a scout is worth watching whoever calls it.
-- Project agents (`.pi/agents/`) are **repository-controlled** content: loaded
-  only on explicit request (`scope: "project" | "both"`), never by default. Do
-  not relax that rule "to keep things simple". This repository's own demo agents
-  live in `agents/` and are symlinked into `.pi/agents/`, so the extension can
-  find them - with an explicit scope, like anyone else's.
+- Project agents (`.pi/agents/`) are **repository-controlled** content:
+  `loadAgents()` loads them only on explicit request (`scope: "project" |
+  "both"`), never by default. Do not relax that rule "to keep things simple".
+- **Reversed for the extension: the `subagent` tool's default scope is
+  `"both"`**, like `/run` and `/step`. With `"user"` as its default, a call
+  without `scope` ran the built-in agent named like a project one, or answered
+  "unknown agent" while `/agents` listed it, and nothing in either result
+  named the scope. Measured: a project `coder` with no `bash` was replaced by
+  the built-in one, and with `explorer` the call failed on `mustCallTool`,
+  which points away from the cause. The person working in a repository put its
+  agents there to be used, so the repository's definition now runs. When it
+  hides one in `~/.pi/agent/agents/`, the call warns, in pi and in the text
+  the model reads, and names the scope that runs the other: the user's own
+  definition was written on purpose too. Hiding a built-in one says nothing,
+  since replacing the shipped agents is what `.pi/agents/` is for.
 - **An empty agent list is almost always a scope problem, not a typo**, so
   `findAgent` says so. Given the old "Loaded agents: none", a model concluded the
   repository had no agent definitions at all and started offering to write some.

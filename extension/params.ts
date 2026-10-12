@@ -126,7 +126,7 @@ export const Schema = Type.Object({
 	),
 	timeoutMs: Type.Optional(Type.Number({ description: describe("timeoutMs", "Deadline per turn. No default; set it for long tasks.") })),
 	openInHerdr: Type.Optional(Type.Boolean({ description: describe("openInHerdr", "Give each subagent its own herdr split.") })),
-	scope: oneOf(SCOPES, describe("scope", '"user" (default), "project" or "both".')),
+	scope: oneOf(SCOPES, describe("scope", '"both" (default), "user" or "project". With "both", the repository\'s agent wins a name.')),
 	reduceWith: Type.Optional(Type.String({ description: describe("reduceWith", "Agent that synthesises the results into one answer.") })),
 	herdrAll: Type.Optional(
 		Type.Boolean({ description: describe("herdrAll", "Give every subagent of this call its own herdr split, not only the ones that asked.") }),

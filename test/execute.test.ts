@@ -17,6 +17,7 @@ import { executeSubagent, textForModel } from "../extension/execute.ts";
 import { paintWidget, STATUS } from "../extension/ui/run.ts";
 import type { SubagentEvent } from "../src/events.ts";
 import type { Details } from "../extension/execute.ts";
+import type { Agent } from "../src/agent.ts";
 import { SUBAGENT_TOOL } from "../src/delegate.ts";
 import { callTool } from "./fixtures/call-tool.ts";
 import { fakeSpawn, offeredTools, testAgent } from "./fixtures/fake-subagent.ts";
@@ -185,18 +186,59 @@ describe("executeSubagent", () => {
 		);
 	});
 
-	test("the scope is passed on, so project agents stay opt-in", async () => {
+	test("an explicit scope is passed on, and none loads the repository's agents too", async () => {
 		const seen: unknown[] = [];
 		const recordScope = (options: unknown) => (seen.push(options), agents);
 		const fake = fakeSpawn();
-		await executeSubagent(
-			{ agent: "scout", task: "x", scope: "both" },
-			deps({ spawn: fake.spawn, loadAgents: recordScope }),
-		);
+		await executeSubagent({ agent: "scout", task: "x", scope: "user" }, deps({ spawn: fake.spawn, loadAgents: recordScope }));
+		await executeSubagent({ agent: "scout", task: "x" }, deps({ spawn: fake.spawn, loadAgents: recordScope }));
 		// `builtin: true` is not part of the scope question and is never optional:
 		// without it the tool only works where the definitions were copied by hand.
 		// A scope the schema does not name never reaches this far: pi refuses it.
-		assert.deepEqual(seen, [{ cwd: undefined, scope: "both", builtin: true }]);
+		assert.deepEqual(seen.slice(0, 2), [
+			{ cwd: undefined, scope: "user", builtin: true },
+			{ cwd: undefined, scope: "both", builtin: true },
+		]);
+	});
+
+	describe("a project agent that hides one of the user's", () => {
+		const projectCoder = testAgent("coder", { source: "project", filePath: path.join("/repo", ".pi", "agents", "coder.md") });
+		const userCoder = testAgent("coder", { source: "user", filePath: "/home/you/.pi/agent/agents/coder.md" });
+		const roster = { both: [projectCoder, scout], user: [userCoder, scout] };
+
+		/** Runs `params` on `roster`, and says what spawned and what pi was told. */
+		async function run(params: Record<string, unknown>, loaded: Record<string, Agent[]> = roster) {
+			const fake = fakeSpawn();
+			const spawned: string[] = [];
+			const notes: [string, string | undefined][] = [];
+			const spawn: typeof fake.spawn = (agent, options) => (spawned.push(agent.filePath), fake.spawn(agent, options));
+			const ui = { ...fakeUi().ui, notify: (message: string, type?: string) => void notes.push([message, type]) };
+			const output = await executeSubagent(
+				{ task: "x", ...params },
+				deps({ spawn, ui, cwd: "/repo", loadAgents: (options: { scope: string }) => loaded[options.scope] ?? [] }),
+			);
+			return { spawned, notes, text: say(output) };
+		}
+
+		const WARNING = '"coder" runs from .pi/agents/coder.md; /home/you/.pi/agent/agents/coder.md defines another "coder", which scope "user" runs.';
+
+		test("runs, and the person and the model are both told the other one is there", async () => {
+			const { spawned, notes, text } = await run({ steps: ["scout", "coder"] });
+			assert.deepEqual(spawned, [scout.filePath, projectCoder.filePath]);
+			assert.deepEqual(notes, [[WARNING, "warning"]]);
+			assert.ok(text.endsWith(`\n\nWarning: ${WARNING}`));
+		});
+
+		test("says nothing when it hides only a built-in one, or is not named", async () => {
+			assert.deepEqual((await run({ agent: "coder" }, { both: roster.both, user: [scout] })).notes, []);
+			assert.deepEqual((await run({ agent: "scout" })).notes, []);
+		});
+
+		test("gives way to the user's under scope \"user\", with nothing to warn about", async () => {
+			const { spawned, notes } = await run({ agent: "coder", scope: "user" });
+			assert.deepEqual(spawned, [userCoder.filePath]);
+			assert.deepEqual(notes, []);
+		});
 	});
 
 	test("an unknown agent is a caller error, and still clears the widget", async () => {

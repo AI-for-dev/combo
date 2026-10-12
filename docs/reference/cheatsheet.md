@@ -74,7 +74,7 @@ The model calls it; you ask for it in plain words.
 
 ```text
 > use subagent to review src/usage.ts with coder then reviewer, looping until LGTM
-> use subagent with scope "project" and agent "scout" to find the auth code
+> use subagent with agent "scout" to find the auth code
 > use subagent to run the interview flow on "add a --verbose flag"
 ```
 

@@ -62,7 +62,6 @@ user · /home/you/.pi/agent/agents
   (none)
 builtin · shipped with combo
   (none)
-A project agent needs scope "project" or "both" from the subagent tool. /run and /step load all three.
 ```
 
 Eleven agents, grouped by where their definition came from, most specific first.

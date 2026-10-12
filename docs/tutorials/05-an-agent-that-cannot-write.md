@@ -69,13 +69,10 @@ user · /home/you/.pi/agent/agents
   (none)
 builtin · shipped with combo
   (none)
-
-A project agent needs scope "project" or "both" from the subagent tool. /run and /step load all three.
 ```
 
-It is listed under `project` because it lives in the repository, and the last
-line is the rule that group has and the other two do not. Hence the scope in
-the call:
+It is listed under `project` because it lives in the repository. The call
+below names that scope, so only the repository's agents are loaded:
 
 ```
 > use subagent with scope "project" and agent "test-reader" to read
@@ -84,13 +81,12 @@ the call:
 
 A repository's `.pi/agents/` is repository-controlled content. Its prompts are
 instructions written by whoever committed them, and a clone you just pulled is
-a stranger's file until you have read it. So project agents are **never loaded
-by default**: the `subagent` tool reads the shipped agents and yours from
-`~/.pi/agent/agents/`, and a repository's only when the call says `scope:
-"project"` or `"both"`. `/run` and `/step` load all three, because a person
-typing a command inside a repository is the explicit request. Asking is one
-word. Being handed a stranger's instructions by surprise is not acceptable,
-and the boundary is a security decision rather than a preference.
+a stranger's file until you have read it. The library's `loadAgents()` never
+loads them unless asked. The extension does: `/run`, `/step` and the `subagent`
+tool load the shipped agents, yours from `~/.pi/agent/agents/` and the
+repository's, because a person working inside a repository put its agents there
+to be used. Read a clone's `.pi/agents/` before you run anything in it, and
+pass `scope: "user"` to keep its agents out of a call.
 
 It read one file, in four seconds on a small model, and came back with a line
 per test:

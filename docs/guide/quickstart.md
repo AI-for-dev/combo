@@ -110,12 +110,12 @@ Then, in the TUI:
 
 ```
 > /run build add a slugify helper with tests
-> use subagent with scope "project" and agent "scout" to find the auth code
+> use subagent with agent "scout" to find the auth code
 ```
 
-The demo agents of this repository live in `.pi/agents/`, which is
-repository-controlled content and therefore never loaded by default - hence the
-explicit `scope`. See [Agents](agents.md) and [Extension](extension.md).
+The tool loads the repository's `.pi/agents/` beside yours and the shipped
+ones, and the repository's definition wins a name. See [Agents](agents.md) and
+[Extension](extension.md).
 
 ## Next
 
