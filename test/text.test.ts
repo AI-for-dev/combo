@@ -31,6 +31,10 @@ describe("tail", () => {
 		assert.equal(tail("  abcdef  ", 3), "[…3 bytes cut]\ndef");
 		assert.equal(tail("  abc  ", 3), "abc");
 	});
+
+	test("past what a reader let go, a blank at the start is mid-text, and counts", () => {
+		assert.equal(tail(" abcdef\n", 3, 10), "[…14 bytes cut]\ndef");
+	});
 });
 
 describe("firstLine", () => {

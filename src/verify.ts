@@ -78,9 +78,11 @@ export function bashCheck(bash = "bash"): CheckScript {
 			if (signal?.aborted) onAbort();
 			const take = (chunk: string) => {
 				kept += chunk;
-				if (kept.length > 2 * REPORT_BYTES) {
-					dropped += kept.length - REPORT_BYTES;
-					kept = kept.slice(-REPORT_BYTES);
+				// Twice the report is kept, not the report: `tail` trims the end's
+				// whitespace, and that must not eat into what the report shows.
+				if (kept.length > 4 * REPORT_BYTES) {
+					dropped += kept.length - 2 * REPORT_BYTES;
+					kept = kept.slice(-2 * REPORT_BYTES);
 				}
 			};
 			for (const stream of [child.stdout, child.stderr]) stream.setEncoding("utf8").on("data", take);

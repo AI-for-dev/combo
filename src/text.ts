@@ -54,7 +54,8 @@ export function head(text: string, max: number, what = "text"): string {
  * of a stream already let go before `text`, so the mark says the whole.
  */
 export function tail(text: string, max: number, dropped = 0): string {
-	const trimmed = text.trim();
+	// Past what was dropped, `text` starts mid-output: a blank there is not the output's edge.
+	const trimmed = dropped === 0 ? text.trim() : text.trimEnd();
 	const cut = dropped + Math.max(0, trimmed.length - max);
 	return cut === 0 ? trimmed : `[…${cut} bytes cut]\n${trimmed.slice(-max)}`;
 }
