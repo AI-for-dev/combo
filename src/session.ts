@@ -111,6 +111,12 @@ export type TurnControl = {
 	signal: AbortSignal;
 	/** Each event of the turn a listener has a use for, already read. */
 	onStreamed?: (event: Streamed) => void;
+	/**
+	 * The level this turn thinks at. Absent: the session's own, so a level one
+	 * turn asked for never leaks into the next. A session pinned by its
+	 * caller's model keeps its own whatever a turn asks.
+	 */
+	thinking?: ThinkingLevel;
 };
 
 /** One turn, as the session read it. */
@@ -153,6 +159,10 @@ export type PiSession = {
 	readonly messages: AgentMessage[];
 	/** The model pi resolved, once it has. */
 	readonly model?: { provider?: string; id?: string };
+	/** The level the next prompt thinks at, clamped to what the model supports. */
+	readonly thinkingLevel: ThinkingLevel;
+	/** Clamps `level` to the model's, and writes the change into the transcript. */
+	setThinkingLevel(level: ThinkingLevel): void;
 };
 
 /**
@@ -284,11 +294,14 @@ export function lastTurn(messages: readonly AgentMessage[]): TurnReading {
  * billed to the compaction entry and emits no message, and pi compacts inside
  * `prompt()`. Only the stats see everything pi billed.
  */
-export function sessionPort(pi: PiSession): SessionPort {
+export function sessionPort(pi: PiSession, pinned = false): SessionPort {
+	const own = pi.thinkingLevel;
 	return {
 		model: modelLabel(pi.model),
 
-		async ask(text, { signal, onStreamed }) {
+		async ask(text, { signal, onStreamed, thinking }) {
+			const level = pinned ? own : (thinking ?? own);
+			if (pi.thinkingLevel !== level) pi.setThinkingLevel(level);
 			const before = readUsage(pi);
 			const messages: AgentMessage[] = [];
 			const unsubscribe = pi.subscribe((event) => {
@@ -400,6 +413,12 @@ export type CreateSessionOptions = {
 	 * readable in its own definition.
 	 */
 	customTools?: ToolDefinition[];
+	/**
+	 * `model` is the caller's override, not the agent's own. A thinking level
+	 * its suffix names is then the session's for every turn, over the one a
+	 * turn asks for: the run's `--model` outranks a flow node's `thinking:`.
+	 */
+	overrides?: boolean;
 };
 
 /** Session factory. The injection point for tests. */
@@ -420,10 +439,12 @@ export const createDefaultSession: CreateSession = async (agent, options) => {
 	const tools = toolsOf(agent);
 	const modelRuntime = await ModelRuntime.create();
 
+	const { model, thinkingLevel } = resolveModel(agent, modelRuntime, options.model);
 	const { session } = await createAgentSession({
 		cwd,
 		modelRuntime,
-		...resolveModel(agent, modelRuntime, options.model),
+		model,
+		thinkingLevel,
 		tools,
 		customTools: options.customTools,
 		// Its own prompt, then the two standing facts it cannot work without:
@@ -436,7 +457,7 @@ export const createDefaultSession: CreateSession = async (agent, options) => {
 		settingsManager: SettingsManager.inMemory(subagentSettings(SettingsManager.create(cwd, getAgentDir()))),
 	});
 
-	return sessionPort(session);
+	return sessionPort(session, options.overrides === true && thinkingLevel !== undefined);
 };
 
 /** pi's settings, as `settings.json` writes them. */
@@ -587,13 +608,22 @@ export async function checkModel(pattern: string): Promise<void> {
 	if (refused !== undefined) throw new Error(refused);
 }
 
+/** How hard a model thinks before it answers, as pi names the levels. */
+export type ThinkingLevel = NonNullable<ResolveCliModelResult["thinkingLevel"]>;
+
+/** Every level pi takes: the record stops typechecking when pi adds or drops one. */
+const LEVELS: Record<ThinkingLevel, true> = { off: true, minimal: true, low: true, medium: true, high: true, xhigh: true, max: true };
+
+/** The thinking levels a file may name. */
+export const THINKING_LEVELS = Object.keys(LEVELS) as readonly ThinkingLevel[];
+
 /**
  * A model pi resolved, with the thinking level a `:thinking` suffix named, or
  * why there is none. pi parses the suffix but does not apply it: whoever opens
  * the session must pass it on, or the level silently falls back to pi's settings.
  */
 export type ResolvedPattern =
-	| { model: NonNullable<ResolveCliModelResult["model"]>; thinkingLevel?: ResolveCliModelResult["thinkingLevel"]; refused?: undefined }
+	| { model: NonNullable<ResolveCliModelResult["model"]>; thinkingLevel?: ThinkingLevel; refused?: undefined }
 	| { model?: undefined; thinkingLevel?: undefined; refused: string };
 
 /**

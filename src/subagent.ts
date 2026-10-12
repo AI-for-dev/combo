@@ -17,7 +17,7 @@ import { exportBaseName, exportSession, type SessionExport } from "./measure/ind
 import { inTheLanguageOfTheWork } from "./language.ts";
 import { registerMirror } from "./mirror.ts";
 import { failed, succeeded, type Result } from "./result.ts";
-import { createDefaultSession, type CreateSession, type ToolDefinition, type Turn } from "./session.ts";
+import { createDefaultSession, type CreateSession, type ThinkingLevel, type ToolDefinition, type Turn } from "./session.ts";
 import { accumulate, emptyUsage, type Usage } from "./usage.ts";
 
 /**
@@ -138,6 +138,8 @@ export type AskOptions = {
 	 * something stops it. Nothing will, unless it is this.
 	 */
 	timeoutMs?: number;
+	/** The level this turn thinks at. Absent: the subagent's own, from its model's suffix or pi's settings. */
+	thinking?: ThinkingLevel;
 };
 
 /** A living subagent. Its owner is whoever called {@link spawn}. */
@@ -204,6 +206,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 		cwd: options.cwd,
 		sessionDir,
 		model: options.model ?? agent.model,
+		overrides: options.model !== undefined,
 		customTools: toolsOffered(options.customTools, id),
 	});
 
@@ -306,6 +309,7 @@ export async function spawn(agent: Agent, options: SpawnOptions = {}): Promise<S
 				said = reached
 					? await session.ask(inTheLanguageOfTheWork(task), {
 							signal,
+							thinking: askOptions.thinking,
 							onStreamed: (seen) => bus.emit(seen.type === "text" ? { type: "text", id, delta: seen.delta } : { ...seen, id }),
 						})
 					: refused(usage);

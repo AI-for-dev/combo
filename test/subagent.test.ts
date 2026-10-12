@@ -92,6 +92,27 @@ describe("spawn", () => {
 		assert.equal(await asked(testAgent("scout"), { model: "local/override" }), "local/override");
 	});
 
+	test("only the caller's own model pins the thinking level: the frontmatter's leaves it to each turn", async () => {
+		const overrides = async (agent: Parameters<typeof spawn>[0], options: Parameters<typeof spawn>[1] = {}) => {
+			const factory = fakeSessionFactory();
+			await spawn(agent, { ...options, createSession: factory.createSession });
+			return factory.requested[0]?.options.overrides;
+		};
+
+		const pinned = testAgent("scout", { model: "local/frontmatter:low" });
+		assert.equal(await overrides(pinned), false);
+		assert.equal(await overrides(pinned, { model: "local/override:low" }), true);
+	});
+
+	test("a turn passes its thinking level on to the session", async () => {
+		const factory = fakeSessionFactory([{ text: "a" }, { text: "b" }]);
+		const subagent = await spawn(scout, { createSession: factory.createSession });
+		await subagent.ask("one", { thinking: "high" });
+		await subagent.ask("two");
+
+		assert.deepEqual(factory.created[0]?.thinking, ["high", undefined]);
+	});
+
 	test("ids are stable and per-agent", async () => {
 		const a = await spawn(scout, { createSession: async () => fakeSession([]) });
 		const b = await spawn(scout, { createSession: async () => fakeSession([]) });
