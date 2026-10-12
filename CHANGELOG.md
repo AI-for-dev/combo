@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0](https://github.com/AI-for-dev/combo/compare/v0.5.0...v0.6.0) (2026-10-12)
+
+
+### Features
+
+* **extension:** write a hand-walked chain into one page with /chain export ([#223](https://github.com/AI-for-dev/combo/issues/223)) ([06f599f](https://github.com/AI-for-dev/combo/commit/06f599fec0d925f29d97882fd16b8449f731d85e))
+
+
+### Bug Fixes
+
+* **extension:** warn when a flow, /run or /step runs a project agent that hides the user's ([#222](https://github.com/AI-for-dev/combo/issues/222)) ([e1e7403](https://github.com/AI-for-dev/combo/commit/e1e7403513cc14b244c4fbcfd8a019798a25174c))
+
 ## [0.5.0](https://github.com/AI-for-dev/combo/compare/v0.4.0...v0.5.0) (2026-10-12)
 
 
