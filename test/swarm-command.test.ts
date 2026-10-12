@@ -272,15 +272,15 @@ describe("what a swarm reports", () => {
 		}) as SwarmResult;
 
 	test("the line says how it ended, and reaching the cap is not converging", () => {
-		const line = swarmLine("member", done({ members: [{ id: "member#1", agent: "member", result: { agent: "member", output: "x", messages: [], usage: emptyUsage(), ok: true } }] }));
+		const line = swarmLine("member", done({ members: [{ id: "member#1", agent: "member", result: { agent: "member", output: "x", messages: [], usage: emptyUsage(), ok: true } }] }), "runs/x/1-member");
 
-		assert.match(line, /1 member, 2 rounds, 6 turns/);
+		assert.match(line, /1 member, 2 rounds, 6 turns, in runs\/x\/1-member/);
 		assert.match(line, /stopped by rounds/);
 		assert.match(line, /nothing posted/);
 	});
 
 	test("a claim the swarm had to give back for a member is worth saying", () => {
-		const line = swarmLine("member", done({ claims: [{ key: "a.ts", heldBy: "member#2", released: true }] }));
+		const line = swarmLine("member", done({ claims: [{ key: "a.ts", heldBy: "member#2", released: true }] }), "runs/x/1-member");
 
 		assert.match(line, /1 claim released for a member that had stopped/);
 	});

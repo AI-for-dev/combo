@@ -201,6 +201,7 @@ extension/          the pi extension: index.ts (tool, renderers), execute.ts
                     scope.ts (its default scope, and what a project agent hides),
                     and the floor the commands stand on:
                     pi.ts deps.ts command.ts flags.ts params.ts relay.ts
+                    chain-export.ts (`/chain export`, the chain as one page),
                     notice.ts (a notice fitted to the terminal's width),
                     keys.ts (the keys a run listens to, rebound in pi's
                     keybindings.json)

@@ -24,7 +24,8 @@ import { checked, loadRoster, refuse } from "../command.ts";
 import { sessionDoors, type CommandCtx, type PiApi } from "../pi.ts";
 import { resolved, type StepDeps } from "../deps.ts";
 import { parseLeadingFlags } from "../flags.ts";
-import { RESULT_MESSAGE, type ResultDetails } from "./answer.ts";
+import { RESULT_MESSAGE, shown, type ResultDetails } from "./answer.ts";
+import { writeChain } from "../chain-export.ts";
 import { beginStep, chainInput, chainLines, currentChain, finishStep, forgetChain, stepAnswer, stepFrom, type RelayStep } from "../relay.ts";
 import { resolveTarget, runStage } from "./stage.ts";
 
@@ -41,7 +42,7 @@ export default function registerStepCommands(pi: PiApi) {
 	});
 
 	pi.registerCommand("chain", {
-		description: "List the steps walked so far, or `reset` to start a new chain",
+		description: "List the steps walked so far, `export` to write them into one page, or `reset` to start a new chain",
 		handler: async (args, ctx: CommandCtx) => {
 			showChain(args, ctx);
 		},
@@ -109,11 +110,11 @@ export async function runStep(args: string, ctx: CommandCtx, injected: StepDeps)
 
 	const { output, usage } = done;
 	const step = finishStep(begun, { name, kind: target.kind, instruction, from: previous?.id, output, usage }, injected.appendEntry);
-	ctx.ui.notify(`${step.id}: ${plural(usage.turns, "turn")} - /step <next> carries it on, /quote puts it in this conversation`, "info");
+	ctx.ui.notify(`${step.id}: ${plural(usage.turns, "turn")}, in ${shown(ctx, step.dir)} - /step <next> carries it on, /quote puts it in this conversation`, "info");
 	return step;
 }
 
-/** `/chain` - the steps walked so far. `/chain reset` starts a new one. */
+/** `/chain` - the steps walked so far. `/chain export` writes them into one page, `/chain reset` starts a new chain. */
 export function showChain(args: string, ctx: CommandCtx): string[] {
 	const word = args.trim().toLowerCase();
 	if (word === "reset") {
@@ -122,8 +123,19 @@ export function showChain(args: string, ctx: CommandCtx): string[] {
 		ctx.ui.notify(lines.join("\n"), "info");
 		return lines;
 	}
+	if (word === "export") {
+		const relay = currentChain();
+		const walked = relay !== undefined && relay.steps.length > 0;
+		const lines = [
+			walked
+				? `chain: ${plural(relay.steps.length, "step")} written to ${shown(ctx, writeChain(relay))}`
+				: "chain: nothing to export yet - /step <flow|agent> <task> starts a chain",
+		];
+		ctx.ui.notify(lines.join("\n"), walked ? "info" : "warning");
+		return lines;
+	}
 	if (word) {
-		const lines = [`chain: say nothing to list the steps, or reset to start a new chain`];
+		const lines = [`chain: say nothing to list the steps, export to write them into one page, or reset to start a new chain`];
 		ctx.ui.notify(lines.join("\n"), "warning");
 		return lines;
 	}

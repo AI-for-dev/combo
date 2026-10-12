@@ -47,6 +47,7 @@ So `/step` does the opposite on that one point, and nothing else:
 | `/step --model <pattern>` | This step only. Plan on a large model, code on a small one. |
 | `/step --agent <name>` | When a flow and an agent share a name, run the agent. |
 | `/chain` | The steps walked so far, what each carried, and where they exported. |
+| `/chain export` | Write the chain into `chain.md`, in its folder. |
 | `/chain reset` | Drop it. The next `/step` starts a new chain, in a new folder. |
 | `/quote [id]` | Put one step into this conversation, attributed. Default: the last. |
 
@@ -94,8 +95,15 @@ rather than sent to answer about nothing.
 
 One `runs/<timestamp>/` for the chain, one subfolder per step -
 `1-explore/`, `2-planner/` - each with that step's transcripts and its
-`usage.json`, exactly as [a run exports one](export.md). `/chain` names the
-folder and totals the turns.
+`usage.json`, exactly as [a run exports one](export.md). Each step names its
+folder when it ends, and `/chain` names the chain's and totals the turns.
+
+pi's own `/export` shows none of this. A step stays out of the session's
+context, and pi's HTML export leaves out what the context leaves out. Use
+`/chain export` instead. It writes `chain.md` into the chain's folder: the steps
+in order, with what each was asked, what it carried and answered, what it
+cost, and links to its transcripts. Run it again after more steps and it
+rewrites the file.
 
 `/swarm` is a step too, of kind `swarm`: several copies of one agent on one
 goal, recorded like any other so `/chain`, `/quote` and `--from` reach it. See
