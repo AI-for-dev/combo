@@ -74,11 +74,13 @@ export async function runStep(args: string, ctx: CommandCtx, injected: StepDeps)
 	const deps = resolved(injected);
 	const { flags, rest, refused } = parseLeadingFlags(args, ["from", "model"], { switches: ["agent"] });
 	if (refused) return refuse(ctx, `step: ${refused}`, "warning");
-	const [name, ...words] = rest.split(/\s+/).filter(Boolean);
+	// Only the name is a word: the instruction goes on as typed, since a pasted
+	// diff or test log reads by its lines.
+	const name = /^\S*/.exec(rest)?.[0] ?? "";
 	if (!name) {
 		return refuse(ctx, "step: say which flow or agent, for example /step planner three steps at most. /agents lists them", "warning");
 	}
-	const instruction = words.join(" ");
+	const instruction = rest.slice(name.length).trim();
 
 	const agents = loadRoster(ctx, deps);
 	const stage = await checked(ctx, async () => {

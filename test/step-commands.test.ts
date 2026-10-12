@@ -132,6 +132,15 @@ describe("/step", () => {
 		assert.equal(agentAsks[0]?.task, "three steps at most");
 	});
 
+	test("an instruction keeps its lines as typed, the name alone is a word", async () => {
+		const { ctx } = fakeCtx();
+		const { deps: injected, agentAsks } = deps();
+
+		await runStep("reviewer\nthe diff:\n\n  - old\n  + new\n", ctx, injected);
+
+		assert.equal(agentAsks[0]?.task, "the diff:\n\n  - old\n  + new");
+	});
+
 	test("the next step is handed the previous one's output, under the step it came from", async () => {
 		const { ctx } = fakeCtx();
 		const { deps: injected, agentAsks } = deps();
