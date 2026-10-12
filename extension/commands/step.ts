@@ -26,7 +26,8 @@ import { resolved, type StepDeps } from "../deps.ts";
 import { parseLeadingFlags } from "../flags.ts";
 import { RESULT_MESSAGE, type ResultDetails } from "./answer.ts";
 import { beginStep, chainInput, chainLines, currentChain, finishStep, forgetChain, stepAnswer, stepFrom, type RelayStep } from "../relay.ts";
-import { resolveTarget, runStage } from "./stage.ts";
+import { warnShadows } from "../scope.ts";
+import { agentsIn, resolveTarget, runStage } from "./stage.ts";
 
 /** Registers `/step`, `/chain` and `/quote`. */
 export default function registerStepCommands(pi: PiApi) {
@@ -92,6 +93,7 @@ export async function runStep(args: string, ctx: CommandCtx, injected: StepDeps)
 			throw new Error(`step: say what ${name} should do, for example /step ${name} find where usage is measured`);
 		}
 		const target = await resolveTarget(name, flags.agent === "true", ctx, deps, agents);
+		warnShadows(agentsIn(target), ctx, deps.loadAgents);
 		if (flags.model) await deps.checkModel(flags.model);
 		return { target, previous };
 	});

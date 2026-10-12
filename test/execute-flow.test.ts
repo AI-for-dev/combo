@@ -11,6 +11,8 @@ import { describe, test } from "node:test";
 import { initTheme } from "@earendil-works/pi-coding-agent";
 import { executeSubagent, type ExecuteDeps } from "../extension/execute.ts";
 import type { Params } from "../extension/params.ts";
+import type { Agent } from "../src/agent.ts";
+import { testAgent } from "./fixtures/fake-subagent.ts";
 import { plainDirectory } from "./fixtures/repo.ts";
 import { catalogueOf, flowSpawn, flowText, type FlowTurn } from "./fixtures/flow.ts";
 import { testTheme } from "./fixtures/theme.ts";
@@ -25,11 +27,15 @@ const ASKS = flowText('  - id: sure\n    ask: "Go on?"\n    confirm: true\n  - i
 /** A question nobody has to be there for, then an agent reading its answer. */
 const DEFAULTS = flowText('  - id: sure\n    ask: "Go on?"\n    confirm: true\n    default: true\n  - id: answer\n    agent: synthesiser\n    reads: [input, sure]', { answer: "Answer." }, "input: string", "defaults");
 
+/** One agent the repository defines. */
+const MINE = flowText("  - id: work\n    agent: coder\n    reads: [input]", { work: "Work." }, "input: string", "mine");
+
 /** The tool called with `params` in a fresh directory, its subagents playing `turns`, its cards answered `picked`. */
-function call(params: Params, turns: FlowTurn[][] = [], over: { mode?: ExecuteDeps["mode"]; picked?: string } = {}) {
+function call(params: Params, turns: FlowTurn[][] = [], over: { mode?: ExecuteDeps["mode"]; picked?: string; more?: Agent[]; user?: Agent[] } = {}) {
 	const cwd = plainDirectory();
 	const { spawn, created, requested } = flowSpawn(turns);
 	const cards: string[] = [];
+	const notes: [string, string | undefined][] = [];
 	/** The widget as drawn while each card was up. */
 	const behind: string[] = [];
 	let widget: ((tui: unknown, theme: unknown) => { render(width: number): string[] }) | undefined;
@@ -49,20 +55,45 @@ function call(params: Params, turns: FlowTurn[][] = [], over: { mode?: ExecuteDe
 			async input() {
 				return undefined;
 			},
+			notify: (message: string, type?: string) => void notes.push([message, type]),
 		} as ExecuteDeps["ui"],
-		loadFlowCatalogue: () => ({ ...catalogueOf({ two: TWO, asks: ASKS, defaults: DEFAULTS }), cwd }),
+		loadFlowCatalogue: () => ({ ...catalogueOf({ two: TWO, asks: ASKS, defaults: DEFAULTS, mine: MINE }, over.more), cwd }),
+		loadAgents: () => over.user ?? [],
 		spawn,
 		reporter: () => {},
 		runDir: () => path.join(cwd, "runs", "run-1"),
 		tickMs: 0,
 	};
 	const run = () => executeSubagent(params, deps);
-	return { run, cwd, cards, behind, created, requested };
+	return { run, cwd, cards, behind, created, requested, notes };
 }
 
 const answered = (text: string): FlowTurn[] => [{ text }];
 
 describe("subagent, flow mode", () => {
+	test("warns, in pi and to the model, when a repository's agent the flow runs hides one of the user's", async () => {
+		const coder = testAgent("coder", { source: "project", filePath: "/repo/.pi/agents/coder.md" });
+		const user = [testAgent("coder", { source: "user", filePath: "/home/you/.pi/agent/agents/coder.md" })];
+		const { run, cwd, notes } = call({ flow: "mine", task: "q" }, [answered("done")], { more: [coder], user });
+		const output = await run();
+
+		const warning = `"coder" runs from ${path.relative(cwd, coder.filePath)}; /home/you/.pi/agent/agents/coder.md defines another "coder", which scope "user" runs.`;
+		assert.deepEqual(notes, [[warning, "warning"]]);
+		assert.equal(output.content[0]?.text, `done\n\nok · runs/run-1\n\nWarning: ${warning}`);
+	});
+
+	test("says nothing when the flow's agents hide none of the user's, or scope \"project\" left the user's out", async () => {
+		const coder = testAgent("coder", { source: "project", filePath: "/repo/.pi/agents/coder.md" });
+		for (const [params, user] of [
+			[{ flow: "mine", task: "q" }, []],
+			[{ flow: "mine", task: "q", scope: "project" }, [testAgent("coder")]],
+		] as const) {
+			const { run, notes } = call(params, [answered("done")], { more: [coder], user: [...user] });
+			await run();
+			assert.deepEqual(notes, []);
+		}
+	});
+
 	test("runs the flow on the task in a run directory, and the model reads its answer and where it ran", async () => {
 		const { run, cwd, requested } = call({ flow: "two", task: "where is the journal written?", model: "local/one" }, [answered("src/flow/run/journal.ts"), answered("In journal.ts.")]);
 		const output = await run();
@@ -118,7 +149,7 @@ describe("subagent, flow mode", () => {
 			[{ flow: "two", task: "q", lifetime: "workflow", export: true }, /drop `lifetime`, `export`$/],
 			[{ mode: "flow", task: "q" }, /needs `flow`, the name of the flow to run/],
 			[{ flow: "two" }, /say what `two` should work on, in `task`/],
-			[{ flow: "ghost", task: "q" }, /^Error: subagent: `ghost` is unknown; the flows are two, asks, defaults$/],
+			[{ flow: "ghost", task: "q" }, /^Error: subagent: `ghost` is unknown; the flows are two, asks, defaults, mine$/],
 		];
 		for (const [params, refused] of cases) {
 			const { run, requested } = call(params);

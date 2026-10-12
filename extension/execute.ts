@@ -42,7 +42,7 @@ import {
 import { watched } from "./command.ts";
 import { executeFlow } from "./execute-flow.ts";
 import { inferMode, type Mode, type Params } from "./params.ts";
-import { DEFAULT_SCOPE, shadowWarning } from "./scope.ts";
+import { DEFAULT_SCOPE, namedBy, warned, warnShadows } from "./scope.ts";
 import type { ToolDeps } from "./pi.ts";
 
 /** What `renderResult` needs, and nothing the LLM has to read. */
@@ -107,8 +107,7 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 	const load = deps.loadAgents ?? loadAgentsFromDisk;
 	const scope = params.scope ?? DEFAULT_SCOPE;
 	const agents = load({ cwd: deps.cwd, scope, builtin: true });
-	const warning = scope === "both" ? shadowWarning(params, agents, load({ cwd: deps.cwd, scope: "user" }), deps.cwd ?? process.cwd()) : undefined;
-	if (warning) deps.ui?.notify?.(warning, "warning");
+	const warning = scope === "both" ? warnShadows(namedBy(params, agents), { cwd: deps.cwd ?? process.cwd(), ui: deps.ui }, load) : undefined;
 
 	// The directory is created up front: subagents export themselves as they
 	// close, so it has to exist before the first one finishes.
@@ -164,7 +163,7 @@ export async function executeSubagent(params: Params, deps: ExecuteDeps = {}): P
 
 	return {
 		// What the model reads: the outputs, not the chrome.
-		content: [{ type: "text", text: [textForModel(ran.results, ran.converged, ran.iterations), warning && `Warning: ${warning}`].filter(Boolean).join("\n\n") }],
+		content: [{ type: "text", text: warned(textForModel(ran.results, ran.converged, ran.iterations), warning) }],
 		details: { mode, subagents: ran.snapshot.subagents, wallMs: ran.wallMs, converged: ran.converged, iterations: ran.iterations, decision: ran.decision, exportDir },
 	};
 }

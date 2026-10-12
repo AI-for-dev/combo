@@ -16,7 +16,7 @@ export { default as registerFlowsCommand } from "./flows.ts";
 export { default as registerHerdrCommand } from "./herdr.ts";
 export { default as registerInterviewCommand } from "./interview.ts";
 export { flowAnswer, RESULT_MESSAGE, type ResultDetails } from "./answer.ts";
-export { launch, launchable, notLaunched } from "./launch.ts";
+export { agentsOf, launch, launchable, notLaunched } from "./launch.ts";
 export { default as registerRunCommand } from "./run.ts";
 export { default as registerStepCommands } from "./step.ts";
 export { default as registerStopCommand, forgetRun, watchRun } from "./stop.ts";

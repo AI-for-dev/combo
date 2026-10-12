@@ -18,6 +18,8 @@ import { fakeCtx } from "./fixtures/command-ctx.ts";
 import { baseDeps } from "./fixtures/command-deps.ts";
 import { catalogueOf, flowSpawn, flowText, type FlowTurn } from "./fixtures/flow.ts";
 import { plainDirectory, repository } from "./fixtures/repo.ts";
+import { testAgent } from "./fixtures/fake-subagent.ts";
+import type { Agent } from "../src/agent.ts";
 
 initTheme();
 
@@ -31,7 +33,7 @@ const ASKS = flowText('  - id: sure\n    ask: "Go on?"\n    confirm: true', {}, 
 type Sent = Parameters<SendMessage>[0];
 
 /** `/run <args>` in `cwd`, its subagents playing `turns`: what it returned, told and sent, and the widget it drew. */
-async function run(args: string, cwd: string, turns: FlowTurn[][] = [], over: { mode?: CommandCtx["mode"]; model?: string[] } = {}) {
+async function run(args: string, cwd: string, turns: FlowTurn[][] = [], over: { mode?: CommandCtx["mode"]; model?: string[]; more?: Agent[]; user?: Agent[] } = {}) {
 	const { ctx, notes, widgets, said } = fakeCtx();
 	ctx.cwd = cwd;
 	ctx.mode = over.mode ?? "tui";
@@ -40,7 +42,8 @@ async function run(args: string, cwd: string, turns: FlowTurn[][] = [], over: { 
 	let n = fs.existsSync(path.join(cwd, "runs")) ? fs.readdirSync(path.join(cwd, "runs")).length : 0;
 	const deps: MessageDeps = {
 		...baseDeps([]),
-		loadFlowCatalogue: () => ({ ...catalogueOf({ two: TWO, commits: COMMITS, asks: ASKS }), cwd }),
+		loadAgents: () => over.user ?? [],
+		loadFlowCatalogue: () => ({ ...catalogueOf({ two: TWO, commits: COMMITS, asks: ASKS }, over.more), cwd }),
 		removedPipelines: () => [],
 		checkModel: async (pattern) => void over.model?.push(pattern),
 		runDir: () => {
@@ -88,6 +91,16 @@ describe("/run", () => {
 		const drawn = widgets.filter((lines) => lines !== undefined).map((lines) => lines.join("\n").replace(/\x1b\[[0-9;]*m/g, ""));
 		assert.ok(drawn.some((frame) => /● look/.test(frame) && /○ answer/.test(frame)), `the widget draws the plan as it fills:\n${drawn.join("\n--\n")}`);
 		assert.equal(widgets.at(-1), undefined, "the widget goes when the run does");
+	});
+
+	test("warns before it runs when a repository's agent the flow runs hides one of the user's", async () => {
+		const cwd = plainDirectory();
+		const scout = testAgent("scout", { source: "project", filePath: path.join(cwd, ".pi", "agents", "scout.md") });
+		const user = [testAgent("scout", { source: "user", filePath: "/home/you/.pi/agent/agents/scout.md" })];
+		const { notes } = await run("two where is it?", cwd, [answered("a"), answered("b")], { more: [scout], user });
+
+		const warning = '"scout" runs from .pi/agents/scout.md; /home/you/.pi/agent/agents/scout.md defines another "scout", which scope "user" runs.';
+		assert.deepEqual(notes.filter((note) => note.type === "warning"), [{ message: warning, type: "warning" }]);
 	});
 
 	test("the flags may end the line, and an input written in quotes is the text inside", async () => {
