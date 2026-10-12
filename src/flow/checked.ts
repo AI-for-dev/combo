@@ -11,6 +11,7 @@
 
 import type { Agent } from "../agent.ts";
 import type { Choice } from "../ask.ts";
+import type { ThinkingLevel } from "../session.ts";
 import type { Bounds } from "./bounds.ts";
 import type { AskForm } from "./node.ts";
 import type { Condition } from "./condition/index.ts";
@@ -81,6 +82,8 @@ export type CheckedAgentNode = Common & {
 	readonly retry: number;
 	/** The node's own bound on one turn; absent, the flow's or the default, as `turnTimeout` says. */
 	readonly timeoutMs?: number;
+	/** The level its turn thinks at, unless the run's model names one; absent, the subagent's own. */
+	readonly thinking?: ThinkingLevel;
 };
 
 /** A `choice`, its conditions compiled. */

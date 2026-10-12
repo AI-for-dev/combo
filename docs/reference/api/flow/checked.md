@@ -37,6 +37,8 @@ export type CheckedAgentNode = Common & {
 	readonly retry: number;
 	/** The node's own bound on one turn; absent, the flow's or the default, as `turnTimeout` says. */
 	readonly timeoutMs?: number;
+	/** The level its turn thinks at, unless the run's model names one; absent, the subagent's own. */
+	readonly thinking?: ThinkingLevel;
 };
 ```
 

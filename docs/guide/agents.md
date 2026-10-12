@@ -338,7 +338,8 @@ The thinking level rides on the model as a suffix,
 `anthropic/claude-sonnet-5:high` (`off`, `minimal`, `low`, `medium`, `high`,
 `xhigh`, `max`). It works at every level of the ladder, `--model` included.
 With no suffix, pi's settings choose the level (`modelThinkingLevels`,
-`defaultThinkingLevel`).
+`defaultThinkingLevel`). A flow sets it per node with
+[`thinking:`](flows.md#agent).
 
 ## Agents shipped here
 

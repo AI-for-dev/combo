@@ -94,6 +94,7 @@ function agentFacts(node: CheckedAgentNode, flow: CheckedFlow): string[] {
 		...(node.verdict !== undefined ? [`verdict to ${node.verdict}`] : node.output === undefined ? [] : [`output ${showType(node.output)}`]),
 		...(node.memory === undefined ? [] : [`memory ${node.memory}`]),
 		...(node.retry > 0 ? [`retry ${node.retry}`] : []),
+		...(node.thinking === undefined ? [] : [`thinking ${node.thinking}`]),
 		`timeout ${showDuration(timeout.ms)}${timeout.from === "node" ? "" : timeout.from === "flow" ? " from the flow" : " by default"}`,
 	];
 }

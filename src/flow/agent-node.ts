@@ -1,12 +1,13 @@
 /**
  * Reading an `agent` node's options: who runs the turn, what it reads, what it
- * outputs, and how its failures are handled.
+ * outputs, how hard it thinks, and how its failures are handled.
  */
 
+import { THINKING_LEVELS } from "../session.ts";
 import type { AgentNode, NodeReading } from "./node.ts";
 import { readSchema } from "./schema.ts";
 import type { ValueType } from "./type.ts";
-import { count, duration, text, texts } from "./value.ts";
+import { count, duration, oneOf, text, texts } from "./value.ts";
 import type { FaultList } from "./fault.ts";
 
 /** An `agent` node, or `undefined` when a fault refused it. */
@@ -37,6 +38,7 @@ export function readAgent({ raw, id, at, faults, continueOnFail }: NodeReading):
 		verdict: raw.verdict === undefined ? undefined : text(raw.verdict, key("verdict"), faults),
 		retry: (raw.retry === undefined ? 0 : count(raw.retry, key("retry"), faults)) ?? 0,
 		timeoutMs: raw.timeout === undefined ? undefined : duration(raw.timeout, key("timeout"), faults),
+		thinking: raw.thinking === undefined ? undefined : oneOf(raw.thinking, THINKING_LEVELS, key("thinking"), faults),
 	} as const;
 	return agent === undefined ? undefined : { ...node, agent };
 }

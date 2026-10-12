@@ -153,17 +153,18 @@ export class Run implements AgentRun, AskingRun, CallingRun, CheckingRun, Commit
 		const submit = type === undefined ? undefined : submitTool(type);
 		const decides = serves.some((one) => one.verdict !== undefined);
 		const added = [...(submit === undefined ? [] : [SUBMIT_TOOL]), ...(decides ? [VERDICT_TOOL] : [])];
-		const holder = { ...agent, tools: added.length === 0 ? agent.tools : [...toolsOf(agent), ...added] };
+		// The flows' model, callee outward, stands in for the agent's own; only
+		// the run's overrides, so only its thinking suffix outranks a node's.
+		const flows = this.stack.find((flow) => flow.model !== undefined)?.model;
+		const holder = { ...agent, model: flows ?? agent.model, tools: added.length === 0 ? agent.tools : [...toolsOf(agent), ...added] };
 		const verdict = decides ? verdictSlot(holder) : undefined;
 		const { spawn, transcripts, bus } = this.walk;
-		// The run's, then the flows', callee outward; `spawn` falls back on the agent's own.
-		const model = this.walk.model ?? this.stack.find((flow) => flow.model !== undefined)?.model;
-		const delegate = declaresDelegate(agent.tools) ? this.delegate(holder, node, tree, model) : undefined;
+		const delegate = declaresDelegate(agent.tools) ? this.delegate(holder, node, tree, this.walk.model ?? flows) : undefined;
 		const options: SpawnOptions = {
 			lifetime: node.memory === undefined ? "task" : "workflow",
 			bus,
 			cwd: tree,
-			model,
+			model: this.walk.model,
 			customTools: (id) => [submit?.tool, verdict?.tool, delegate?.(id)].filter((tool) => tool !== undefined),
 			visit: path,
 			home,
