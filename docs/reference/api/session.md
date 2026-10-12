@@ -98,6 +98,12 @@ export type CreateSessionOptions = {
 	 * readable in its own definition.
 	 */
 	customTools?: ToolDefinition[];
+	/**
+	 * `model` is the caller's override, not the agent's own. A thinking level
+	 * its suffix names is then the session's for every turn, over the one a
+	 * turn asks for: the run's `--model` outranks a flow node's `thinking:`.
+	 */
+	overrides?: boolean;
 };
 ```
 
@@ -148,6 +154,10 @@ export type PiSession = {
 	readonly messages: AgentMessage[];
 	/** The model pi resolved, once it has. */
 	readonly model?: { provider?: string; id?: string };
+	/** The level the next prompt thinks at, clamped to what the model supports. */
+	readonly thinkingLevel: ThinkingLevel;
+	/** Clamps `level` to the model's, and writes the change into the transcript. */
+	setThinkingLevel(level: ThinkingLevel): void;
 };
 ```
 
@@ -191,7 +201,7 @@ type describes what we know how to read, not what pi can produce.
 *function*
 
 ```typescript
-export function sessionPort(pi: PiSession): SessionPort { /* … */ }
+export function sessionPort(pi: PiSession, pinned = false): SessionPort { /* … */ }
 ```
 
 A {@link SessionPort} over pi's session.
@@ -359,6 +369,12 @@ export type TurnControl = {
 	signal: AbortSignal;
 	/** Each event of the turn a listener has a use for, already read. */
 	onStreamed?: (event: Streamed) => void;
+	/**
+	 * The level this turn thinks at. Absent: the session's own, so a level one
+	 * turn asked for never leaks into the next. A session pinned by its
+	 * caller's model keeps its own whatever a turn asks.
+	 */
+	thinking?: ThinkingLevel;
 };
 ```
 

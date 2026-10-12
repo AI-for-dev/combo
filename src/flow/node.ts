@@ -7,6 +7,7 @@
  */
 
 import type { Choice } from "../ask.ts";
+import type { ThinkingLevel } from "../session.ts";
 import type { FaultList } from "./fault.ts";
 import type { ValueType } from "./type.ts";
 
@@ -32,7 +33,7 @@ export const KIND_KEYS = {
 
 /** Every key a node of each kind may carry. Anything else is refused. */
 export const NODE_KEYS = {
-	agent: ["id", "agent", "agent-from", "among", "memory", "reads", "output", "verdict", "retry", "timeout", "on-fail"],
+	agent: ["id", "agent", "agent-from", "among", "memory", "reads", "output", "verdict", "retry", "timeout", "thinking", "on-fail"],
 	choice: ["id", "choice", "default", "on-fail"],
 	parallel: ["id", "parallel", "copies", "fail-fast", "on-fail"],
 	map: ["id", "map", "map-from", "max", "concurrency", "copies", "fail-fast", "ledger", "do", "on-fail"],
@@ -81,6 +82,8 @@ export type AgentNode = Common & {
 	readonly verdict?: string;
 	readonly retry: number;
 	readonly timeoutMs?: number;
+	/** The level the turn thinks at, unless the run's model names one. Absent: the subagent's own. */
+	readonly thinking?: ThinkingLevel;
 };
 
 /** Ordered cases, the first whose condition holds running, and a default. */

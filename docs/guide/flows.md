@@ -184,6 +184,7 @@ One turn of an agent from the catalogue.
 | `verdict` | an enclosing node with a `ledger:`: the turn answers with the `verdict` tool, and its output is `{ approved, remarks? }` |
 | `retry` | how many more attempts after a failed one, default 0 |
 | `timeout` | the bound of one attempt, `90s`, `10m`, `1h` |
+| `thinking` | the level the turn thinks at: `off`, `minimal`, `low`, `medium`, `high`, `xhigh` or `max` |
 | `on-fail` | `continue`: a failure stops at this node instead of ending the flow |
 
 ### `choice`
@@ -841,6 +842,15 @@ A turn's bound is the run's `timeoutMs`, else the node's `timeout:`, else the
 else 30 minutes. A turn's model is the run's `model`, else the `model:` of
 the flow the node is in, then of each flow calling it, else its agent's own. A check's bound is its own `timeout:`, else two
 minutes: neither the run's `timeoutMs` nor the flow's `timeout:` reaches it.
+
+A turn's thinking level is the one a suffix on the run's `model` names
+(`--model anthropic/claude-sonnet-5:low`), else the node's `thinking:`, else
+the suffix of the model it runs on, else pi's settings. A run that names a
+level therefore runs every turn at it, which is what a comparison needs. A
+node's level holds for its own turn only: two nodes sharing a `memory:`
+subagent each think at their own, and one with no `thinking:` goes back to
+the subagent's. pi lowers a level the model does not support to the nearest
+one it does.
 
 `stopSwitch()` stops a run: pass its `signal` and `spawn`. `all()` ends the run
 `stopped`: no node starts, and `on-fail: continue` does not catch it.

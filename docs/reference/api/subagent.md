@@ -38,6 +38,8 @@ export type AskOptions = {
 	 * something stops it. Nothing will, unless it is this.
 	 */
 	timeoutMs?: number;
+	/** The level this turn thinks at. Absent: the subagent's own, from its model's suffix or pi's settings. */
+	thinking?: ThinkingLevel;
 };
 ```
 

@@ -149,6 +149,11 @@ describe("the plan of a checked flow", () => {
 		);
 	});
 
+	test("says the level a node's turn thinks at", () => {
+		const flow = checkedIn("g", { g: flowText("  - id: look\n    agent: scout\n    thinking: high", { look: "L." }, "input: string", "g") });
+		assert.match(showPlan(planOf(flow)), /○ look · agent scout \(agents\/scout\.md\) · thinking high · timeout/);
+	});
+
 	test("keeps the tree a run fills: kinds, ids and paths line by line", () => {
 		const [, rounds] = planOf(nested()).lines;
 		assert.deepEqual(

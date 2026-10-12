@@ -69,6 +69,24 @@ describe("an agent visit", () => {
 		assert.deepEqual([await models("\nmodel: flow/m", "run/m"), await models("\nmodel: flow/m"), await models("")], ["run/m", "flow/m", undefined]);
 	});
 
+	test("only the run's model overrides; the flow's stands in for the agent's own", async () => {
+		const requested = async (model?: string) => {
+			const fake = flowSpawn([[{ text: "done" }]]);
+			await runChecked(checked("  - id: look\n    agent: scout", { look: "Look." }, "input: string\nmodel: flow/m"), "x", { spawn: fake.spawn, model });
+			const [one] = fake.requested;
+			return [one?.options.model, one?.options.overrides];
+		};
+		assert.deepEqual([await requested("run/m"), await requested()], [["run/m", true], ["flow/m", false]]);
+	});
+
+	test("each turn thinks at its node's `thinking:`, on a subagent its scope shares too", async () => {
+		const fake = flowSpawn([[{ text: "a" }, { text: "b" }], [{ text: "c" }]]);
+		const nodes = "  - id: draft\n    agent: scout\n    memory: flow\n    thinking: high\n  - id: again\n    agent: scout\n    memory: flow\n  - id: last\n    agent: reviewer\n    thinking: off";
+		await runChecked(checked(nodes, { draft: "Draft.", again: "Again.", last: "Last." }), "x", { spawn: fake.spawn });
+
+		assert.deepEqual(fake.created.map((session) => session.thinking), [["high", undefined], ["off"]]);
+	});
+
 	test("a typed output is only ever the `submit` call: no call, or one off the schema, fails with `schema`", async () => {
 		const flow = checked(PLAN, { plan: "Plan." });
 		const none = await runChecked(flow, "x", { spawn: flowSpawn([[{ text: '{ "task": "t", "first": "scout" }' }]]).spawn });

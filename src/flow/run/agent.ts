@@ -105,7 +105,7 @@ async function attempts(asking: Asking, first: Held, renew?: () => Promise<Held>
 async function ask({ run, node, path, here, ledger }: Asking, held: Held, task: string): Promise<{ ended: Ended; usage: Usage }> {
 	const ms = run.timeoutFor(node);
 	const deadline = run.deadline({ path, at: node.at, subagent: held.subagent.id, ms });
-	const result = await held.subagent.ask(task, { signal: AbortSignal.any([here.cut, deadline]) });
+	const result = await held.subagent.ask(task, { signal: AbortSignal.any([here.cut, deadline]), thinking: node.thinking });
 	// Both are drained on every attempt, whichever the node reads: a shared
 	// subagent's call during another node's turn must not stand in for a later one.
 	const submitted = held.submit?.take();

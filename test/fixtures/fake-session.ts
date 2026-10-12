@@ -10,7 +10,7 @@
  */
 
 import type { Agent } from "../../src/agent.ts";
-import type { AgentMessage, CreateSession, CreateSessionOptions, SessionPort, TurnControl } from "../../src/session.ts";
+import type { AgentMessage, CreateSession, CreateSessionOptions, SessionPort, ThinkingLevel, TurnControl } from "../../src/session.ts";
 import { emptyUsage } from "../../src/usage.ts";
 
 export type Turn = {
@@ -32,6 +32,8 @@ export type Turn = {
 export type FakeSession = SessionPort & {
 	/** What each turn was asked, in order. */
 	readonly prompts: string[];
+	/** The thinking level each turn asked for, in order. */
+	readonly thinking: (ThinkingLevel | undefined)[];
 	/** What was steered into it, in order. */
 	readonly steers: string[];
 	readonly closed: boolean;
@@ -43,6 +45,7 @@ export type FakeSession = SessionPort & {
 export function fakeSession(turns: Turn[] = []): FakeSession {
 	const transcript: AgentMessage[] = [];
 	const prompts: string[] = [];
+	const thinking: (ThinkingLevel | undefined)[] = [];
 	const steers: string[] = [];
 	let index = 0;
 	let closed = false;
@@ -51,8 +54,9 @@ export function fakeSession(turns: Turn[] = []): FakeSession {
 	/** Adds a message to the turn in flight. Absent between turns. */
 	let inTurn: ((message: AgentMessage) => void) | undefined;
 
-	async function ask(text: string, { signal, onStreamed }: TurnControl) {
+	async function ask(text: string, { signal, onStreamed, thinking: level }: TurnControl) {
 		prompts.push(text);
+		thinking.push(level);
 		const turn: Turn = turns[index++] ?? {};
 		const messages: AgentMessage[] = [];
 		const add = (message: AgentMessage) => {
@@ -96,6 +100,9 @@ export function fakeSession(turns: Turn[] = []): FakeSession {
 		},
 		get prompts() {
 			return prompts;
+		},
+		get thinking() {
+			return thinking;
 		},
 		get steers() {
 			return steers;

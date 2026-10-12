@@ -4116,6 +4116,25 @@ So `resolvePattern` returns the level beside the model, and
 ladder, and a key of its own waits for an example that needs the level without
 the model.
 
+### A node's thinking level is set per turn, and the run's suffix outranks it
+
+A flow's agent node takes `thinking:`, because one flow wants a reviewer that
+thinks hard beside an explorer that barely needs to. The model's `:thinking`
+suffix could not say that: the flow's `model:` is one pattern for every node.
+
+The level is set on each turn rather than at spawn. pi's
+`setThinkingLevel` changes it between two prompts of one session, so nodes
+sharing a `memory:` subagent each get their own, and a turn that names none
+goes back to the subagent's level rather than inheriting the last turn's.
+
+Precedence follows the rule the model and the bound already follow, where the
+run's argument wins: the run's suffix, then the node, then the suffix of the
+flow's or the agent's model, then pi's settings. An experiment sweeping
+`--model x:low` and `--model x:high` measures what it says even on a flow that
+pins levels. To tell the run's suffix from the flow's, the runner no longer
+passes the flow's `model:` to `spawn` as an override. It stands in for the
+agent's own, and only the run's pattern arrives as `SpawnOptions.model`.
+
 ### A subagent's settings are a named list, and it never warms a cache
 
 `createAgentSession` given no `settingsManager` builds one from

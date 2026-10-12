@@ -26,8 +26,8 @@ export function checkAgent(checker: Checker, node: AgentNode, scope: Scope): Che
 	}
 	const reads = node.reads.map((address) => checker.read(address, `${node.at}.reads`, scope)).filter((read) => read !== undefined);
 	if (agent === undefined) return { output };
-	const { id, at, memory, verdict, retry, timeoutMs, continueOnFail } = node;
-	return { output, node: { kind: "agent", id, at, agent, prose: checker.prose(id), memory, reads, output: node.output, verdict, retry, timeoutMs, continueOnFail } satisfies CheckedAgentNode };
+	const { id, at, memory, verdict, retry, timeoutMs, thinking, continueOnFail } = node;
+	return { output, node: { kind: "agent", id, at, agent, prose: checker.prose(id), memory, reads, output: node.output, verdict, retry, timeoutMs, thinking, continueOnFail } satisfies CheckedAgentNode };
 }
 
 /** `agent-from:` reads an enum, and `among:` names exactly its values, each an agent. */

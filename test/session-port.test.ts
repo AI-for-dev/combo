@@ -28,6 +28,24 @@ async function turnsOf(turns: PiTurn[]): Promise<Turn[]> {
 }
 
 describe("sessionPort", () => {
+	test("a turn thinks at the level it asks for, and a turn asking none at the session's own", async () => {
+		const pi = fakePiSession([{}, {}, {}], "low");
+		const port = sessionPort(pi);
+		const signal = new AbortController().signal;
+		await port.ask("go", { signal, thinking: "high" });
+		await port.ask("go", { signal });
+		await port.ask("go", { signal, thinking: "off" });
+
+		assert.deepEqual(pi.levels, ["high", "low", "off"]);
+	});
+
+	test("a pinned session thinks at its own level, whatever a turn asks for", async () => {
+		const pi = fakePiSession([{}], "low");
+		await sessionPort(pi, true).ask("go", { signal: new AbortController().signal, thinking: "high" });
+
+		assert.deepEqual(pi.levels, ["low"]);
+	});
+
 	test("a turn costs what pi's cumulative counters gained during it, not the session's total", async () => {
 		const [first, second] = await turnsOf([
 			{ text: "one", tokens: { input: 100, output: 20 }, cost: 0.01 },

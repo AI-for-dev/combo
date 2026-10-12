@@ -12,7 +12,7 @@
  */
 
 import type { SessionStats } from "@earendil-works/pi-coding-agent";
-import type { AgentMessage, PiSession, SessionEvent } from "../../src/session.ts";
+import type { AgentMessage, PiSession, SessionEvent, ThinkingLevel } from "../../src/session.ts";
 
 export type PiTurn = {
 	/** Assistant text for this turn. */
@@ -35,19 +35,23 @@ export type PiTurn = {
 
 export type FakePiSession = PiSession & {
 	readonly prompts: string[];
+	/** The thinking level each prompt was sent at, in order. */
+	readonly levels: ThinkingLevel[];
 	/** What was steered into it, in order. */
 	readonly steers: string[];
 	readonly disposed: boolean;
 	readonly aborted: number;
 };
 
-/** Builds a session that replays `turns`, in order. */
-export function fakePiSession(turns: PiTurn[] = []): FakePiSession {
+/** Builds a session that replays `turns`, in order, opened at `thinkingLevel`. */
+export function fakePiSession(turns: PiTurn[] = [], thinkingLevel: ThinkingLevel = "medium"): FakePiSession {
 	const listeners = new Set<(event: SessionEvent) => void>();
 	const messages: AgentMessage[] = [];
 	const prompts: string[] = [];
+	const levels: ThinkingLevel[] = [];
 	const steers: string[] = [];
 	let streaming = false;
+	let level = thinkingLevel;
 
 	const total = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, toolCalls: 0 };
 	let contextTokens: number | undefined;
@@ -72,6 +76,15 @@ export function fakePiSession(turns: PiTurn[] = []): FakePiSession {
 		},
 		get prompts() {
 			return prompts;
+		},
+		get levels() {
+			return levels;
+		},
+		get thinkingLevel() {
+			return level;
+		},
+		setThinkingLevel(next) {
+			level = next;
 		},
 		get steers() {
 			return steers;
@@ -98,6 +111,7 @@ export function fakePiSession(turns: PiTurn[] = []): FakePiSession {
 
 		async prompt(text) {
 			prompts.push(text);
+			levels.push(level);
 			streaming = true;
 			try {
 				await runTurn(text);

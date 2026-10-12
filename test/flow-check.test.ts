@@ -149,9 +149,10 @@ describe("checkFlow, nodes", () => {
 	});
 
 	test("every key has one type", () => {
-		assert.deepEqual(node("  - id: plan\n    agent: planner\n    retry: '2'\n    timeout: 10 minutes\n    reads: plan\n    on-fail: stop"), [
+		assert.deepEqual(node("  - id: plan\n    agent: planner\n    retry: '2'\n    timeout: 10 minutes\n    thinking: hard\n    reads: plan\n    on-fail: stop"), [
 			"key-type plan.retry",
 			"key-type plan.timeout",
+			"key-type plan.thinking",
 			"key-type plan.reads",
 			"key-type plan.on-fail",
 		]);
