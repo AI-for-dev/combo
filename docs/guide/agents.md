@@ -334,6 +334,12 @@ compared names its model** - `experiment({ models })`, `--model` on `/run`,
 you write for your own machine is welcome to declare one; it is only what ships
 that must not.
 
+The thinking level rides on the model as a suffix,
+`anthropic/claude-sonnet-5:high` (`off`, `minimal`, `low`, `medium`, `high`,
+`xhigh`, `max`). It works at every level of the ladder, `--model` included.
+With no suffix, pi's settings choose the level (`modelThinkingLevels`,
+`defaultThinkingLevel`).
+
 ## Agents shipped here
 
 `agents/` holds the demo definitions used by the examples and by the shipped flows:

@@ -4102,6 +4102,20 @@ too, in pi's words: the safer side to err on. The tests run pi's real
 `resolveCliModel` over a catalogue held in memory, so they hold these cases to
 the pi that is installed.
 
+### A thinking suffix is passed on, because pi only parses it
+
+`resolveCliModel` reads `model:high` into a model and a `thinkingLevel`, and
+its own documentation says it does not apply the level: the caller does. For a
+while `resolvePattern` kept the model and dropped the rest. Measured on pi
+1.0.2: `:low` and `:high` both opened a session at `medium`, pi's default,
+while `checkModel` accepted the pattern and the guide said the suffix worked.
+
+So `resolvePattern` returns the level beside the model, and
+`createDefaultSession` passes both to `createAgentSession`. No separate
+`thinking:` key was added. The suffix already reaches every level of the model
+ladder, and a key of its own waits for an example that needs the level without
+the model.
+
 ### A subagent's settings are a named list, and it never warms a cache
 
 `createAgentSession` given no `settingsManager` builds one from
