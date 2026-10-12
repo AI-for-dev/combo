@@ -423,7 +423,7 @@ export const createDefaultSession: CreateSession = async (agent, options) => {
 	const { session } = await createAgentSession({
 		cwd,
 		modelRuntime,
-		model: resolveModel(agent, modelRuntime, options.model),
+		...resolveModel(agent, modelRuntime, options.model),
 		tools,
 		customTools: options.customTools,
 		// Its own prompt, then the two standing facts it cannot work without:
@@ -558,18 +558,19 @@ export class StaticResourceLoader implements ResourceLoader {
 }
 
 /**
- * Resolves a model pattern into a pi model, or `undefined` with no pattern.
+ * Resolves a model pattern into a pi model and the thinking level its suffix
+ * names, or nothing with no pattern: pi's settings decide both then.
  *
  * The pattern defaults to `agent.model`; a caller's override arrives already
  * chosen by `spawn()`. A pattern that resolves to nothing throws: better to
  * fail at spawn than to run a whole workflow on the wrong model.
  */
 function resolveModel(agent: Agent, modelRuntime: ModelRuntime, pattern = agent.model) {
-	if (!pattern) return undefined;
+	if (!pattern) return {};
 
-	const { model, refused } = resolvePattern(pattern, modelRuntime);
+	const { model, thinkingLevel, refused } = resolvePattern(pattern, modelRuntime);
 	if (refused !== undefined) throw new Error(`No model for agent "${agent.name}": ${refused}`);
-	return model;
+	return { model, thinkingLevel };
 }
 
 /**
@@ -586,10 +587,14 @@ export async function checkModel(pattern: string): Promise<void> {
 	if (refused !== undefined) throw new Error(refused);
 }
 
-/** A model pi resolved, or why there is none. */
+/**
+ * A model pi resolved, with the thinking level a `:thinking` suffix named, or
+ * why there is none. pi parses the suffix but does not apply it: whoever opens
+ * the session must pass it on, or the level silently falls back to pi's settings.
+ */
 export type ResolvedPattern =
-	| { model: NonNullable<ResolveCliModelResult["model"]>; refused?: undefined }
-	| { model?: undefined; refused: string };
+	| { model: NonNullable<ResolveCliModelResult["model"]>; thinkingLevel?: ResolveCliModelResult["thinkingLevel"]; refused?: undefined }
+	| { model?: undefined; thinkingLevel?: undefined; refused: string };
 
 /**
  * One pattern against pi's model catalogue, refused unless it names a model pi
@@ -606,11 +611,11 @@ export type ResolvedPattern =
  * a typo must not start a run.
  */
 export function resolvePattern(pattern: string, modelRuntime: ModelRuntime): ResolvedPattern {
-	const { model, warning, error } = resolveCliModel({ cliModel: pattern, modelRuntime });
+	const { model, thinkingLevel, warning, error } = resolveCliModel({ cliModel: pattern, modelRuntime });
 	if (!model) return { refused: error ?? `No model found for "${pattern}"` };
 	if (warning) {
 		const reason = warning.replace(/\s*Using custom model id\.$/, "");
 		return { refused: `${reason} Add it to pi's models.json to run it.` };
 	}
-	return { model };
+	return { model, thinkingLevel };
 }

@@ -107,6 +107,12 @@ describe("resolvePattern", () => {
 		assert.equal(resolved("qwen-3.6-35b-instruct:high"), "qwen-3.6-35b-instruct");
 	});
 
+	test("a thinking suffix comes back beside the model, since pi parses it but does not apply it", () => {
+		assert.equal(resolvePattern("qwen-3.6-35b-instruct:high", runtime).thinkingLevel, "high");
+		assert.equal(resolvePattern("ilaas/qwen-3.6:off", runtime).thinkingLevel, "off");
+		assert.equal(resolvePattern("ilaas/qwen-3.6", runtime).thinkingLevel, undefined, "no suffix leaves it to pi's settings");
+	});
+
 	test("an id pi would only send as a custom one is refused, with pi's reason and where to declare it", () => {
 		// pi accepts it with a warning, and the provider answers 404 on the
 		// first turn of every subagent.
