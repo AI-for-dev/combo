@@ -5279,3 +5279,19 @@ answer from what they are handed, and the synthesiser called no tool in any
 of the 9 `/run explore` runs measured. `tools: []` would make that a property
 of the file. It would also take away the reading the synthesiser's prompt
 allows when two reports disagree, so it is a separate decision.
+
+## A chain is exported by `/chain export`, not by pi's `/export`
+
+A step is drawn with `appendEntry`, so pi stores it as a `custom` entry. That
+keeps it out of the model's context, which is the point of `/step`. pi's HTML
+export skips `custom` entries too, so `/export` after a chain wrote a page with
+none of it. Two ways round that were ruled out. A `custom_message` is drawn in
+the export, but it also enters the context. And `/export` is built into pi's
+interactive mode with no event to hook, while an extension command of the same
+name is shadowed.
+
+The steps were already on disk, one folder each. What was missing was a page
+that reads them in order, so `/chain export` writes `chain.md` in the chain's
+folder. It is Markdown because the answers are, and each request and answer
+sits in a fence longer than any run of backticks inside it. A heading in an
+answer then cannot break the page's outline.

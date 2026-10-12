@@ -37,6 +37,7 @@ import { sessionDoors, type CommandCtx, type PiApi } from "../pi.ts";
 import { resolved, type StepDeps } from "../deps.ts";
 import { parseLeadingFlags } from "../flags.ts";
 import { beginStep, finishStep, type RelayStep } from "../relay.ts";
+import { shown } from "./answer.ts";
 
 /** The agent a swarm is made of when the command is not told otherwise. */
 export const DEFAULT_MEMBER = "member";
@@ -152,12 +153,12 @@ export async function runSwarm(args: string, ctx: CommandCtx, injected: StepDeps
 	// A member that failed still said something, and the ones beside it did the
 	// work: a swarm is reported with its failed branches rather than dropped.
 	if (done.members.every((one) => !one.result.ok)) {
-		refuse(ctx, `swarm: every member failed - ${done.error ?? "no reason given"} - what ran is in ${begun.dir}`, "error");
+		refuse(ctx, `swarm: every member failed - ${done.error ?? "no reason given"} - what ran is in ${shown(ctx, begun.dir)}`, "error");
 		return undefined;
 	}
 
 	const step = finishStep(begun, { name: member.name, kind: "swarm", instruction: goal, output: swarmAnswer(done), usage: done.usage }, injected.appendEntry);
-	ctx.ui.notify(swarmLine(step.id, done), done.ok ? "info" : "warning");
+	ctx.ui.notify(swarmLine(step.id, done, shown(ctx, step.dir)), done.ok ? "info" : "warning");
 	return step;
 }
 
@@ -170,12 +171,12 @@ export function swarmAnswer(done: SwarmResult): string {
 	return parts.join("\n\n");
 }
 
-/** One line on what happened: how it ended, and what is worth knowing about it. */
-export function swarmLine(id: string, done: SwarmResult): string {
+/** One line on what happened: how it ended, what is worth knowing about it, and the folder it went to. */
+export function swarmLine(id: string, done: SwarmResult, folder: string): string {
 	const failed = done.members.filter((one) => !one.result.ok).length;
 	const held = done.claims.filter((one) => one.released).length;
 	return [
-		`${id}: ${plural(done.members.length, "member")}, ${plural(done.rounds, "round")}, ${plural(done.usage.turns, "turn")}`,
+		`${id}: ${plural(done.members.length, "member")}, ${plural(done.rounds, "round")}, ${plural(done.usage.turns, "turn")}, in ${folder}`,
 		done.converged ? "converged" : `stopped by ${done.stoppedBy}`,
 		done.posts.length ? plural(done.posts.length, "post") : "nothing posted",
 		...(failed ? [`${failed} failed`] : []),

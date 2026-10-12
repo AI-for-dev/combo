@@ -170,7 +170,7 @@ and what a tree costs in [Measurements](measurements.md).
 | `/flows <name>` | Prints that flow's plan: every node, what it reads, its agent and file, its bound. |
 | `/step [--from <id\|last\|none>] [--model <pattern>] [--agent] <name> <instruction>` | Runs one flow or agent on the previous step's output. Drawn, and kept out of this session's context. |
 | `/swarm [--members <n>] [--claim a,b] [--hold <n>] [--until agree] [--rounds <n>] [--agent <name>] [--model <pattern>] <goal>` | Several copies of one agent on one job, with a board between them. Finished by coverage of what `--claim` names, or by `--until agree` when they all vote the same. Drawn as a step of the chain, like `/step`. |
-| `/chain`, `/chain reset` | The steps walked so far; or drop them and start a new chain. |
+| `/chain`, `/chain export`, `/chain reset` | The steps walked so far; write them into one page; or drop them and start a new chain. |
 | `/quote [id]` | Put one step of the chain into the conversation, attributed. |
 | `/stop [<id>\|all]` | Stops the selected subagent, one named by id, or the whole run. [The keys](#the-keys-during-a-run) do the same from the keyboard. |
 | `/herdr [on\|off]` | Give every subagent its own herdr split for this session. `on` asks herdr first, and says so when the answer is no. Alone, it says where it stands; any other word is refused. |

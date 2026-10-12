@@ -24,7 +24,7 @@ See [Quickstart](../guide/quickstart.md) and [Extension](../guide/extension.md).
 | `/flows <name>` | prints one flow's plan, node by node; spawns nothing |
 | `/agents` | lists the agents, grouped by where they come from |
 | `/step <flow\|agent> <instruction>` | runs one stage on the previous step's output, kept out of the session |
-| `/chain`, `/chain reset` | lists the steps walked so far, or starts a new chain |
+| `/chain`, `/chain export`, `/chain reset` | lists the steps walked so far, writes them into `chain.md`, or starts a new chain |
 | `/quote [<id>]` | puts one step into the conversation, the last one by default |
 | `/swarm <goal>` | several copies of one agent on one job, with a board between them |
 | `/interview <request>` | turns a vague request into a brief, one question at a time |

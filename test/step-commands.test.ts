@@ -9,7 +9,7 @@
  */
 
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, beforeEach, describe, test } from "node:test";
@@ -69,7 +69,7 @@ beforeEach(forgetChain);
 
 describe("/step", () => {
 	test("runs the named flow in a run directory of its own, and leaves the answer out of this conversation", async () => {
-		const { ctx } = fakeCtx();
+		const { ctx, said } = fakeCtx();
 		const { deps: injected, entries, sent, flowTurns } = deps();
 
 		const step = await runStep("explore where usage is measured", ctx, injected);
@@ -80,6 +80,7 @@ describe("/step", () => {
 		assert.equal(entries[0]?.output, "three files, and how they are tested");
 		assert.equal(entries[0]?.id, "explore");
 		assert.ok(existsSync(join(step?.dir ?? "", "journal.jsonl")), "the step's folder is the flow's run directory");
+		assert.match(said(), /^explore: \d+ turns?, in \S+1-explore - /m, "the folder is named where the step ends");
 	});
 
 	test("a failed flow says where, and that /run resume carries it on from the step's folder", async () => {
@@ -309,6 +310,24 @@ describe("/chain", () => {
 		showChain("reset", ctx);
 		assert.equal(currentChain(), undefined);
 		assert.match(chainLines(currentChain()).join("\n"), /No chain yet/);
+	});
+
+	test("export writes the chain into one page in its folder, and says where", async () => {
+		const { ctx, said } = fakeCtx();
+		await runStep("planner the plan", ctx, deps().deps);
+
+		showChain("export", ctx);
+		const page = join(currentChain()?.dir ?? "", "chain.md");
+		assert.ok(existsSync(page));
+		assert.match(readFileSync(page, "utf8"), /## 1\. planner/);
+		assert.match(said(), /1 step written to .*chain\.md/);
+	});
+
+	test("export with nothing walked writes nothing, and says how to start", () => {
+		const { ctx, notes } = fakeCtx();
+		showChain("export", ctx);
+		assert.equal(notes[0]?.type, "warning");
+		assert.match(notes[0]?.message ?? "", /nothing to export yet/);
 	});
 
 	test("a word it does not know says what it does know", () => {
