@@ -27,4 +27,10 @@ describe("bashCheck", () => {
 		assert.match(result.ok ? result.report : "", new RegExp(`^\\[…${written - 8000} bytes cut\\]\\n[\\s\\S]*line 20000\\nTHE FAILURE$`));
 		assert.equal(result.ok && result.report.split("\n").slice(1).join("\n").length, 8000);
 	});
+
+	test("keeps a whole report when the output that overflows it arrives in one piece", async () => {
+		// One write, read as one chunk: the buffer was cut down on the very chunk ending in the newline `tail` trims.
+		const result = await check('s=$(printf "%20000s" ""); printf "%s\\n" "${s// /x}"');
+		assert.deepEqual(result, { ok: true, passed: true, report: `[…12000 bytes cut]\n${"x".repeat(8000)}` });
+	});
 });
