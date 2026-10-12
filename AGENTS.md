@@ -197,7 +197,8 @@ src/                the library
                     asks it first, console, silent, record (the event stream
                     on disk), traffic (what passes on a board, worded once)
 extension/          the pi extension: index.ts (tool, renderers), execute.ts
-                    (the tool body) and execute-flow.ts (its `flow` mode),
+                    (the tool body), execute-flow.ts (its `flow` mode) and
+                    scope.ts (its default scope, and what a project agent hides),
                     and the floor the commands stand on:
                     pi.ts deps.ts command.ts flags.ts params.ts relay.ts
                     notice.ts (a notice fitted to the terminal's width),

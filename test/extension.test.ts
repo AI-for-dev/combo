@@ -135,7 +135,7 @@ describe("the registered tool", () => {
 	test("is named subagent and declares its parameters", () => {
 		assert.equal(tool.name, "subagent");
 		assert.ok(tool.parameters, "the model needs a schema");
-		assert.ok(tool.description.includes("scope"), "the model must be told project agents are opt-in");
+		assert.ok(tool.description.includes("scope"), "the model must be told how to reach the user's agent a project one hides");
 	});
 
 	test("runs one call at a time, so two flows never put up a card or a plan at once", () => {

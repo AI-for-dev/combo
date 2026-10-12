@@ -17,6 +17,7 @@ import { createRunDir, loadFlowCatalogue, progressLine } from "../src/index.ts";
 import { flowAnswer, launch, launchable, notLaunched } from "./commands/index.ts";
 import type { Details, ExecuteDeps, ToolOutput } from "./execute.ts";
 import { FLOW_FIELDS, type Params } from "./params.ts";
+import { DEFAULT_SCOPE } from "./scope.ts";
 
 /** What `flow` mode takes: `flow`, what it reads beside it, and `mode` when it says `flow`. */
 const TAKEN: readonly (keyof Params)[] = ["mode", "flow", ...FLOW_FIELDS];
@@ -37,7 +38,7 @@ export async function executeFlow(params: Params, deps: ExecuteDeps): Promise<To
 	if (!task?.trim()) throw new Error(`subagent: say what \`${name}\` should work on, in \`task\``);
 
 	const ctx = { cwd: deps.cwd ?? process.cwd(), mode: deps.mode, ui: deps.ui, signal: deps.signal };
-	const catalogue = (deps.loadFlowCatalogue ?? loadFlowCatalogue)({ cwd: ctx.cwd, scope: params.scope, builtin: true });
+	const catalogue = (deps.loadFlowCatalogue ?? loadFlowCatalogue)({ cwd: ctx.cwd, scope: params.scope ?? DEFAULT_SCOPE, builtin: true });
 	const flow = await launchable(name, catalogue, ctx);
 	if (!flow.ok) throw new Error(notLaunched("subagent", name, flow, ctx.cwd));
 

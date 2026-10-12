@@ -70,14 +70,6 @@ describe("agentLines", () => {
 		const lines = agentLines([shipped], "/repo");
 		assert.equal(lines.filter((line) => line === "  (none)").length, 2);
 	});
-
-	test("says how to reach a project agent, and only when there is one", () => {
-		const withProject = agentLines([shipped, ours], "/repo").join("\n");
-		assert.match(withProject, /scope "project" or "both"/);
-
-		const without = agentLines([shipped, mine], "/repo").join("\n");
-		assert.doesNotMatch(without, /scope "project" or "both"/);
-	});
 });
 
 describe("listAgents", () => {
