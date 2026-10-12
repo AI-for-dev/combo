@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.0](https://github.com/AI-for-dev/combo/compare/v0.4.0...v0.5.0) (2026-10-12)
+
+
+### Features
+
+* **flow:** let an agent node set its turn's thinking level ([#215](https://github.com/AI-for-dev/combo/issues/215)) ([2643b4a](https://github.com/AI-for-dev/combo/commit/2643b4a67915dc40c288259731c9424561bcedad))
+
+
+### Bug Fixes
+
+* **extension:** keep a /step instruction's lines as typed ([#219](https://github.com/AI-for-dev/combo/issues/219)) ([65cd381](https://github.com/AI-for-dev/combo/commit/65cd3811a25c34fd1044051c2dd5d5fa324bae85)), closes [#218](https://github.com/AI-for-dev/combo/issues/218)
+* **extension:** run the repository's agent by default, and warn of the user's it hides ([#220](https://github.com/AI-for-dev/combo/issues/220)) ([60ea968](https://github.com/AI-for-dev/combo/commit/60ea968a42cf195872b57df07ea0e5bbaa7f0859)), closes [#217](https://github.com/AI-for-dev/combo/issues/217)
+* **session:** pass a model pattern's thinking suffix on to the session ([#214](https://github.com/AI-for-dev/combo/issues/214)) ([324d775](https://github.com/AI-for-dev/combo/commit/324d775995919bec228f0a55519f2588e612eec7))
+* **verify:** keep a check's whole report when its output overflows in one chunk ([#216](https://github.com/AI-for-dev/combo/issues/216)) ([ab9d39a](https://github.com/AI-for-dev/combo/commit/ab9d39a9c3fe9cac09e08dec1d6ca695acb2efe0))
+
 ## [0.4.0](https://github.com/AI-for-dev/combo/compare/v0.3.0...v0.4.0) (2026-10-08)
 
 
