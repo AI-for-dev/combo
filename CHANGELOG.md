@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/AI-for-dev/combo/compare/v0.6.0...v0.7.0) (2026-10-17)
+
+
+### Features
+
+* **extension:** put several agents on one /swarm board, and bound each turn ([#227](https://github.com/AI-for-dev/combo/issues/227)) ([427814e](https://github.com/AI-for-dev/combo/commit/427814ec76745717897c264c6afff579e85d90c6))
+
+
+### Bug Fixes
+
+* **flow:** end the turn on an accepted submit ([#226](https://github.com/AI-for-dev/combo/issues/226)) ([622859d](https://github.com/AI-for-dev/combo/commit/622859deb2cf5d81337c1943f0fb344e7231b990))
+
 ## [0.6.0](https://github.com/AI-for-dev/combo/compare/v0.5.0...v0.6.0) (2026-10-12)
 
 
