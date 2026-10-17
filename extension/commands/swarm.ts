@@ -26,9 +26,12 @@ import {
 	declaresBoard,
 	findAgent,
 	membersOutput,
+	parseDuration,
 	plural,
+	type Agent,
 	type Board,
 	type Claims,
+	type MemberSpec,
 	type SwarmResult,
 	VOTE_INSTRUCTION,
 } from "../../src/index.ts";
@@ -45,13 +48,25 @@ export const DEFAULT_MEMBER = "member";
 /** How many copies stand on the board when the command is not told otherwise. */
 export const DEFAULT_MEMBERS = 3;
 
+/**
+ * How long one member's turn may take when `--timeout` does not say.
+ *
+ * The library picks no deadline, and a command has to: pi's agent loop has no
+ * step cap, and a member can spend its turn reading a board nobody is posting
+ * to. Measured with gemma-4-31b on a three-way debate: three runs with no
+ * deadline went past twenty-five minutes, one of them past forty, and left
+ * nothing to read, since a swarm exports its transcripts when it ends. Five
+ * minutes is the bound `/interview` gives its turns, for the same reason.
+ */
+export const SWARM_TURN_MS = 300_000;
+
 /** Registers `/swarm`. */
 export default function registerSwarmCommand(pi: PiApi) {
 	const deps = sessionDoors(pi);
 
 	pi.registerCommand("swarm", {
 		description:
-			"Put several copies of one agent on one job, with a board between them (`--members <n>`, `--claim a,b`, `--hold <n>`, `--until agree`, `--rounds <n>`, `--agent <name>`, `--model <pattern>`)",
+			"Put several agents on one job, with a board between them: copies of one (`--agent <name>`, `--members <n>`) or one of each (`--agent a,b,c`); `--claim a,b`, `--hold <n>`, `--until agree`, `--rounds <n>`, `--timeout <duration>`, `--model <pattern>`",
 		handler: async (args, ctx: CommandCtx) => {
 			await runSwarm(args, ctx, deps);
 		},
@@ -59,7 +74,13 @@ export default function registerSwarmCommand(pi: PiApi) {
 }
 
 /**
- * `/swarm [--members <n>] [--claim a,b,c] [--hold <n>] [--until agree] [--rounds <n>] [--agent <name>] [--model <pattern>] <goal>`.
+ * `/swarm [--members <n>] [--claim a,b,c] [--hold <n>] [--until agree] [--rounds <n>] [--agent <name>[,<name>…]] [--timeout <duration>] [--model <pattern>] <goal>`.
+ *
+ * `--agent` names one agent, put on the board `--members` times, or several,
+ * put on it once each. Copies of one agent share one brief, so a side to open
+ * for can only be handed out on the board, and a member refused the side it
+ * asked for has been seen taking no other. Several agents carry their sides in
+ * their own files, which is where a debate's disagreement has to come from.
  *
  * `--claim` is what turns announcing into holding: named, the things are leased
  * one owner at a time and a second member is refused and told who has it.
@@ -75,33 +96,47 @@ export default function registerSwarmCommand(pi: PiApi) {
  */
 export async function runSwarm(args: string, ctx: CommandCtx, injected: StepDeps): Promise<RelayStep | undefined> {
 	const deps = resolved(injected);
-	const { flags, rest: goal, refused } = parseLeadingFlags(args, ["claim", "agent", "model", "until"], { counts: ["members", "rounds", "hold"] });
+	const { flags, rest: goal, refused } = parseLeadingFlags(args, ["claim", "agent", "model", "until", "timeout"], { counts: ["members", "rounds", "hold"] });
 	if (refused) return refuse(ctx, `swarm: ${refused}`, "warning");
 	if (!goal.trim()) {
 		return refuse(ctx, "swarm: say what they are all on, for example /swarm describe every file under src/reporters/", "warning");
 	}
 
-	const cast = await checked(ctx, async () => {
-		const member = findAgent(loadRoster(ctx, deps), flags.agent ?? DEFAULT_MEMBER);
-		const count = whole(flags.members) ?? DEFAULT_MEMBERS;
-		const rounds = whole(flags.rounds);
-		if (flags.model) await deps.checkModel(flags.model);
-		return { member, count, rounds };
-	});
-	if (!cast) return undefined;
-	const { member, count, rounds } = cast;
-
-	// Warned rather than refused: a swarm whose members cannot talk is a fan-out,
-	// which is the control arm every run of this wants to be compared against.
-	if (!declaresBoard(member.tools)) {
-		ctx.ui.notify(`swarm: ${member.name} does not name \`board\` in its tools:, so its copies cannot reach one another - this runs as a fan-out`, "warning");
-	}
-
 	// `--claim a.ts, b.ts` reads as one key and two words of goal, because a flag
 	// value stops at the first space everywhere in pi. Silently running on the
 	// wrong list is the worst of the three ways out, so the comma is caught.
-	if (flags.claim?.endsWith(",")) {
-		return refuse(ctx, "swarm: --claim takes one comma-separated list with no spaces, for example --claim a.ts,b.ts", "warning");
+	for (const flag of ["claim", "agent"] as const) {
+		if (flags[flag]?.endsWith(",")) {
+			return refuse(ctx, `swarm: --${flag} takes one comma-separated list with no spaces, for example --${flag} a,b`, "warning");
+		}
+	}
+	const names = keysFrom(flags.agent ?? DEFAULT_MEMBER);
+	const twice = names.find((name, index) => names.indexOf(name) !== index);
+	if (twice) return refuse(ctx, `swarm: --agent names ${twice} twice - --members puts copies of one agent on the board`, "warning");
+	if (names.length > 1 && flags.members !== undefined) {
+		return refuse(ctx, "swarm: --members counts copies of one agent - with several in --agent, each stands on the board once", "warning");
+	}
+
+	const timeoutMs = flags.timeout === undefined ? SWARM_TURN_MS : parseDuration(flags.timeout);
+	if (timeoutMs === undefined) return refuse(ctx, "swarm: --timeout takes a duration written 90s, 10m or 1h", "warning");
+
+	const cast = await checked(ctx, async () => {
+		const roster = loadRoster(ctx, deps);
+		const agents = names.map((name) => findAgent(roster, name));
+		const count = names.length > 1 ? 1 : (whole(flags.members) ?? DEFAULT_MEMBERS);
+		const rounds = whole(flags.rounds);
+		if (flags.model) await deps.checkModel(flags.model);
+		return { agents, count, rounds };
+	});
+	if (!cast) return undefined;
+	const { agents, count, rounds } = cast;
+	const members: MemberSpec[] = agents.map((agent) => ({ agent, count }));
+	const size = agents.length * count;
+
+	// Warned rather than refused: a swarm whose members cannot talk is a fan-out,
+	// which is the control arm every run of this wants to be compared against.
+	for (const agent of agents.filter((one) => !declaresBoard(one.tools))) {
+		ctx.ui.notify(`swarm: ${agent.name} does not name \`board\` in its tools:, so it cannot reach the others - with nobody on the board, this runs as a fan-out`, "warning");
 	}
 
 	// The only value there is, named in the refusal: a `--until` nobody
@@ -113,16 +148,17 @@ export async function runSwarm(args: string, ctx: CommandCtx, injected: StepDeps
 
 	const keys = keysFrom(flags.claim);
 	const claims = claimsFrom(keys, whole(flags.hold));
-	const begun = beginStep(member.name, deps.runDir);
+	const name = stepName(agents);
+	const begun = beginStep(name, deps.runDir);
 
 	let done: SwarmResult;
 	try {
 		done = await watched(ctx, deps, {
-			status: `${count} × ${member.name}…`,
+			status: agents.length > 1 ? `${agents.map((agent) => agent.name).join(", ")}…` : `${count} × ${name}…`,
 			dir: begun.dir,
 			work: (live) =>
 				deps.swarm({
-					members: [{ agent: member, count }],
+					members,
 					// The vote is asked for here rather than in a definition: it is what
 					// this run is finished by, and an agent that asked for one every time
 					// would have every other run posting a vote nobody counts.
@@ -132,11 +168,12 @@ export async function runSwarm(args: string, ctx: CommandCtx, injected: StepDeps
 					// Agreement wins over coverage when both are asked for: the claims of a
 					// debate hand out the opening positions, and reporting on one is not
 					// the same as the others coming round to it.
-					...(toAgree ? { until: agreed(count) } : keys.length ? { until: everythingDescribed(keys) } : {}),
+					...(toAgree ? { until: agreed(size) } : keys.length ? { until: everythingDescribed(keys) } : {}),
 					// A vote posted again in the same turn is not an argument, and the
 					// members reading it next round count it as one.
 					...(toAgree ? { resultsPerTurn: 1 } : {}),
 					cwd: ctx.cwd,
+					timeoutMs,
 					exportDir: begun.dir,
 					model: flags.model,
 					signal: live.signal,
@@ -157,7 +194,7 @@ export async function runSwarm(args: string, ctx: CommandCtx, injected: StepDeps
 		return undefined;
 	}
 
-	const step = finishStep(begun, { name: member.name, kind: "swarm", instruction: goal, output: swarmAnswer(done), usage: done.usage }, injected.appendEntry);
+	const step = finishStep(begun, { name, kind: "swarm", instruction: goal, output: swarmAnswer(done), usage: done.usage }, injected.appendEntry);
 	ctx.ui.notify(swarmLine(step.id, done, shown(ctx, step.dir)), done.ok ? "info" : "warning");
 	return step;
 }
@@ -223,6 +260,15 @@ export function claimsFrom(keys: readonly string[], hold: number | undefined): C
 		...(keys.length ? { keys: [...keys] } : {}),
 		...(hold === undefined ? {} : { maxPerMember: hold }),
 	});
+}
+
+/**
+ * What the step is called in the chain: the agent's name when copies of one
+ * stand on the board, `swarm` when several do, since no one of them is the
+ * step and `/step --from` wants a word somebody can type.
+ */
+export function stepName(agents: readonly Agent[]): string {
+	return agents.length === 1 && agents[0] ? agents[0].name : "swarm";
 }
 
 /** A count the parser already checked, or `undefined` when it was not written. */

@@ -30,6 +30,7 @@ initTheme();
 
 const member = testAgent("member", { description: "One of several", tools: ["read", BOARD_TOOL] });
 const scout = testAgent("scout", { description: "Reads code", tools: ["read"] });
+const [python, rust, go] = ["python", "rust", "go"].map((side) => testAgent(`for-${side}`, { description: `Opens for ${side}`, tools: [BOARD_TOOL] }));
 
 const runs = mkdtempSync(join(tmpdir(), "combo-swarm-cmd-"));
 after(() => rmSync(runs, { recursive: true, force: true }));
@@ -41,16 +42,18 @@ function deps(over: Partial<SwarmResult> = {}) {
 	const sent: { content: string }[] = [];
 
 	const injected: StepDeps = {
-		...baseDeps([member, scout], runs),
+		...baseDeps([member, scout, python!, rust!, go!], runs),
 		appendEntry: (_customType, data) => void entries.push(data),
 		sendMessage: (message) => void sent.push({ content: message.content }),
 		swarm: (async (options: SwarmOptions) => {
 			asked.push(options);
-			const members = Array.from({ length: options.members[0]?.count ?? 0 }, (_one, index) => ({
-				id: `member#${index + 1}`,
-				agent: "member",
-				result: { agent: "member", output: `member#${index + 1} did its part`, messages: [], usage: emptyUsage(), ok: true },
-			}));
+			const members = options.members.flatMap(({ agent, count }) =>
+				Array.from({ length: count }, (_one, index) => ({
+					id: `${agent.name}#${index + 1}`,
+					agent: agent.name,
+					result: { agent: agent.name, output: `${agent.name}#${index + 1} did its part`, messages: [], usage: emptyUsage(), ok: true },
+				})),
+			);
 			return {
 				members,
 				posts: [],
@@ -219,6 +222,83 @@ describe("/swarm", () => {
 		assert.equal(asked.length, 1, "a swarm that cannot talk is the control arm, not a mistake");
 		assert.match(said(), /scout does not name `board`/);
 		assert.match(said(), /fan-out/);
+	});
+
+	test("several agents stand on one board, one of each, and agreement counts all of them", async () => {
+		const { ctx } = fakeCtx();
+		const { deps: injected, asked, entries } = deps();
+
+		const step = await runSwarm("--agent for-python,for-rust,for-go --until agree which language", ctx, injected);
+
+		assert.deepEqual(
+			asked[0]?.members.map(({ agent, count }) => [agent.name, count]),
+			[["for-python", 1], ["for-rust", 1], ["for-go", 1]],
+			"a side written in each brief is what copies of one agent cannot have",
+		);
+		assert.equal(step?.kind, "swarm");
+		assert.equal(entries[0]?.id, "swarm", "no one agent names the step");
+		const until = asked[0]?.until;
+		assert.ok(until);
+		const board = createBoard();
+		board.post("for-python#1", { kind: "result", text: "VOTE: Rust" });
+		board.post("for-rust#1", { kind: "result", text: "VOTE: Rust" });
+		assert.equal(until(board), false, "for-go has not voted, and it is on the roster");
+		board.post("for-go#1", { kind: "result", text: "VOTE: Rust" });
+		assert.equal(until(board), true);
+	});
+
+	test("--members counts copies of one agent, so beside several it is refused", async () => {
+		const { ctx, said } = fakeCtx();
+		const { deps: injected, asked } = deps();
+
+		const step = await runSwarm("--members 2 --agent for-python,for-rust which language", ctx, injected);
+
+		assert.equal(step, undefined);
+		assert.deepEqual(asked, []);
+		assert.match(said(), /--members counts copies of one agent/);
+	});
+
+	test("an agent list written with spaces, or naming one twice, is caught before anything is spawned", async () => {
+		const { ctx, said } = fakeCtx();
+		const { deps: injected, asked } = deps();
+
+		assert.equal(await runSwarm("--agent for-python, for-rust which language", ctx, injected), undefined);
+		assert.match(said(), /comma-separated list with no spaces/);
+		assert.equal(await runSwarm("--agent for-python,for-python which language", ctx, injected), undefined);
+		assert.match(said(), /names for-python twice/);
+		assert.deepEqual(asked, []);
+	});
+
+	test("an agent nobody wrote is refused by name, whichever place it has in the list", async () => {
+		const { ctx, said } = fakeCtx();
+		const { deps: injected, asked } = deps();
+
+		assert.equal(await runSwarm("--agent for-python,for-cobol which language", ctx, injected), undefined);
+		assert.deepEqual(asked, []);
+		assert.match(said(), /for-cobol/);
+	});
+
+	test("each turn has a deadline: five minutes unless --timeout says otherwise", async () => {
+		const { ctx } = fakeCtx();
+		const { deps: injected, asked } = deps();
+
+		await runSwarm("describe the reporters", ctx, injected);
+		await runSwarm("--timeout 3m describe the reporters", ctx, injected);
+
+		assert.deepEqual(
+			asked.map((options) => options.timeoutMs),
+			[300_000, 180_000],
+			"pi's agent loop has no step cap: a member reading an empty board ran for forty minutes",
+		);
+	});
+
+	test("a --timeout that is not a duration is refused rather than read as no deadline", async () => {
+		const { ctx, said } = fakeCtx();
+		const { deps: injected, asked } = deps();
+
+		assert.equal(await runSwarm("--timeout soon describe the reporters", ctx, injected), undefined);
+		assert.deepEqual(asked, []);
+		assert.match(said(), /--timeout takes a duration written 90s, 10m or 1h/);
 	});
 
 	test("a count that is not one stops before anything is spawned", async () => {

@@ -224,6 +224,38 @@ is run anyway with a word about it: its copies cannot reach each other, which
 makes the run a fan-out, and that is the arm this whole page is measured
 against.
 
+### Several agents on one board
+
+Copies of one agent share one brief, so the only place their camps can come
+from is the board, and a member refused the camp it asked for may take no
+other. `--agent` also takes a list, and puts each agent on the board once:
+
+```
+/swarm --agent for-python,for-julia,for-cpp --until agree --rounds 6 which language should a new scientific code be written in
+```
+
+Each of `for-python`, `for-julia` and `for-cpp` is a definition of its own,
+whose `tools:` names `board` and whose prompt names the camp it opens for. A
+camp written in the file is one the member cannot be refused, and each file can
+pin its own `model:`. `--members` counts copies of one agent, so beside a list
+it is refused rather than guessed at, and so is a list naming one agent twice.
+Agreement still reads the roster: three agents, three votes.
+
+Measured in a real pi, three such agents on gemma-4-31b, each opening for
+Python, Julia or C++ on which language a new scientific code should be written
+in, `--until agree --rounds 6`:
+
+| | rounds | posts | answers with `re` | how it ended |
+| --- | --- | --- | --- | --- |
+| three copies of `debater`, `--claim Python,Julia,C++ --hold 1` | 1 | 6 | 1 | converged on Julia: all three asked for it, and the two refused took no other camp |
+| `--agent` with one camp per file | 6 | 61 | 43 | stopped by rounds, every camp defended to the end |
+
+One run each, so it says what happened rather than what will. What it shows is
+the thing the claims could not buy: three camps that were argued, post against
+post, for as long as the run allowed. Nobody changed a vote, and that is an
+answer too: a debate that ends by rounds has its disagreement on the board,
+where whoever reads it next can weigh it.
+
 ## Containment
 
 A swarm shipped without these reproduces the parts of that incident worth
@@ -238,7 +270,10 @@ avoiding.
   `write` and no `edit`.
 - **No network.** combo grants none, and a swarm is the last place to start.
 - **Every cap has a default.** `rounds` is 3, `concurrency` 4, the board's own
-  limits are 200 posts of 2000 characters, 50 per member.
+  limits are 200 posts of 2000 characters, 50 per member. The library sets no
+  deadline on a turn, and `/swarm` gives each one five minutes (`--timeout`):
+  pi's agent loop has no step cap, and three debates run with no deadline went
+  past twenty-five minutes, one past forty, without ending.
 - **A member cannot repeat itself.** A post with the same kind, reader and text
   as one the member already made is refused, and the refusal names the earlier
   post.
