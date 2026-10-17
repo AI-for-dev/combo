@@ -13,6 +13,7 @@ import { Run } from "../src/flow/run/walk.ts";
 import { IN_THE_LANGUAGE_OF_THE_WORK } from "../src/language.ts";
 import { stopSwitch } from "../src/stop.ts";
 import type { SpawnFn } from "../src/workflows/options.ts";
+import { callTool } from "./fixtures/call-tool.ts";
 import { checked, flowSpawn, runChecked } from "./fixtures/flow.ts";
 
 const CLOSING = "Answer by calling `submit` with the value asked for above: the call is your answer, and text you write beside it is not read.";
@@ -93,6 +94,15 @@ describe("an agent visit", () => {
 		assert.deepEqual(!none.ok && [none.error, none.path], [{ kind: "schema", message: "the turn ended with no `submit` call" }, "plan"]);
 		const off = await runChecked(flow, "x", { spawn: flowSpawn([[{ submit: { task: "t", first: "coder" } }]]).spawn });
 		assert.deepEqual(!off.ok && off.error, { kind: "schema", message: '`first` is "coder", not scout | reviewer' });
+	});
+
+	test("an accepted `submit` ends the turn, and a refused one does not", async () => {
+		const fake = flowSpawn([[{ submit: { task: "t", first: "scout" } }]]);
+		await runChecked(checked(PLAN, { plan: "Plan." }), "x", { spawn: fake.spawn });
+		const tool = fake.requested[0]?.options.customTools?.find((one) => one.name === "submit");
+		assert.ok(tool);
+		assert.equal((await callTool(tool, { task: "t", first: "scout" })).terminate, true, "pi asks the model nothing after it");
+		assert.notEqual((await callTool(tool, { task: "t", first: "coder" })).terminate, true, "a refusal leaves the turn open to call again");
 	});
 
 	test("`agent-from:` runs the agent the value names, among those written", async () => {

@@ -7,11 +7,17 @@
  * A call that does not match is refused back to the model, which can call
  * again within the same turn; a turn that ends with no accepted call fails
  * the node with `schema`.
+ *
+ * An accepted call ends the turn, as a recorded `verdict` does in a flow.
+ * Measured with gemma-4-31b, three debaters in a loop: a turn left open after
+ * its `submit` invented the rounds that had not happened yet and submitted
+ * again for each, 96 tool calls in one round, until the answer reached the
+ * output limit and failed the node with `provider`.
  */
 
 import { Type } from "typebox";
 import { defineTool, type ToolDefinition } from "../../session.ts";
-import { refuse, said } from "../../tool.ts";
+import { refuse, saidLast } from "../../tool.ts";
 import { mismatch, type ValueType } from "../type.ts";
 
 /** The tool's name, which the runner adds to the agent's `tools:` for a typed node. */
@@ -49,7 +55,7 @@ export function submitTool(type: ValueType): SubmitTool {
 				return refuse(`Not submitted: ${problem}. Call \`${SUBMIT_TOOL}\` again with a value of the schema.`);
 			}
 			accepted = { ok: true, value };
-			return said("Submitted.");
+			return saidLast("Submitted.");
 		},
 	});
 	return {
