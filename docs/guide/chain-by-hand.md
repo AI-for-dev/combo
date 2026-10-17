@@ -105,8 +105,8 @@ in order, with what each was asked, what it carried and answered, what it
 cost, and links to its transcripts. Run it again after more steps and it
 rewrites the file.
 
-`/swarm` is a step too, of kind `swarm`: several copies of one agent on one
-goal, recorded like any other so `/chain`, `/quote` and `--from` reach it. See
+`/swarm` is a step too, of kind `swarm`: several agents on one goal, named
+after the agent when they are copies of one and `swarm` when they are not, recorded like any other so `/chain`, `/quote` and `--from` reach it. See
 [Swarms](swarm.md).
 
 A step that **fails** leaves the chain untouched. It produced nothing to carry,

@@ -26,7 +26,7 @@ See [Quickstart](../guide/quickstart.md) and [Extension](../guide/extension.md).
 | `/step <flow\|agent> <instruction>` | runs one stage on the previous step's output, kept out of the session |
 | `/chain`, `/chain export`, `/chain reset` | lists the steps walked so far, writes them into `chain.md`, or starts a new chain |
 | `/quote [<id>]` | puts one step into the conversation, the last one by default |
-| `/swarm <goal>` | several copies of one agent on one job, with a board between them |
+| `/swarm <goal>` | several agents on one job, copies of one or one of each, with a board between them |
 | `/interview <request>` | turns a vague request into a brief, one question at a time |
 | `/stop [<id>\|all]` | stops the selected subagent, the one named, or the whole run |
 | `/herdr [on\|off]` | gives every subagent its own herdr split; alone, says where it stands |
@@ -47,11 +47,12 @@ Any other value is refused and nothing runs.
 | `/step` | `--model <pattern>` | none | the model of the stage |
 | `/step` | `--agent` | off | run the agent of that name when a flow has it too |
 | `/swarm` | `--members <n>` | `3` | how many copies |
-| `/swarm` | `--agent <name>` | `member` | the agent copied |
+| `/swarm` | `--agent <name>[,<name>…]` | `member` | the agent copied, or the agents put on the board once each |
 | `/swarm` | `--rounds <n>` | `3` | the most rounds |
 | `/swarm` | `--claim a,b,c` | none | things leased one owner at a time; done when each is reported on |
 | `/swarm` | `--hold <n>` | none | the most claims one member may hold |
 | `/swarm` | `--until agree` | off | done when every member votes the same way |
+| `/swarm` | `--timeout <duration>` | `5m` | the most one member's turn may take |
 | `/swarm` | `--model <pattern>` | none | the model of every member |
 | `/interview` | `--model <pattern>` | none | the interviewer's model |
 | `/interview` | `--questions <n>` | `6` | the most questions asked |
