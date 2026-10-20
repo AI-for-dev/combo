@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as os from "node:os";
+import { spawn } from "node:child_process";
 import * as path from "node:path";
 import { after, describe, test } from "node:test";
 import {
@@ -107,7 +108,7 @@ describe("herdr reporter", () => {
 		assert.equal(calls[1]?.params.label, "scout#1");
 		assert.match(
 			String(calls[2]?.params.text),
-			/^exec '.+' '.+\/pane\/main\.ts' --socket '\/nowhere\/combo\.sock' --id 'scout#1'$/,
+			/^exec env (?:COMBO_PI='[^']+' )?'.+' '.+\/pane\/launch\.mjs' --socket '\/nowhere\/combo\.sock' --id 'scout#1'$/,
 			"the pane hosts a client of the mirror, not the subagent",
 		);
 	});
@@ -195,12 +196,43 @@ describe("herdr reporter", () => {
 		}
 	});
 
-	test("the pane runs on the node this process runs, and the client is where the package keeps it", () => {
+	test("the pane runs on the node this process runs, through the launcher the package keeps", () => {
 		const command = paneCommand("scout#1", "/tmp/combo.sock");
-		assert.ok(command.startsWith(`exec '${process.execPath}' '`), "the shell's node may be another version, or none");
-		const main = /^exec '[^']+' '([^']+)'/.exec(command)?.[1] as string;
-		assert.ok(fs.existsSync(main), `${main} must exist, or every pane opens on a usage error`);
-		assert.match(command, / --socket '\/tmp\/combo\.sock' --id 'scout#1'$/);
+		const match = /^exec env (?:COMBO_PI='[^']+' )?'([^']+)' '([^']+)' --socket '\/tmp\/combo\.sock' --id 'scout#1'$/.exec(command);
+		assert.ok(match, `unexpected command: ${command}`);
+		assert.equal(match[1], process.execPath, "the shell's node may be another version, or none");
+		assert.match(match[2] as string, /pane\/launch\.mjs$/);
+		assert.ok(fs.existsSync(match[2] as string), `${match[2]} must exist, or every pane opens on a usage error`);
+	});
+
+	test("the launcher runs the client from under node_modules, with no peers beside it", async () => {
+		const root = tmpDir();
+		const installed = path.join(root, "node_modules", "@ai-for-dev", "combo");
+		fs.cpSync(path.resolve(import.meta.dirname, ".."), installed, {
+			recursive: true,
+			filter: (source) => !source.includes(`${path.sep}node_modules`) && !source.includes(`${path.sep}.git`),
+		});
+		const pi = import.meta.resolve("@earendil-works/pi-coding-agent");
+		const launch = path.join(installed, "pane", "launch.mjs");
+		const child = spawn(process.execPath, [launch, "--socket", path.join(root, "none.sock"), "--id", "scout#1"], {
+			env: { ...process.env, COMBO_PI: pi },
+		});
+		let out = "";
+		const seen = new Promise<void>((resolve) => {
+			const take = (chunk: Buffer) => {
+				out += chunk;
+				if (/ENOENT|ERR_/.test(out)) resolve();
+			};
+			child.stdout.on("data", take);
+			child.stderr.on("data", take);
+			child.on("exit", () => resolve());
+		});
+		const timer = setTimeout(() => child.kill(), 20_000);
+		await seen;
+		clearTimeout(timer);
+		child.kill();
+		// Nothing listens on the socket: the client can only say so once it has loaded.
+		assert.match(out, /ENOENT/, out);
 	});
 
 	test("the members talk on a pane of their own", async () => {

@@ -3,7 +3,7 @@
  *
  * A herdr pane cannot *host* an in-process subagent - there is no process and
  * no TTY to attach. So the pane hosts a **client of the mirror** instead: the
- * pane runs `pane/main.ts`, which attaches to the subagent by id, draws the
+ * pane runs `pane/main.ts` (through `pane/launch.mjs`), which attaches to the subagent by id, draws the
  * session with pi's own components and sends the keyboard back. The pane is
  * then ours, which is also why we can report agent state on it: the main
  * pane's state already belongs to herdr's own pi integration, and two sources
@@ -301,14 +301,26 @@ export function splitParams(options: HerdrOptions): Record<string, unknown> {
  * What a subagent's pane runs: the pane client, on the node this process runs.
  *
  * `exec`, so the pane *is* the client and closing one closes both. The binary
- * is ours rather than whatever `node` the split's shell finds, so the pane runs
- * the TypeScript the way this process does - unless this process is not node
- * at all, in which case the shell's `node` is the only candidate left.
+ * is ours rather than whatever `node` the split's shell finds. The entry is
+ * `launch.mjs`, which strips the types itself: node will not run `main.ts`
+ * from under node_modules, where `pi install` puts this package. `COMBO_PI` is
+ * the pi this process runs, where the launcher finds the peers.
  */
 export function paneCommand(id: string, socket: string): string {
 	const node = process.versions.node ? process.execPath : "node";
-	const main = fileURLToPath(new URL("../../pane/main.ts", import.meta.url));
-	return `exec ${quote(node)} ${quote(main)} --socket ${quote(socket)} --id ${quote(id)}`;
+	const launch = fileURLToPath(new URL("../../pane/launch.mjs", import.meta.url));
+	const pi = piEntry();
+	const env = pi ? `COMBO_PI=${quote(pi)} ` : "";
+	return `exec env ${env}${quote(node)} ${quote(launch)} --socket ${quote(socket)} --id ${quote(id)}`;
+}
+
+/** The entry of the pi this process runs, as a URL, or nothing when it cannot say. */
+function piEntry(): string | undefined {
+	try {
+		return import.meta.resolve("@earendil-works/pi-coding-agent");
+	} catch {
+		return undefined;
+	}
 }
 
 /** What the board's pane runs: the file from the top, then everything appended. */

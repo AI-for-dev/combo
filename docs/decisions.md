@@ -5295,3 +5295,27 @@ that reads them in order, so `/chain export` writes `chain.md` in the chain's
 folder. It is Markdown because the answers are, and each request and answer
 sits in a fence longer than any run of backticks inside it. A heading in an
 answer then cannot break the page's outline.
+
+## The pane starts through `launch.mjs`, not `main.ts`
+
+`pi install` puts combo under `node_modules`, and node refuses to strip types
+from a `.ts` file there (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`). The
+pane command ran `node pane/main.ts`, so every pane exited with status 1 a few
+milliseconds after herdr opened it, and herdr closed it. The reporter swallows
+display failures by design, so `/herdr on` answered "every subagent gets its
+own split" and no split ever stayed open. Running from a checkout hid it,
+because the path has no `node_modules`.
+
+A second problem sat behind the first. `main.ts` imports pi's packages, and a
+pane started by a shell has no `node_modules` that holds them: they are peers,
+resolved from wherever pi runs.
+
+`pane/launch.mjs` is plain JavaScript, which node runs from anywhere. It
+registers two hooks: `load` strips the types of a `.ts` file with node's own
+`stripTypeScriptTypes`, and `resolve` looks up `@earendil-works/*` and
+`typebox` from the entry of the pi that opened the pane, passed as `COMBO_PI`.
+That is also the pi whose events the pane draws. Both functions are in node
+23.6, the version this package already requires.
+
+Loading the client through pi's own `jiti` would have worked too, but it is a
+transitive package of pi, and this repository imports none of those.

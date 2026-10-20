@@ -8,7 +8,7 @@ The herdr reporter: one split per subagent, showing it work.
 
 A herdr pane cannot *host* an in-process subagent - there is no process and
 no TTY to attach. So the pane hosts a **client of the mirror** instead: the
-pane runs `pane/main.ts`, which attaches to the subagent by id, draws the
+pane runs `pane/main.ts` (through `pane/launch.mjs`), which attaches to the subagent by id, draws the
 session with pi's own components and sends the keyboard back. The pane is
 then ours, which is also why we can report agent state on it: the main
 pane's state already belongs to herdr's own pi integration, and two sources

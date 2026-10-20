@@ -122,7 +122,7 @@ await fanOut({
 
 A herdr pane cannot *host* an in-process subagent: there is no process and no TTY
 to attach. So the pane hosts a **client of the [mirror](#reaching-in-the-mirror)**
-instead: it runs `pane/main.ts`, which attaches to the subagent by id, draws
+instead: it runs `pane/main.ts` (through `pane/launch.mjs`), which attaches to the subagent by id, draws
 the session with pi's own components and sends the keyboard back. What you see
 in the split is the task, the answer as Markdown and each tool call in its box,
 the way pi shows its own session, and what you type into it reaches the
@@ -265,11 +265,16 @@ and the result is identical.
 
 ### The pane
 
-`pane/main.ts` is the client a split runs:
+`pane/main.ts` is the client a split runs, started by `pane/launch.mjs`:
 
 ```bash
-node pane/main.ts --socket <mirror socket> --id scout#1
+node pane/launch.mjs --socket <mirror socket> --id scout#1
 ```
+
+The launcher exists because `pi install` puts this package under
+`node_modules`, and node will not run TypeScript from there. It strips the
+types itself and takes pi's packages from the pi named in `COMBO_PI`, which the
+pane command sets.
 
 It draws the session with pi's own components, so it reads like pi: the task
 in a user box, the answer as Markdown, each tool call in its box with the

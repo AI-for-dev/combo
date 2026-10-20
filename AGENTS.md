@@ -243,8 +243,10 @@ reachable by forgetting an argument.
 - **combo needs pi 1.0 or later**, and the extension refuses an older one as it
   loads (`requirePi`). The pi that matters is the one the extension is loaded
   into: even loaded by path from a checkout, it receives the host's copy, not
-  `node_modules`. The pane and the library run under plain Node and resolve
-  `node_modules` like any import.
+  `node_modules`. The library runs under plain Node and resolves `node_modules` like any import.
+  The pane cannot: a split's shell finds no peers beside the package, and node
+  will not run `.ts` from under `node_modules`, so `pane/launch.mjs` strips the
+  types and resolves the peers from the pi in `COMBO_PI`.
 - **A fake session cannot tell you that pi changed shape.** 158 green tests while
   the extension died on `undefined.create()` in a real pi. Anything that touches
   the real module has to be run against the real module.
