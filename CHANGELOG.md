@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.1](https://github.com/AI-for-dev/combo/compare/v0.7.0...v0.7.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* **package:** publish compiled JavaScript, and give the pane the host's pi packages ([#230](https://github.com/AI-for-dev/combo/issues/230)) ([de19205](https://github.com/AI-for-dev/combo/commit/de192054702ac34335d065bdbb5f1cdcea5b65e3))
+* **session:** let subagents run on providers other extensions register ([#231](https://github.com/AI-for-dev/combo/issues/231)) ([692ef01](https://github.com/AI-for-dev/combo/commit/692ef013e498ad9769727f9e785a0b322f6ce192))
+
 ## [0.7.0](https://github.com/AI-for-dev/combo/compare/v0.6.0...v0.7.0) (2026-10-17)
 
 
