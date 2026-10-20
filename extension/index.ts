@@ -31,6 +31,7 @@ import {
 	summaryTable,
 	treeOrder,
 	truncate,
+	useHostProviders,
 	type LivePlan,
 	type SubagentSnapshot,
 } from "../src/index.ts";
@@ -57,6 +58,9 @@ const COLLAPSED_TOOLS = 3;
 
 export default function (pi: PiApi) {
 	requirePi(VERSION);
+	// A subagent's model runtime loads no extension, so it learns of the
+	// providers the others registered from pi's registry, handed over here.
+	pi.on("session_start", (_event, ctx) => useHostProviders(ctx.modelRegistry));
 	registerInterviewCommand(pi);
 	registerHerdrCommand(pi);
 	registerRunCommand(pi);

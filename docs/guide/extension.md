@@ -266,6 +266,12 @@ a custom one; combo refuses it, `Model "nope-model" not found for provider
 answers 404 to every subagent. An entry in `models.json` is how a model the
 catalogue lacks is made known: pi's own `docs/models.md` says how.
 
+The catalogue includes the providers other extensions register, such as
+`ia4dev-gricad` from `@ai-for-dev/providers`: `--model
+ia4dev-gricad/gemma-4-31b` runs the subagents there, on the key that extension
+reads. A subagent still loads no extension. It gets the provider and its
+models, and nothing else the extension brings.
+
 Every run gets `runs/<timestamp>/`, its [run directory](flows.md#the-run-directory):
 the snapshot, the journal, each subagent's transcript, this session's JSONL
 and the `usage.json` a [`measuredRun`](flows.md#measuring-a-run) writes there

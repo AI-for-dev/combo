@@ -109,6 +109,16 @@ export type CreateSessionOptions = {
 
 Session creation settings, passed through by `spawn()`.
 
+## `HostProviders`
+
+*type*
+
+```typescript
+export type HostProviders = Pick<ModelRegistry, "getRegisteredProviderIds" | "getRegisteredNativeProvider" | "getRegisteredProviderConfig">;
+```
+
+Where pi keeps the providers its extensions registered: `ctx.modelRegistry` reads them.
+
 ## `MainSession`
 
 *type*
@@ -379,3 +389,22 @@ export type TurnControl = {
 ```
 
 What governs one turn of a {@link SessionPort}.
+
+## `useHostProviders`
+
+*function*
+
+```typescript
+export function useHostProviders(providers: HostProviders): void { /* … */ }
+```
+
+Makes the providers the host pi's extensions registered resolvable by every
+subagent and every `checkModel` in this process.
+
+A subagent's `ModelRuntime` is a fresh one: it reads pi's built-in providers
+and `models.json`, and loads no extension (invariant 5), so a provider that
+an extension such as `@ai-for-dev/providers` registers is unknown to it, and
+`--model` naming one is refused while pi itself runs on it. The extension
+hands pi's registry here as a session starts. It is one per process, as pi
+keeps it, and a subagent still loads no extension: it gets the providers,
+whose models it can name, and nothing else.

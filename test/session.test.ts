@@ -8,9 +8,22 @@
  */
 
 import assert from "node:assert/strict";
-import { describe, test } from "node:test";
-import { formatSkillsForPrompt, SettingsManager, type ModelRuntime, type Skill } from "@earendil-works/pi-coding-agent";
-import { lastTurn, resolvePattern, situate, StaticResourceLoader, streamed, subagentSettings, type AgentMessage } from "../src/session.ts";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { after, describe, test } from "node:test";
+import { formatSkillsForPrompt, ModelRuntime, SettingsManager, type Skill } from "@earendil-works/pi-coding-agent";
+import {
+	lastTurn,
+	resolvePattern,
+	situate,
+	StaticResourceLoader,
+	streamed,
+	subagentSettings,
+	useHostProviders,
+	withHostProviders,
+	type AgentMessage,
+} from "../src/session.ts";
 
 /** A message in the shape pi keeps them, which is the shape under test here. */
 const message = (fields: Record<string, unknown>) => fields as unknown as AgentMessage;
@@ -127,6 +140,30 @@ describe("resolvePattern", () => {
 	test("a pattern pi rejects is refused with pi's own words", () => {
 		assert.match(resolvePattern("nope/model", runtime).refused ?? "", /^Model "nope\/model" not found\./);
 		assert.match(resolvePattern("gemma-4-31b", runtime).refused ?? "", /ambiguous across providers: ilaas\/gemma-4-31b, local\/gemma-4-31b/);
+	});
+});
+
+describe("withHostProviders", () => {
+	// Real runtimes, kept off `~/.pi`: the copy is only worth testing against
+	// the registry pi composes, not against a double of it.
+	const isolated = () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "combo-models-"));
+		after(() => fs.rmSync(dir, { recursive: true, force: true }));
+		return ModelRuntime.create({ authPath: path.join(dir, "auth.json"), modelsPath: null, modelsStorePath: path.join(dir, "store.json"), refreshOnCreate: false });
+	};
+	const model = { id: "gemma-4-31b", name: "Gemma 4", reasoning: false, input: ["text" as const], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128_000, maxTokens: 8_192 };
+
+	test("a provider an extension registered in the host pi resolves in a subagent's fresh runtime", async () => {
+		const host = await isolated();
+		host.registerProvider("ia4dev-gricad", { baseUrl: "http://localhost:9", apiKey: "key", api: "openai-completions", models: [model] });
+
+		useHostProviders({ getRegisteredProviderIds: () => [], getRegisteredNativeProvider: () => undefined, getRegisteredProviderConfig: () => undefined });
+		assert.match(resolvePattern("ia4dev-gricad/gemma-4-31b", withHostProviders(await isolated())).refused ?? "", /not found/);
+
+		useHostProviders(host);
+		const resolved = resolvePattern("ia4dev-gricad/gemma-4-31b", withHostProviders(await isolated()));
+		assert.equal(resolved.refused, undefined);
+		assert.equal(`${resolved.model?.provider}/${resolved.model?.id}`, "ia4dev-gricad/gemma-4-31b");
 	});
 });
 

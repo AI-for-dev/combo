@@ -22,6 +22,7 @@ import {
 	SessionManager,
 	SettingsManager,
 	type AgentSession,
+	type ModelRegistry,
 	type ResolveCliModelResult,
 	type ResourceLoader,
 	type SessionStats,
@@ -453,7 +454,7 @@ export type CreateSession = (agent: Agent, options: CreateSessionOptions) => Pro
 export const createDefaultSession: CreateSession = async (agent, options) => {
 	const cwd = options.cwd ?? process.cwd();
 	const tools = toolsOf(agent);
-	const modelRuntime = await ModelRuntime.create();
+	const modelRuntime = withHostProviders(await ModelRuntime.create());
 
 	const { model, thinkingLevel } = resolveModel(agent, modelRuntime, options.model);
 	const { session } = await createAgentSession({
@@ -620,8 +621,42 @@ function resolveModel(agent: Agent, modelRuntime: ModelRuntime, pattern = agent.
  * it end to end.
  */
 export async function checkModel(pattern: string): Promise<void> {
-	const { refused } = resolvePattern(pattern, await ModelRuntime.create());
+	const { refused } = resolvePattern(pattern, withHostProviders(await ModelRuntime.create()));
 	if (refused !== undefined) throw new Error(refused);
+}
+
+/** Where pi keeps the providers its extensions registered: `ctx.modelRegistry` reads them. */
+export type HostProviders = Pick<ModelRegistry, "getRegisteredProviderIds" | "getRegisteredNativeProvider" | "getRegisteredProviderConfig">;
+
+let hostProviders: HostProviders | undefined;
+
+/**
+ * Makes the providers the host pi's extensions registered resolvable by every
+ * subagent and every `checkModel` in this process.
+ *
+ * A subagent's `ModelRuntime` is a fresh one: it reads pi's built-in providers
+ * and `models.json`, and loads no extension (invariant 5), so a provider that
+ * an extension such as `@ai-for-dev/providers` registers is unknown to it, and
+ * `--model` naming one is refused while pi itself runs on it. The extension
+ * hands pi's registry here as a session starts. It is one per process, as pi
+ * keeps it, and a subagent still loads no extension: it gets the providers,
+ * whose models it can name, and nothing else.
+ */
+export function useHostProviders(providers: HostProviders): void {
+	hostProviders = providers;
+}
+
+/** `runtime`, with the providers {@link useHostProviders} was handed registered on it. */
+export function withHostProviders(runtime: ModelRuntime): ModelRuntime {
+	const host = hostProviders;
+	if (!host) return runtime;
+	for (const id of host.getRegisteredProviderIds()) {
+		const native = host.getRegisteredNativeProvider(id);
+		const config = host.getRegisteredProviderConfig(id);
+		if (native) runtime.registerNativeProvider(native);
+		else if (config) runtime.registerProvider(id, config);
+	}
+	return runtime;
 }
 
 /** How hard a model thinks before it answers, as pi names the levels. */

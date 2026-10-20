@@ -5336,3 +5336,31 @@ copy, but not that call. It only seemed to work from a clone, where a
 library with the peers beside it, imported from a plain node, and once as pi
 leaves it, with no peers, where it starts the pane client and checks that the
 client gets as far as the socket.
+
+## Subagents see the providers other extensions register
+
+`/run --model ia4dev-gricad/gemma-4-31b` was refused with `Model
+"ia4dev-gricad/gemma-4-31b" not found` while pi itself ran on that model. The
+provider comes from `@ai-for-dev/providers`, an extension, which registers it
+on pi's model registry. A subagent's session is built on a `ModelRuntime` of
+its own, which reads pi's built-in providers and `models.json` and loads no
+extension, by invariant 5. So it never saw the provider, and neither did
+`checkModel`.
+
+pi exposes what an extension registered: `ctx.modelRegistry` lists the
+provider ids and hands back each provider, native or as a configuration. The
+extension passes that registry to `useHostProviders()` on `session_start`, and
+`withHostProviders()` registers those providers on every runtime combo builds,
+for a session and for `checkModel` alike. The models a provider fetched come
+from pi's model cache, as they do for pi.
+
+The registry is kept at module level rather than threaded through
+`SpawnOptions`. pi has one per process, shared by every extension, so a
+module-level reference says what is true. An option would have to cross every
+workflow, the flow runner and the delegate tool to carry the same object.
+
+This widens the catalogue, not the subagent. It still loads no extension, gets
+none of their tools, commands or prompts, and runs on no model it was not
+told to: the model ladder is unchanged, and a provider is only used when a
+pattern names one of its models. Outside pi nothing is handed over, and the
+catalogue is pi's built-ins and `models.json`, as before.
