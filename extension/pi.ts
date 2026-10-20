@@ -34,7 +34,7 @@ type Mode = ExtensionContext["mode"];
 /** The slice of pi's API this extension registers through, and speaks to a session with. */
 export type PiApi = Pick<
 	ExtensionAPI,
-	"registerTool" | "registerCommand" | "registerMessageRenderer" | "registerEntryRenderer" | "sendMessage" | "appendEntry"
+	"registerTool" | "registerCommand" | "registerMessageRenderer" | "registerEntryRenderer" | "sendMessage" | "appendEntry" | "on"
 >;
 
 /**

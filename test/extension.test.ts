@@ -10,7 +10,7 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { initTheme, SessionManager } from "@earendil-works/pi-coding-agent";
+import { initTheme, SessionManager, type ModelRuntime } from "@earendil-works/pi-coding-agent";
 import type { Component } from "@earendil-works/pi-tui";
 import extension from "../extension/index.ts";
 import { RESULT_MESSAGE } from "../extension/commands/answer.ts";
@@ -18,6 +18,7 @@ import { livePlan } from "../src/flow/index.ts";
 import { checked } from "./fixtures/flow.ts";
 import { requirePi, sessionDoors, toolDeps, type PiApi } from "../extension/pi.ts";
 import { STEP_ENTRY } from "../extension/relay.ts";
+import { withHostProviders } from "../src/session.ts";
 import { emptyUsage } from "../src/usage.ts";
 import type { SubagentSnapshot } from "../src/reporters/picture.ts";
 import { fakeCtx } from "./fixtures/command-ctx.ts";
@@ -39,6 +40,7 @@ function registered() {
 	const entryRenderers = new Map<string, any>();
 	const sent: unknown[] = [];
 	const appended: unknown[] = [];
+	const handlers = new Map<string, (event: unknown, ctx: unknown) => unknown>();
 	const pi: PiApi = {
 		registerTool: (definition) => void (tool = definition),
 		registerCommand: (name, options) => void commands.set(name, options),
@@ -46,13 +48,17 @@ function registered() {
 		registerEntryRenderer: (customType, renderer) => void entryRenderers.set(customType, renderer),
 		sendMessage: (message) => void sent.push(message),
 		appendEntry: (customType, data) => void appended.push({ customType, data }),
+		on: ((event: string, handler: (event: unknown, ctx: unknown) => unknown) => {
+			handlers.set(event, handler);
+			return () => {};
+		}) as PiApi["on"],
 	};
 	extension(pi);
 	assert.ok(tool, "the extension must register a tool");
-	return { pi, tool, commands, messageRenderers, entryRenderers, sent, appended };
+	return { pi, tool, commands, messageRenderers, entryRenderers, sent, appended, handlers };
 }
 
-const { pi, tool, commands, messageRenderers, entryRenderers, appended } = registered();
+const { pi, tool, commands, messageRenderers, entryRenderers, appended, handlers } = registered();
 const theme = testTheme();
 
 /** A render context with nothing cached, as on the first frame. */
@@ -128,6 +134,15 @@ describe("the pi it loads into", () => {
 
 	test("a version that does not read as one is refused rather than guessed", () => {
 		assert.throws(() => requirePi(""), /found pi ""/);
+	});
+
+	test("its subagents can run on a provider another extension registered", () => {
+		const registered: string[] = [];
+		const runtime = { registerProvider: (id: string) => void registered.push(id), registerNativeProvider: () => {} } as unknown as ModelRuntime;
+		const modelRegistry = { getRegisteredProviderIds: () => ["ia4dev-gricad"], getRegisteredNativeProvider: () => undefined, getRegisteredProviderConfig: () => ({}) };
+		handlers.get("session_start")?.({ type: "session_start" }, { modelRegistry });
+		withHostProviders(runtime);
+		assert.deepEqual(registered, ["ia4dev-gricad"], "pi's registry is handed over as the session starts");
 	});
 });
 

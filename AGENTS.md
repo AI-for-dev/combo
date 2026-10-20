@@ -251,6 +251,11 @@ reachable by forgetting an argument.
   like any import. The pane is a process of its own, and `pi install` leaves
   pi's packages out, so `pane/peers.ts` resolves them from the host pi, which
   `piPackageUrl()` names: inside pi, `import.meta.resolve` cannot find them.
+- **A subagent's `ModelRuntime` is a fresh one**, and loads no extension, so a
+  provider another extension registers (`ia4dev-gricad`) was unknown to it and
+  `--model` naming one was refused while pi ran on it. `useHostProviders()`
+  takes pi's `ctx.modelRegistry` as a session starts, and every runtime combo
+  builds registers those providers (`withHostProviders()`).
 - **A fake session cannot tell you that pi changed shape.** 158 green tests while
   the extension died on `undefined.create()` in a real pi. Anything that touches
   the real module has to be run against the real module.
