@@ -26,6 +26,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isVisit, type EventListener, type SubagentEvent, type SubagentStatus } from "../events.ts";
 import { mirrorSocket } from "../mirror.ts";
+import { piPackageUrl } from "../session.ts";
 import { plural } from "../text.ts";
 import { trafficLine } from "./traffic.ts";
 import { createHerdrSend, detectHerdr, HERDR_SOURCE, nextSeq, paneIdOf, type HerdrSend } from "./herdr-client.ts";
@@ -301,14 +302,17 @@ export function splitParams(options: HerdrOptions): Record<string, unknown> {
  * What a subagent's pane runs: the pane client, on the node this process runs.
  *
  * `exec`, so the pane *is* the client and closing one closes both. The binary
- * is ours rather than whatever `node` the split's shell finds, so the pane runs
- * the TypeScript the way this process does - unless this process is not node
- * at all, in which case the shell's `node` is the only candidate left.
+ * is ours rather than whatever `node` the split's shell finds - unless this
+ * process is not node at all, in which case the shell's `node` is the only
+ * candidate left. The client is the one beside this module, `pane/main.ts`
+ * from a clone and `dist/pane/main.js` once published, and `pane/peers.ts`
+ * finds pi's packages for it in the pi this process runs.
  */
 export function paneCommand(id: string, socket: string): string {
 	const node = process.versions.node ? process.execPath : "node";
-	const main = fileURLToPath(new URL("../../pane/main.ts", import.meta.url));
-	return `exec ${quote(node)} ${quote(main)} --socket ${quote(socket)} --id ${quote(id)}`;
+	const pane = (name: string) => new URL(`../../pane/${name}${path.extname(import.meta.url)}`, import.meta.url);
+	const client = `${quote(node)} --import ${quote(pane("peers").href)} ${quote(fileURLToPath(pane("main")))}`;
+	return `exec ${client} --socket ${quote(socket)} --id ${quote(id)} --pi ${quote(piPackageUrl())}`;
 }
 
 /** What the board's pane runs: the file from the top, then everything appended. */

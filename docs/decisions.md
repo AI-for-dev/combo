@@ -5295,3 +5295,44 @@ that reads them in order, so `/chain export` writes `chain.md` in the chain's
 folder. It is Markdown because the answers are, and each request and answer
 sits in a fence longer than any run of backticks inside it. A heading in an
 answer then cannot break the page's outline.
+
+## The published package is compiled
+
+Up to 0.7.0 the tarball held the TypeScript sources and nothing else, and
+`exports` and the `pi` manifest named `.ts` files. That works from a clone and
+nowhere else. Node will not strip types from a file under `node_modules`
+(`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`), on purpose: it wants packages
+to publish JavaScript. So `import … from "@ai-for-dev/combo"` failed for anyone
+who had installed it, and every herdr pane died a few milliseconds after it
+opened, because its command ran `node pane/main.ts` from `.pi/npm/node_modules`.
+The extension itself loaded, since pi reads it through jiti, which hid both.
+
+`npm pack` now runs `prepack`, which compiles `src/`, `extension/` and
+`pane/` into `dist/` with `tsc -p tsconfig.build.json`. `exports` names
+`dist/src/index.js` and its declarations, and the manifest names
+`dist/extension/index.js`. Nothing changes in a clone: tests, scripts,
+examples and `pi -e extension` still run the sources, and `dist/` is ignored by
+git. `rewriteRelativeImportExtensions` turns the `.ts` in relative imports into
+`.js`, so the sources keep the imports node needs to run them directly.
+
+`dist/` mirrors the tree, so a relative path from one module to another holds
+in both forms, which is how `paneCommand()` finds the client beside itself with
+its own extension. The package root does not: it is one level up from
+`src/builtin.ts` and two from `dist/src/builtin.js`, so `PACKAGE_ROOT` searches
+for the nearest `package.json` instead of counting.
+
+The pane had a second problem behind the first. `pi install` leaves pi's
+packages out on purpose, which pi's packaging documentation asks for, and a
+process started from a shell then has nowhere to import them from. The pane
+command preloads `pane/peers.ts`, a resolve hook that takes every import of
+`@earendil-works/*` or `typebox` from the pi named by `--pi`. That URL comes
+from pi's own `getPackageDir()` (`piPackageUrl()`). Asking node with
+`import.meta.resolve("@earendil-works/pi-coding-agent")` throws inside pi in
+that installation: pi maps an extension's `import` statements onto its own
+copy, but not that call. It only seemed to work from a clone, where a
+`node_modules` further up held a copy.
+
+`test/package.test.ts` packs the tarball and installs it twice: once as a
+library with the peers beside it, imported from a plain node, and once as pi
+leaves it, with no peers, where it starts the pane client and checks that the
+client gets as far as the socket.

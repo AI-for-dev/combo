@@ -1,7 +1,9 @@
 /**
  * A pane on one subagent: the process a herdr split runs.
  *
- *   node pane/main.ts --socket <mirror socket> --id scout#1
+ *   node --import ./pane/peers.ts pane/main.ts --socket <mirror socket> --id scout#1 [--pi <url>]
+ *
+ * `paneCommand()` writes that line; `peers.ts` says what `--pi` is for.
  *
  * It attaches to the mirror, draws the session with pi's own components, and
  * sends the keyboard back. The theme is the user's, read the way pi reads it:
@@ -18,7 +20,7 @@ const valueOf = (flag: string) => (args.includes(flag) ? args[args.indexOf(flag)
 const socket = valueOf("--socket");
 const id = valueOf("--id");
 if (!socket || !id) {
-	console.error("usage: node pane/main.ts --socket <path> --id <subagent id>");
+	console.error("usage: node --import ./pane/peers.ts pane/main.ts --socket <path> --id <subagent id> [--pi <url>]");
 	process.exit(2);
 }
 

@@ -21,3 +21,6 @@ pi-session-*.jsonl
 
 # Python bytecode from the Sphinx conf
 __pycache__/
+
+# What `npm run build` writes, and `npm pack` ships
+dist/

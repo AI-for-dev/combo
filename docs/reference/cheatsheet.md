@@ -6,7 +6,7 @@ Everything on one page, for lookup. Each section links to the page that explains
 
 | Command | What it does |
 | --- | --- |
-| `npm install @ai-for-dev/combo` | the library, for your own scripts (Node 23.6 or later, no build step) |
+| `npm install @ai-for-dev/combo` | the library, for your own scripts (Node 23.6 or later) |
 | `pi install npm:@ai-for-dev/combo` | the extension, its agents and its flows, loaded into every pi session |
 | `pi -e extension` | the same from a clone, for this session only |
 | `npm test` | the offline suite, from a clone |

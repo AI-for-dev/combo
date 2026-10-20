@@ -11,12 +11,12 @@
 
 import { homedir } from "node:os";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 import { truncateToWidth } from "@earendil-works/pi-tui";
 import {
 	currentActivity,
 	detailLine,
 	liveRows,
+	PACKAGE_ROOT,
 	showSummary,
 	standingOf,
 	statusColour,
@@ -114,7 +114,7 @@ function windowed(body: readonly Painted[], rows: number | undefined, theme: Wid
 }
 
 /** Where this package is installed: what it ships is named from there, `agents/scout.md`. */
-const PACKAGE = fileURLToPath(new URL("../../", import.meta.url));
+const PACKAGE = `${PACKAGE_ROOT}${path.sep}`;
 
 /**
  * `text` with the working directory and this package left out of its paths,

@@ -7,9 +7,8 @@ npm install @ai-for-dev/combo       # the library
 pi install npm:@ai-for-dev/combo    # the same package, loaded into pi
 ```
 
-Node 23.6 or later is required: it runs TypeScript natively, and there is no
-build step. The package ships the TypeScript it was written in, and `tsc` is
-used only to typecheck.
+Node 23.6 or later is required. The package ships JavaScript and type
+declarations; from a clone, node runs the TypeScript sources directly.
 
 From a clone, the same three commands the CI runs:
 
