@@ -15,6 +15,7 @@ library, in [the guide](../../index.md); this is the exhaustive surface.
 | [`board/claims`](board/claims.md) | One owner per thing, decided here rather than agreed between members. | 6 |
 | [`board/lines`](board/lines.md) | The board as a member reads it: one line per post, and what answers the reader first. | 1 |
 | [`board/tool`](board/tool.md) | How a member reaches the board. | 2 |
+| [`builtin`](builtin.md) | The agents and flows this package ships with. | 1 |
 | [`delegate`](delegate.md) | Letting a subagent have subagents of its own. | 4 |
 | [`events`](events.md) | The event stream: one core, many reporters. | 6 |
 | [`flow/bounds`](flow/bounds.md) | The worst case of a checked flow, computed before the first spawn: how many agent turns each node can ask for, and how long it can take when every bounded wait runs to its bound. | 3 |
@@ -97,6 +98,7 @@ board/board
 board/claims
 board/lines
 board/tool
+builtin
 delegate
 events
 flow/bounds

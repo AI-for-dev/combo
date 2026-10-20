@@ -16,14 +16,18 @@ combinators        ──►  Workflow   "how"    : chain, fanOut, loop, orchest
 ```bash
 npm test        # node --test 'test/*.test.ts' - offline, no network, ever
 npm run typecheck
+npm run build   # dist/, what the published package runs - npm pack does it for you
 npm run docs    # regenerate docs/reference/api/ and flows/ - required after any signature change
 pi -e extension # load the extension in a real pi (the only check fakes cannot do)
 python3 scripts/drive-pi.py "/agents"   # the same, hands-free: it types and reads back
 node scripts/check-herdr.ts     # hold our herdr calls to `herdr api schema --json`
 ```
 
-Node >= 23.6 runs TypeScript natively. No build step. `erasableSyntaxOnly` is on:
-no enums, no namespaces, no parameter properties.
+Node >= 23.6 runs the TypeScript sources directly: tests, scripts, examples and
+`pi -e extension` need no build. `npm pack` runs `npm run build` (`prepack`),
+which compiles to `dist/`, and the published package runs that, because node
+refuses to strip types under `node_modules`. `erasableSyntaxOnly` is on: no
+enums, no namespaces, no parameter properties.
 
 ## Invariants - violating one is a bug, whatever the task asked
 
@@ -243,8 +247,10 @@ reachable by forgetting an argument.
 - **combo needs pi 1.0 or later**, and the extension refuses an older one as it
   loads (`requirePi`). The pi that matters is the one the extension is loaded
   into: even loaded by path from a checkout, it receives the host's copy, not
-  `node_modules`. The pane and the library run under plain Node and resolve
-  `node_modules` like any import.
+  `node_modules`. The library runs under plain Node and resolves `node_modules`
+  like any import. The pane is a process of its own, and `pi install` leaves
+  pi's packages out, so `pane/peers.ts` resolves them from the host pi, which
+  `piPackageUrl()` names: inside pi, `import.meta.resolve` cannot find them.
 - **A fake session cannot tell you that pi changed shape.** 158 green tests while
   the extension died on `undefined.create()` in a real pi. Anything that touches
   the real module has to be run against the real module.

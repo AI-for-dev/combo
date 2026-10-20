@@ -18,11 +18,24 @@
  * user's repository, not ours.
  */
 
+import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import * as path from "node:path";
 
-/** Root of the installed package - the directory `src/` sits in. */
-export const PACKAGE_ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+/**
+ * Root of the installed package: the nearest directory above this module that
+ * holds a `package.json`. Searched rather than counted, because this module
+ * runs as `src/builtin.ts` from a clone and as `dist/src/builtin.js` once
+ * published, one level deeper.
+ */
+export const PACKAGE_ROOT = packageRoot(path.dirname(fileURLToPath(import.meta.url)));
+
+function packageRoot(dir: string): string {
+	if (fs.existsSync(path.join(dir, "package.json"))) return dir;
+	const parent = path.dirname(dir);
+	if (parent === dir) throw new Error(`no package.json above ${dir}`);
+	return packageRoot(parent);
+}
 
 /** The agent definitions shipped here. Lowest priority of the three sources. */
 export const BUILTIN_AGENTS_DIR = path.join(PACKAGE_ROOT, "agents");

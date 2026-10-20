@@ -16,6 +16,7 @@ import {
 	createPowerShellToolDefinition,
 	createReadToolDefinition,
 	createWriteToolDefinition,
+	type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 
 const DEFINITIONS = {
@@ -30,6 +31,6 @@ const DEFINITIONS = {
 } as const;
 
 /** How pi draws `name`, or nothing for a tool that is not one of pi's. */
-export function toolDefinition(name: string, cwd: string) {
+export function toolDefinition(name: string, cwd: string): ToolDefinition<any, any, any> | undefined {
 	return DEFINITIONS[name as keyof typeof DEFINITIONS]?.(cwd);
 }

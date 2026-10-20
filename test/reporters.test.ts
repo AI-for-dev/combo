@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { after, describe, test } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
 	autoReporter,
 	combineReporters,
@@ -11,6 +12,7 @@ import {
 	silentReporter,
 } from "../src/reporters/index.ts";
 import { BOARD_PANE, createHerdrReporterWith, paneCommand } from "../src/reporters/herdr.ts";
+import { piPackageUrl } from "../src/session.ts";
 import { detectHerdr, type HerdrSend } from "../src/reporters/herdr-client.ts";
 import { probeHerdr } from "../src/reporters/herdr-probe.ts";
 import type { SubagentEvent } from "../src/events.ts";
@@ -107,7 +109,7 @@ describe("herdr reporter", () => {
 		assert.equal(calls[1]?.params.label, "scout#1");
 		assert.match(
 			String(calls[2]?.params.text),
-			/^exec '.+' '.+\/pane\/main\.ts' --socket '\/nowhere\/combo\.sock' --id 'scout#1'$/,
+			/^exec '.+' --import '.+\/pane\/peers\.ts' '.+\/pane\/main\.ts' --socket '\/nowhere\/combo\.sock' --id 'scout#1' --pi '.+'$/,
 			"the pane hosts a client of the mirror, not the subagent",
 		);
 	});
@@ -197,10 +199,12 @@ describe("herdr reporter", () => {
 
 	test("the pane runs on the node this process runs, and the client is where the package keeps it", () => {
 		const command = paneCommand("scout#1", "/tmp/combo.sock");
-		assert.ok(command.startsWith(`exec '${process.execPath}' '`), "the shell's node may be another version, or none");
-		const main = /^exec '[^']+' '([^']+)'/.exec(command)?.[1] as string;
-		assert.ok(fs.existsSync(main), `${main} must exist, or every pane opens on a usage error`);
-		assert.match(command, / --socket '\/tmp\/combo\.sock' --id 'scout#1'$/);
+		const [, node, peers, main, pi] = /^exec '([^']+)' --import '([^']+)' '([^']+)' --socket '\/tmp\/combo\.sock' --id 'scout#1' --pi '([^']+)'$/.exec(command) ?? [];
+		assert.equal(node, process.execPath, "the shell's node may be another version, or none");
+		for (const file of [fileURLToPath(peers as string), main as string]) {
+			assert.ok(fs.existsSync(file), `${file} must exist, or every pane dies as it opens`);
+		}
+		assert.equal(pi, piPackageUrl(), "the pane takes pi's packages from this process's pi");
 	});
 
 	test("the members talk on a pane of their own", async () => {

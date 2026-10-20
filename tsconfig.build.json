@@ -1,0 +1,15 @@
+{
+	// What `npm pack` ships: JavaScript and declarations in dist/, laid out like
+	// the sources so that a path from one module to another holds in both.
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"noEmit": false,
+		"rootDir": ".",
+		"outDir": "dist",
+		"rewriteRelativeImportExtensions": true,
+		"declaration": true,
+		"declarationMap": true,
+		"sourceMap": true
+	},
+	"include": ["src/**/*.ts", "extension/**/*.ts", "pane/**/*.ts"]
+}

@@ -7,9 +7,10 @@ npm run docs      # regenerate docs/reference/api/ from the TSDoc
 make -C docs html # build the site; needs docs/requirements.txt, warnings are errors
 ```
 
-Node 23.6 or later runs TypeScript natively. There is no build step, and
-`erasableSyntaxOnly` is on: no enums, no namespaces, no parameter properties.
-Node erases types, it does not compile them.
+Node 23.6 or later runs the TypeScript sources directly, so working in a clone
+needs no build. `erasableSyntaxOnly` is on: no enums, no namespaces, no
+parameter properties. Node erases types, it does not compile them. The
+published package is compiled, see [Releasing](#releasing).
 
 ## Layout
 
@@ -254,11 +255,14 @@ title Release Please reads. `feat:` gives a minor version, `fix:` a patch, and a
 1.0. `.github/workflows/check-pr-title.yml` refuses a title outside that
 vocabulary, rather than letting a change vanish from the changelog.
 
-What goes out is this tree, with no build step: `src/`, `extension/`, `pane/`,
-`agents/`, `flows/` and these pages, as `files` lists them. The same tarball
-is a library and a pi package, `exports` answering
-`import … from "@ai-for-dev/combo"` and the `pi` manifest answering
-`pi install npm:@ai-for-dev/combo`. `npm pack --dry-run` says what would be sent.
+What goes out is `dist/`, which `npm pack` builds first (`prepack` runs
+`npm run build`, that is `tsc -p tsconfig.build.json`), with the sources beside
+it for the source maps, `agents/`, `flows/` and these pages, as `files` lists
+them. The same tarball is a library and a pi package, `exports` answering
+`import … from "@ai-for-dev/combo"` with `dist/src/index.js` and its
+declarations, and the `pi` manifest answering `pi install npm:@ai-for-dev/combo`
+with `dist/extension/index.js`. `npm pack --dry-run` says what would be sent,
+and `test/package.test.ts` installs the tarball and runs it.
 
 `files` names directories, so whatever a build drops inside one travels with the
 package: `docs/_build/` and the Sphinx configuration's `docs/__pycache__/` went

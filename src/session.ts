@@ -9,11 +9,14 @@
  * combo is written against pi 1.0 and later.
  */
 
+import * as path from "node:path";
+import { pathToFileURL } from "node:url";
 import {
 	createAgentSession,
 	createExtensionRuntime,
 	defineTool as piDefineTool,
 	getAgentDir,
+	getPackageDir,
 	ModelRuntime,
 	resolveCliModel,
 	SessionManager,
@@ -43,6 +46,19 @@ export type { ToolDefinition };
  * through an array loses that inference without it.
  */
 export const defineTool = piDefineTool;
+
+/**
+ * A URL inside the package of the pi this process runs, for a child process to
+ * resolve pi's packages from (`pane/peers.ts`).
+ *
+ * pi says where it is installed; asking node instead does not work.
+ * `import.meta.resolve("@earendil-works/pi-coding-agent")` throws inside pi
+ * whenever no copy sits beside the package, which is how `pi install` leaves
+ * it: pi maps an extension's imports onto its own copy, not that call.
+ */
+export function piPackageUrl(): string {
+	return pathToFileURL(path.join(getPackageDir(), "package.json")).href;
+}
 
 /**
  * What combo needs of a session: one turn at a time, read for it.

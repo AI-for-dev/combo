@@ -268,8 +268,13 @@ and the result is identical.
 `pane/main.ts` is the client a split runs:
 
 ```bash
-node pane/main.ts --socket <mirror socket> --id scout#1
+node --import ./pane/peers.ts pane/main.ts --socket <mirror socket> --id scout#1 --pi <url>
 ```
+
+`--pi` is a URL inside the package of the pi that runs the subagent, and
+`peers.ts` resolves pi's packages from there: `pi install` does not install
+them beside combo, so a process a shell starts would not find them otherwise.
+Installed from npm, the same client runs from `dist/pane/`.
 
 It draws the session with pi's own components, so it reads like pi: the task
 in a user box, the answer as Markdown, each tool call in its box with the

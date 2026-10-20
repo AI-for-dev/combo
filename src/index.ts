@@ -30,6 +30,7 @@ export {
 	type AgentSource,
 	type Lifetime,
 } from "./agent.ts";
+export { PACKAGE_ROOT } from "./builtin.ts";
 export { resolveSkills, type Skill, type SkillDir } from "./skills.ts";
 export {
 	IN_THE_LANGUAGE_OF_THE_WORK,
