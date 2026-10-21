@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/AI-for-dev/combo/compare/v0.8.0...v0.8.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* **extension:** write a typed flow output as Markdown, not JSON ([#237](https://github.com/AI-for-dev/combo/issues/237)) ([69023b7](https://github.com/AI-for-dev/combo/commit/69023b7089fbaf1047a769287ebf90297cc6a4fe))
+
 ## [0.8.0](https://github.com/AI-for-dev/combo/compare/v0.7.1...v0.8.0) (2026-10-21)
 
 
