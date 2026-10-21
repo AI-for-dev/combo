@@ -211,7 +211,8 @@ extension/          the pi extension: index.ts (tool, renderers), execute.ts
                     keybindings.json)
   commands/         one file per slash command (flows is /flows, run is /run
                     and /run resume); stage beside /step, the command that
-                    uses it, answer, the message /run and /quote leave, and
+                    uses it, answer, the message /run and /quote leave,
+                    readable, a typed output written as Markdown for it, and
                     launch, how /run, /step and the tool launch a flow
   ui/               run (the live view), flow (a flow's plan, painted live
                     and as a finished run's frame), ask (the question card)

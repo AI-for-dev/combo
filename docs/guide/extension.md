@@ -309,7 +309,10 @@ run: `esc` stops it, `shift+↑↓` and `ctrl+del` stop one subagent.
 When the run ends, its answer lands in the conversation as a message that
 triggers no turn: the output of the flow's last root node, then one line on
 how the run ended, then its last frame. The model reads the answer and the
-line; the frame is drawn for you only.
+line; the frame is drawn for you only. A typed output is written as Markdown,
+not JSON: one item per field, a list of objects numbered, and a text of several
+lines under its key with its own lines. `/step` hands a flow stage's output on
+the same way.
 
 ```
 ◆ explore

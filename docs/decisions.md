@@ -5428,3 +5428,24 @@ deadlines before it fails; a node that should not wait that long says
 
 Many tests drove a single failure through a node that said no `retry:`, and
 now say `retry: 0`, which is what they test.
+
+## A typed output reaches the conversation as Markdown, not JSON
+
+A flow whose last node is typed left its answer as a ` ```json ` block. A
+string in JSON holds its line breaks as `\n`, so a plan whose `task` ran over
+several lines, with its own numbered list and its code, read as one escaped
+line under a key. The person could not read it, and the model gained nothing
+from the escapes.
+
+`readable()` writes the value as Markdown. Text stays as it is. An object is
+one item per field, a one-line value beside its key and a longer one under it,
+in a paragraph of its own so its lines, lists and code keep their shape. A list
+of scalars is bulleted. A list of objects is numbered, and inside each item the
+fields are paragraphs rather than a nested list: pi draws no number for an item
+that opens on a list, and the steps of a plan ran into each other. An empty
+list or object says `_empty_` rather than nothing.
+
+It serves `/run`'s answer, the `subagent` tool's `flow` mode, and a flow stage
+of `/step`, which hands its output on as text. What an agent node reads is
+unchanged: a turn still shows a typed read as JSON, which is the exact value
+the node asked for.

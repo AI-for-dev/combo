@@ -13,6 +13,7 @@ import { livePlan, readJournal, resumePoint, type CheckedFlow, type FlowResult, 
 import type { MessageDeps } from "../deps.ts";
 import type { CommandCtx } from "../pi.ts";
 import { framed } from "../relay.ts";
+import { readable } from "./readable.ts";
 
 /**
  * `customType` of the message a finished run leaves in the session, and of a
@@ -49,7 +50,7 @@ export function answer(ctx: Pick<CommandCtx, "cwd">, doors: MessageDeps, checked
 	const details: ResultDetails = { name: checked.name, runDir, live };
 	doors.sendMessage({
 		customType: RESULT_MESSAGE,
-		content: `${framed(`the \`${checked.name}\` flow`, asText(input), output)}\n\n${end}`.replace(/\n{3,}/g, "\n\n"),
+		content: `${framed(`the \`${checked.name}\` flow`, readable(input), output)}\n\n${end}`.replace(/\n{3,}/g, "\n\n"),
 		display: true,
 		details,
 	});
@@ -61,7 +62,7 @@ export type FlowAnswer = { readonly output: string; readonly end: string; readon
 /** What the run in `runDir` of `checked` answered, read back from its journal once it ended. */
 export function flowAnswer(ctx: Pick<CommandCtx, "cwd">, checked: CheckedFlow, runDir: string, result: FlowResult): FlowAnswer {
 	const journal = readJournal(runDir);
-	return { output: result.ok ? asText(result.output) : "", end: endLine(ctx, checked, journal, runDir, result), live: livePlan(checked, journal, []) };
+	return { output: result.ok ? readable(result.output) : "", end: endLine(ctx, checked, journal, runDir, result), live: livePlan(checked, journal, []) };
 }
 
 /**
@@ -88,12 +89,6 @@ export function failure(result: Extract<FlowResult, { ok: false }>): string {
 export function resumeHint(ctx: Pick<CommandCtx, "cwd">, checked: CheckedFlow, journal: readonly JournalEntry[], runDir: string): string {
 	const point = resumePoint(checked, journal);
 	return point.ok ? `/run resume ${shown(ctx, runDir)} picks it up at ${point.from === "" ? "its end" : point.from}` : `it cannot be resumed: ${point.refused}`;
-}
-
-/** A value as the conversation reads it: text as it is, anything else as JSON. */
-export function asText(value: unknown): string {
-	if (value === undefined) return "";
-	return typeof value === "string" ? value : `\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``;
 }
 
 /** `runDir` as the person reads it: from the working directory. */
