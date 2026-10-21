@@ -68,6 +68,13 @@ describe("the published package", () => {
 			assert.ok(fs.existsSync(path.join(installed, file)), `${file} is named in package.json but not in the tarball`);
 		}
 
+		// pi lists a package's extension by the package's name alone only when
+		// its entry is `index.js` or `extensions/index.js`, and by a path beside
+		// the name otherwise: `@ai-for-dev/combo:dist/extension`.
+		assert.deepEqual(manifest.pi.extensions, ["./extensions/index.js"]);
+		const entry = await run(project, ["--input-type=module", "-e", `const { default: load } = await import(${JSON.stringify(path.join(installed, "extensions", "index.js"))}); console.log(typeof load);`], /\n/);
+		assert.equal(entry.trim(), "function", entry);
+
 		const script = `const combo = await import("@ai-for-dev/combo"); console.log(JSON.stringify({ root: combo.PACKAGE_ROOT, agents: combo.loadAgents({ cwd: process.cwd(), builtin: true }).filter((agent) => agent.source === "builtin").map((agent) => agent.name) }));`;
 		const out = await run(project, ["--input-type=module", "-e", script], /^\{.*\}\n/m);
 		const { root, agents } = JSON.parse(out.slice(out.indexOf("{")));

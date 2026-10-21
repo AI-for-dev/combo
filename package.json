@@ -25,11 +25,12 @@
 	},
 	"pi": {
 		"extensions": [
-			"./dist/extension/index.js"
+			"./extensions/index.js"
 		]
 	},
 	"files": [
 		"dist",
+		"extensions",
 		"src",
 		"extension",
 		"pane",

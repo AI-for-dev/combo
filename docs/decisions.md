@@ -5364,3 +5364,22 @@ none of their tools, commands or prompts, and runs on no model it was not
 told to: the model ladder is unchanged, and a provider is only used when a
 pattern names one of its models. Outside pi nothing is handed over, and the
 catalogue is pi's built-ins and `models.json`, as before.
+
+## The published extension is entered through `extensions/index.js`
+
+At startup pi lists each loaded extension. For one that comes from a package, it
+reads the entry's path inside the package, drops a leading `extensions/`, and
+shows the package's name alone when what is left is `index.js` or `index.ts`.
+Anything else is shown after the name. `@ai-for-dev/providers`, whose entry is
+`extensions/index.ts`, reads as its name. combo read as
+`@ai-for-dev/combo:extension` up to 0.7.0, and as
+`@ai-for-dev/combo:dist/extension` once the package was compiled.
+
+The manifest now names `extensions/index.js`, one line that re-exports
+`dist/extension/index.js`, and pi lists `@ai-for-dev/combo`. The compiled code
+stays in `dist/` with the rest, so the relative paths inside it still hold.
+Renaming the source directory to `extensions/` would not have been enough:
+compiled, it would sit in `dist/extensions/`. An `index.js` at the package's
+root would have worked as well, but it reads as the library's entry, which is
+`dist/src/index.js`. From a clone nothing changes: `pi -e extension` loads
+`extension/index.ts`.
