@@ -18,7 +18,8 @@ import { findAgent, readJournal, type Agent, type CheckedRun, type Usage } from 
 import { loadFlows, watched } from "../command.ts";
 import type { Deps } from "../deps.ts";
 import type { CommandCtx } from "../pi.ts";
-import { asText, failure, resumeHint, shown } from "./answer.ts";
+import { failure, resumeHint, shown } from "./answer.ts";
+import { readable } from "./readable.ts";
 import { agentsOf, launch, launchable, notLaunched } from "./launch.ts";
 
 /** What a step turned out to name, checked to run here. Resolved before anything is spawned. */
@@ -89,7 +90,7 @@ export async function runStage(target: Target, input: string, stage: Stage): Pro
 
 	if (target.kind === "flow") {
 		const result = await launch(ctx, deps, target.run, input, { runDir: dir, model, status, mainSession: ctx.sessionManager });
-		if (result.ok) return { output: asText(result.output), usage: result.usage };
+		if (result.ok) return { output: readable(result.output), usage: result.usage };
 		return { output: "", usage: result.usage, failed: { why: failure(result), next: resumeHint(ctx, target.run.flow, readJournal(dir), dir) } };
 	}
 
