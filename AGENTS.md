@@ -217,6 +217,9 @@ extension/          the pi extension: index.ts (tool, renderers), execute.ts
                     and as a finished run's frame), ask (the question card)
                     and card (what it draws around the answer), asking and
                     herdr-switch (two switches a card and a key share)
+extensions/         index.js, the entry pi loads from the published package: it
+                    re-exports dist/extension/, so pi lists it as
+                    `@ai-for-dev/combo` and not by its path
 pane/               the client a herdr split runs, attached to the mirror
 agents/ flows/      shipped definitions (symlinked into .pi/)
 examples/ scripts/ test/

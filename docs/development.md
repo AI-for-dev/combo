@@ -261,7 +261,9 @@ it for the source maps, `agents/`, `flows/` and these pages, as `files` lists
 them. The same tarball is a library and a pi package, `exports` answering
 `import … from "@ai-for-dev/combo"` with `dist/src/index.js` and its
 declarations, and the `pi` manifest answering `pi install npm:@ai-for-dev/combo`
-with `dist/extension/index.js`. `npm pack --dry-run` says what would be sent,
+with `extensions/index.js`, one line that re-exports `dist/extension/index.js`.
+pi names an extension at that path by the package's name alone at startup.
+`npm pack --dry-run` says what would be sent,
 and `test/package.test.ts` installs the tarball and runs it.
 
 `files` names directories, so whatever a build drops inside one travels with the
