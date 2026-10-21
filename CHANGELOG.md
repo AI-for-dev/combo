@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.0](https://github.com/AI-for-dev/combo/compare/v0.7.1...v0.8.0) (2026-10-21)
+
+
+### Features
+
+* **flow:** retry an agent node three times unless it says otherwise ([#235](https://github.com/AI-for-dev/combo/issues/235)) ([eb9b51d](https://github.com/AI-for-dev/combo/commit/eb9b51db20acd03d8c87f0785173388ae1b02ba8))
+
+
+### Bug Fixes
+
+* **flow:** fail an agent node whose turn ends with no text ([#234](https://github.com/AI-for-dev/combo/issues/234)) ([3ec75c3](https://github.com/AI-for-dev/combo/commit/3ec75c351b5c532eb7f8232004fda0f83ac36cb7))
+* **package:** list the extension as @ai-for-dev/combo at pi's startup ([#233](https://github.com/AI-for-dev/combo/issues/233)) ([d1aa9bc](https://github.com/AI-for-dev/combo/commit/d1aa9bc2aa3d62676b4270f9958d40b31dce754a))
+
 ## [0.7.1](https://github.com/AI-for-dev/combo/compare/v0.7.0...v0.7.1) (2026-10-20)
 
 
