@@ -17,6 +17,7 @@ const g = (head = "input: string") => flowText("  - id: look\n    agent: scout\n
 /** A loop of three around a `map` of four, two at a time, and a parallel whose one branch calls `g` and whose other asks. */
 const NESTED = `  - id: plan
     agent: planner
+    retry: 0
     reads: [input]
     output: { tasks: [string], ready: boolean }
   - id: rounds
@@ -31,6 +32,7 @@ const NESTED = `  - id: plan
         do:
           - id: act
             agent: scout
+            retry: 0
             reads: [item]
             timeout: 90s
       - id: both
@@ -45,6 +47,7 @@ const NESTED = `  - id: plan
               confirm: true
       - id: review
         agent: reviewer
+        retry: 0
         verdict: rounds
         on-fail: continue`;
 
@@ -53,6 +56,7 @@ const nested = (head?: string, callee = g("input: string\ntimeout: 10m")) => che
 /** The choice and the literal map the renderings draw. */
 const SMALL = `  - id: plan
     agent: planner
+    retry: 0
     output: { ready: boolean }
   - id: gate
     choice:
@@ -60,6 +64,7 @@ const SMALL = `  - id: plan
         do:
           - id: go
             agent-from: plan.output.who
+            retry: 0
             among: [scout, reviewer]
     default: []
   - id: each
@@ -97,6 +102,14 @@ describe("the bounds of a checked flow", () => {
 	test("give a callee with no `timeout:` its caller's, and its own when it has one", () => {
 		assert.deepEqual(nested("input: string\ntimeout: 5m", g()).bounds.nodes.get("rounds/both/spec/look"), bound(6, 30), "2 attempts of 5m, 3 times");
 		assert.deepEqual(nested("input: string\ntimeout: 5m").bounds.nodes.get("rounds/both/spec/look"), bound(6, 60), "the callee's 10m wins");
+	});
+
+	test("give an agent node that says no `retry:` three more attempts, which its plan says", () => {
+		const flow = checkedIn("g", { g: flowText("  - id: look\n    agent: scout\n  - id: once\n    agent: scout\n    retry: 0", { look: "L.", once: "O." }, "input: string", "g") });
+		assert.deepEqual([flow.bounds.nodes.get("look"), flow.bounds.nodes.get("once")], [bound(4, 120), bound(1, 30)]);
+		const plan = showPlan(planOf(flow));
+		assert.match(plan, /○ look · agent scout \(agents\/scout\.md\) · retry 3 by default · timeout 30m by default · ≤ 4 turns · ≤ 2h$/m);
+		assert.match(plan, /○ once · agent scout \(agents\/scout\.md\) · timeout 30m by default · ≤ 1 turn · ≤ 30m$/m);
 	});
 
 	test("take the worst case of a choice, and a literal list as the bound of its map", () => {
@@ -150,7 +163,7 @@ describe("the plan of a checked flow", () => {
 	});
 
 	test("says the level a node's turn thinks at", () => {
-		const flow = checkedIn("g", { g: flowText("  - id: look\n    agent: scout\n    thinking: high", { look: "L." }, "input: string", "g") });
+		const flow = checkedIn("g", { g: flowText("  - id: look\n    agent: scout\n    retry: 0\n    thinking: high", { look: "L." }, "input: string", "g") });
 		assert.match(showPlan(planOf(flow)), /○ look · agent scout \(agents\/scout\.md\) · thinking high · timeout/);
 	});
 

@@ -11,6 +11,7 @@
  * addresses go through the call: `spec/ask_next`.
  */
 
+import { retriesOf } from "../bounds.ts";
 import type { CheckedAgentNode, CheckedAskNode, CheckedCallNode, CheckedCheckNode, CheckedCommitNode, CheckedNode } from "../checked.ts";
 import { nearest } from "../../nearest.ts";
 import { under } from "./ended.ts";
@@ -111,7 +112,7 @@ function isAnswered(node: CheckedNode): node is AnsweredNode {
 
 /** How many times one visit of `node` is asked: only an agent turn is retried. */
 function attempts(node: AnsweredNode): number {
-	return node.kind === "agent" ? 1 + node.retry : 1;
+	return node.kind === "agent" ? 1 + retriesOf(node) : 1;
 }
 
 function nested(node: Exclude<CheckedNode, AnsweredNode>): (readonly CheckedNode[])[] {

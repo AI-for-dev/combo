@@ -24,7 +24,7 @@ import type { Agent } from "../src/agent.ts";
 initTheme();
 
 /** Two agents one after the other: the second reads what the first found. */
-const TWO = flowText("  - id: look\n    agent: scout\n    reads: [input]\n  - id: answer\n    agent: synthesiser\n    reads: [input, look]", { look: "Look.", answer: "Answer." }, "input: string", "two");
+const TWO = flowText("  - id: look\n    agent: scout\n    retry: 0\n    reads: [input]\n  - id: answer\n    agent: synthesiser\n    retry: 0\n    reads: [input, look]", { look: "Look.", answer: "Answer." }, "input: string", "two");
 /** A flow that commits, which needs a repository. */
 const COMMITS = flowText("  - id: message\n    agent: scout\n    reads: [input]\n  - id: save\n    commit: message", { message: "Write the message." }, "input: string", "commits");
 /** A question with no default, which needs somebody there. */

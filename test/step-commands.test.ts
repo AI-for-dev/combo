@@ -31,7 +31,7 @@ const agents = ["scout", "synthesiser", "planner", "coder", "reviewer", "explore
 );
 
 /** A flow of one scout, which answers what it is scripted to. */
-const EXPLORE = flowText("  - id: look\n    agent: scout\n    reads: [input]", { look: "Look." }, "input: string", "explore");
+const EXPLORE = flowText("  - id: look\n    agent: scout\n    retry: 0\n    reads: [input]", { look: "Look." }, "input: string", "explore");
 /** A flow whose question has no default, which needs somebody there. */
 const ASKS = flowText('  - id: sure\n    ask: "Go on?"\n    confirm: true', {}, "input: string", "asks");
 

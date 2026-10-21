@@ -258,7 +258,7 @@ Every kind takes `on-fail: continue`: a failure stops at that node, and later no
 | `output: <schema>` | the turn answers through a `submit` tool built from the schema |
 | `memory: <id>` or `flow` | nodes naming the same agent and scope resume one subagent |
 | `verdict: <id>` | the turn decides with the `verdict` tool, into that node's `ledger` |
-| `retry: n` | `n` more attempts after a `provider`, `timeout` or `schema` failure |
+| `retry: n` | `n` more attempts after a `provider`, `timeout`, `schema` or `no-tool` failure; 3 when absent, `0` to ask once |
 | `timeout: 10m` | the bound of one attempt, or of a check or a card |
 | `copies: true` | each branch works in its own copy of the repository |
 | `carry: { first, next }` | what `<loop>.carry` reads, first and after each iteration |

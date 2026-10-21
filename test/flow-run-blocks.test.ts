@@ -26,10 +26,12 @@ const BOTH = `  - id: both
       left:
         - id: look
           agent: scout
+          retry: 0
       right:
         - id: judge
           agent: reviewer
-          output: { fine: boolean }`;
+          output: { fine: boolean }
+          retry: 0`;
 const BOTH_SECTIONS = { look: "Look.", judge: "Judge." };
 
 describe("a parallel", () => {
@@ -56,7 +58,7 @@ describe("a parallel", () => {
 
 	test("with `on-fail: continue`, ends `ok: true` and keeps its failed branch", async () => {
 		const fake = flowSpawn({ scout: [[{ error: "boom" }]], reviewer: [[{ submit: { fine: true } }]], synthesiser: [[{ text: "carried on" }]] });
-		const flow = checked(`${BOTH}\n    on-fail: continue\n  - id: after\n    agent: synthesiser\n    reads: [both]`, { ...BOTH_SECTIONS, after: "After." });
+		const flow = checked(`${BOTH}\n    on-fail: continue\n  - id: after\n    agent: synthesiser\n    retry: 0\n    reads: [both]`, { ...BOTH_SECTIONS, after: "After." });
 		const events: SubagentEvent[] = [];
 		const result = await runChecked(flow, "x", { spawn: fake.spawn, onEvent: (event) => events.push(event) });
 		assert.deepEqual(result.ok && result.output, "carried on");
@@ -98,7 +100,8 @@ describe("a parallel", () => {
 
 const PLAN = `  - id: plan
     agent: planner
-    output: { tasks: [string] }`;
+    output: { tasks: [string] }
+    retry: 0`;
 const WORK = `${PLAN}
   - id: work
     map-from: plan.output.tasks
@@ -106,6 +109,7 @@ const WORK = `${PLAN}
     do:
       - id: act
         agent: scout
+        retry: 0
         reads: [item]`;
 const WORK_SECTIONS = { plan: "Plan.", act: "Act." };
 

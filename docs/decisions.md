@@ -5403,3 +5403,28 @@ not read.
 The rule sits in the flow runner, not in `subagent.ts`. A subagent's caller
 decides what its text is for. A swarm member may end a turn with nothing left
 to take, and an agent with `mustCallTool: true` answers through its tool.
+
+## An agent node is retried three times unless it says otherwise
+
+`retry:` defaulted to 0, so a node that did not say failed its run on the
+first transient failure. Every shipped flow had already been given `retry: 1`
+node by node, but a flow someone writes from the guide does not: the
+`impact-plan` example of the course has none, and one empty answer from the
+provider stopped the run where one more turn would have done.
+
+The failures `retry:` covers are transient by nature: a provider error, an
+empty or cut answer, a deadline, a `submit` forgotten or off its schema. A node
+that says no `retry:` now gets 3 more attempts, `DEFAULT_RETRY`. `retry: 0`
+asks once, and an explicit value always wins, so the shipped flows keep their
+`retry: 1` and their bounds.
+
+The cost shows where it is read. The plan prints `retry 3 by default`, the way
+it prints `timeout 30m by default`, and the bounds count every attempt: a
+node with no `retry:` and no `timeout:` is now `≤ 4 turns · ≤ 2h` in the worst
+case, against `≤ 1 turn · ≤ 30m` before. A retry after a timeout starts a fresh
+subagent asked the whole turn, so a node that keeps timing out waits four
+deadlines before it fails; a node that should not wait that long says
+`retry:` or `timeout:` itself.
+
+Many tests drove a single failure through a node that said no `retry:`, and
+now say `retry: 0`, which is what they test.

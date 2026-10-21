@@ -129,7 +129,7 @@ describe("a measured flow run", () => {
 	test("words a deadline once, in the result, the journal and `usage.json` alike", async () => {
 		const runDir = path.join(fs.realpathSync(plainDirectory()), "run");
 		const run = measuredRun({ dir: runDir });
-		const flow = flowOf("  - id: look\n    agent: scout", { look: "Look." });
+		const flow = flowOf("  - id: look\n    agent: scout\n    retry: 0", { look: "Look." });
 		const result = await runFlow(await launched(flow), "x", { spawn: flowSpawn([[said("late", { delayMs: 5_000 })]]).spawn, onEvent: run.onEvent, runDir, timeoutMs: 20 });
 		run.finish();
 
@@ -151,7 +151,7 @@ describe("a measured flow run", () => {
 	});
 
 	test("counts every life of a resumed run, rebuilding the one killed before it wrote its own", async () => {
-		const flow = flowOf("  - id: look\n    agent: scout\n  - id: more\n    agent: planner\n  - id: last\n    agent: synthesiser", { look: "Look.", more: "More.", last: "Last." });
+		const flow = flowOf("  - id: look\n    agent: scout\n    retry: 0\n  - id: more\n    agent: planner\n    retry: 0\n  - id: last\n    agent: synthesiser\n    retry: 0", { look: "Look.", more: "More.", last: "Last." });
 		const cwd = fs.realpathSync(plainDirectory());
 		const runDir = path.join(cwd, "run");
 		const main = SessionManager.inMemory(cwd);

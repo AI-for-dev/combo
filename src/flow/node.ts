@@ -80,7 +80,7 @@ export type AgentNode = Common & {
 	readonly output?: ValueType;
 	/** The enclosing node whose ledger this turn's `verdict` tool writes to. */
 	readonly verdict?: string;
-	readonly retry: number;
+	readonly retry?: number;
 	readonly timeoutMs?: number;
 	/** The level the turn thinks at, unless the run's model names one. Absent: the subagent's own. */
 	readonly thinking?: ThinkingLevel;
