@@ -20,6 +20,9 @@ const PORTS: FlowPorts = { git: gitPort(), check: bashCheck() };
 /** A message written by `message` from the tree's `diff`, then committed. */
 const COMMIT = checked("  - id: message\n    agent: scout\n    reads: [diff]\n  - id: commit\n    commit: message", { message: "Write the commit message." });
 
+/** A commit whose message is a field of a typed output: the one way it can be empty, since an agent's empty text fails its own node. */
+const TYPED_COMMIT = checked("  - id: message\n    agent: scout\n    output: { text: string }\n  - id: commit\n    commit: message.output.text", { message: "Write the commit message." });
+
 /** The outputs of every visit that ended, by path. */
 function outputs(events: VisitEvent[]): Record<string, unknown> {
 	return Object.fromEntries(events.flatMap((event) => (event.type === "visit_end" ? [[event.path, event.ok ? event.output : event.error]] : [])));
@@ -83,7 +86,7 @@ describe("a commit, run", () => {
 
 	test("fails `empty-message` before git is asked, and `unavailable` with git's words when it refuses", async () => {
 		const cwd = repository({ "notes.txt": "hello\n" });
-		const empty = await runFlow(await launched(COMMIT, { cwd, ports: PORTS }), "x", { spawn: flowSpawn([[{ text: "  \n" }]]).spawn });
+		const empty = await runFlow(await launched(TYPED_COMMIT, { cwd, ports: PORTS }), "x", { spawn: flowSpawn([[{ submit: { text: "  \n" } }]]).spawn });
 		assert.deepEqual(!empty.ok && [empty.error.kind, empty.path], ["empty-message", "commit"]);
 		assert.equal(git(cwd, "branch", "--show-current"), "main", "an empty message opens no branch");
 		fs.writeFileSync(path.join(cwd, ".git", "hooks", "pre-commit"), "#!/bin/sh\necho 'no commits today' >&2\nexit 1\n", { mode: 0o755 });
@@ -106,7 +109,7 @@ describe("a commit in a dry run", () => {
 		assert.deepEqual(run.ok && "journal" in run && run.output, { committed: true, sha: "abc1234", branch: "combo/x" });
 		const failed = await dryRunFlow(COMMIT, "x", { message: "Add", commit: { fail: "unavailable" } });
 		assert.deepEqual(!failed.ok && "error" in failed && failed.error.kind, "unavailable");
-		const empty = await dryRunFlow(COMMIT, "x", { message: " " });
+		const empty = await dryRunFlow(TYPED_COMMIT, "x", { message: { text: " " } });
 		assert.deepEqual(!empty.ok && "error" in empty && empty.error.kind, "empty-message");
 	});
 

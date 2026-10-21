@@ -5383,3 +5383,23 @@ compiled, it would sit in `dist/extensions/`. An `index.js` at the package's
 root would have worked as well, but it reads as the library's entry, which is
 `dist/src/index.js`. From a clone nothing changes: `pi -e extension` loads
 `extension/index.ts`.
+
+## A turn that ends with no text fails its node
+
+A run of `impact-plan` on `ia4dev-ilaas/gemma-4-31b` ended `ok`, and the
+conversation got the header of the answer with nothing under it. Both agents
+had read the code, then ended their turn on an empty message: `stopReason:
+"stop"`, no part at all. combo took each as an answer. The planner planned from
+an empty impact note, the run said `ok`, and neither `retry:` nor `/run resume`
+had anything to act on.
+
+An `agent` node with no `output:` and no `verdict:` hands on its text, so an
+empty text there is not an answer. It now fails `provider`, `the turn ended
+with no text`, like a turn the output limit cut in its thinking. `retry:`
+covers it, and a resume picks the run up at that node. A typed or `verdict:`
+node is not concerned: its answer is a tool call, and the text beside it is
+not read.
+
+The rule sits in the flow runner, not in `subagent.ts`. A subagent's caller
+decides what its text is for. A swarm member may end a turn with nothing left
+to take, and an agent with `mustCallTool: true` answers through its tool.

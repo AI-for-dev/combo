@@ -111,7 +111,13 @@ async function ask({ run, node, path, here, ledger }: Asking, held: Held, task: 
 	const submitted = held.submit?.take();
 	const decided = await held.verdict?.take(result, ledger);
 	if (!result.ok) return { ended: failed(run, here.cut, held.subagent.id, result, deadline, ms), usage: result.usage };
-	if (node.verdict === undefined && node.output === undefined) return { ended: { ok: true, output: result.output }, usage: result.usage };
+	if (node.verdict === undefined && node.output === undefined) {
+		// The text is the node's output here. A turn can end on an empty
+		// message, `stopReason: "stop"` and no part at all: that is the
+		// provider failing, not an answer to hand the next node.
+		if (result.output.trim() === "") return { ended: failure("provider", "the turn ended with no text"), usage: result.usage };
+		return { ended: { ok: true, output: result.output }, usage: result.usage };
+	}
 	const answer = node.verdict === undefined ? submitted : decided;
 	if (answer?.ok) return { ended: { ok: true, output: answer.value }, usage: result.usage };
 	return { ended: failure("schema", answer?.message ?? "the turn ended with no `submit` call"), usage: result.usage };
