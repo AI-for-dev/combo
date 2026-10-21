@@ -182,7 +182,7 @@ One turn of an agent from the catalogue.
 | `output` | a [schema](#schemas): the output is typed, instead of the agent's text |
 | `memory` | an enclosing node's id, or `flow`: every node naming this agent and scope resumes the same subagent |
 | `verdict` | an enclosing node with a `ledger:`: the turn answers with the `verdict` tool, and its output is `{ approved, remarks? }` |
-| `retry` | how many more attempts after a failed one, default 0 |
+| `retry` | how many more attempts after a failed one, default 3 |
 | `timeout` | the bound of one attempt, `90s`, `10m`, `1h` |
 | `thinking` | the level the turn thinks at: `off`, `minimal`, `low`, `medium`, `high`, `xhigh` or `max` |
 | `on-fail` | `continue`: a failure stops at this node instead of ending the flow |
@@ -835,7 +835,9 @@ for it. A `submit` or a `verdict` is a tool call, so a typed or `verdict:`
 node meets it with its answer.
 
 `retry: n` gives an `agent` node `n` more attempts after a `provider`,
-`timeout`, `schema` or `no-tool` failure, never after a stop or a cut. A retry asks the
+`timeout`, `schema` or `no-tool` failure, never after a stop or a cut. A node
+that says no `retry:` gets 3, and the plan shows it as `retry 3 by default`;
+`retry: 0` asks once. A retry asks the
 same subagent again with the failure named, except after a timeout, which
 starts a fresh subagent asked the whole turn, unless a `memory:` scope keeps
 it. Every attempt's tokens count.
@@ -961,7 +963,8 @@ of it, by its address through the calls (`spec/look` for `look` in the flow
 the node `spec` calls). A bound is `{ turns, ms, waits }`. It is shown, never
 judged: no flow is refused for what it could cost.
 
-- An `agent` node asks for `1 + retry` turns per visit, each bounded by its
+- An `agent` node asks for `1 + retry` turns per visit, 4 when it says no
+  `retry:`, each bounded by its
   `timeout:`, the nearest flow's around it, or 30 minutes.
 - A `check` takes its `timeout:`, an `ask` its `timeout:` when it has one, and
   a `commit` nothing. An `ask` with no `timeout:` sets `waits`: it can wait

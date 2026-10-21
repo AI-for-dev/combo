@@ -26,7 +26,8 @@ function visits(events: SubagentEvent[]): string[] {
 const PLAN = `  - id: plan
     agent: planner
     reads: [input]
-    output: { task: string, first: scout | reviewer }`;
+    output: { task: string, first: scout | reviewer }
+    retry: 0`;
 
 describe("an agent visit", () => {
 	test("is asked its section, each read under its address, the closing part, and the language line last", async () => {
@@ -166,10 +167,11 @@ describe("a failure", () => {
         do:
           - id: look
             agent: scout
+            retry: 0
     default: []`;
 
 	test("travels up through every enclosing node, the flow naming the visit it started at", async () => {
-		const flow = checked(`${FAILING}\n  - id: after\n    agent: synthesiser`, { look: "Look.", after: "After." });
+		const flow = checked(`${FAILING}\n  - id: after\n    agent: synthesiser\n    retry: 0`, { look: "Look.", after: "After." });
 		const fake = flowSpawn([[{ error: "boom" }]]);
 		const events: SubagentEvent[] = [];
 		const result = await runChecked(flow, "x", { spawn: fake.spawn, onEvent: (event) => events.push(event) });
@@ -180,7 +182,7 @@ describe("a failure", () => {
 	});
 
 	test("stops at `on-fail: continue`, and a read of the failed node is its error as JSON", async () => {
-		const flow = checked(`${FAILING}\n    on-fail: continue\n  - id: after\n    agent: synthesiser\n    reads: [gate]`, { look: "Look.", after: "After." });
+		const flow = checked(`${FAILING}\n    on-fail: continue\n  - id: after\n    agent: synthesiser\n    retry: 0\n    reads: [gate]`, { look: "Look.", after: "After." });
 		const fake = flowSpawn([[{ error: "boom" }], [{ text: "carried on" }]]);
 		const result = await runChecked(flow, "x", { spawn: fake.spawn });
 		assert.deepEqual(result.ok && result.output, "carried on");
@@ -200,6 +202,17 @@ describe("`retry:`", () => {
 		assert.equal(result.usage.input, 130);
 	});
 
+	test("with none, a failed turn is asked three more times, then fails its node", async () => {
+		const flow = checked("  - id: look\n    agent: scout", { look: "Look." });
+		const recovered = flowSpawn([[{ error: "boom" }, { error: "boom" }, { error: "boom" }, { text: "found" }]]);
+		const ok = await runChecked(flow, "x", { spawn: recovered.spawn });
+		assert.deepEqual(ok.ok && ok.output, "found");
+		const fake = flowSpawn([[{ error: "boom" }, { error: "boom" }, { error: "boom" }, { error: "boom" }, { text: "never asked" }]]);
+		const result = await runChecked(flow, "x", { spawn: fake.spawn });
+		assert.deepEqual(!result.ok && [result.error, result.path], [{ kind: "provider", message: "boom" }, "look"]);
+		assert.equal(fake.created[0]?.prompts.length, 4);
+	});
+
 	test("covers a turn cut by the output limit, which is a provider failure and not an empty answer", async () => {
 		const flow = checked("  - id: look\n    agent: scout\n    retry: 1\n  - id: after\n    agent: synthesiser\n    reads: [look]", { look: "Look.", after: "After." });
 		const fake = flowSpawn([[{ error: "the answer reached the output limit" }, { text: "found" }], [{ text: "read it" }]]);
@@ -210,7 +223,7 @@ describe("`retry:`", () => {
 	});
 
 	test("without one, a turn cut by the output limit fails its node rather than hand the next one nothing", async () => {
-		const flow = checked("  - id: look\n    agent: scout\n  - id: after\n    agent: synthesiser\n    reads: [look]", { look: "Look.", after: "After." });
+		const flow = checked("  - id: look\n    agent: scout\n    retry: 0\n  - id: after\n    agent: synthesiser\n    retry: 0\n    reads: [look]", { look: "Look.", after: "After." });
 		const fake = flowSpawn([[{ error: "the answer reached the output limit" }], [{ text: "read nothing" }]]);
 		const result = await runChecked(flow, "x", { spawn: fake.spawn });
 		assert.deepEqual(!result.ok && [result.error, result.path], [{ kind: "provider", message: "the answer reached the output limit" }, "look"]);
@@ -226,7 +239,7 @@ describe("`retry:`", () => {
 	});
 
 	test("without one, a turn that ended with no text fails its node rather than hand the next one nothing", async () => {
-		const flow = checked("  - id: note\n    agent: scout\n  - id: plan\n    agent: synthesiser\n    reads: [note]", { note: "Note.", plan: "Plan." });
+		const flow = checked("  - id: note\n    agent: scout\n    retry: 0\n  - id: plan\n    agent: synthesiser\n    retry: 0\n    reads: [note]", { note: "Note.", plan: "Plan." });
 		const fake = flowSpawn([[{ text: "" }], [{ text: "planned from nothing" }]]);
 		const result = await runChecked(flow, "x", { spawn: fake.spawn });
 		assert.deepEqual(!result.ok && [result.error, result.path], [{ kind: "provider", message: "the turn ended with no text" }, "note"]);
@@ -264,7 +277,7 @@ describe("`retry:`", () => {
 
 describe("`timeout:`", () => {
 	test("cuts a turn at its bound, and the run's own bound overrides every other", async () => {
-		const flow = checked("  - id: look\n    agent: scout\n    timeout: 1h", { look: "Look." });
+		const flow = checked("  - id: look\n    agent: scout\n    retry: 0\n    timeout: 1h", { look: "Look." });
 		const started = performance.now();
 		const result = await runChecked(flow, "x", { spawn: flowSpawn([[{ delayMs: 5000 }]]).spawn, timeoutMs: 50 });
 		assert.ok(performance.now() - started < 2000, "the turn was really cut short");
@@ -360,7 +373,7 @@ describe("memory scopes", () => {
 
 	test("a structural node's scope closes when its visit ends, a failure and a stop included", async () => {
 		const flow = checked(
-			`  - id: gate\n    choice:\n      - when: "true"\n        do:\n          - id: one\n            agent: scout\n            memory: gate\n          - id: two\n            agent: scout\n            memory: gate\n    default: []\n    on-fail: continue\n  - id: after\n    agent: synthesiser`,
+			`  - id: gate\n    choice:\n      - when: "true"\n        do:\n          - id: one\n            agent: scout\n            retry: 0\n            memory: gate\n          - id: two\n            agent: scout\n            retry: 0\n            memory: gate\n    default: []\n    on-fail: continue\n  - id: after\n    agent: synthesiser\n    retry: 0`,
 			{ one: "One.", two: "Two.", after: "After." },
 		);
 		const fake = flowSpawn([[{ text: "one" }, { error: "boom" }], [{ text: "after" }]]);

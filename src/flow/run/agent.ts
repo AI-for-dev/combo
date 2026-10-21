@@ -13,6 +13,7 @@ import type { GitResult } from "../../git/index.ts";
 import type { Result } from "../../result.ts";
 import type { Ledger } from "../../review/index.ts";
 import { emptyUsage, sumUsage, type Usage } from "../../usage.ts";
+import { retriesOf } from "../bounds.ts";
 import type { CheckedAgentNode, ErrorKind } from "../checked.ts";
 import { failure, interruption, type Ended } from "./ended.ts";
 import type { Held } from "./frames.ts";
@@ -88,7 +89,7 @@ async function attempts(asking: Asking, first: Held, renew?: () => Promise<Held>
 	for (let attempt = 0; ; attempt++) {
 		const { ended, usage } = await ask(asking, held, task);
 		parts.push(usage);
-		if (ended.ok || attempt >= node.retry || !RETRIED.includes(ended.error.kind)) {
+		if (ended.ok || attempt >= retriesOf(node) || !RETRIED.includes(ended.error.kind)) {
 			const { subagent } = held;
 			return { ended, usage: sumUsage(parts, performance.now() - started), agent: subagent.agent.name, subagent: subagent.id, model: subagent.model };
 		}

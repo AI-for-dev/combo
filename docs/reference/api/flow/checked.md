@@ -33,8 +33,8 @@ export type CheckedAgentNode = Common & {
 	readonly output?: ValueType;
 	/** The enclosing node whose ledger the `verdict` tool writes to; the output is then {@link VERDICT}. */
 	readonly verdict?: string;
-	/** How many times a failed turn is tried again, `0` when the file says none. */
-	readonly retry: number;
+	/** How many times a failed turn is tried again; absent, the default, as `retriesOf` says. */
+	readonly retry?: number;
 	/** The node's own bound on one turn; absent, the flow's or the default, as `turnTimeout` says. */
 	readonly timeoutMs?: number;
 	/** The level its turn thinks at, unless the run's model names one; absent, the subagent's own. */

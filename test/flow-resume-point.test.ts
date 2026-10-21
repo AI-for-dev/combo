@@ -114,7 +114,7 @@ describe("a resume after a kill", () => {
 
 describe("a resume of a failed run", () => {
 	const LOOPING = checked(
-		"  - id: fix\n    loop: judge.output.done\n    max: 3\n    do:\n      - id: work\n        agent: scout\n      - id: judge\n        agent: reviewer\n        output: { done: boolean }",
+		"  - id: fix\n    loop: judge.output.done\n    max: 3\n    do:\n      - id: work\n        agent: scout\n        retry: 0\n      - id: judge\n        agent: reviewer\n        output: { done: boolean }",
 		{ work: "Work.", judge: "Judge." },
 	);
 

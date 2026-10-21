@@ -10,7 +10,7 @@
 
 import type { Agent } from "../../agent.ts";
 import { showDuration } from "../../duration.ts";
-import { turnTimeout, type Bound } from "../bounds.ts";
+import { retriesOf, turnTimeout, type Bound } from "../bounds.ts";
 import type { CheckedAgentNode, CheckedAskNode, CheckedFlow, CheckedLoopNode, CheckedMapNode, CheckedNode, CheckedRead } from "../checked.ts";
 import type { NodeKind } from "../node.ts";
 import { showType } from "../type.ts";
@@ -93,7 +93,7 @@ function agentFacts(node: CheckedAgentNode, flow: CheckedFlow): string[] {
 		...reads(node.reads),
 		...(node.verdict !== undefined ? [`verdict to ${node.verdict}`] : node.output === undefined ? [] : [`output ${showType(node.output)}`]),
 		...(node.memory === undefined ? [] : [`memory ${node.memory}`]),
-		...(node.retry > 0 ? [`retry ${node.retry}`] : []),
+		...(node.retry === undefined ? [`retry ${retriesOf(node)} by default`] : node.retry > 0 ? [`retry ${node.retry}`] : []),
 		...(node.thinking === undefined ? [] : [`thinking ${node.thinking}`]),
 		`timeout ${showDuration(timeout.ms)}${timeout.from === "node" ? "" : timeout.from === "flow" ? " from the flow" : " by default"}`,
 	];

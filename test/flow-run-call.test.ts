@@ -68,14 +68,14 @@ describe("a call, run", () => {
 	});
 
 	test("a failed callee ends the call `child`, naming the visit inside it; `on-fail: continue` absorbs it", async () => {
-		const g = file("g", "  - id: look\n    agent: scout", { look: "Look." });
+		const g = file("g", "  - id: look\n    agent: scout\n    retry: 0", { look: "Look." });
 		const events: SubagentEvent[] = [];
 		const failed = await runChecked(calling(g), "x", { spawn: flowSpawn([[{ error: "boom" }]]).spawn, onEvent: (event) => events.push(event) });
 		assert.deepEqual(!failed.ok && [failed.error, failed.path], [{ kind: "provider", message: "boom" }, "spec/look"]);
 		const spec = events.find((event) => event.type === "visit_end" && event.path === "spec");
 		assert.deepEqual(spec?.type === "visit_end" && spec.error, { kind: "child", message: "spec/look: provider: boom" });
 		const fake = flowSpawn([[{ error: "boom" }], [{ text: "went on" }]]);
-		const absorbed = await runChecked(checkedIn("f", { f: flowText("  - id: spec\n    flow: g\n    input: input\n    on-fail: continue\n  - id: after\n    agent: synthesiser\n    reads: [spec]", { after: "After." }), g }), "x", { spawn: fake.spawn });
+		const absorbed = await runChecked(checkedIn("f", { f: flowText("  - id: spec\n    flow: g\n    input: input\n    on-fail: continue\n  - id: after\n    agent: synthesiser\n    retry: 0\n    reads: [spec]", { after: "After." }), g }), "x", { spawn: fake.spawn });
 		assert.deepEqual(absorbed.ok && absorbed.output, "went on");
 		assert.match(fake.created[1]?.prompts[0] ?? "", /"kind": "child"/);
 	});

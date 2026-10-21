@@ -17,6 +17,14 @@ import { through } from "./unrolled.ts";
 export const DEFAULT_TIMEOUT_MS = 30 * 60_000;
 
 /**
+ * How many more attempts an `agent` node gets after a failed turn when it does
+ * not say. The failures a retry covers are transient: a provider error, an
+ * empty or cut answer, a deadline, a missing `submit`. Three more turns cost
+ * less than a run stopped on one of them. `retry: 0` asks once.
+ */
+export const DEFAULT_RETRY = 3;
+
+/**
  * The most something can cost. `ms` counts every wait that has a bound: an
  * agent turn's `timeout:` for each attempt `retry:` allows, a check's, an
  * ask's when it has one. `waits` says an `ask` with no `timeout:` can be
@@ -60,6 +68,11 @@ export function turnTimeout(node: CheckedAgentNode, flowMs?: number): { readonly
 	return flowMs === undefined ? { ms: DEFAULT_TIMEOUT_MS, from: "default" } : { ms: flowMs, from: "flow" };
 }
 
+/** How many more attempts `node` gets after a failed turn: its own `retry:`, or {@link DEFAULT_RETRY}. */
+export function retriesOf(node: CheckedAgentNode): number {
+	return node.retry ?? DEFAULT_RETRY;
+}
+
 /** How many items a `map` runs at most: its literal list, or its `max:`. */
 export function itemsOf(node: Extract<CheckedNode, { kind: "map" }>): number {
 	return "items" in node.over ? node.over.items.length : (node.max as number);
@@ -82,7 +95,7 @@ function visit(node: CheckedNode, around: Around, into: Map<string, Bound>): Bou
 	const inside = (nodes: readonly CheckedNode[], visits = 1, waves = visits) => sequence(nodes, { ...around, visits: around.visits * visits, waves: around.waves * waves }, into);
 	switch (node.kind) {
 		case "agent": {
-			const attempts = 1 + node.retry;
+			const attempts = 1 + retriesOf(node);
 			return { turns: attempts, ms: attempts * turnTimeout(node, around.timeoutMs).ms, waits: false };
 		}
 		case "check":

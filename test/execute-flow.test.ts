@@ -20,7 +20,7 @@ import { testTheme } from "./fixtures/theme.ts";
 initTheme();
 
 /** Two agents one after the other: the second reads what the first found. */
-const TWO = flowText("  - id: look\n    agent: scout\n    reads: [input]\n  - id: answer\n    agent: synthesiser\n    reads: [input, look]", { look: "Look.", answer: "Answer." }, "input: string", "two");
+const TWO = flowText("  - id: look\n    agent: scout\n    retry: 0\n    reads: [input]\n  - id: answer\n    agent: synthesiser\n    retry: 0\n    reads: [input, look]", { look: "Look.", answer: "Answer." }, "input: string", "two");
 /** A question with no default, then an agent reading its answer. */
 const ASKS = flowText('  - id: sure\n    ask: "Go on?"\n    confirm: true\n  - id: answer\n    agent: synthesiser\n    reads: [input, sure]', { answer: "Answer." }, "input: string", "asks");
 

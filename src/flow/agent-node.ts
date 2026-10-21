@@ -36,7 +36,7 @@ export function readAgent({ raw, id, at, faults, continueOnFail }: NodeReading):
 		reads: (raw.reads === undefined ? [] : texts(raw.reads, key("reads"), faults)) ?? [],
 		output: raw.output === undefined ? undefined : schema(raw.output, key("output"), faults),
 		verdict: raw.verdict === undefined ? undefined : text(raw.verdict, key("verdict"), faults),
-		retry: (raw.retry === undefined ? 0 : count(raw.retry, key("retry"), faults)) ?? 0,
+		retry: raw.retry === undefined ? undefined : (count(raw.retry, key("retry"), faults) ?? 0),
 		timeoutMs: raw.timeout === undefined ? undefined : duration(raw.timeout, key("timeout"), faults),
 		thinking: raw.thinking === undefined ? undefined : oneOf(raw.thinking, THINKING_LEVELS, key("thinking"), faults),
 	} as const;

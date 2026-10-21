@@ -23,11 +23,13 @@ const BLOCKS = checked(
         do:
           - id: code
             agent: scout
+            retry: 0
       - id: both
         parallel:
           left:
             - id: look
               agent: scout
+              retry: 0
           right:
             - id: sure
               ask: "Go on?"
@@ -38,12 +40,15 @@ const BLOCKS = checked(
             do:
               - id: fine
                 agent: scout
+                retry: 0
         default: []
       - id: audit
         agent: reviewer
+        retry: 0
         verdict: deliver
   - id: after
-    agent: synthesiser`,
+    agent: synthesiser
+    retry: 0`,
 	{ code: "Code.", look: "Look.", audit: "Audit.", fine: "Fine.", after: "After." },
 );
 
@@ -145,8 +150,8 @@ describe("the live view", () => {
 	});
 
 	test("expands a running sub-flow's plan under its call, and folds it once it ended", async () => {
-		const g = flowText("  - id: look\n    agent: scout\n  - id: more\n    agent: scout", { look: "L.", more: "M." }, "input: string", "g");
-		const calling = checkedIn("f", { f: flowText("  - id: spec\n    flow: g\n    input: input\n  - id: after\n    agent: synthesiser", { after: "After." }), g });
+		const g = flowText("  - id: look\n    agent: scout\n    retry: 0\n  - id: more\n    agent: scout\n    retry: 0", { look: "L.", more: "M." }, "input: string", "g");
+		const calling = checkedIn("f", { f: flowText("  - id: spec\n    flow: g\n    input: input\n  - id: after\n    agent: synthesiser\n    retry: 0", { after: "After." }), g });
 		const { events } = await recorded(calling, { "spec/look": "l", "spec/more": "m", after: "a" });
 		assert.deepEqual(frame(calling, [], atStart(events, "spec/look")).slice(1, 4), [
 			"● spec",

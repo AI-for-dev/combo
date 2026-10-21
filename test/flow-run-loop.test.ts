@@ -27,6 +27,7 @@ function review(head = "", code = "        reads: [review.previous.judge]") {
     do:
       - id: code
         agent: scout
+        retry: 0
 ${code}
       - id: judge
         agent: reviewer

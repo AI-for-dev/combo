@@ -121,7 +121,8 @@ describe("a dry run", () => {
               agent: scout
       - id: audit
         agent: reviewer
-        verdict: deliver`,
+        verdict: deliver
+        retry: 0`,
 		{ code: "Code.", look: "Look.", read: "Read.", audit: "Audit." },
 	);
 
