@@ -217,6 +217,22 @@ describe("`retry:`", () => {
 		assert.equal(fake.created.length, 1, "the next node never started");
 	});
 
+	test("covers a turn that ended with no text, which is a provider failure and not an empty answer", async () => {
+		const flow = checked("  - id: look\n    agent: scout\n    retry: 1", { look: "Look." });
+		const fake = flowSpawn([[{ text: "" }, { text: "found" }]]);
+		const result = await runChecked(flow, "x", { spawn: fake.spawn });
+		assert.deepEqual(result.ok && result.output, "found");
+		assert.equal(fake.created[0]?.prompts[1], `Your last answer failed (provider: the turn ended with no text). Do the same task again.\n\n${IN_THE_LANGUAGE_OF_THE_WORK}`);
+	});
+
+	test("without one, a turn that ended with no text fails its node rather than hand the next one nothing", async () => {
+		const flow = checked("  - id: note\n    agent: scout\n  - id: plan\n    agent: synthesiser\n    reads: [note]", { note: "Note.", plan: "Plan." });
+		const fake = flowSpawn([[{ text: "" }], [{ text: "planned from nothing" }]]);
+		const result = await runChecked(flow, "x", { spawn: fake.spawn });
+		assert.deepEqual(!result.ok && [result.error, result.path], [{ kind: "provider", message: "the turn ended with no text" }, "note"]);
+		assert.equal(fake.created.length, 1, "the next node never started");
+	});
+
 	test("covers a turn that called no tool when its agent must call one, as the failure `no-tool`", async () => {
 		const flow = checked("  - id: look\n    agent: scout\n    retry: 1", { look: "Look." });
 		const fake = flowSpawn([[{ text: "it must be in src/" }, { text: "found", tools: [{ name: "grep" }] }]]);

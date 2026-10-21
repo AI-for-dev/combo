@@ -823,7 +823,10 @@ A turn fails `provider` when pi says it failed: the provider returned an
 error, or the answer reached the provider's output limit. A cut answer fails
 even with text in it, since it is not the whole of one. One cut in the
 model's thinking has no text at all, and fails rather than reach the next
-node as an empty answer.
+node as an empty answer. So does a turn that ends normally with no text, at a
+node whose output is that text: some providers end a turn on an empty
+message, and the node fails `provider` with `the turn ended with no text`. A
+typed or `verdict:` node answers with a tool call, so its text may be empty.
 
 A turn fails `no-tool` when its agent's definition says
 `mustCallTool: true` and the turn called no tool (see

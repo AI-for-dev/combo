@@ -133,7 +133,7 @@ describe("`model:` and `timeout:` through calls", () => {
 
 	test("a model is the run's, else the callee's, else its caller's, outward", async () => {
 		const models = async (checked: CheckedFlow, model?: string) => {
-			const fake = flowSpawn([[{ text: "" }], [{ text: "" }], [{ text: "" }]]);
+			const fake = flowSpawn([[{ text: "ok" }], [{ text: "ok" }], [{ text: "ok" }]]);
 			await runChecked(checked, "x", { spawn: fake.spawn, model });
 			return fake.requested.map((one) => one.options.model);
 		};
@@ -153,7 +153,7 @@ describe("`model:` and `timeout:` through calls", () => {
 				ask: async () => ({ missed: "nobody" as const }),
 				journal: NO_JOURNAL,
 			};
-			await walkFlow(checked, "x", { spawn: flowSpawn([[{ text: "" }], [{ text: "" }], [{ text: "" }]]).spawn, timeoutMs }, world);
+			await walkFlow(checked, "x", { spawn: flowSpawn([[{ text: "ok" }], [{ text: "ok" }], [{ text: "ok" }]]).spawn, timeoutMs }, world);
 			return attempts.map(({ at, ms }) => `${at} ${ms}`);
 		};
 		assert.deepEqual(await bounds(f("\ntimeout: 2m", "\ntimeout: 1h")), ["first 3600000", "spec/look 120000", "spec/deeper/last 120000"]);
